@@ -1,0 +1,161 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "ex_skill_1",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 43,
+        "height": 7
+    },
+    "elements": [
+        {
+            "name": "Background",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.5,
+                -0.5,
+                0
+            ],
+            "to": [
+                0.5,
+                0.5,
+                0
+            ],
+            "autouv": 0,
+            "color": 0,
+            "inflate": 0.001,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "2bf66eb8-966c-e2c1-7c3c-718fe02a348f"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "CameraBackground",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "cc01c588-a9f4-a99b-f1dc-385af75de4ff",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "2bf66eb8-966c-e2c1-7c3c-718fe02a348f"
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "ex_skill_1.png",
+            "folder": "",
+            "namespace": "",
+            "id": "1",
+            "group": "",
+            "width": 1,
+            "height": 1,
+            "uv_width": 1,
+            "uv_height": 1,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "e6fbf1e6-4054-4cbb-51e3-f2da0a56f340",
+            "relative_path": "../textures/ex_skill_1.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAADUExURf///6fEG8gAAAAKSURBVAjXY2AAAAACAAHiIbwzAAAAAElFTkSuQmCC"
+        }
+    ]
+}

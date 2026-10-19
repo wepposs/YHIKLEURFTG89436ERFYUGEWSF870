@@ -1,0 +1,12 @@
+NAMED JAR: C:\Users\Admin\.gradle\caches\fabric-loom\minecraftMaven\net\minecraft\minecraft-merged\1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4-v2\minecraft-merged-1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4-v2.jar
+===== ItemStackHash =====
+Compiled from "ItemStackHash.java"
+public interface net.minecraft.screen.sync.ItemStackHash {
+  public static final net.minecraft.screen.sync.ItemStackHash EMPTY;
+  public static final net.minecraft.network.codec.PacketCodec<net.minecraft.network.RegistryByteBuf, net.minecraft.screen.sync.ItemStackHash> PACKET_CODEC;
+  public abstract boolean hashEquals(net.minecraft.item.ItemStack, net.minecraft.screen.sync.ComponentChangesHash$ComponentHasher);
+  public static net.minecraft.screen.sync.ItemStackHash fromItemStack(net.minecraft.item.ItemStack, net.minecraft.screen.sync.ComponentChangesHash$ComponentHasher);
+  private static java.util.Optional method_68852(net.minecraft.screen.sync.ItemStackHash);
+  private static net.minecraft.screen.sync.ItemStackHash method_68851(java.util.Optional);
+  static {};
+}

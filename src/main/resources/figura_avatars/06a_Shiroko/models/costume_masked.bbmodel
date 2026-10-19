@@ -1,0 +1,246 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "costume_masked",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 32,
+        "height": 16
+    },
+    "elements": [
+        {
+            "name": "Mask",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4,
+                24,
+                -4
+            ],
+            "to": [
+                4,
+                32,
+                4
+            ],
+            "autouv": 0,
+            "color": 0,
+            "inflate": 0.51,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        8,
+                        16,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        8,
+                        8,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        24,
+                        8,
+                        32,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        16,
+                        8,
+                        24,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        8,
+                        0,
+                        16,
+                        8
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        16,
+                        0,
+                        24,
+                        8
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "b747bd75-507f-7929-aeae-3c66cb26fac7"
+        },
+        {
+            "name": "Number",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -1.07,
+                29,
+                -4.55
+            ],
+            "to": [
+                1.07,
+                32,
+                -4.55
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        5,
+                        7
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "9da77f2b-9ae5-1508-7197-7cd1652e0981"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "CMaskedH",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "8aa59adb-e386-5f5c-152e-db9887b01653",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "b747bd75-507f-7929-aeae-3c66cb26fac7",
+                "9da77f2b-9ae5-1508-7197-7cd1652e0981"
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "costume_masked.png",
+            "folder": "",
+            "namespace": "",
+            "id": "1",
+            "group": "",
+            "width": 32,
+            "height": 16,
+            "uv_width": 32,
+            "uv_height": 16,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "375bf4c3-b00b-7f4b-fdf5-83236cf51fe5",
+            "relative_path": "../textures/costume_masked.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAQBAMAAACFLmBqAAAAD1BMVEVHcExvn+Fcicz09vcnKECMTy6EAAAAAXRSTlMAQObYZgAAAF1JREFUGNOdjsENgDAMA126APEEdSaoREdg/5lokGiBDxL+5XSyg7wBTlKSI9L2CpNYgHSC3CpE0woswyB9Gq13yPUy7N4RBmnDiMRkTF/HI39BSSV9gP7Us2MKOgC1ZxdR5c/RqwAAAABJRU5ErkJggg=="
+        }
+    ]
+}

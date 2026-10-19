@@ -1,0 +1,27 @@
+Basic Model
+--- 30m
+Skirt
+Pink thing
+Shirt
+Front Hair
+--- 1h
+[x] Better Eyes
+[x] (?) Better
+--- 1h30
+[x] Better Hair
+[x] Cat Ears
+[x] Cat Ears Toggle
+-- 2h30
+[x] Hair "physics"
+[x] Nameplate
+--3h30
+[x] UV rework
+[x] Better face
+-- 4H DEADLINE --
+Post
+
+
+[-] Eye look
+[-] Seperate Outfit/Body
+[-] Cat Outfit
+[-] Outfit Selector (Different buttons)

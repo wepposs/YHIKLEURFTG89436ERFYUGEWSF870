@@ -1,0 +1,3277 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "ex_skill_1",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 256,
+        "height": 256
+    },
+    "elements": [
+        {
+            "name": "BroomBase",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -3,
+                1,
+                -1.5
+            ],
+            "to": [
+                3,
+                1.5,
+                1.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                0,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        4,
+                        1,
+                        10,
+                        2
+                    ],
+                    "texture": 1
+                },
+                "east": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        5
+                    ],
+                    "rotation": 90,
+                    "texture": 1
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        5,
+                        10,
+                        6
+                    ],
+                    "texture": 1
+                },
+                "west": {
+                    "uv": [
+                        3,
+                        2,
+                        4,
+                        5
+                    ],
+                    "rotation": 90,
+                    "texture": 1
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        2,
+                        10,
+                        5
+                    ],
+                    "texture": 1
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        6,
+                        10,
+                        9
+                    ],
+                    "texture": 1
+                }
+            },
+            "type": "cube",
+            "uuid": "9744ad34-1511-a6d0-e49d-5da877403914"
+        },
+        {
+            "name": "BroomTip",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -2.75,
+                0,
+                -1.25
+            ],
+            "to": [
+                2.75,
+                1,
+                1.25
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                0,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        11,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        11,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        11,
+                        5
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "4a800044-1c5b-359a-71fd-1d79dac05d1a"
+        },
+        {
+            "name": "BroomStick",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.25,
+                1.5,
+                -0.25
+            ],
+            "to": [
+                0.25,
+                29.5,
+                0.25
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                0,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        0.5,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        5,
+                        0.5,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        0.5,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        5,
+                        0.5,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        0.5,
+                        5.5
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "dc398f1a-f3b4-2354-9d80-02edf044c85e"
+        },
+        {
+            "name": "BroomStrapRing1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.05,
+                29.15,
+                -0.5
+            ],
+            "to": [
+                0.05,
+                29.25,
+                0.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                4,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "232b8a27-c6e1-7aa8-50be-17c545248e85"
+        },
+        {
+            "name": "BroomStrapRing2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.05,
+                29.15,
+                -0.5
+            ],
+            "to": [
+                0.85,
+                29.25,
+                -0.4
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                4,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "90d4fd2b-24b4-42e4-74c4-0b505d98bafa"
+        },
+        {
+            "name": "BroomStrapRing3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.05,
+                29.15,
+                0.4
+            ],
+            "to": [
+                0.85,
+                29.25,
+                0.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                4,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "bf38f72f-5ed9-f8ca-1bdc-9dea62df9538"
+        },
+        {
+            "name": "BroomStrapRing4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.85,
+                29.15,
+                -0.5
+            ],
+            "to": [
+                0.95,
+                29.25,
+                0.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3,
+                4,
+                -0.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "cbcdf7b4-8e07-d072-98d4-b8a52680a3bc"
+        },
+        {
+            "name": "BroomStrapHead1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.55,
+                28.575,
+                -0.175
+            ],
+            "to": [
+                1.3,
+                29.075,
+                0.2
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3.45,
+                4.575,
+                -0.425
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        5,
+                        16,
+                        15
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "5eaae703-a35b-ace7-e9b3-83f123cae531"
+        },
+        {
+            "name": "BroomStrapHead2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.525,
+                28.7,
+                -0.05
+            ],
+            "to": [
+                1.325,
+                28.95,
+                0.075
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3.45,
+                4.575,
+                -0.425
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        11,
+                        0,
+                        12,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "63949a8a-12ee-6452-1cd9-c50e62782ceb"
+        },
+        {
+            "name": "BroomStrapBody",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.625,
+                28.075,
+                -0.15
+            ],
+            "to": [
+                1.225,
+                28.575,
+                0.175
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3.45,
+                4.575,
+                -0.425
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        15,
+                        7,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        15,
+                        2,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        15,
+                        7,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        15,
+                        2,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        16,
+                        2,
+                        17
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "3db89e76-aed9-1465-1d30-f812e5f7d502"
+        },
+        {
+            "name": "BroomStrapRightArm",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                1.225,
+                28.2,
+                -0.05
+            ],
+            "to": [
+                1.35,
+                28.575,
+                0.075
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                1.225,
+                28.2,
+                -0.05
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "ea961b55-ea81-e819-ff35-25900a9a750f"
+        },
+        {
+            "name": "BroomStrapLeftArm",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.5,
+                28.2,
+                -0.05
+            ],
+            "to": [
+                0.625,
+                28.575,
+                0.075
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0.625,
+                28.2,
+                -0.05
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "15c3e409-5191-1573-385e-2de2a96b9171"
+        },
+        {
+            "name": "BroomStrapRightLeg",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                1,
+                27.7,
+                -0.05
+            ],
+            "to": [
+                1.125,
+                28.075,
+                0.075
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                1,
+                28.075,
+                -0.05
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        5,
+                        2,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "758f4f23-8320-9d21-9295-9583d24e2550"
+        },
+        {
+            "name": "BroomStrapLeftLeg",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.725,
+                27.7,
+                -0.05
+            ],
+            "to": [
+                0.85,
+                28.075,
+                0.075
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0.85,
+                28.075,
+                -0.05
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        2,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "cb976129-e78e-f840-a369-dab28e181eb7"
+        },
+        {
+            "name": "BroomStrapHead3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                0.85,
+                29.075,
+                -0.0125
+            ],
+            "to": [
+                0.95,
+                29.25,
+                0.0375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -3.45,
+                4.575,
+                -0.425
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        5,
+                        1,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "4ace7715-c48e-3e69-2e75-a01bcbdef2a9"
+        },
+        {
+            "name": "Coin1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4.125,
+                2.5,
+                -0.375
+            ],
+            "to": [
+                4.125,
+                10.75,
+                0.375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.625,
+                1,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        3,
+                        22,
+                        14,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        3,
+                        22,
+                        4,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        14,
+                        22,
+                        3,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        13,
+                        22,
+                        14,
+                        33
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        3,
+                        22,
+                        14,
+                        23
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        3,
+                        32,
+                        14,
+                        33
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "0e96551e-0585-5bf8-4648-7375db895831"
+        },
+        {
+            "name": "Coin2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -3.375,
+                1.75,
+                -0.375
+            ],
+            "to": [
+                3.375,
+                11.5,
+                0.375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.625,
+                1,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        4,
+                        21,
+                        13,
+                        34
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        21,
+                        5,
+                        34
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        13,
+                        21,
+                        4,
+                        34
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        12,
+                        21,
+                        13,
+                        34
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        21,
+                        13,
+                        22
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        33,
+                        13,
+                        34
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "da5fa40e-2cc2-dd68-3e2c-2fe8f97a6567"
+        },
+        {
+            "name": "Coin3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -1.875,
+                1,
+                -0.375
+            ],
+            "to": [
+                1.875,
+                12.25,
+                0.375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.625,
+                1,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        6,
+                        20,
+                        11,
+                        35
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        6,
+                        20,
+                        7,
+                        35
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11,
+                        20,
+                        6,
+                        35
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        10,
+                        20,
+                        11,
+                        35
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        6,
+                        20,
+                        11,
+                        21
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        6,
+                        34,
+                        11,
+                        35
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "64c0537c-2972-fd49-ddb5-9689c35771f4"
+        },
+        {
+            "name": "Coin4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4.875,
+                3.25,
+                -0.375
+            ],
+            "to": [
+                4.875,
+                10,
+                0.375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.625,
+                1,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        2,
+                        23,
+                        15,
+                        32
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        2,
+                        23,
+                        3,
+                        32
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        15,
+                        23,
+                        2,
+                        32
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        14,
+                        23,
+                        15,
+                        32
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        2,
+                        23,
+                        15,
+                        24
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        2,
+                        31,
+                        15,
+                        32
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "aea0d8c4-d642-6f2e-28c2-c30d124a3605"
+        },
+        {
+            "name": "Coin5",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -5.625,
+                4.75,
+                -0.375
+            ],
+            "to": [
+                5.625,
+                8.5,
+                0.375
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.625,
+                1,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        25,
+                        16,
+                        30
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        25,
+                        2,
+                        30
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        16,
+                        25,
+                        1,
+                        30
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        15,
+                        25,
+                        16,
+                        30
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        25,
+                        16,
+                        26
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        29,
+                        16,
+                        30
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "948a37c6-b863-79e9-828e-dfbd253b65ef"
+        },
+        {
+            "name": "Water",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -8,
+                0,
+                -8
+            ],
+            "to": [
+                8,
+                0,
+                8
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        16,
+                        16
+                    ],
+                    "texture": 2
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "765e2568-313d-9b08-53dc-ce9d6c8f4141"
+        },
+        {
+            "name": "Cube",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4,
+                -4,
+                -4
+            ],
+            "to": [
+                4,
+                4,
+                4
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                -4,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        11,
+                        1,
+                        12,
+                        2
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "97c9c67f-c550-989e-bc2c-e8593034b13c"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "Broom",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "be139a75-fa09-a1f4-e927-c3c66a70d7c8",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "9744ad34-1511-a6d0-e49d-5da877403914",
+                "4a800044-1c5b-359a-71fd-1d79dac05d1a",
+                {
+                    "name": "BroomTop",
+                    "origin": [
+                        0,
+                        1.5,
+                        0
+                    ],
+                    "color": 0,
+                    "uuid": "b54d94fc-de91-0a1c-dc8a-07469e4070ce",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "dc398f1a-f3b4-2354-9d80-02edf044c85e",
+                        {
+                            "name": "BroomStrap",
+                            "origin": [
+                                0,
+                                29.2,
+                                0
+                            ],
+                            "rotation": [
+                                0,
+                                0,
+                                -35
+                            ],
+                            "color": 0,
+                            "uuid": "3b2283fa-5e61-b2b2-0260-8418628d71ef",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "232b8a27-c6e1-7aa8-50be-17c545248e85",
+                                "90d4fd2b-24b4-42e4-74c4-0b505d98bafa",
+                                "bf38f72f-5ed9-f8ca-1bdc-9dea62df9538",
+                                "cbcdf7b4-8e07-d072-98d4-b8a52680a3bc",
+                                {
+                                    "name": "BroomStrapCore",
+                                    "origin": [
+                                        0.9,
+                                        29.2,
+                                        0
+                                    ],
+                                    "rotation": [
+                                        0,
+                                        0,
+                                        45
+                                    ],
+                                    "color": 0,
+                                    "uuid": "0a7cbabd-ecda-a096-41a3-69e22b14e29b",
+                                    "export": true,
+                                    "mirror_uv": false,
+                                    "isOpen": true,
+                                    "locked": false,
+                                    "visibility": true,
+                                    "autouv": 0,
+                                    "selected": false,
+                                    "children": [
+                                        {
+                                            "name": "BroomStrapHead",
+                                            "origin": [
+                                                -3.45,
+                                                4.575,
+                                                -0.425
+                                            ],
+                                            "color": 0,
+                                            "uuid": "592c0a7a-24b9-4165-f5c5-b9b389a5b754",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": true,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "5eaae703-a35b-ace7-e9b3-83f123cae531",
+                                                "63949a8a-12ee-6452-1cd9-c50e62782ceb",
+                                                "4ace7715-c48e-3e69-2e75-a01bcbdef2a9"
+                                            ]
+                                        },
+                                        {
+                                            "name": "BroomStrapBody",
+                                            "origin": [
+                                                -3.45,
+                                                4.575,
+                                                -0.425
+                                            ],
+                                            "color": 0,
+                                            "uuid": "d30adea8-1028-d34f-6ce4-87ef5f8f2fff",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": false,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "3db89e76-aed9-1465-1d30-f812e5f7d502"
+                                            ]
+                                        },
+                                        {
+                                            "name": "BroomStrapRightArm",
+                                            "origin": [
+                                                1.2875,
+                                                28.5375,
+                                                0.0125
+                                            ],
+                                            "rotation": [
+                                                0,
+                                                0,
+                                                30
+                                            ],
+                                            "color": 0,
+                                            "uuid": "8329fc27-556a-1993-4a9c-384bcbd9775a",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": false,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "ea961b55-ea81-e819-ff35-25900a9a750f"
+                                            ]
+                                        },
+                                        {
+                                            "name": "BroomStrapLeftArm",
+                                            "origin": [
+                                                0.5625,
+                                                28.5375,
+                                                0.0125
+                                            ],
+                                            "rotation": [
+                                                0,
+                                                0,
+                                                -30
+                                            ],
+                                            "color": 0,
+                                            "uuid": "8c811a21-ce56-de25-b74f-0f93d623e510",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": false,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "15c3e409-5191-1573-385e-2de2a96b9171"
+                                            ]
+                                        },
+                                        {
+                                            "name": "BroomStrapRightLeg",
+                                            "origin": [
+                                                1.0625,
+                                                28.075,
+                                                0.0125
+                                            ],
+                                            "rotation": [
+                                                25,
+                                                0,
+                                                15
+                                            ],
+                                            "color": 0,
+                                            "uuid": "cd05ee0a-e0e6-171b-26a8-bc96a71e1264",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": false,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "758f4f23-8320-9d21-9295-9583d24e2550"
+                                            ]
+                                        },
+                                        {
+                                            "name": "BroomStrapLeftLeg",
+                                            "origin": [
+                                                0.7875,
+                                                28.075,
+                                                0.0125
+                                            ],
+                                            "rotation": [
+                                                25,
+                                                0,
+                                                -15
+                                            ],
+                                            "color": 0,
+                                            "uuid": "be99f6db-cb57-db91-b731-9f5e6bd45346",
+                                            "export": true,
+                                            "mirror_uv": false,
+                                            "isOpen": false,
+                                            "locked": false,
+                                            "visibility": true,
+                                            "autouv": 0,
+                                            "selected": false,
+                                            "children": [
+                                                "cb976129-e78e-f840-a369-dab28e181eb7"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "BroomParticleNAnchor",
+                    "origin": [
+                        1,
+                        0,
+                        0
+                    ],
+                    "color": 0,
+                    "uuid": "1c231eab-f636-4bcc-e120-8c597ffa3ad5",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "name": "Coin",
+            "origin": [
+                0,
+                6.625,
+                0
+            ],
+            "color": 0,
+            "uuid": "6a46a2f0-977e-508a-9db9-de04e8e0a615",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "0e96551e-0585-5bf8-4648-7375db895831",
+                "da5fa40e-2cc2-dd68-3e2c-2fe8f97a6567",
+                "64c0537c-2972-fd49-ddb5-9689c35771f4",
+                "aea0d8c4-d642-6f2e-28c2-c30d124a3605",
+                "948a37c6-b863-79e9-828e-dfbd253b65ef"
+            ]
+        },
+        {
+            "name": "Water",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "cfd76697-22fe-5c2c-97d8-9408092b2375",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "765e2568-313d-9b08-53dc-ce9d6c8f4141"
+            ]
+        },
+        {
+            "name": "Cube",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "4e8e063d-61d9-3527-eed5-b8083c9a518f",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "97c9c67f-c550-989e-bc2c-e8593034b13c"
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "ex_skill_1.png",
+            "folder": "",
+            "namespace": "",
+            "id": "0",
+            "group": "",
+            "width": 16,
+            "height": 35,
+            "uv_width": 16,
+            "uv_height": 35,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "4e27c05a-2b69-4058-0157-0dd0fd72728b",
+            "relative_path": "../textures/ex_skill_1.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAjCAMAAACqw3pQAAAAmVBMVEVHcEz/0ljSsYzCnWLn5ufe298wNUre3N/UomnHkzH/6l6vj1X/6F3/72H/41v/5lz/4Vr/+GX/+2b/31n/9GOfhE3/72BNSlL/8WH/5Vz/7F//+WX/7WD/9mTk4+T/7GD/8WL/617/4Fn/4Fr/6F45NDj/9mP/7V//9GL/8mL/8mH/82P/517/+WT/92T/////82JIQ0Z+YjdOBmViAAAAAXRSTlMAQObYZgAAAOlJREFUKM+Fj4dygzAMQCVoamQDThqHMkNGs7v//+MqOTSDSy7Ph4TfybYET4PT+gHhvB98eXFRAf0KuF0xVdewiC5REN4SQRBEXVRglP+Puqjgt3/E3BHHa+680mvMrF6ZFZyYPHvOInwoTF9MfCShO+K3L8JRsaCPalSNmEqMAWo+1yg0zZrkDvp26JzbHtBtRdA+x9lsn+c7zjsCQ0mCSZJl/GGWEIRUb3BT1mVbt1i2IrRGPZ9rLVnLkTjG+C1m3jmTvGILtEVhLVpLvo80TX0fnFlMudPFkFkuh4tuHJ5lLPyPdz3tHxddE81zMT5hAAAAAElFTkSuQmCC"
+        },
+        {
+            "name": "oak_planks.png",
+            "folder": "",
+            "namespace": "",
+            "id": "1",
+            "group": "",
+            "width": 16,
+            "height": 16,
+            "uv_width": 16,
+            "uv_height": 16,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "e14e4640-1b43-02cd-f8ed-4dd900c4be6e",
+            "relative_path": "../textures/for_modeling/oak_planks.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAVUExURcKdYp+ETa+PVbiUX2dQLH5iN5Z0QeN8iSEAAAB1SURBVAjXDY2xDcQwDANpeIHIAdJLAr62JSATyBvE6b/w7z/Ci2B5R8I6kL3h8lUXJ6grU9Mb+92xZjzoBwqqnFBrV1M3kMrHjQmxdsR6k6mCzIC5MzFfKRCJ0EDkztxPoPQ6UCqQN3yaCbjZlThhPvO3Z8QfuYAU+TVNe58AAAAASUVORK5CYII="
+        },
+        {
+            "name": "water_still.png",
+            "folder": "",
+            "namespace": "",
+            "id": "2",
+            "group": "",
+            "width": 16,
+            "height": 512,
+            "uv_width": 16,
+            "uv_height": 512,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "2f77e040-dded-ba9e-9324-9fb1a3db3709",
+            "relative_path": "../textures/for_modeling/water_still.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAIABAMAAAB5lPHgAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAnUExURaSkpMLCwq6urtPT0////9LS0s3Nzbi4uM/Pz9XV1dfX19bW1vn5+Vj/EqwAAAANdFJOU7S0tLS0tLS0tLS0tLR+tdDfAAAFpElEQVRYw43YTW7cNhQAYIInyKNm4C35nKBrSuO6i24mHjstupI9PoCRFEiQVWzkAEHcRdc5Qo/QE/RmfX+kqNFM0wH8M/qhPj0+Uo9yAZ1HXP/pnENEx3/4B4Jz0aWAwBsxOk+H0SYMGKJzAflzsXU/9cj/g9vlfU4pnDv9eD6dzknapm0qfyJfE2KU72n3ha6EP//DLblH8XQfFh5ceAKfTR49VD0/sieK52bEpQcXHnfgcWn3wJ7Nlu/V9eI5/00u4pceuUH6OfREutJ66zaP+Cieq3yTMfXV41XQeNzCo7vS3jyJ287I10i/0smoXk8sDOLBYx7xIu/7vHWrgL14xkvygHm89xaNUx7aAbYrrcmDB54PdMG09GD1uIUHOD7Vk4ebHruxelC7aObxpdNmHuzEczFWD2D6OHm42zwUD1r+NJ7YeNbscT476NizPTMPmsdb0LVlcsrXoB7feroMfSIP9R1IfDy0nh61lydPelRPrB7qr656YBcImJzQKawWkFMeP3nOxAPQNZ6PjSdi8VAL4pFWUi9JFF3roVP72HigeFLpo7kHW4/lzw/mWd9OnveThzPGwy3yWZqQ8YiHcobHO6VeFk+A64Ar8uB/eLD1hOJJ4klAZyN5YroM7MFOT+XU8fA6qccXD92QeVzjwepJ+agHT3horjr0bMxzPgT4hdoYWs925nHqca2HpwxpxzyA0l/m6aphmgyh9SAe9fTkOQtwQ0eYp2NPXnhQJkL/qJ6Ek0fyOXD8u20nZ7We0Hiijbu5B7bq2T9IfPAcAuzoiLsXsn/FA+aSPXHyRPNgaDwXh540DsWzdvGUxzs85qHnGHuweq6CJN9mpAsMVx2FTpvmlqPNbAuPDED/yTx5sFFwygPyKJw8dBAUz81X83QBhsmzot1++L1zt40HdaBVj8zc69G2ezAP3C88+B2PNw9Wzyvy0LyaSnzYc/euc1vxJNCH7BFPl3V7LB4kjx6O3SkPLj236tl9Iw+wJwON5bQNrnrun5eeuPDwaPLq6eUC6drJLHbS8ySeOPf05vmLRhKN7pfrHMzjiuf6+cm9OeaxhORYcNFmnlQ89+YJae7RzI1+4MFr47Z4UjjwbEY63cNYPMiewb19IdnfTR78rudu8tj8PPdsqEuweKJ68IQnm4fH1+45tx7P42juCdXjzcNpPBx62g+yJxx4UCoG9aB4VuYB9axy8fD39Kl4wsJD+RM4APQINA/mkj941IP7XDx+5nHq4ULx0CPz87tncG9j9bjisXzg7so6vmRMogvqAa2iTnn8JgdXyr6F52/6h76tLiSfg3mgeGR8JeB8jlE8UqBbfMwTJUH+p8f5jdR5JzzfzDNA6BoPFzfv/mg9Psp5WqCrJ5BnnTlFUZKWuo+6g+J80iOjdSWeOPcE83xVDw331sP1D+6+BjeKhzNTbwBLvcdpFPLI8zNMHgJRDaEef8QjBWfjSTbeJ88X9kTfUUuf2fPCPNQtuwdamulIsfrQSgX+TRMaZS711+3kofoOI3u01kZ/xEPbX7aeaCsfewTvHzQ+Z1QfbtiDJT4+XdMkFKKWcYYomazxAYpPR/WztEYeAJrqOJh4EJ8487yaPJyn6uGKl+uNLXIeeq5X95MHucy9Eg/dZgo2qEp8uDelLMzsWaPkVSDPResp06A/8JwLlG9PHmXiSbdaP1+Yh1d9e5mg/Mwja9ADj68eEM8qVM9ePVE9ZbUeY1l0YU0aF2s9zx54reudYRSPrEJvGg+VXzj2Bx5dvsbq4Xwhz0Y9tB5kT/OYqOvTWXxc9eDkeZJ6Yz3SHYqHrpGofo7lfQIfnXX9XtansXp4DVnm56Hx3MG+bz1usV72ZTFVPbaeud/ylWgtEKqne//99y3VY9UC1Pcbjt9vwCbj7LEVj3mk9rH3CVjetzyoh2fGfwFxuFmlEpUTrwAAAABJRU5ErkJggg=="
+        }
+    ],
+    "animations": [
+        {
+            "uuid": "82d64382-0e67-d72c-dc10-aa7ac85f4dcb",
+            "name": "ex_skill_1",
+            "loop": "hold",
+            "override": true,
+            "length": 6.2,
+            "snapping": 20,
+            "selected": true,
+            "anim_time_update": "",
+            "blend_weight": "",
+            "start_delay": "",
+            "loop_delay": "",
+            "animators": {
+                "be139a75-fa09-a1f4-e927-c3c66a70d7c8": {
+                    "name": "Broom",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "27.52235",
+                                    "y": "2.21738",
+                                    "z": "39.65495"
+                                }
+                            ],
+                            "uuid": "a82eb3fc-f11f-9410-ac99-61a1e4acd826",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "66.97148",
+                                    "y": "-7.38188",
+                                    "z": "13.97039"
+                                }
+                            ],
+                            "uuid": "9055f1ab-214f-546b-996a-83391786fde7",
+                            "time": 2.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "66.97",
+                                    "y": "-7.38",
+                                    "z": "13.97"
+                                }
+                            ],
+                            "uuid": "d142d69e-c87b-10ac-b510-95fc4f78c3aa",
+                            "time": 3.25,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "88.09931",
+                                    "y": "-15.33269",
+                                    "z": "-79.42454"
+                                }
+                            ],
+                            "uuid": "b1df8d7d-59f9-f5e3-53c9-cd1654512fbf",
+                            "time": 3.6,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "88.1",
+                                    "y": "-15.33",
+                                    "z": "-79.42"
+                                }
+                            ],
+                            "uuid": "b5d12caa-c6ed-6c01-f9b5-4a3b84e79739",
+                            "time": 4.05,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "73.3328",
+                                    "y": "-77.79825",
+                                    "z": "-73.48665"
+                                }
+                            ],
+                            "uuid": "c4b4e2e2-7f7a-e500-9f19-785668d6cb73",
+                            "time": 4.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "134.65474",
+                                    "y": "36.83612",
+                                    "z": "-108.83388"
+                                }
+                            ],
+                            "uuid": "05046e8e-b894-c137-d39e-cd8f13d1aae9",
+                            "time": 4.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "232.03132",
+                                    "y": "77.02325",
+                                    "z": "-140.17019"
+                                }
+                            ],
+                            "uuid": "451da8fd-f4ac-766f-c550-27091bfe09c4",
+                            "time": 4.55,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "135"
+                                }
+                            ],
+                            "uuid": "04c1f407-1bc7-76ed-e235-4aa97b90d0af",
+                            "time": 4.6,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-17",
+                                    "y": "-0.5",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "82faae65-72a0-04af-3ac1-233f94571273",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-5.5",
+                                    "y": "0.5",
+                                    "z": "15"
+                                }
+                            ],
+                            "uuid": "3a1fa31a-a4f9-9788-d31f-8f8f770b91a1",
+                            "time": 2.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-5.5",
+                                    "y": "0.5",
+                                    "z": "15"
+                                }
+                            ],
+                            "uuid": "ed045887-492a-c5cd-00da-875dd4690c85",
+                            "time": 3.25,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-0.5",
+                                    "y": "8.5",
+                                    "z": "17.5"
+                                }
+                            ],
+                            "uuid": "256bb3d4-9c5f-15f7-1acc-05f7122c8932",
+                            "time": 3.6,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-0.5",
+                                    "y": "8.5",
+                                    "z": "17.5"
+                                }
+                            ],
+                            "uuid": "2e202ddd-6507-3017-082b-44a5d36f0d95",
+                            "time": 4.05,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-1.5",
+                                    "y": "0.5",
+                                    "z": "1.5"
+                                }
+                            ],
+                            "uuid": "d3c6519f-a50b-05d3-65e5-50dd904d8e1f",
+                            "time": 4.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-16.5",
+                                    "y": "15",
+                                    "z": "7.5"
+                                }
+                            ],
+                            "uuid": "446e24ec-3fb7-ddb9-6373-61011a8823cb",
+                            "time": 4.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "3.05",
+                                    "y": "3.5",
+                                    "z": "-1.75"
+                                }
+                            ],
+                            "uuid": "ca1b5de4-a17a-fc12-3705-972d693be944",
+                            "time": 4.55,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-10.5",
+                                    "y": "29",
+                                    "z": "2.25"
+                                }
+                            ],
+                            "uuid": "9948db4f-9616-9c71-3dba-a8305e9dcc24",
+                            "time": 4.6,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "b54d94fc-de91-0a1c-dc8a-07469e4070ce": {
+                    "name": "BroomTop",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-34.64233",
+                                    "y": "4.59902",
+                                    "z": "8.88927"
+                                }
+                            ],
+                            "uuid": "58f94549-d6ad-f179-deb4-ea0a57b4a6a9",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-14.65993",
+                                    "y": "-3.21132",
+                                    "z": "-12.08681"
+                                }
+                            ],
+                            "uuid": "e223c3ee-56b4-db29-4b8b-e20b053e26a5",
+                            "time": 2.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-14.66",
+                                    "y": "-3.21",
+                                    "z": "-12.09"
+                                }
+                            ],
+                            "uuid": "054e4120-6221-62e0-00b4-468c17da6b74",
+                            "time": 3.25,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-14.94548",
+                                    "y": "-1.29256",
+                                    "z": "-4.83045"
+                                }
+                            ],
+                            "uuid": "95fa2dd0-4aca-f005-ba78-25f60b0d10eb",
+                            "time": 3.6,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-14.95",
+                                    "y": "-1.29",
+                                    "z": "-4.83"
+                                }
+                            ],
+                            "uuid": "0605d1c9-535f-46d2-a3c8-cd469500c085",
+                            "time": 4.05,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-12.4941",
+                                    "y": "-0.96392",
+                                    "z": "-2.34608"
+                                }
+                            ],
+                            "uuid": "a5924697-57cb-9319-d15b-46b090a5a820",
+                            "time": 4.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-12.46163",
+                                    "y": "-1.00603",
+                                    "z": "-2.92486"
+                                }
+                            ],
+                            "uuid": "d648b960-8919-756c-0f20-499f68800fb6",
+                            "time": 3.45,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "22bbfa4a-1fbf-1110-5e99-0e26a69e4f43",
+                            "time": 4.4,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-52.5",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "e7cf58d1-c8bf-5c78-5775-b6450dd47288",
+                            "time": 4.55,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "044c5903-61ff-7f7e-9354-eb38329137ae",
+                            "time": 4.6,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        }
+                    ]
+                },
+                "3b2283fa-5e61-b2b2-0260-8418628d71ef": {
+                    "name": "BroomStrap",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "17.5",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "8ea73f23-6803-23a5-f690-d9f9dd56741a",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "17.5",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "f0d6acfe-3ddd-14fb-1007-4c7a9e1ffd3a",
+                            "time": 3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "-30",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "489b47be-cdec-5736-817f-43be1a606ec5",
+                            "time": 3.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "35",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "fc1df889-991f-f418-0257-c11916b1c705",
+                            "time": 3.45,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "94b99316-df64-0658-d6de-0781cc77b4de",
+                            "time": 3.7,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "7c979c2c-ae5b-7810-2b1a-3119b79c0ace",
+                            "time": 4.05,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "47.5",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "5f95b487-aaf3-483d-c80e-268edbaa3ea0",
+                            "time": 4.2,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "15",
+                                    "z": "-25"
+                                }
+                            ],
+                            "uuid": "884d4c29-5a8a-2f08-57b9-da9d0b148d9e",
+                            "time": 4.35,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "3.31914",
+                                    "y": "14.63639",
+                                    "z": "-12.07362"
+                                }
+                            ],
+                            "uuid": "40ebef57-9063-ac49-9722-ba3199d461b8",
+                            "time": 4.45,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "13.06757",
+                                    "y": "-7.43728",
+                                    "z": "94.15041"
+                                }
+                            ],
+                            "uuid": "13d46de5-5347-117f-8ad0-ab0d01dcca2d",
+                            "time": 4.6,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "13.07",
+                                    "y": "-7.44",
+                                    "z": "94.15"
+                                }
+                            ],
+                            "uuid": "0f3a9dd9-a475-c8d6-0ffa-97dc5cddbe51",
+                            "time": 5.1,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "13.55445",
+                                    "y": "16.90876",
+                                    "z": "99.88282"
+                                }
+                            ],
+                            "uuid": "9f7d1cac-005e-1a84-13a5-7df305ec73d6",
+                            "time": 5.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "13.55",
+                                    "y": "16.91",
+                                    "z": "99.88"
+                                }
+                            ],
+                            "uuid": "81f863c1-52ed-54e8-94f9-0a50dacae681",
+                            "time": 5.65,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "13.15194",
+                                    "y": "-9.87406",
+                                    "z": "93.57555"
+                                }
+                            ],
+                            "uuid": "a011f4ea-ba5b-095e-3472-65fe1134047d",
+                            "time": 5.8,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        }
+                    ]
+                },
+                "0a7cbabd-ecda-a096-41a3-69e22b14e29b": {
+                    "name": "BroomStrapCore",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.32648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "4dfef70a-1b94-1d1b-4bd3-011bc59094ff",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "29.82648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "4de8204b-e79c-e9d6-1286-f6dac0c56048",
+                            "time": 0.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.32648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "0e43786e-cc01-e556-2d91-9001a0a466d2",
+                            "time": 0.6,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "29.82648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "47f2df15-e181-b23c-04b0-4aabc567f0bb",
+                            "time": 0.9,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.32648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "c044a399-954b-fec4-2c15-3711b16bc87e",
+                            "time": 1.2,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "29.82648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "e1e8ac62-d549-46d6-3d0f-1daddf25cc15",
+                            "time": 1.5,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.32648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "aaadd990-6c74-6e5c-c49b-9e459771ae9f",
+                            "time": 1.8,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "29.82648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                }
+                            ],
+                            "uuid": "886f7776-8efc-3c52-b5ef-4d38d812b142",
+                            "time": 2.1,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.32648",
+                                    "y": "-2.86313",
+                                    "z": "6.93488"
+                                },
+                                {
+                                    "x": "0",
+                                    "y": "-12.5",
+                                    "z": "25"
+                                }
+                            ],
+                            "uuid": "88870b46-4870-b0d7-4500-050c5b99da02",
+                            "time": 2.45,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "10",
+                                    "y": "-12.5",
+                                    "z": "25"
+                                }
+                            ],
+                            "uuid": "44b00473-ac23-5ee0-5741-829a18bc29c6",
+                            "time": 2.7,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "-12.5",
+                                    "z": "25"
+                                }
+                            ],
+                            "uuid": "f60c7158-2c45-5f65-a30f-2c9e41323c56",
+                            "time": 3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-31.88034",
+                                    "y": "6.6782",
+                                    "z": "35.59061"
+                                }
+                            ],
+                            "uuid": "4e6dddaa-d366-81fc-ef14-3d7110508b14",
+                            "time": 3.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "35.62",
+                                    "y": "6.68",
+                                    "z": "35.59"
+                                }
+                            ],
+                            "uuid": "d45ceaaf-35cf-a01a-68b0-2bde0117e7fc",
+                            "time": 3.45,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-25",
+                                    "y": "0",
+                                    "z": "35"
+                                }
+                            ],
+                            "uuid": "90aa9f82-252c-37f2-9968-a4b2b6a7363e",
+                            "time": 3.7,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "12.5",
+                                    "y": "0",
+                                    "z": "35"
+                                }
+                            ],
+                            "uuid": "eea1bcc7-b1c6-ddb9-7b2d-091dcfa036ae",
+                            "time": 3.95,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "12.5",
+                                    "y": "0",
+                                    "z": "35"
+                                }
+                            ],
+                            "uuid": "04e3f895-5e7c-336f-b108-4237cdd642b1",
+                            "time": 4.05,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "5.88323",
+                                    "y": "4.42337",
+                                    "z": "18.84721"
+                                }
+                            ],
+                            "uuid": "a22bbc84-96b7-350b-00cc-6a3cdc99e971",
+                            "time": 4.2,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "5.88",
+                                    "y": "4.42",
+                                    "z": "18.85"
+                                }
+                            ],
+                            "uuid": "4dcfa0fb-a09c-29da-b66a-06d303469250",
+                            "time": 4.35,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "22.28606",
+                                    "y": "5.58645",
+                                    "z": "6.35653"
+                                }
+                            ],
+                            "uuid": "2c78d9eb-6d11-e7dd-df76-26dd334058bd",
+                            "time": 4.45,
+                            "color": -1,
+                            "interpolation": "step"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-0.22472",
+                                    "y": "-22.94452",
+                                    "z": "110.30349"
+                                }
+                            ],
+                            "uuid": "85216941-49ef-9f09-a814-600076d6e393",
+                            "time": 4.6,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-0.22",
+                                    "y": "-22.94",
+                                    "z": "110.3"
+                                }
+                            ],
+                            "uuid": "9d182cd7-1f5c-da72-3f2b-5e96fb11b702",
+                            "time": 5.1,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "54.08387",
+                                    "y": "9.85234",
+                                    "z": "75.19448"
+                                }
+                            ],
+                            "uuid": "cd51e55b-d579-74ce-c87b-dc196e352867",
+                            "time": 5.3,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "54.08",
+                                    "y": "9.85",
+                                    "z": "75.19"
+                                }
+                            ],
+                            "uuid": "59b76f5b-0df1-4879-4853-00b15e51eaf8",
+                            "time": 5.65,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-23.42",
+                                    "y": "9.85",
+                                    "z": "75.19"
+                                }
+                            ],
+                            "uuid": "5d689d25-8cd4-3f3f-b5e9-e1e0a2b3c4f7",
+                            "time": 5.8,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "6.58",
+                                    "y": "9.85",
+                                    "z": "75.19"
+                                }
+                            ],
+                            "uuid": "f091b259-5493-0f77-8b9a-24ad761f8961",
+                            "time": 6.05,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "11.33356",
+                                    "y": "-1.55019",
+                                    "z": "113.97249"
+                                }
+                            ],
+                            "uuid": "9b01555a-ebd5-4b64-818b-c351763bdf58",
+                            "time": 6.35,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

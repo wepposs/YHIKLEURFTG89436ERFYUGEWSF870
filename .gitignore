@@ -1,0 +1,43 @@
+.claude/
+.claude-flow/
+.swarm/
+AGENTS.md
+CLAUDE.md
+
+.gradle
+build/
+
+jars/
+libs/
+vineflower.jar
+
+# Decompiled source (generated)
+decompSrc/
+
+# Patched snapshots (generated)
+patchSrc/
+
+# Generated source code (decompiled + patched)
+server/src/
+client/src/
+server/bin/
+client/bin/
+*.zip
+
+# Native build
+agent-extracted-predefined-classes/
+*.lock
+
+# Run directories
+run/
+run_server/
+runclient/
+
+# Gradle GUI config
+gradle-app.setting
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+out/

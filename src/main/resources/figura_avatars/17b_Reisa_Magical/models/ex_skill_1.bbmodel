@@ -1,0 +1,6040 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "ex_skill_1",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 64,
+        "height": 81
+    },
+    "elements": [
+        {
+            "name": "RocketLauncherBody1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4,
+                20,
+                -10
+            ],
+            "to": [
+                7,
+                23,
+                4
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                4,
+                20,
+                -10
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ]
+                },
+                "east": {
+                    "uv": [
+                        5,
+                        0,
+                        19,
+                        3
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ]
+                },
+                "west": {
+                    "uv": [
+                        19,
+                        0,
+                        5,
+                        3
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        19,
+                        0,
+                        5,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        5,
+                        2,
+                        19,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "30c70b90-5d1b-07e1-15af-11ee5a6339c0"
+        },
+        {
+            "name": "RocketLauncherBody2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                3.875,
+                19.875,
+                -12
+            ],
+            "to": [
+                7.125,
+                23.125,
+                -10
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                3.5,
+                19.5,
+                -12
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "c838875e-23d7-1f1e-0d0b-f200eaa4749e"
+        },
+        {
+            "name": "RocketLauncherTip1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.25,
+                20.25,
+                -13.5
+            ],
+            "to": [
+                6.75,
+                22.75,
+                -12
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                4.25,
+                20.25,
+                -13.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "478eed5c-0858-ccc4-ba12-d5818674dc9c"
+        },
+        {
+            "name": "RocketLauncherTip2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4,
+                20,
+                -15
+            ],
+            "to": [
+                7,
+                23,
+                -13.5
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                4,
+                20,
+                -15
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "9650101c-7d44-9f18-61b8-385bd0db3ad3"
+        },
+        {
+            "name": "RocketLauncherTip3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                3.75,
+                19.75,
+                -16
+            ],
+            "to": [
+                7.25,
+                23.25,
+                -15
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                3.75,
+                19.75,
+                -16
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        0,
+                        2,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "4ca5728e-5d01-88c4-de1d-006e49552191"
+        },
+        {
+            "name": "RocketLauncherTip4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.25,
+                20.25,
+                -18
+            ],
+            "to": [
+                6.75,
+                22.75,
+                -16
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                4.25,
+                20.25,
+                -18
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        1,
+                        5,
+                        6
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        1,
+                        0,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ]
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        6,
+                        4,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        6,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        6,
+                        0,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "38a9bc55-20e9-61d6-b8c2-5b6d3d790649"
+        },
+        {
+            "name": "RocketLauncherTip5",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.75,
+                20.75,
+                -19.5
+            ],
+            "to": [
+                6.25,
+                22.25,
+                -18
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                4.75,
+                20.75,
+                -19.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        1,
+                        3,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        1,
+                        3,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        1
+                    ]
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        1,
+                        3,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        1,
+                        3,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        1,
+                        3,
+                        4
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "b0a842e0-a298-d86f-296f-618e9a49722e"
+        },
+        {
+            "name": "RocketLauncherRear1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                3.75,
+                19.75,
+                4
+            ],
+            "to": [
+                7.25,
+                23.25,
+                7
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                3.75,
+                19.75,
+                4
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": 90,
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        10,
+                        2,
+                        11,
+                        3
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "9f70aa66-975a-f649-16c1-df914dd81e55"
+        },
+        {
+            "name": "RocketLauncherRear2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                3.5,
+                19.5,
+                7
+            ],
+            "to": [
+                7.5,
+                23.5,
+                8
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                3.5,
+                19.5,
+                7
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        3,
+                        0,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        3,
+                        0,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        6,
+                        6,
+                        12
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        3,
+                        0,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        3,
+                        0,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        3,
+                        0,
+                        4,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "dfe78866-4312-0426-561b-fb59393f2de5"
+        },
+        {
+            "name": "RocketLauncherHandle",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5,
+                16,
+                -9
+            ],
+            "to": [
+                6,
+                20,
+                -7.5
+            ],
+            "autouv": 0,
+            "color": 8,
+            "origin": [
+                5,
+                16,
+                -9
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        2,
+                        0,
+                        3,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        2,
+                        0,
+                        3,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        2,
+                        0,
+                        3,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        2,
+                        0,
+                        3,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        2,
+                        0,
+                        3,
+                        1
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "32826869-a9c2-dacc-2bee-59b766cf9d5f"
+        },
+        {
+            "name": "RocketLauncherRibbonCenter",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5,
+                19.375,
+                -11.5
+            ],
+            "to": [
+                6,
+                19.875,
+                -10.5
+            ],
+            "autouv": 0,
+            "color": 7,
+            "origin": [
+                5,
+                19.5,
+                -11.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "251d614c-ed09-0ef7-4bce-fc2a52b60c60"
+        },
+        {
+            "name": "RocketLauncherRibbonLeft",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                6,
+                19.45,
+                -11.75
+            ],
+            "to": [
+                8.5,
+                19.8,
+                -10.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "rotation": [
+                0,
+                -5,
+                0
+            ],
+            "origin": [
+                6,
+                19.575,
+                -11.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        6
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        5,
+                        3,
+                        10,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        5,
+                        3,
+                        10,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "4886a553-cc55-c861-5fbe-f0fbcf9f0722"
+        },
+        {
+            "name": "RocketLauncherRibbonRight",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                2.5,
+                19.45,
+                -11.75
+            ],
+            "to": [
+                5,
+                19.8,
+                -10.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "rotation": [
+                0,
+                5,
+                0
+            ],
+            "origin": [
+                5,
+                19.575,
+                -11.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        6
+                    ],
+                    "rotation": 90,
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        5,
+                        3,
+                        6,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        10,
+                        3,
+                        5,
+                        6
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        10,
+                        3,
+                        5,
+                        6
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "68ee9790-b509-b1dd-74db-696b6544a91d"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomLeft1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.75,
+                19.55,
+                -10.5
+            ],
+            "to": [
+                6.5,
+                19.7,
+                -7.75
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                5.75,
+                19.55,
+                -10.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "b4e19b9c-46ee-c5f6-cc6a-d5ca79e9329c"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomLeft2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.75,
+                19.55,
+                -7.75
+            ],
+            "to": [
+                6,
+                19.7,
+                -7.25
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                5.75,
+                19.55,
+                -7.75
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "08b552d8-b7f4-9e62-672b-7445fa6617be"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomLeft3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                6.25,
+                19.55,
+                -7.75
+            ],
+            "to": [
+                6.5,
+                19.7,
+                -7.25
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                6.25,
+                19.55,
+                -7.75
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "924ca792-3987-ee7a-c75d-f04c52694c1f"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomRight1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.5,
+                19.55,
+                -10.5
+            ],
+            "to": [
+                5.25,
+                19.7,
+                -7.75
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                4.5,
+                19.55,
+                -10.5
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "b69584fd-e324-1723-8215-bcccc8de2c17"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomRight2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.5,
+                19.55,
+                -7.75
+            ],
+            "to": [
+                4.75,
+                19.7,
+                -7.25
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                4.5,
+                19.55,
+                -7.75
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "71860253-28b8-6789-b4e8-724e54446835"
+        },
+        {
+            "name": "RocketLauncherRibbonBottomRight3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5,
+                19.55,
+                -7.75
+            ],
+            "to": [
+                5.25,
+                19.7,
+                -7.25
+            ],
+            "autouv": 0,
+            "color": 6,
+            "origin": [
+                5,
+                19.55,
+                -7.75
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        4,
+                        0,
+                        5,
+                        1
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "ca1d2293-9cb7-1c5c-597d-14eb4db1cc6a"
+        },
+        {
+            "name": "ChestBadgeShineEffect1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.25,
+                21.875,
+                -2.525
+            ],
+            "to": [
+                0.25,
+                23.875,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0,
+                22.875,
+                2.375
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "48523813-9015-44a9-bd36-928e530897ac"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -2.5,
+                29.375,
+                -2.525
+            ],
+            "to": [
+                2.5,
+                30.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -2.5,
+                29.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "209d1b85-3ab7-10b9-4681-a9c230a2599c"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4.5,
+                28.375,
+                -2.525
+            ],
+            "to": [
+                -2.5,
+                29.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -4.5,
+                28.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "081cc310-88cc-b61f-82ec-fa9b4e304a48"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -5.5,
+                27.375,
+                -2.525
+            ],
+            "to": [
+                -4.5,
+                28.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -5.5,
+                27.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "b3b7b85b-42a8-7087-f35e-ee1643b08b97"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6.5,
+                25.375,
+                -2.525
+            ],
+            "to": [
+                -5.5,
+                27.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -6.5,
+                25.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "74991910-3427-bd54-5595-29d0a3c3d45b"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_5",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -7.5,
+                20.375,
+                -2.525
+            ],
+            "to": [
+                -6.5,
+                25.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -7.5,
+                20.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "87bd40e9-1da3-516e-5ca4-5a5e5bcb5b17"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_6",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6.5,
+                18.375,
+                -2.525
+            ],
+            "to": [
+                -5.5,
+                20.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -6.5,
+                18.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "b5c9338d-d182-953b-3d5b-f8db05ee238e"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_7",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -5.5,
+                17.375,
+                -2.525
+            ],
+            "to": [
+                -4.5,
+                18.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -5.5,
+                17.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "1c9606e2-79b3-423e-20a3-534c8fb718ff"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_8",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -4.5,
+                16.375,
+                -2.525
+            ],
+            "to": [
+                -2.5,
+                17.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -4.5,
+                16.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "c7ff998b-ae7f-ef48-d86e-166c946b4de1"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_9",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -2.5,
+                15.375,
+                -2.525
+            ],
+            "to": [
+                2.5,
+                16.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -2.5,
+                15.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "9776d89a-5378-2430-6138-2e518add7f6b"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_10",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                2.5,
+                16.375,
+                -2.525
+            ],
+            "to": [
+                4.5,
+                17.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                2.5,
+                16.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "c875ea15-d5e9-bc44-3ef6-2312e9f538f5"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_11",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.5,
+                17.375,
+                -2.525
+            ],
+            "to": [
+                5.5,
+                18.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                4.5,
+                17.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "79cb62fb-3e5a-4644-b03b-bb29fe79617b"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_12",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                18.375,
+                -2.525
+            ],
+            "to": [
+                6.5,
+                20.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                5.5,
+                18.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "abf8ed39-29e6-6c5d-fe67-52ce6020fdfb"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_13",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                6.5,
+                20.375,
+                -2.525
+            ],
+            "to": [
+                7.5,
+                25.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                6.5,
+                20.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "c99d56a0-304e-0f34-2ca5-420e996563f5"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_14",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                25.375,
+                -2.525
+            ],
+            "to": [
+                6.5,
+                27.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                5.5,
+                25.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "874bb2b6-9b51-bd78-f18c-c88aadbfc34b"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_15",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                4.5,
+                27.375,
+                -2.525
+            ],
+            "to": [
+                5.5,
+                28.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                4.5,
+                27.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "fcb3f099-0dbc-49d2-65d5-2240edac9fc8"
+        },
+        {
+            "name": "ChestBadgeShineEffect2_16",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                2.5,
+                28.375,
+                -2.525
+            ],
+            "to": [
+                4.5,
+                29.375,
+                -2.525
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                2.5,
+                28.375,
+                -2.525
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "97fc9b51-649b-d585-dbc9-f5b05359db47"
+        },
+        {
+            "name": "ChestBadgeShineEffect5",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.125,
+                22.875,
+                -2.475
+            ],
+            "to": [
+                0.125,
+                23.875,
+                -2.475
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                0,
+                22.875,
+                -2.475
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "00c67092-cd7a-8b5a-2a70-5bbf63d9ac91"
+        },
+        {
+            "name": "Star1Outer",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -8,
+                -8,
+                0
+            ],
+            "to": [
+                8,
+                8,
+                0
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -8,
+                -8,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        12,
+                        15,
+                        27
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "65211ef0-bb4c-f5f9-c1db-6e646d5e0303"
+        },
+        {
+            "name": "Star1Inner",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -8,
+                -8,
+                0
+            ],
+            "to": [
+                8,
+                8,
+                0
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                -8,
+                -8,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        15,
+                        12,
+                        30,
+                        27
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "87f0c72a-e1eb-6f77-d6b7-2cfde4eee063"
+        },
+        {
+            "name": "Background",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -1,
+                -1,
+                0
+            ],
+            "to": [
+                0,
+                0,
+                0
+            ],
+            "autouv": 0,
+            "color": 2,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "7bbfdd3d-c76d-1c42-6b2d-4d76c601f7c5"
+        },
+        {
+            "name": "LauncherShineEffect1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.375,
+                21.5,
+                -11.25
+            ],
+            "to": [
+                5.625,
+                22.5,
+                -11.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                5.5,
+                21.5,
+                -11.25
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "35cf1cf1-03d7-8102-5e26-206df7e0742e"
+        },
+        {
+            "name": "LauncherShineEffect2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.375,
+                21.5,
+                -11.25
+            ],
+            "to": [
+                5.625,
+                22.5,
+                -11.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                5.5,
+                21.5,
+                -11.25
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "681b7323-3e66-d61e-599b-32a8101f77f5"
+        },
+        {
+            "name": "LauncherShineEffect3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.375,
+                21.5,
+                -11.25
+            ],
+            "to": [
+                5.625,
+                22.5,
+                -11.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                5.5,
+                21.5,
+                -11.25
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "18c88fb4-a635-bf63-526b-6b82eb7c230f"
+        },
+        {
+            "name": "LauncherShineEffect4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.375,
+                21.5,
+                -11.25
+            ],
+            "to": [
+                5.625,
+                22.5,
+                -11.25
+            ],
+            "autouv": 0,
+            "color": 9,
+            "origin": [
+                5.5,
+                21.5,
+                -11.25
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        8,
+                        0,
+                        9,
+                        1
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "78359dc0-2b76-4e44-796b-50df5884f0ec"
+        },
+        {
+            "name": "Background",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.5,
+                -0.5,
+                0
+            ],
+            "to": [
+                0.5,
+                0.5,
+                0
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        10,
+                        3,
+                        11,
+                        4
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "f01ffd0a-a5f8-2115-ba6e-fb92eb6aba7a"
+        },
+        {
+            "name": "RightEyeShine",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                1.125,
+                25.475,
+                -4.02
+            ],
+            "to": [
+                1.875,
+                26.525,
+                -4.02
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                1,
+                25.5,
+                -4
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        11,
+                        3,
+                        16,
+                        10
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "29e4019f-39ab-b88e-d88c-74c86e227e05"
+        },
+        {
+            "name": "LeftEyeShine",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -1.875,
+                25.475,
+                -4.02
+            ],
+            "to": [
+                -1.125,
+                26.525,
+                -4.02
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -1,
+                25.5,
+                -4
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        16,
+                        3,
+                        11,
+                        10
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "34922882-0022-ee98-7f50-848f438c37cc"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "RocketLauncher",
+            "origin": [
+                5.5,
+                19,
+                -8.25
+            ],
+            "color": 0,
+            "uuid": "19a15c85-aeff-d123-5b63-2934c15a2429",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "30c70b90-5d1b-07e1-15af-11ee5a6339c0",
+                "c838875e-23d7-1f1e-0d0b-f200eaa4749e",
+                "478eed5c-0858-ccc4-ba12-d5818674dc9c",
+                "9650101c-7d44-9f18-61b8-385bd0db3ad3",
+                "4ca5728e-5d01-88c4-de1d-006e49552191",
+                "38a9bc55-20e9-61d6-b8c2-5b6d3d790649",
+                "b0a842e0-a298-d86f-296f-618e9a49722e",
+                "9f70aa66-975a-f649-16c1-df914dd81e55",
+                "dfe78866-4312-0426-561b-fb59393f2de5",
+                "32826869-a9c2-dacc-2bee-59b766cf9d5f",
+                {
+                    "name": "RocketLauncherRibbon",
+                    "origin": [
+                        5.5,
+                        19.625,
+                        -11
+                    ],
+                    "color": 0,
+                    "uuid": "85dcc44e-8f2c-de43-de30-22991228a526",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "251d614c-ed09-0ef7-4bce-fc2a52b60c60",
+                        "4886a553-cc55-c861-5fbe-f0fbcf9f0722",
+                        "68ee9790-b509-b1dd-74db-696b6544a91d",
+                        {
+                            "name": "RocketLauncherRibbonBottomLeft",
+                            "origin": [
+                                5.75,
+                                19.6,
+                                -10.5
+                            ],
+                            "rotation": [
+                                0,
+                                15,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "6e5e6588-ead2-2ffa-f5b1-cb2e8443adb1",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": false,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "b4e19b9c-46ee-c5f6-cc6a-d5ca79e9329c",
+                                "08b552d8-b7f4-9e62-672b-7445fa6617be",
+                                "924ca792-3987-ee7a-c75d-f04c52694c1f"
+                            ]
+                        },
+                        {
+                            "name": "RocketLauncherRibbonBottomRight",
+                            "origin": [
+                                5.25,
+                                19.6,
+                                -10.5
+                            ],
+                            "rotation": [
+                                0,
+                                -15,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "1ede05c2-ee0c-a0ec-06c5-712e752875ff",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": false,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "b69584fd-e324-1723-8215-bcccc8de2c17",
+                                "71860253-28b8-6789-b4e8-724e54446835",
+                                "ca1d2293-9cb7-1c5c-597d-14eb4db1cc6a"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Camera",
+                    "origin": [
+                        5.5,
+                        21.5,
+                        -11.25
+                    ],
+                    "color": 0,
+                    "uuid": "19077ccd-b1e5-9054-b215-98af41b9bd27",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        {
+                            "name": "LauncherShineEffect1",
+                            "origin": [
+                                5.5,
+                                21.5,
+                                -11.25
+                            ],
+                            "color": 0,
+                            "uuid": "21df6268-2318-95d2-af82-6a1733172d6e",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "35cf1cf1-03d7-8102-5e26-206df7e0742e"
+                            ]
+                        },
+                        {
+                            "name": "LauncherShineEffect2",
+                            "origin": [
+                                5.5,
+                                21.5,
+                                -11.25
+                            ],
+                            "color": 0,
+                            "uuid": "812098da-3413-354b-2e40-d97341a5625c",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "681b7323-3e66-d61e-599b-32a8101f77f5"
+                            ]
+                        },
+                        {
+                            "name": "LauncherShineEffect3",
+                            "origin": [
+                                5.5,
+                                21.5,
+                                -11.25
+                            ],
+                            "color": 0,
+                            "uuid": "f5185f73-6fd4-1ab5-4b5d-d183e232d27c",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "18c88fb4-a635-bf63-526b-6b82eb7c230f"
+                            ]
+                        },
+                        {
+                            "name": "LauncherShineEffect4",
+                            "origin": [
+                                5.5,
+                                21.5,
+                                -11.25
+                            ],
+                            "color": 0,
+                            "uuid": "283b18f0-7a98-7ff5-d251-6addb6d998ad",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "78359dc0-2b76-4e44-796b-50df5884f0ec"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ChestRibbonBadge",
+            "origin": [
+                0,
+                22.875,
+                -2.525
+            ],
+            "color": 0,
+            "uuid": "b8352b5f-0830-12ab-daf6-2a616dd7dc6e",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                {
+                    "name": "ChestBadgeShineEffect1",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.525
+                    ],
+                    "color": 0,
+                    "uuid": "d3e14f9e-c1b1-9c47-1e29-aa19b5f49c2f",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "48523813-9015-44a9-bd36-928e530897ac"
+                    ]
+                },
+                {
+                    "name": "ChestBadgeShineEffect2",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.525
+                    ],
+                    "color": 0,
+                    "uuid": "4c8e94aa-c97a-00e6-5a24-746000477a66",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": false,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "209d1b85-3ab7-10b9-4681-a9c230a2599c",
+                        "081cc310-88cc-b61f-82ec-fa9b4e304a48",
+                        "b3b7b85b-42a8-7087-f35e-ee1643b08b97",
+                        "74991910-3427-bd54-5595-29d0a3c3d45b",
+                        "87bd40e9-1da3-516e-5ca4-5a5e5bcb5b17",
+                        "b5c9338d-d182-953b-3d5b-f8db05ee238e",
+                        "1c9606e2-79b3-423e-20a3-534c8fb718ff",
+                        "c7ff998b-ae7f-ef48-d86e-166c946b4de1",
+                        "9776d89a-5378-2430-6138-2e518add7f6b",
+                        "c875ea15-d5e9-bc44-3ef6-2312e9f538f5",
+                        "79cb62fb-3e5a-4644-b03b-bb29fe79617b",
+                        "abf8ed39-29e6-6c5d-fe67-52ce6020fdfb",
+                        "c99d56a0-304e-0f34-2ca5-420e996563f5",
+                        "874bb2b6-9b51-bd78-f18c-c88aadbfc34b",
+                        "fcb3f099-0dbc-49d2-65d5-2240edac9fc8",
+                        "97fc9b51-649b-d585-dbc9-f5b05359db47"
+                    ]
+                },
+                {
+                    "name": "ChestBadgeShineEffect3",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.525
+                    ],
+                    "color": 0,
+                    "uuid": "8dc2a0d4-9597-bbd7-d46a-1d995eb3e10e",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                },
+                {
+                    "name": "ChestBadgeShineEffect4",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.525
+                    ],
+                    "color": 0,
+                    "uuid": "92cde730-b6ea-a6c6-b9f2-1235291b2062",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                },
+                {
+                    "name": "ChestBadgeShineEffect5",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.475
+                    ],
+                    "color": 0,
+                    "uuid": "a701fd4c-e55b-8e57-2cc4-ea18c5ed4c84",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": false,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "00c67092-cd7a-8b5a-2a70-5bbf63d9ac91"
+                    ]
+                },
+                {
+                    "name": "ChestBadgeShineEffect6",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.475
+                    ],
+                    "color": 0,
+                    "uuid": "197cbe0c-ce29-8005-21f9-0d9d03fe19d2",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                },
+                {
+                    "name": "ChestBadgeShineEffect7",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.475
+                    ],
+                    "color": 0,
+                    "uuid": "dc705d7b-ba7e-c80b-1c08-2e7cbb15dfec",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                },
+                {
+                    "name": "ChestBadgeShineEffect8",
+                    "origin": [
+                        0,
+                        22.875,
+                        -2.475
+                    ],
+                    "color": 0,
+                    "uuid": "48bb9efc-264f-f6a4-bf34-a49ff24965b8",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "name": "Gui",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "8c843d64-26e1-ba2e-0195-8f691d5e72ec",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                {
+                    "name": "StarTransitions",
+                    "origin": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "color": 0,
+                    "uuid": "ad8bd336-74b3-312f-f8a3-526fe2c54ba5",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        {
+                            "name": "Star1",
+                            "origin": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "72df74a9-77e7-d1e7-275b-ae0caffb4717",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": [
+                                "65211ef0-bb4c-f5f9-c1db-6e646d5e0303",
+                                "87f0c72a-e1eb-6f77-d6b7-2cfde4eee063"
+                            ]
+                        },
+                        {
+                            "name": "Star2",
+                            "origin": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "f6cbaa82-725e-db94-c25a-5550b305e76d",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": []
+                        },
+                        {
+                            "name": "Star1PosAnchor",
+                            "origin": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "83ab49b1-be49-9e0e-bca2-b9f6435d229b",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": []
+                        },
+                        {
+                            "name": "Star2PosAnchor",
+                            "origin": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "cde9cc17-4555-8bb3-1bcb-30eea6a19025",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "TransitionBackground",
+                    "origin": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "color": 0,
+                    "uuid": "b349ab93-53fb-883d-376d-0a0cb7cc46b7",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": [
+                        "7bbfdd3d-c76d-1c42-6b2d-4d76c601f7c5",
+                        {
+                            "name": "BackgroundOpacity",
+                            "origin": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "color": 0,
+                            "uuid": "d3b44c76-19eb-1ce4-50c6-c3cb0b05f1e9",
+                            "export": true,
+                            "mirror_uv": false,
+                            "isOpen": true,
+                            "locked": false,
+                            "visibility": true,
+                            "autouv": 0,
+                            "selected": false,
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CameraBackground",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "3072d889-98cf-b426-e2d6-af44c29dcac8",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": false,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "f01ffd0a-a5f8-2115-ba6e-fb92eb6aba7a"
+            ]
+        },
+        {
+            "name": "CameraStarEffect",
+            "origin": [
+                0,
+                23,
+                0
+            ],
+            "color": 0,
+            "uuid": "b68ed14f-9080-e168-390f-1804ccd5e402",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": []
+        },
+        {
+            "name": "EyeShines",
+            "origin": [
+                0,
+                25,
+                -4
+            ],
+            "color": 0,
+            "uuid": "425c49a5-cd85-9a50-e730-f98c00d0eca7",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "29e4019f-39ab-b88e-d88c-74c86e227e05",
+                "34922882-0022-ee98-7f50-848f438c37cc"
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "ex_skill_1.png",
+            "folder": "",
+            "namespace": "",
+            "id": "2",
+            "group": "",
+            "width": 30,
+            "height": 27,
+            "uv_width": 30,
+            "uv_height": 27,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "0c1752fe-a74b-60a9-bd7f-6d9e082d72c5",
+            "relative_path": "../textures/ex_skill_1.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAbBAMAAACZ0yIiAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAnUExURUdwTP///9lTzf298v76lGoTYvOU//6m9v/s/+yC4vmr7OSA8QAAAGdpYz8AAAABdFJOUwBA5thmAAAAo0lEQVQY022PQQoCMQxFE5gDJFcoeIKCzNJFTyB4AqFrwcXs7U43br3CHMC1RzNJG4pjP7TJ4/9fKFxv58ii5QKmeY4xLqLGpdzX9SV6ur/P+TOBq5THO0Nn8yEdnEMIAFNKzrvTUe7uV+79MXfZe7/CDRO1OWZsBeQRI0uMdWXdvERsIs9KTuUB69QC+qn2H2/zBDKUbZEoA5K8rx63g/4V+AJA1RwBfxU3xAAAAABJRU5ErkJggg=="
+        },
+        {
+            "name": "ex_skill_1_stars.png",
+            "folder": "",
+            "namespace": "",
+            "id": "1",
+            "group": "",
+            "width": 15,
+            "height": 30,
+            "uv_width": 15,
+            "uv_height": 30,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "dd436725-ac02-42c5-56c8-fd3448301145",
+            "relative_path": "../textures/ex_skill_1_stars.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAeAgMAAACOMqznAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAMUExURUdwTNnZ2f////Ly8qfH3fcAAAABdFJOUwBA5thmAAAAdUlEQVQI1zXMsQmAMBAF0J+ACum1iBtkiozgHoIzOEJGSGEhH7SzyRSuIVnC0+gVj/tw/wANGTP/uPjhyAiSa9kMOUOTKLzxxUW5NtBSVs+rxgv1gz2FPgDtdAyYUl5g8x7Q7MlDpUsKeUOJ9TF62KELqKD8DaIxJe+aVKHqAAAAAElFTkSuQmCC"
+        }
+    ],
+    "animations": [
+        {
+            "uuid": "67bcdeb8-d20c-b7b7-dad4-f738e402f0c5",
+            "name": "ex_skill_1",
+            "loop": "hold",
+            "override": true,
+            "length": 8.1,
+            "snapping": 20,
+            "selected": true,
+            "anim_time_update": "",
+            "blend_weight": "",
+            "start_delay": "",
+            "loop_delay": "",
+            "animators": {
+                "19a15c85-aeff-d123-5b63-2934c15a2429": {
+                    "name": "RocketLauncher",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "7.5",
+                                    "z": "-90"
+                                }
+                            ],
+                            "uuid": "67548c50-ca3c-f555-e684-ade03ccbc359",
+                            "time": 6.4,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "153.35",
+                                    "y": "-6.09",
+                                    "z": "85.37"
+                                }
+                            ],
+                            "uuid": "42e343a1-2fd7-5472-9a37-b529a6dd8e51",
+                            "time": 7.95,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-24.049286666",
+                                    "y": "73.3130168452",
+                                    "z": "-83.4731186889"
+                                }
+                            ],
+                            "uuid": "713130fa-0f72-da29-cd90-050234cd7268",
+                            "time": 8.1,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "7.5",
+                                    "z": "-90"
+                                }
+                            ],
+                            "uuid": "23fa12bb-0713-4fdc-5141-78d49a89b75c",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "146.686214003",
+                                    "y": "35.7001387868",
+                                    "z": "61.343915482"
+                                }
+                            ],
+                            "uuid": "fc763445-e803-5305-1000-9c9c2552a7d2",
+                            "time": 7.1,
+                            "color": -1,
+                            "interpolation": "catmullrom"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "-5.75",
+                                    "z": "8.25"
+                                }
+                            ],
+                            "uuid": "21f645ff-2efd-9a9c-3dd5-3fc8ccedecbd",
+                            "time": 6.4,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "-5.75",
+                                    "z": "8.25"
+                                }
+                            ],
+                            "uuid": "c660464c-3eea-35ed-e518-8c021e675af3",
+                            "time": 7.1,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "-5.75",
+                                    "z": "8.25"
+                                }
+                            ],
+                            "uuid": "09d26b42-4c4a-8b2f-b283-5ce48817005f",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "-5.75",
+                                    "z": "8.25"
+                                }
+                            ],
+                            "uuid": "b6a24831-1497-9a73-afb3-34d5be351b4d",
+                            "time": 7.95,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "61bc2f8c-0c5c-3f32-fdc5-2497f69e246b",
+                            "time": 6.15,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "e1df5e02-8a12-e9fe-292f-1b07d07d6d4a",
+                            "time": 6.4,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "85dcc44e-8f2c-de43-de30-22991228a526": {
+                    "name": "RocketLauncherRibbon",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-60",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "bfffb30f-60ad-e426-ffaa-c34671723e5d",
+                            "time": 6.4,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-60",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "5993b251-60f7-6d88-2f7f-a5149c017c82",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-70",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "e2a934b9-c924-403b-88b4-0fd35bf7d86e",
+                            "time": 7.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "-70",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "5eb45b4c-dd4d-953d-209d-ec14ec6df1b6",
+                            "time": 8.1,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "d3e14f9e-c1b1-9c47-1e29-aa19b5f49c2f": {
+                    "name": "ChestBadgeShineEffect1",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-1",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "d13cf5a0-b9aa-bc67-ff7c-4e6e22a13742",
+                            "time": 0.3,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "9b0ccb92-caa5-2929-5fcc-772edcbd1afe",
+                            "time": 0.8,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-0.75",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "e92e7cc0-2ea9-1a02-2fc3-1aee36990ab8",
+                            "time": 0.4,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "0.735",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "b2425c58-3a7e-349c-6da9-28da07ebce26",
+                            "time": 0.7,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "76f567ab-ba01-2b2b-5eb3-d239977a98c3",
+                            "time": 0.3,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "98ce1a3c-ff52-2317-8896-1733f10d0471",
+                            "time": 0.4,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "162dc500-ca75-32c5-6f07-68df252255a7",
+                            "time": 0.7,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "11c62fe1-7bb7-3ff1-862c-cf9fa3214cc8",
+                            "time": 0.8,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "4c8e94aa-c97a-00e6-5a24-746000477a66": {
+                    "name": "ChestBadgeShineEffect2",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "dbc15da2-7ef4-eb7c-4717-e40f2b11b7e7",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.2",
+                                    "y": "1.2",
+                                    "z": "1.2"
+                                },
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "704168f9-1f58-cc58-4742-eaca2a1e62a8",
+                            "time": 1.4,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "8dc2a0d4-9597-bbd7-d46a-1d995eb3e10e": {
+                    "name": "ChestBadgeShineEffect3",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "88ec42eb-a7f6-b1d3-47a8-125ebd7f5a64",
+                            "time": 1.2,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.2",
+                                    "y": "1.2",
+                                    "z": "1.2"
+                                },
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "6ca746fe-89e3-aa62-6e90-05ad185c4c8f",
+                            "time": 1.45,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "92cde730-b6ea-a6c6-b9f2-1235291b2062": {
+                    "name": "ChestBadgeShineEffect4",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "6722bbcb-2a60-4683-4300-16fad4075ee8",
+                            "time": 1.3,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.2",
+                                    "y": "1.2",
+                                    "z": "1.2"
+                                },
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "2bd13c7c-6d49-bbcf-735f-3c8248aa2141",
+                            "time": 1.55,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "a701fd4c-e55b-8e57-2cc4-ea18c5ed4c84": {
+                    "name": "ChestBadgeShineEffect5",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "140"
+                                }
+                            ],
+                            "uuid": "a395f336-258d-cdc3-c294-5641a250d0ad",
+                            "time": 1.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "160"
+                                }
+                            ],
+                            "uuid": "55e6c73b-2b59-d935-ba2f-03412da04106",
+                            "time": 1.8,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "915fb4ae-edcb-ce7f-752a-2758b1f0b1d0",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.5",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "2c47ca4e-2fea-ac02-1198-903f4e21e040",
+                            "time": 1.25,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.5",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "fed6036d-005e-9ffc-d532-7369d3cfd26b",
+                            "time": 1.55,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "7819c415-38dd-5c31-f248-e7629db2f649",
+                            "time": 1.8,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "197cbe0c-ce29-8005-21f9-0d9d03fe19d2": {
+                    "name": "ChestBadgeShineEffect6",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-152.5"
+                                }
+                            ],
+                            "uuid": "98ae21f9-9bc0-e2a0-1162-fb97c9785a10",
+                            "time": 1.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-132.5"
+                                }
+                            ],
+                            "uuid": "b93ecc49-7c00-372a-f37a-df4ca322743a",
+                            "time": 1.8,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "4bd7b7d1-cc9c-00eb-69c7-6eedece55fb9",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.75",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "bff25e0e-89e2-3be0-3dc0-21fd819d41d9",
+                            "time": 1.25,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.75",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "5a652fe6-4559-3d38-3c92-cf2cd1479b5e",
+                            "time": 1.55,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "12a84847-bbcd-8e3e-f00b-fc29225f531c",
+                            "time": 1.8,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "dc705d7b-ba7e-c80b-1c08-2e7cbb15dfec": {
+                    "name": "ChestBadgeShineEffect7",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-80"
+                                }
+                            ],
+                            "uuid": "03d7d610-fe2b-a73a-f4a8-a9c01e92d6ef",
+                            "time": 1.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-60"
+                                }
+                            ],
+                            "uuid": "a838b819-f98f-c945-38f8-2fffdee517f2",
+                            "time": 1.8,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "ee7a4807-7c74-51ce-3bdb-da548be49a37",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.5",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "467b3a1d-5976-b021-044a-5bb2c7d74330",
+                            "time": 1.25,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.5",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "45bca675-b0ff-c3eb-4c0f-7596a0d70a75",
+                            "time": 1.55,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "9ffc5830-4ba4-843e-d18d-6272431f83af",
+                            "time": 1.8,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "48bb9efc-264f-f6a4-bf34-a49ff24965b8": {
+                    "name": "ChestBadgeShineEffect8",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "87.5"
+                                }
+                            ],
+                            "uuid": "20c7711f-550a-0da2-d487-6e00525e1d74",
+                            "time": 1.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "107.5"
+                                }
+                            ],
+                            "uuid": "192d928c-639b-b28e-9cb6-e34e6fb0d29b",
+                            "time": 1.8,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "21935d5a-8112-1aa1-20d2-e8eff909414f",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.75",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "f0f3194e-44a0-a553-393b-a0083ea20575",
+                            "time": 1.25,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.75",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "98d14e5e-da96-18b8-f408-810462ba54e1",
+                            "time": 1.55,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "8",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "93a8bcb6-0bcc-6209-614d-da43a17823a7",
+                            "time": 1.8,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "83ab49b1-be49-9e0e-bca2-b9f6435d229b": {
+                    "name": "Star1PosAnchor",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "-1",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "a90a7e14-f8fc-c567-0a7f-77551bb013b1",
+                            "time": 1.75,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-0.5",
+                                    "y": "0.5",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "e72c889c-0777-822b-49fb-f2dedda7a83f",
+                            "time": 2.2,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "72df74a9-77e7-d1e7-275b-ae0caffb4717": {
+                    "name": "Star1",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-47.5"
+                                }
+                            ],
+                            "uuid": "bac5eafa-199d-0c22-d546-2f5c21091bd5",
+                            "time": 1.75,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "45"
+                                }
+                            ],
+                            "uuid": "53c85082-d9bb-84f3-79cf-22826c207a11",
+                            "time": 2.2,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "f6cbaa82-725e-db94-c25a-5550b305e76d": {
+                    "name": "Star2",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-47.5"
+                                }
+                            ],
+                            "uuid": "1ed79f68-8572-2a5e-2897-285f43d7e7b8",
+                            "time": 2.2,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "45"
+                                }
+                            ],
+                            "uuid": "c693944b-e445-923a-4c02-75dc3666bb39",
+                            "time": 2.45,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "cde9cc17-4555-8bb3-1bcb-30eea6a19025": {
+                    "name": "Star2PosAnchor",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "-0.5",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "0fdf4379-c8d0-f594-8149-9d3d4a0d9875",
+                            "time": 2.2,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "-0.5",
+                                    "y": "0.5",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "a95d8255-7030-4639-d4b2-6229ecb3a76b",
+                            "time": 2.45,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "d3b44c76-19eb-1ce4-50c6-c3cb0b05f1e9": {
+                    "name": "BackgroundOpacity",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "4a640ebc-28ac-92fc-110b-72568b7c0b77",
+                            "time": 5.95,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "0c783415-4ad1-6069-d8c4-c4d616d71e68",
+                            "time": 6.1,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "b0999924-e750-1c4e-b966-8e1718ce2f69",
+                            "time": 6.35,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "48b8fa6c-5ba1-fe82-71ec-c4535895ed3d",
+                            "time": 6.65,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "21df6268-2318-95d2-af82-6a1733172d6e": {
+                    "name": "LauncherShineEffect1",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-12.5"
+                                }
+                            ],
+                            "uuid": "4effc368-5ae1-f5ea-b720-777783482f31",
+                            "time": 6.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-32.5"
+                                }
+                            ],
+                            "uuid": "d6928610-8370-b2b6-d9bb-03602e680eeb",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "2",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "c6c018f4-c71c-fb1b-1a4a-c666b1e52495",
+                            "time": 6.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "b47e78f2-0765-34b5-20c2-be7a3180e71b",
+                            "time": 6.85,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "2",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "c4136944-18ee-099d-3d9e-eeb5e9ca966f",
+                            "time": 6.5,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "283b18f0-7a98-7ff5-d251-6addb6d998ad": {
+                    "name": "LauncherShineEffect4",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-277.5"
+                                }
+                            ],
+                            "uuid": "085d3f2b-d256-4674-7bce-25b49af29341",
+                            "time": 6.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-297.5"
+                                }
+                            ],
+                            "uuid": "c51fb474-e356-d12c-4437-6b28cd80ba90",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "002cf389-d3d4-c4d3-abf1-d659540b2bfe",
+                            "time": 6.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "fb2f6bad-9bd3-dd64-191a-2ad81ed46e92",
+                            "time": 6.5,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "7889e669-789a-a305-ad5a-5cc73da85c76",
+                            "time": 6.85,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "812098da-3413-354b-2e40-d97341a5625c": {
+                    "name": "LauncherShineEffect2",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-105"
+                                }
+                            ],
+                            "uuid": "08ddac77-b581-6dd1-e043-9ce17c7dcdbf",
+                            "time": 6.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-125"
+                                }
+                            ],
+                            "uuid": "6b4d0ff4-ad6d-d06e-4c9a-d2db8cdd6da5",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "8e4b608f-5d60-61cb-ee87-ff56f19fd729",
+                            "time": 6.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.5",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "bf24b273-9f7b-b7a0-75ea-6a0ea7ab9006",
+                            "time": 6.5,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "e9b7e525-9319-d57b-6f24-e7a7d34d72fd",
+                            "time": 6.85,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "f5185f73-6fd4-1ab5-4b5d-d183e232d27c": {
+                    "name": "LauncherShineEffect3",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-205"
+                                }
+                            ],
+                            "uuid": "bb6cb381-dca3-1a48-5e13-c1b0eb3ccb22",
+                            "time": 6.15,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "rotation",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-225"
+                                }
+                            ],
+                            "uuid": "3129295f-8f1c-6ba1-8514-9f496603f11c",
+                            "time": 6.85,
+                            "color": -1,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.25",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "9d1b8a30-91e5-17c8-12b2-05a14cd45f2a",
+                            "time": 6.15,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1.25",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "eedda2ef-a284-6f9e-0a4f-e5a0b565adb9",
+                            "time": 6.5,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "20",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "563e9502-0df1-a5a2-b8b0-26fd666ceb1f",
+                            "time": 6.85,
+                            "color": -1,
+                            "uniform": false,
+                            "interpolation": "linear"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

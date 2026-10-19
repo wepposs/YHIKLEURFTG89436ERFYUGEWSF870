@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "vesence",
+  "version": "${version}",
+  "name": "Vesence Recode",
+  "description": "Vesence Client port to 1.21.11",
+  "authors": [
+    "Vesence Team"
+  ],
+  "contact": {
+    "homepage": "",
+    "issues": ""
+  },
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "vesence.Vesence"
+    ]
+  },
+  "mixins": [
+    "vesence.mixins.json",
+    "vesence-hmi.mixins.json"
+  ],
+  "accessWidener": "vesence.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "minecraft": "*"
+  }
+}

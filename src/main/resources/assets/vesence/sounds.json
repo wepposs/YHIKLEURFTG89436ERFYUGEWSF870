@@ -1,0 +1,146 @@
+{
+  "kolokolnia_kill": {
+    "sounds": [
+      "vesence:kolokolnia_kill"
+    ]
+  },
+  "moan1": {
+    "sounds": [
+      "vesence:moan1"
+    ]
+  },
+  "moan2": {
+    "sounds": [
+      "vesence:moan2"
+    ]
+  },
+  "moan3": {
+    "sounds": [
+      "vesence:moan3"
+    ]
+  },
+  "moan4": {
+    "sounds": [
+      "vesence:moan4"
+    ]
+  },
+  "module_disable": {
+    "sounds": [
+      "vesence:module_disable"
+    ]
+  },
+  "module_enable": {
+    "sounds": [
+      "vesence:module_enable"
+    ]
+  },
+  "off": {
+    "sounds": [
+      "vesence:off"
+    ]
+  },
+  "on": {
+    "sounds": [
+      "vesence:on"
+    ]
+  },
+  "crime": {
+    "sounds": [
+      "vesence:crime"
+    ]
+  },
+  "metallic": {
+    "sounds": [
+      "vesence:metallic"
+    ]
+  },
+  "bell": {
+    "sounds": [
+      "vesence:bell"
+    ]
+  },
+  "krit": {
+    "sounds": [
+      "vesence:krit"
+    ]
+  },
+  "hit1": {
+    "sounds": [
+      "vesence:hit1"
+    ]
+  },
+  "hit2": {
+    "sounds": [
+      "vesence:hit2"
+    ]
+  },
+  "kill1": {
+    "sounds": [
+      "vesence:kill1"
+    ]
+  },
+  "kill2": {
+    "sounds": [
+      "vesence:kill2"
+    ]
+  },
+  "kill3": {
+    "sounds": [
+      "vesence:kill3"
+    ]
+  },
+  "kill4": {
+    "sounds": [
+      "vesence:kill4"
+    ]
+  },
+  "kill5": {
+    "sounds": [
+      "vesence:kill5"
+    ]
+  },
+  "kill6": {
+    "sounds": [
+      "vesence:kill6"
+    ]
+  },
+  "totem_pop_enemy": {
+    "sounds": [
+      "vesence:totem_pop_enemy"
+    ]
+  },
+  "totem_pop_self": {
+    "sounds": [
+      "vesence:totem_pop_self"
+    ]
+  },
+  "frag_effect_echo_main": {
+    "sounds": [
+      "vesence:charmsfxpack/echocharmmain"
+    ]
+  },
+  "frag_effect_knock_main": {
+    "sounds": [
+      "vesence:charmsfxpack/knockcharmmain"
+    ]
+  },
+  "frag_effect_pulse": {
+    "sounds": [
+      "vesence:charmsfxpack/pulsecharmdistant0",
+      "vesence:charmsfxpack/pulsecharmdistant1",
+      "vesence:charmsfxpack/pulsecharmdistant2",
+      "vesence:charmsfxpack/pulsecharmdistant3",
+      "vesence:charmsfxpack/pulsecharmdistant4"
+    ]
+  },
+  "frag_effect_sparks_collision": {
+    "sounds": [
+      "vesence:charmsfxpack/sparkscollisionneared"
+    ]
+  },
+  "welcome": {
+  "sounds": [
+    "vesence:welcome"
+  ]
+}
+}

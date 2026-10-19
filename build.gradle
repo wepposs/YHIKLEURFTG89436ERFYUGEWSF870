@@ -1,0 +1,95 @@
+plugins {
+    id 'fabric-loom' version '1.14.1'
+    id 'maven-publish'
+}
+
+version = project.properties['mod_version'] ?: '1.0.0'
+group = 'vesence'
+
+base {
+    archivesName = 'vesence'
+}
+
+processResources {
+    exclude 'assets/vesence/videos/background.mp4'
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/vesence.accesswidener")
+
+    runConfigs.configureEach {
+        vmArgs('-Xmx6G', '-Xms2G', '-XX:+UseG1GC')
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://maven.fabricmc.net/" }
+    maven { url "https://libraries.minecraft.net/" }
+    maven { url "https://jitpack.io" }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroup("software.bernie.geckolib") }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    compileOnly "org.projectlombok:lombok:1.18.34"
+    annotationProcessor "org.projectlombok:lombok:1.18.34"
+
+    compileOnly "net.java.dev.jna:jna:5.15.0"
+
+    include(implementation("io.github.llamalad7:mixinextras-fabric:0.4.1"))
+    include(implementation("org.lwjgl:lwjgl-harfbuzz:3.3.3"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-windows"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-linux"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-macos"))
+
+    include(implementation("ai.catboost:catboost-prediction:1.2.2"))
+    include(implementation("com.github.haifengl:smile-core:3.0.2"))
+    include(implementation("com.github.haifengl:smile-base:3.0.2"))
+    include(implementation("org.luaj:luaj-jse:3.0.1"))
+    include(implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.10"))
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.1"))
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1"))
+
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+    include "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.compilerArgs.addAll(['-Xmaxerrs', '10000'])
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

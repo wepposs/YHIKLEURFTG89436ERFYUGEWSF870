@@ -1,0 +1,11 @@
+{
+  "name": "Tsumiki Miniwa",
+  "description": "Another 4h project.",
+  "authors": [
+    "Somataru (JANICHRIS5963)"
+  ],
+  "color": "#9792d5",
+  "autoScripts": [
+    "script.lua"
+  ]
+}

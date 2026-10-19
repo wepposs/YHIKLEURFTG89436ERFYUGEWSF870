@@ -1,0 +1,181 @@
+package vesence.module.impl.combat.rotation;
+
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
+
+import static vesence.utils.other.IMinecraft.mc;
+
+/**
+ * UFunTimeRotation — порт FunTime-ротации из DELUXE 38.1.5 (sg.ec.Class102#m1367).
+ *
+ * <p>Отличия от прежнего профиля: аим-поинт строится внутри хитбокса
+ * (ближайшая точка contracted-бокса + дотяжка к центру по мере сближения),
+ * после удара углы замораживаются на 200–250 мс, в простое накладывается
+ * cooldown-зависимая тряска с чередующимся знаком, скорость доворота —
+ * пружина с кубико-квартичным изингом от attack-cooldown.
+ */
+@Environment(EnvType.CLIENT)
+public class UFunTimeRotation {
+
+    private static final URotationMath.AttackEdge attackEdge = new URotationMath.AttackEdge();
+
+    /** Счётчик ударов для чередования знака тряски (Deluxe: aura hit counter). */
+    private static int hitCounter;
+
+    /** Пружина ротации (град/тик, накопленная скорость по осям). */
+    private static float springYaw;
+    private static float springPitch;
+
+    /** Замороженные после удара углы и время их жизни. */
+    private static long holdStartMs;
+    private static long holdDurationMs;
+    private static float holdYaw;
+    private static float holdPitch;
+
+    public static void rotation(LivingEntity target, boolean attack) {
+        rotation(target, attack, 3.0F, 1.0F, null);
+    }
+
+    public static void rotation(LivingEntity target, boolean attack, float attackDist, float rotateDist, Vec3d point) {
+        if (mc.player == null || mc.world == null || target == null) {
+            return;
+        }
+
+        Vec3d eye = mc.player.getEyePos();
+
+        // Аим-поинт: бокс цели, сдвинутый по вектору движения, ближайшая к глазу
+        // точка с дотяжкой к центру, когда цель ближе радиуса удара.
+        Vec3d velocity = new Vec3d(target.getX() - target.lastRenderX,
+                target.getY() - target.lastRenderY, target.getZ() - target.lastRenderZ);
+        Box box = target.getBoundingBox()
+                .offset(velocity.lengthSquared() > 0.36 ? velocity.normalize().multiply(0.6) : velocity)
+                .contract(0.08);
+        Vec3d closest = new Vec3d(
+                MathHelper.clamp(eye.x, box.minX, box.maxX),
+                MathHelper.clamp(eye.y, box.minY + 0.15,
+                        Math.max(box.minY + 0.15, box.minY + (box.maxY - box.minY) * 0.7)),
+                MathHelper.clamp(eye.z, box.minZ, box.maxZ));
+        Vec3d toCenter = new Vec3d(
+                (box.minX + box.maxX) * 0.5 - closest.x, 0.0,
+                (box.minZ + box.maxZ) * 0.5 - closest.z);
+        Vec3d aim = closest.add(toCenter.multiply(MathHelper.clamp(
+                (attackDist - 0.15 - eye.distanceTo(closest)) / Math.max(0.05, toCenter.length()), 0.0, 0.8)));
+        Box inner = target.getBoundingBox().contract(0.1);
+        Vec3d dir = new Vec3d(
+                MathHelper.clamp(aim.x, inner.minX, inner.maxX),
+                MathHelper.clamp(aim.y, inner.minY, inner.maxY),
+                MathHelper.clamp(aim.z, inner.minZ, inner.maxZ))
+                .subtract(eye);
+
+        float goalYaw = (float) MathHelper.wrapDegrees(Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0);
+        float goalPitch = (float) MathHelper.clamp(
+                -Math.toDegrees(Math.atan2(dir.y, Math.hypot(dir.x, dir.z))), -90.0, 90.0);
+
+        float curYaw = mc.player.getYaw();
+        float curPitch = mc.player.getPitch();
+
+        long now = System.currentTimeMillis();
+        if (attack) {
+            holdStartMs = now;
+            holdDurationMs = (long) URotationMath.rand(200.0F, 250.0F);
+            holdYaw = goalYaw;
+            holdPitch = goalPitch;
+        } else if (now - holdStartMs < holdDurationMs) {
+            goalYaw = holdYaw;
+            goalPitch = holdPitch;
+        }
+
+        // Тряска в простое: растёт по мере отката кулдауна, знак чередуется
+        // от удара к удару.
+        float cooldownLeft = 1.0F - mc.player.getAttackCooldownProgress(1.0F);
+        float shake = attack ? 0.0F : cooldownLeft * cooldownLeft;
+        float sign = hitCounter % 2 == 0 ? 1.0F : -1.0F;
+        if (!attack) {
+            goalYaw += (float) Math.ceil(shake * (URotationMath.rand(5.0F, 15.0F)
+                    * MathHelper.cos(mc.player.age * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
+            goalPitch += (float) Math.ceil(shake * (URotationMath.rand(5.0F, 10.0F)
+                    * MathHelper.sin(mc.player.age * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
+        }
+
+        float yawDelta = MathHelper.wrapDegrees(goalYaw - curYaw);
+        float pitchDelta = goalPitch - curPitch;
+        float total = (float) Math.hypot(yawDelta, pitchDelta);
+
+        float speedFactor = MathHelper.clamp(
+                MathHelper.sin((float) (cooldownSpeed() * Math.PI)), 0.15F, 0.9F);
+        float accel = total * speedFactor;
+        float accelCap = 6.0F + 26.0F * speedFactor;
+
+        springYaw += MathHelper.clamp(accel * (total < 0.001F ? 0.0F : yawDelta / total) - springYaw,
+                -accelCap, accelCap);
+        springPitch += MathHelper.clamp(accel * (total < 0.001F ? 0.0F : pitchDelta / total) - springPitch,
+                -accelCap * 0.72F, accelCap * 0.72F);
+        springYaw = MathHelper.clamp(springYaw, -Math.abs(yawDelta), Math.abs(yawDelta));
+        springPitch = MathHelper.clamp(springPitch, -Math.abs(pitchDelta), Math.abs(pitchDelta));
+
+        float newYaw = curYaw + springYaw + URotationMath.rand(-0.08F, 0.08F);
+        float newPitch = MathHelper.clamp(curPitch + springPitch + URotationMath.rand(-0.04F, 0.04F), -90.0F, 90.0F);
+
+        if (attackEdge.update(attack)) {
+            hitCounter++;
+        }
+
+        float yawStep = Math.abs(MathHelper.wrapDegrees(newYaw - curYaw));
+        float pitchStep = Math.abs(newPitch - curPitch);
+        URotationMath.submit(yawStep, pitchStep, 23.0F, 23.0F, 0, 15, newYaw, newPitch);
+    }
+
+    /**
+     * Кубико-квартичный изинг скорости от attack-cooldown (Deluxe: Class102#m1366).
+     * Возвращает множитель фазы синуса (0..0.6).
+     */
+    private static float cooldownSpeed() {
+        float progress = mc.player.getAttackCooldownProgress(1.0F);
+        double attackSpeed = mc.player.getAttributeValue(EntityAttributes.ATTACK_SPEED);
+        if (attackSpeed > 1.6) {
+            progress *= (float) (1.6 / attackSpeed);
+        }
+
+        float eased;
+        if (attackSpeed < 2.0) {
+            eased = 2.70158F * progress * progress * progress - 1.70158F * progress * progress;
+        } else if (progress < 0.5F) {
+            eased = 8.0F * progress * progress * progress * progress;
+        } else {
+            float inv = progress - 1.0F;
+            eased = 1.0F - 26.0F * inv * inv * inv * inv;
+        }
+        return (1.0F + 29.0F * eased) / 50.0F;
+    }
+
+    public static boolean smoothBack() {
+        if (mc.player == null) {
+            return true;
+        }
+        float toYaw = FreeLookUtil.freeYaw;
+        float toPitch = FreeLookUtil.freePitch;
+        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYaw())) < 1.0F
+                && Math.abs(toPitch - mc.player.getPitch()) < 1.0F;
+        if (!done) {
+            URotationMath.submit(24.0F, 22.0F, 24.0F, 22.0F, 0, 15, toYaw, toPitch);
+        }
+        return done;
+    }
+
+    public static void state() {
+        attackEdge.reset();
+        hitCounter = 0;
+        springYaw = 0.0F;
+        springPitch = 0.0F;
+        holdStartMs = 0L;
+        holdDurationMs = 0L;
+        holdYaw = 0.0F;
+        holdPitch = 0.0F;
+    }
+}

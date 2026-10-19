@@ -1,0 +1,1283 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "ex_skill_1",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 32,
+        "height": 32
+    },
+    "elements": [
+        {
+            "name": "MedicalBox1",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -5.5,
+                0,
+                -6
+            ],
+            "to": [
+                5.5,
+                8,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0.5,
+                        12,
+                        11.5,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        12,
+                        12,
+                        24,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0.5,
+                        12,
+                        11.5,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        12,
+                        12,
+                        24,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0.5,
+                        0,
+                        11.5,
+                        12
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        12.5,
+                        0,
+                        23.5,
+                        12
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "57d545e1-2e42-de51-de59-084cd5a66f99"
+        },
+        {
+            "name": "MedicalBox2",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                6,
+                -6
+            ],
+            "to": [
+                6,
+                8,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        12,
+                        0.5,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        12,
+                        12,
+                        24,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11.5,
+                        12,
+                        12,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0.5,
+                        12
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        0,
+                        1.5,
+                        12
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "4231cdac-faaa-c993-9aac-03c01eecce16"
+        },
+        {
+            "name": "MedicalBox3",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                2,
+                -6
+            ],
+            "to": [
+                6,
+                6,
+                -3
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        14,
+                        0.5,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        21,
+                        14,
+                        24,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11.5,
+                        14,
+                        12,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "ccfed3f9-f023-8a96-e0f4-fba0fa0dd9ac"
+        },
+        {
+            "name": "MedicalBox4",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                2,
+                3
+            ],
+            "to": [
+                6,
+                6,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        14,
+                        0.5,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        12,
+                        14,
+                        15,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11.5,
+                        14,
+                        12,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "63ef11b3-55b5-592c-13af-f4a7915b6f95"
+        },
+        {
+            "name": "MedicalBox5",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                5.5,
+                0,
+                -6
+            ],
+            "to": [
+                6,
+                2,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        18,
+                        0.5,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        12,
+                        18,
+                        24,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        11.5,
+                        12,
+                        12,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        1,
+                        0,
+                        1.5,
+                        12
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1,
+                        0,
+                        0,
+                        12
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "ec3d7f72-5a13-d230-224b-5253a43850b3"
+        },
+        {
+            "name": "MedicalBox9",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6,
+                2,
+                -6
+            ],
+            "to": [
+                -5.5,
+                6,
+                -3
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0.5,
+                        14,
+                        0,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        12,
+                        14,
+                        11.5,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        24,
+                        14,
+                        21,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "71314da7-4fe5-7e4c-1e00-e251ccc9ba40"
+        },
+        {
+            "name": "MedicalBox8",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6,
+                6,
+                -6
+            ],
+            "to": [
+                -5.5,
+                8,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0.5,
+                        12,
+                        0,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        12,
+                        12,
+                        11.5,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        24,
+                        12,
+                        12,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0.5,
+                        0,
+                        0,
+                        12
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        1.5,
+                        0,
+                        1,
+                        12
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "ec6b49bf-af13-c332-b7c1-1b0eb4dd13bd"
+        },
+        {
+            "name": "MedicalBox7",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6,
+                2,
+                3
+            ],
+            "to": [
+                -5.5,
+                6,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0.5,
+                        14,
+                        0,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        12,
+                        14,
+                        11.5,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        15,
+                        14,
+                        12,
+                        18
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "21a0eb51-d8b6-4ab6-ad3e-cfcdec9d5907"
+        },
+        {
+            "name": "MedicalBox6",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -6,
+                0,
+                -6
+            ],
+            "to": [
+                -5.5,
+                2,
+                6
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0.5,
+                        18,
+                        0,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        11.5,
+                        12,
+                        12,
+                        14
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        24,
+                        18,
+                        12,
+                        20
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        1.5,
+                        0,
+                        1,
+                        12
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        1,
+                        12
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "0ca140e6-3dc3-d819-b5b8-9362d408fbe7"
+        },
+        {
+            "name": "MedicalBox10",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -5,
+                3.5,
+                6
+            ],
+            "to": [
+                -2,
+                4.5,
+                6.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        16,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "c5c4ff6a-8a89-64ff-1999-1ad4006eccfc"
+        },
+        {
+            "name": "MedicalBox11",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                2,
+                3.5,
+                6
+            ],
+            "to": [
+                5,
+                4.5,
+                6.5
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -5.5,
+                0,
+                -6
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        15,
+                        1,
+                        16
+                    ],
+                    "texture": 0
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        16,
+                        1,
+                        17
+                    ],
+                    "texture": 0
+                }
+            },
+            "type": "cube",
+            "uuid": "22e45a1a-df0f-11d4-5e4d-692093a47be5"
+        },
+        {
+            "name": "Sweat",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                2.75,
+                29,
+                -6.26
+            ],
+            "to": [
+                3.85,
+                31,
+                -6.26
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                -2.7,
+                31,
+                -6.26
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        24,
+                        0,
+                        29,
+                        9
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "37673019-4735-f71e-997e-e9f25e7ee5c3"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "MedicalBox",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "6801c983-135e-151f-0204-f1c88e0932f8",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "57d545e1-2e42-de51-de59-084cd5a66f99",
+                "4231cdac-faaa-c993-9aac-03c01eecce16",
+                "ccfed3f9-f023-8a96-e0f4-fba0fa0dd9ac",
+                "63ef11b3-55b5-592c-13af-f4a7915b6f95",
+                "ec3d7f72-5a13-d230-224b-5253a43850b3",
+                "0ca140e6-3dc3-d819-b5b8-9362d408fbe7",
+                "21a0eb51-d8b6-4ab6-ad3e-cfcdec9d5907",
+                "ec6b49bf-af13-c332-b7c1-1b0eb4dd13bd",
+                "71314da7-4fe5-7e4c-1e00-e251ccc9ba40",
+                "c5c4ff6a-8a89-64ff-1999-1ad4006eccfc",
+                "22e45a1a-df0f-11d4-5e4d-692093a47be5"
+            ]
+        },
+        {
+            "name": "Sweat",
+            "origin": [
+                3.3,
+                31,
+                -6.26
+            ],
+            "color": 0,
+            "uuid": "3cacd10f-bba4-6b48-76b4-81977d41606d",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "37673019-4735-f71e-997e-e9f25e7ee5c3",
+                {
+                    "name": "SweatOpacity",
+                    "origin": [
+                        3.3,
+                        31,
+                        -6.26
+                    ],
+                    "color": 0,
+                    "uuid": "cf32b7a2-6d9a-9127-9e15-c6831b34fa3a",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                }
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "ex_skill_1.png",
+            "folder": "",
+            "namespace": "",
+            "id": "0",
+            "group": "",
+            "width": 29,
+            "height": 20,
+            "uv_width": 29,
+            "uv_height": 20,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "8e3beb22-06ee-dcc1-e90c-e2ae03236333",
+            "relative_path": "../textures/ex_skill_1.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAUBAMAAACDsiv0AAAAIVBMVEVHcEzFx8f/S0fSPTi2uLj8+vz////hQT2v2venqanW/P32+SVHAAAAAXRSTlMAQObYZgAAAHhJREFUGNNjEBRSUlIUhJAMCQwMgkpAIAghQXwhJWNjJUUhEF+RbRkDg5KSabASFID5xqbBxsh809BQmIKsFQko/IyOBBT1YD6yeWmo9jEwoLkHxEd2LzY+mnqo0erl5UVKYHkIEHFxcQTLu0CA58yZU1ywqsdvPwCCOiuFOcjKVgAAAABJRU5ErkJggg=="
+        }
+    ],
+    "animations": [
+        {
+            "uuid": "ff2c98b7-b1dd-7411-17ac-06da23da67ed",
+            "name": "ex_skill_1",
+            "loop": "hold",
+            "override": true,
+            "length": 1.3,
+            "snapping": 20,
+            "selected": false,
+            "anim_time_update": "",
+            "blend_weight": "",
+            "start_delay": "",
+            "loop_delay": "",
+            "animators": {
+                "6801c983-135e-151f-0204-f1c88e0932f8": {
+                    "name": "MedicalBox",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "position",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "-11"
+                                }
+                            ],
+                            "uuid": "8ea79170-d009-c9da-7856-2b4caeecac74",
+                            "time": 0,
+                            "color": -1,
+                            "interpolation": "linear"
+                        }
+                    ]
+                },
+                "3cacd10f-bba4-6b48-76b4-81977d41606d": {
+                    "name": "Sweat",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "816d9370-4469-5c37-b8b0-14a01f71dea1",
+                            "time": 0.6,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "bezier",
+                            "bezier_linked": true,
+                            "bezier_left_time": [
+                                -0.1,
+                                -0.1,
+                                -0.1
+                            ],
+                            "bezier_left_value": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "bezier_right_time": [
+                                0.1,
+                                0.1,
+                                0.1
+                            ],
+                            "bezier_right_value": [
+                                0,
+                                0,
+                                0
+                            ]
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "2",
+                                    "y": "2",
+                                    "z": "2"
+                                }
+                            ],
+                            "uuid": "85aaa529-8dc2-bcc4-3795-0b8f422123ad",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "bezier",
+                            "bezier_linked": true,
+                            "bezier_left_time": [
+                                -0.59575,
+                                -0.59575,
+                                -0.59575
+                            ],
+                            "bezier_left_value": [
+                                0,
+                                0,
+                                0
+                            ],
+                            "bezier_right_time": [
+                                0.59575,
+                                0.59575,
+                                0.59575
+                            ],
+                            "bezier_right_value": [
+                                0,
+                                0,
+                                0
+                            ]
+                        }
+                    ]
+                },
+                "cf32b7a2-6d9a-9127-9e15-c6831b34fa3a": {
+                    "name": "SweatOpacity",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "db6ffd13-32fc-42ca-cac7-4fd531da4994",
+                            "time": 1.15,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "1e5e4628-dcb0-5d3e-89d9-58d848112f3f",
+                            "time": 1.3,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,281 @@
+{
+    "meta": {
+        "format_version": "4.10",
+        "model_format": "free",
+        "box_uv": false
+    },
+    "name": "ex_skill_1",
+    "model_identifier": "",
+    "visible_box": [
+        1,
+        1,
+        0
+    ],
+    "variable_placeholders": "",
+    "variable_placeholder_buttons": [],
+    "timeline_setups": [],
+    "unhandled_root_fields": {},
+    "resolution": {
+        "width": 16,
+        "height": 16
+    },
+    "elements": [
+        {
+            "name": "Background",
+            "box_uv": false,
+            "rescale": false,
+            "locked": false,
+            "light_emission": 0,
+            "render_order": "default",
+            "allow_mirror_modeling": true,
+            "from": [
+                -0.5,
+                -0.5,
+                0
+            ],
+            "to": [
+                0.5,
+                0.5,
+                0
+            ],
+            "autouv": 0,
+            "color": 0,
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "faces": {
+                "north": {
+                    "uv": [
+                        3,
+                        6,
+                        4,
+                        7
+                    ],
+                    "texture": 0
+                },
+                "east": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "south": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "west": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "up": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                },
+                "down": {
+                    "uv": [
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "texture": null
+                }
+            },
+            "type": "cube",
+            "uuid": "3c36e5c8-42d0-f88f-7549-bcc2eb8e2fbf"
+        }
+    ],
+    "outliner": [
+        {
+            "name": "CameraBackground",
+            "origin": [
+                0,
+                0,
+                0
+            ],
+            "color": 0,
+            "uuid": "96a8e492-1eec-2bc8-636d-4b56fa9f2af5",
+            "export": true,
+            "mirror_uv": false,
+            "isOpen": true,
+            "locked": false,
+            "visibility": true,
+            "autouv": 0,
+            "selected": false,
+            "children": [
+                "3c36e5c8-42d0-f88f-7549-bcc2eb8e2fbf",
+                {
+                    "name": "BackgroundScale",
+                    "origin": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "color": 0,
+                    "uuid": "22d246c8-ee2a-c416-1d4d-e9fdc3c0337c",
+                    "export": true,
+                    "mirror_uv": false,
+                    "isOpen": true,
+                    "locked": false,
+                    "visibility": true,
+                    "autouv": 0,
+                    "selected": false,
+                    "children": []
+                }
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "accessories.png",
+            "folder": "",
+            "namespace": "",
+            "id": "1",
+            "group": "",
+            "width": 64,
+            "height": 69,
+            "uv_width": 64,
+            "uv_height": 69,
+            "particle": false,
+            "use_as_default": false,
+            "layers_enabled": false,
+            "sync_to_project": "",
+            "render_mode": "default",
+            "render_sides": "auto",
+            "pbr_channel": "color",
+            "frame_time": 1,
+            "frame_order_type": "loop",
+            "frame_order": "",
+            "frame_interpolate": false,
+            "visible": true,
+            "internal": true,
+            "saved": true,
+            "uuid": "514d5e57-3620-47e0-e65b-1912aebe9c76",
+            "relative_path": "../textures/accessories.png",
+            "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABFCAMAAADNehBfAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAB4UExURUdwTPn5+kxIYGAdakgmXLY8xfz8/f7+/olfgBUUFS4rLsmsdZQNMsqtdhUVFkM/WEdDXJ5zlIZigZFpitnAzPf39yYfMal6nKh7nJBpinxbeG5RbXtbeHxaeIZigv7+/51zlKh6nPPirpFpiW9Ha////4NbfHZqaCLidpgAAAABdFJOUwBA5thmAAAD2klEQVRYw52Uh2LbIBCGTwKE5MRVkzRN9x7v/4Y9bnEg7LRFwyBzH/8NAID3cGgxJrxiCqVDj93uBeUB+PDx3RBAN01GUOExTjD4JUKABHB/f//p/gBIkWYHEVBxRiiABKjg4fvDw8PbI0Dnq2YWDYA6Uko8gebeYfty1wOCKA7sAN8EDfwxFAiOAJ6e3jx9fdMBNGSJTdRtComNERlQxCt49VNkq+6YTGX0abAv8kutAFR2GZM8XaCGEOLAlgFqD8f/k4W7y3E81EwynRwctSVRlHO6bZ0g6SlpjE5omRvUj9QkkHICpDEkzUKphJLX8oUto64duG5S/UJlkNhSPAwkKjoBFWRhDO0+qKoosgwISYxkOa2goL4yx5ZO4ix5hC40viays+JJ0Ze/FndweiJwTMjhoCVQ01mLye2KEBtA4mLXko+SOclnWzRWTjSZHIfkj4hu89VqazYKhyykWoCxhl48sA2jUZWFKQqhxi2VLSBbNbknSrnoWlQsLlfBlqBNWDNfj7GSt6hnWNR9lapnQgDod5fWofSKVZ4y3ngt2MnFb35je/0aDvZUPZRSdSgvaJv5mjLZT9kAxKaXHEVSK1YPIRwO7cLj3u0tkDZEc5vkNy+TXiZ3BMA2sbZl6gD0bVlGALRfpuwBZSJrWCpgmcTp5wAkNPcAWn9aSN3RflosjOKCmjaALCp6eyJPSrgQA/pGKjoAVQP+qXnrYtACREOfAAEgXQAuBoc0ZgeY8CoCOAZTC+hjwOIlBpmu0iiuHIMsEjjWfxvEYkPrlzwagAN2jEHmQhoBFgfIy+dhFhbVkNsglod3k8VgnIVjEI1QAGoPExfWKAZazqdtO232ki4PT5sEUV1YDoWEv2JcjWREAwviIAZZYnACOIG9pMvDU/GkJJTPlakvJAkiGzsjHvGAJ84v52/bj3me5fSzSkSjFZuGcNWGXfrwC9AIrecZztSxaN/YbSYVQF2Z6AGo6zw/AjzO55sb0PtfAOcyfHzElwGcbDR8BiDD0qASnN8NQEQ1gFu6JAhKWH3k2tYDbl/Qhc0T1kFzyXkOUFeFtq+/HvDCWk0kDFxwCekUmAQtBddwJ1wC7HvNQtNuvPVlwA6wF8DvGbyzsNZcC6A2QyBgL/2dFXQA7nqzBgDXAU7tVcDO/b0AxvmCiwo2tjTAPgCssG3XAdbOe1vptVQGQWSGgXxYDbBtYyvoAI0m22T8dtLbijKHBgAYA0aEDWAEgNUdg/JnNwMGgO2fADAAbFcA2wHgorIN5qz+JNc5vQC40noAwKUA/AfgkksH+/Wi5V8ouL50C/gDtpBKrwHiShkAAAAASUVORK5CYII="
+        }
+    ],
+    "animations": [
+        {
+            "uuid": "26c67f7a-9cfb-7ec1-33cd-3cf66790216d",
+            "name": "ex_skill_1",
+            "loop": "hold",
+            "override": false,
+            "length": 2.25,
+            "snapping": 20,
+            "selected": true,
+            "anim_time_update": "",
+            "blend_weight": "",
+            "start_delay": "",
+            "loop_delay": "",
+            "animators": {
+                "22d246c8-ee2a-c416-1d4d-e9fdc3c0337c": {
+                    "name": "BackgroundScale",
+                    "type": "bone",
+                    "keyframes": [
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "dd61ec6c-5a1e-670e-303e-90dc4a701314",
+                            "time": 1.9,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.25",
+                                    "y": "0.25",
+                                    "z": "0.25"
+                                }
+                            ],
+                            "uuid": "98432cd6-e334-001d-4eb3-be6d78180aaa",
+                            "time": 2,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.4",
+                                    "y": "0.4",
+                                    "z": "0.4"
+                                }
+                            ],
+                            "uuid": "e8361938-9c3a-eed3-3625-109affd58a79",
+                            "time": 2.1,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "0.4",
+                                    "y": "0.4",
+                                    "z": "0.4"
+                                },
+                                {
+                                    "x": "0",
+                                    "y": "0",
+                                    "z": "0"
+                                }
+                            ],
+                            "uuid": "fbdc5187-7dd1-2484-2c4d-6a015968ce41",
+                            "time": 2.2,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        },
+                        {
+                            "channel": "scale",
+                            "data_points": [
+                                {
+                                    "x": "1",
+                                    "y": "1",
+                                    "z": "1"
+                                }
+                            ],
+                            "uuid": "6f92e1e2-97e8-62c1-af98-147dcff85add",
+                            "time": 1.85,
+                            "color": -1,
+                            "uniform": true,
+                            "interpolation": "linear"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
