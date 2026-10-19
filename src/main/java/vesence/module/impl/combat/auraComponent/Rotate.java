@@ -3,9 +3,9 @@ package vesence.module.impl.combat.auraComponent;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
@@ -31,11 +31,11 @@ public final class Rotate implements IMinecraft {
       float addyVacY = target.getHeight() / 2.0F * (float)Math.cos(System.currentTimeMillis() / 2200.0);
       float addyVacZ = 0.16F * (float)Math.cos(System.currentTimeMillis() / 1250.0);
       float addyVacX = 0.22F * (float)Math.sin(System.currentTimeMillis() / 1700.0);
-      Vec3d vec = UBoxPoints.getBestVector3dOnEntityBox(target, false)
+      Vec3 vec = UBoxPoints.getBestVector3dOnEntityBox(target, false)
          .add(addyVacX, addyVacY, addyVacZ)
-         .subtract(mc.player.getEyePos());
+         .subtract(mc.player.getEyePosition());
       float yaw = (float)Math.toDegrees(Math.atan2(-vec.x, vec.z));
-      float pitch = (float)MathHelper.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
+      float pitch = (float)Mth.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
       float spy = Mathf.random(7.0F, 9.0F);
       float spx = Mathf.randomInt(60, 80);
       Rotation newRotation = new Rotation(yaw + Mathf.randomInt(-1, 2), pitch);
@@ -49,9 +49,9 @@ public final class Rotate implements IMinecraft {
       float addyVacY = 0.25F * (float)Math.cos(System.currentTimeMillis() / 1500L);
       float addyVacZ = 0.2F * (float)Math.cos(System.currentTimeMillis() / 700L);
       float addyVacX = 0.2F * (float)Math.cos(System.currentTimeMillis() / 900L);
-      Vec3d playerEyePos = mc.player.getEyePos();
-      Vec3d vec = new Vec3d(target.getX(), target.getY(), target.getZ())
-         .add(addyVacX, MathHelper.clamp(playerEyePos.y - target.getY(), 0.0, 0.8) - addyVacY, addyVacZ)
+      Vec3 playerEyePos = mc.player.getEyePosition();
+      Vec3 vec = new Vec3(target.getX(), target.getY(), target.getZ())
+         .add(addyVacX, Mth.clamp(playerEyePos.y - target.getY(), 0.0, 0.8) - addyVacY, addyVacZ)
          .subtract(playerEyePos)
          .normalize();
       if (type.contains("Fast")) {
@@ -60,7 +60,7 @@ public final class Rotate implements IMinecraft {
          float speed = Mathf.random(190.0F, 245.0F);
          if (attack) {
             yaw = (float)Math.toDegrees(Math.atan2(-vec.x, vec.z));
-            pitch = (float)MathHelper.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
+            pitch = (float)Mth.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
          }
 
          float rx = 0.0F;
@@ -77,7 +77,7 @@ public final class Rotate implements IMinecraft {
 
          if (tick > 0) {
             yaw = (float)Math.toDegrees(Math.atan2(-vec.x, vec.z));
-            pitch = (float)MathHelper.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
+            pitch = (float)Mth.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
             tick--;
          }
 
@@ -95,7 +95,7 @@ public final class Rotate implements IMinecraft {
          if (tick > 0) {
             speedx = Mathf.random(140.0F, 220.0F);
             yawx = (float)Math.toDegrees(Math.atan2(-vec.x, vec.z));
-            pitchx = (float)MathHelper.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
+            pitchx = (float)Mth.clamp(-Math.toDegrees(Math.atan2(vec.y, Math.hypot(vec.x, vec.z))), -90.0, 90.0);
             tick--;
          }
 

@@ -11,17 +11,17 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.player.EventMotion;
@@ -36,15 +36,15 @@ import vesence.utils.other.TimerUtil;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.world.WorldRenderUtil;
 
-@IModule(name = "World Strips", description = "Smooth glowing strips drifting through the world", category = Category.VISUALS, bind = -1)
+@IModule(name = "Level Strips", description = "Smooth glowing strips drifting through the world", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class WorldStrips extends Module {
-   private static final Identifier GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
-   private static final Identifier SOFT_GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloomsample.png");
+   private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
+   private static final ResourceLocation SOFT_GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloomsample.png");
    private static final RenderPipeline COLOR_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "world_strips_color"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "world_strips_color"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
@@ -53,17 +53,17 @@ public class WorldStrips extends Module {
    );
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "world_strips_glow"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "world_strips_glow"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.ADDITIVE)
          .build()
    );
-   private static final RenderLayer COLOR_LAYER = RenderLayer.of("world_strips_color", RenderSetup.builder(COLOR_PIPELINE).expectedBufferSize(2048).translucent().build());
-   private static final RenderLayer GLOW_LAYER = RenderLayer.of("world_strips_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", GLOW_TEXTURE).build());
-   private static final RenderLayer SOFT_GLOW_LAYER = RenderLayer.of("world_strips_soft_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", SOFT_GLOW_TEXTURE).build());
+   private static final RenderType COLOR_LAYER = RenderType.of("world_strips_color", RenderSetup.builder(COLOR_PIPELINE).expectedBufferSize(2048).translucent().build());
+   private static final RenderType GLOW_LAYER = RenderType.of("world_strips_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", GLOW_TEXTURE).build());
+   private static final RenderType SOFT_GLOW_LAYER = RenderType.of("world_strips_soft_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", SOFT_GLOW_TEXTURE).build());
 
    public static final SliderSetting count = new SliderSetting("Count", 26.0, 6.0, 80.0, 1.0, false);
    public static final SliderSetting radius = new SliderSetting("Radius", 10.0, 4.0, 24.0, 0.5, false);
@@ -87,7 +87,7 @@ public class WorldStrips extends Module {
 
    @EventInit
    public void onMotion(EventMotion event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          this.strips.clear();
          return;
       }
@@ -95,7 +95,7 @@ public class WorldStrips extends Module {
       int desiredCount = count.get().intValue();
       double worldRadius = radius.get();
       double speedScale = speed.get();
-      Vec3d playerCenter = mc.player.getEntityPos().add(0.0, mc.player.getHeight() * 0.6, 0.0);
+      Vec3 playerCenter = mc.player.getEntityPos().add(0.0, mc.player.getHeight() * 0.6, 0.0);
 
       while (this.strips.size() > desiredCount) {
          this.strips.remove(0);
@@ -124,8 +124,8 @@ public class WorldStrips extends Module {
       }
 
       Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
-      MatrixStack matrices = event.getMatrixStack();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      PoseStack matrices = event.getMatrixStack();
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
       float stripLength = length.get().floatValue();
       float stripWidth = width.get().floatValue();
       boolean glowEnabled = bloom.get();
@@ -137,34 +137,34 @@ public class WorldStrips extends Module {
       immediate.draw();
    }
 
-   private static void drawSolidHalf(VertexConsumer buffer, Matrix4f matrix, Vec3d start, Vec3d end, Vec3d side, int startColor, int endColor) {
-      Vec3d a = start.add(side);
-      Vec3d b = start.subtract(side);
-      Vec3d c = end.subtract(side);
-      Vec3d d = end.add(side);
+   private static void drawSolidHalf(VertexConsumer buffer, Matrix4f matrix, Vec3 start, Vec3 end, Vec3 side, int startColor, int endColor) {
+      Vec3 a = start.add(side);
+      Vec3 b = start.subtract(side);
+      Vec3 c = end.subtract(side);
+      Vec3 d = end.add(side);
       putColorVertex(buffer, matrix, a, startColor);
       putColorVertex(buffer, matrix, b, startColor);
       putColorVertex(buffer, matrix, c, endColor);
       putColorVertex(buffer, matrix, d, endColor);
    }
 
-   private static void drawGlowHalf(VertexConsumer buffer, Matrix4f matrix, Vec3d start, Vec3d end, Vec3d side, int startColor, int endColor) {
-      Vec3d a = start.add(side);
-      Vec3d b = start.subtract(side);
-      Vec3d c = end.subtract(side);
-      Vec3d d = end.add(side);
+   private static void drawGlowHalf(VertexConsumer buffer, Matrix4f matrix, Vec3 start, Vec3 end, Vec3 side, int startColor, int endColor) {
+      Vec3 a = start.add(side);
+      Vec3 b = start.subtract(side);
+      Vec3 c = end.subtract(side);
+      Vec3 d = end.add(side);
       putTexturedVertex(buffer, matrix, a, startColor, 0.0F, 1.0F);
       putTexturedVertex(buffer, matrix, b, startColor, 1.0F, 1.0F);
       putTexturedVertex(buffer, matrix, c, endColor, 1.0F, 0.0F);
       putTexturedVertex(buffer, matrix, d, endColor, 0.0F, 0.0F);
    }
 
-   private static void putColorVertex(VertexConsumer buffer, Matrix4f matrix, Vec3d pos, int color) {
+   private static void putColorVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color) {
       buffer.vertex(matrix, (float)pos.x, (float)pos.y, (float)pos.z)
          .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color));
    }
 
-   private static void putTexturedVertex(VertexConsumer buffer, Matrix4f matrix, Vec3d pos, int color, float u, float v) {
+   private static void putTexturedVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color, float u, float v) {
       buffer.vertex(matrix, (float)pos.x, (float)pos.y, (float)pos.z)
          .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
          .texture(u, v)
@@ -173,7 +173,7 @@ public class WorldStrips extends Module {
          .normal(0.0F, 0.0F, 1.0F);
    }
 
-   private static Vec3d lerp(Vec3d from, Vec3d to, double delta) {
+   private static Vec3 lerp(Vec3 from, Vec3 to, double delta) {
       return from.add(to.subtract(from).multiply(delta));
    }
 
@@ -183,10 +183,10 @@ public class WorldStrips extends Module {
 
    @Environment(EnvType.CLIENT)
    private static final class StripParticle {
-      private Vec3d position;
-      private Vec3d renderPosition;
-      private Vec3d motion;
-      private Vec3d direction;
+      private Vec3 position;
+      private Vec3 renderPosition;
+      private Vec3 motion;
+      private Vec3 direction;
       private final double phase;
       private final double turnSpeed;
       private final double swaySpeed;
@@ -195,13 +195,13 @@ public class WorldStrips extends Module {
       private final int maxAge;
       private int age;
 
-      private StripParticle(Vec3d center, double radius, double speedScale) {
+      private StripParticle(Vec3 center, double radius, double speedScale) {
          double angle = random(0.0, Math.PI * 2.0);
          double spawnRadius = random(radius * 0.35, radius);
          double height = random(-1.2, 3.6);
          this.position = center.add(Math.cos(angle) * spawnRadius, height, Math.sin(angle) * spawnRadius);
          this.renderPosition = this.position;
-         this.direction = new Vec3d(-Math.sin(angle), random(-0.18, 0.18), Math.cos(angle)).normalize();
+         this.direction = new Vec3(-Math.sin(angle), random(-0.18, 0.18), Math.cos(angle)).normalize();
          this.motion = this.direction.multiply(0.028 + speedScale * 0.012);
          this.phase = random(0.0, Math.PI * 2.0);
          this.turnSpeed = random(0.018, 0.036);
@@ -211,28 +211,28 @@ public class WorldStrips extends Module {
          this.maxAge = ThreadLocalRandom.current().nextInt(130, 230);
       }
 
-      private void update(Vec3d center, double radius, double speedScale) {
-         this.age++;
-         double ageTime = this.age;
-         Vec3d orbital = new Vec3d(
+      private void update(Vec3 center, double radius, double speedScale) {
+         this.tickCount++;
+         double ageTime = this.tickCount;
+         Vec3 orbital = new Vec3(
             Math.cos(this.phase + ageTime * this.turnSpeed),
             Math.sin(this.phase * 0.7 + ageTime * this.swaySpeed) * 0.28,
             Math.sin(this.phase + ageTime * this.turnSpeed)
          );
-         Vec3d desiredDirection = this.direction.multiply(0.88).add(orbital.multiply(0.12));
-         if (desiredDirection.lengthSquared() > 1.0E-4) {
+         Vec3 desiredDirection = this.direction.multiply(0.88).add(orbital.multiply(0.12));
+         if (desiredDirection.lengthSqr() > 1.0E-4) {
             desiredDirection = desiredDirection.normalize();
          } else {
-            desiredDirection = new Vec3d(1.0, 0.0, 0.0);
+            desiredDirection = new Vec3(1.0, 0.0, 0.0);
          }
 
-         Vec3d pull = center.subtract(this.position);
-         if (pull.lengthSquared() > radius * radius * 1.4) {
+         Vec3 pull = center.subtract(this.position);
+         if (pull.lengthSqr() > radius * radius * 1.4) {
             desiredDirection = desiredDirection.add(pull.normalize().multiply(0.28)).normalize();
          }
 
          this.direction = WorldStrips.lerp(this.direction, desiredDirection, 0.18).normalize();
-         Vec3d sway = new Vec3d(
+         Vec3 sway = new Vec3(
             Math.cos(this.phase * 1.31 + ageTime * this.swaySpeed) * this.swayStrength,
             Math.sin(this.phase * 0.83 + ageTime * this.swaySpeed) * this.swayStrength * 0.7,
             Math.sin(this.phase * 1.17 + ageTime * this.swaySpeed) * this.swayStrength
@@ -243,45 +243,45 @@ public class WorldStrips extends Module {
          this.renderPosition = WorldStrips.lerp(this.renderPosition, this.position, 0.24);
       }
 
-      private boolean shouldRemove(Vec3d center, double radius) {
-         return this.age > this.maxAge || this.position.distanceTo(center) > radius * 2.4;
+      private boolean shouldRemove(Vec3 center, double radius) {
+         return this.tickCount > this.maxAge || this.position.distanceTo(center) > radius * 2.4;
       }
 
       private float alpha() {
-         float fadeIn = Math.min(1.0F, this.age / 14.0F);
-         float fadeOut = Math.min(1.0F, (this.maxAge - this.age) / 24.0F);
-         float pulse = 0.82F + 0.18F * (float)Math.sin(this.phase + this.age * 0.12);
+         float fadeIn = Math.min(1.0F, this.tickCount / 14.0F);
+         float fadeOut = Math.min(1.0F, (this.maxAge - this.tickCount) / 24.0F);
+         float pulse = 0.82F + 0.18F * (float)Math.sin(this.phase + this.tickCount * 0.12);
          return Math.max(0.0F, fadeIn * fadeOut * pulse);
       }
 
-      private void render(MatrixStack matrices, Immediate immediate, Vec3d cameraPos, float stripLength, float stripWidth, boolean glowEnabled) {
+      private void render(PoseStack matrices, Immediate immediate, Vec3 cameraPos, float stripLength, float stripWidth, boolean glowEnabled) {
          float alpha = this.alpha();
          if (alpha <= 0.01F) {
             return;
          }
 
-         Vec3d center = this.renderPosition.subtract(cameraPos);
-         Vec3d dir = this.direction.lengthSquared() > 1.0E-4 ? this.direction.normalize() : new Vec3d(1.0, 0.0, 0.0);
-         Vec3d toCamera = cameraPos.subtract(this.renderPosition);
-         if (toCamera.lengthSquared() < 1.0E-4) {
-            toCamera = new Vec3d(0.0, 1.0, 0.0);
+         Vec3 center = this.renderPosition.subtract(cameraPos);
+         Vec3 dir = this.direction.lengthSqr() > 1.0E-4 ? this.direction.normalize() : new Vec3(1.0, 0.0, 0.0);
+         Vec3 toCamera = cameraPos.subtract(this.renderPosition);
+         if (toCamera.lengthSqr() < 1.0E-4) {
+            toCamera = new Vec3(0.0, 1.0, 0.0);
          } else {
             toCamera = toCamera.normalize();
          }
 
-         Vec3d side = dir.crossProduct(toCamera);
-         if (side.lengthSquared() < 1.0E-4) {
-            side = dir.crossProduct(new Vec3d(0.0, 1.0, 0.0));
+         Vec3 side = dir.crossProduct(toCamera);
+         if (side.lengthSqr() < 1.0E-4) {
+            side = dir.crossProduct(new Vec3(0.0, 1.0, 0.0));
          }
-         if (side.lengthSquared() < 1.0E-4) {
-            side = new Vec3d(1.0, 0.0, 0.0);
+         if (side.lengthSqr() < 1.0E-4) {
+            side = new Vec3(1.0, 0.0, 0.0);
          }
 
-         side = side.normalize().multiply(stripWidth * (0.95F + 0.18F * (float)Math.sin(this.phase + this.age * 0.11)));
-         Vec3d half = dir.multiply(stripLength * 0.5F);
-         Vec3d start = center.subtract(half);
-         Vec3d end = center.add(half);
-         Matrix4f matrix = matrices.peek().getPositionMatrix();
+         side = side.normalize().multiply(stripWidth * (0.95F + 0.18F * (float)Math.sin(this.phase + this.tickCount * 0.11)));
+         Vec3 half = dir.multiply(stripLength * 0.5F);
+         Vec3 start = center.subtract(half);
+         Vec3 end = center.add(half);
+         Matrix4f matrix = matrices.last().getPositionMatrix();
          int baseColor = ColorUtil.fade(this.colorOffset);
          int tipColor = ColorUtil.multAlpha(baseColor, alpha * 0.08F);
          int coreColor = ColorUtil.multAlpha(baseColor, alpha * 0.42F);
@@ -291,7 +291,7 @@ public class WorldStrips extends Module {
          drawSolidHalf(colorBuffer, matrix, center, end, side, coreColor, tipColor);
 
          if (glowEnabled) {
-            Vec3d wideSide = side.multiply(2.6);
+            Vec3 wideSide = side.multiply(2.6);
             int glowTip = ColorUtil.multAlpha(baseColor, alpha * 0.18F);
             int glowCore = ColorUtil.multAlpha(baseColor, alpha * 0.55F);
             VertexConsumer glowBuffer = immediate.getBuffer(GLOW_LAYER);
@@ -301,13 +301,13 @@ public class WorldStrips extends Module {
             drawGlowHalf(softGlowBuffer, matrix, start, center, wideSide.multiply(1.45), glowTip, glowCore);
             drawGlowHalf(softGlowBuffer, matrix, center, end, wideSide.multiply(1.45), glowCore, glowTip);
 
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(center.x, center.y, center.z);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
-            Matrix4f glowMatrix = matrices.peek().getPositionMatrix();
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
+            Matrix4f glowMatrix = matrices.last().getPositionMatrix();
             WorldRenderUtil.drawGlow(immediate.getBuffer(SOFT_GLOW_LAYER), glowMatrix, baseColor, (int)(78.0F * alpha), stripWidth * 7.5F);
-            matrices.pop();
+            matrices.popPose();
          }
       }
    }

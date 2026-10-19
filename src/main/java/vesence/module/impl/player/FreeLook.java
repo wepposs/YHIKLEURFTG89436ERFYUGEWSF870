@@ -3,7 +3,7 @@ package vesence.module.impl.player;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.option.Perspective;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.event.player.EventLook;
@@ -66,8 +66,8 @@ public class FreeLook extends Module {
     @EventInit
     public void onEvent(EventLook event) {
         if (!this.enable || !freeLookActive) return;
-        freePitch = MathHelper.clamp((float) (freePitch + event.getPitch() * 0.15), -90.0F, 90.0F);
-        freeYaw = (float) (freeYaw + event.getYaw() * 0.15);
+        freePitch = Mth.clamp((float) (freePitch + event.getXRot() * 0.15), -90.0F, 90.0F);
+        freeYaw = (float) (freeYaw + event.getYRot() * 0.15);
         event.cancel();
     }
 
@@ -75,8 +75,8 @@ public class FreeLook extends Module {
     public void onEvent(EventMotion event) {
         if (!this.enable) return;
         if (freeLookActive) {
-            event.setYaw(savedYaw);
-            event.setPitch(savedPitch);
+            event.setYRot(savedYaw);
+            event.setXRot(savedPitch);
         }
     }
 
@@ -84,20 +84,20 @@ public class FreeLook extends Module {
     public void onEvent(EventRotation event) {
         if (!this.enable) return;
         if (freeLookActive) {
-            event.setYaw(freeYaw);
-            event.setPitch(freePitch);
+            event.setYRot(freeYaw);
+            event.setXRot(freePitch);
         } else {
-            freeYaw = event.getYaw();
-            freePitch = event.getPitch();
+            freeYaw = event.getYRot();
+            freePitch = event.getXRot();
         }
     }
 
     private void activateFreeLook() {
         freeLookActive = true;
-        savedYaw = mc.player.getYaw();
-        savedPitch = mc.player.getPitch();
-        freeYaw = mc.player.getYaw();
-        freePitch = mc.player.getPitch();
+        savedYaw = mc.player.getYRot();
+        savedPitch = mc.player.getXRot();
+        freeYaw = mc.player.getYRot();
+        freePitch = mc.player.getXRot();
         mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
     }
 

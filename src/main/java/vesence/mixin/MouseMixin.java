@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.Mouse;
-import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -23,7 +23,7 @@ public abstract class MouseMixin {
       cancellable = true
    )
    private void cancelCameraMovement(CallbackInfo ci) {
-      MouseUpdateEvent event = new MouseUpdateEvent(MinecraftClient.getInstance());
+      MouseUpdateEvent event = new MouseUpdateEvent(Minecraft.getInstance());
       EventManager.call(event);
       if (event.isCancelled()) {
          ci.cancel();
@@ -34,11 +34,11 @@ public abstract class MouseMixin {
       method = {"updateMouse"},
       at = @At(
          value = "INVOKE",
-         target = "Lnet/minecraft/client/network/ClientPlayerEntity;changeLookDirection(DD)V"
+         target = "Lnet/minecraft/client/network/LocalPlayer;changeLookDirection(DD)V"
       )
    )
-   private void onLook(ClientPlayerEntity player, double yaw, double pitch) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   private void onLook(LocalPlayer player, double yaw, double pitch) {
+      Minecraft client = Minecraft.getInstance();
       if (client != null && client.player != null) {
          EventLook event = new EventLook(yaw, pitch);
          EventManager.call(event);

@@ -6,9 +6,9 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.TextureFormat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -40,7 +40,7 @@ import java.nio.FloatBuffer;
 @Environment(EnvType.CLIENT)
 public final class TorusReflectionRenderer {
 
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
     private static TorusReflectionRenderer instance;
 
     public static TorusReflectionRenderer getInstance() {
@@ -124,7 +124,7 @@ public final class TorusReflectionRenderer {
      */
     public boolean begin(boolean useDepth, Matrix4f proj, double camX, double camY, double camZ, float freq, float opacity) {
         if (failed) return false;
-        Framebuffer fb = mc.getFramebuffer();
+        RenderTarget fb = mc.getMainRenderTarget();
         if (fb == null || fb.getColorAttachment() == null) return false;
         int colorTex = glId(fb.getColorAttachment());
         if (colorTex <= 0) return false;
@@ -144,7 +144,7 @@ public final class TorusReflectionRenderer {
         int sceneTex = glId(sceneCopy);
         if (sceneTex <= 0) return false;
 
-        this.snapshot = GlState.push();
+        this.snapshot = GlState.pushPose();
         this.active = true;
 
         // Свой FBO поверх текстуры кадра (+ глубина при необходимости).

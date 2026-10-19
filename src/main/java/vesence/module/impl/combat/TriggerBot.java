@@ -2,12 +2,12 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -59,10 +59,10 @@ public class TriggerBot extends Module {
     public void onUpdate(EventUpdate event) {
         target = null;
 
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             return;
         }
-        if (mc.currentScreen != null) {
+        if (mc.screen != null) {
             return;
         }
 
@@ -89,16 +89,16 @@ public class TriggerBot extends Module {
         boolean shouldAttack = true;
 
         boolean isVanillaCrit = mc.player.fallDistance > 0.0F
-                             && mc.player.getVelocity().y < 0.0
-                             && !mc.player.isOnGround()
+                             && mc.player.getDeltaMovement().y < 0.0
+                             && !mc.player.onGround()
                              && !mc.player.isClimbing()
                              && !mc.player.isTouchingWater()
                              && !mc.player.isInLava()
                              && !mc.player.hasVehicle()
-                             && !mc.player.hasStatusEffect(StatusEffects.BLINDNESS);
+                             && !mc.player.hasStatusEffect(MobEffects.BLINDNESS);
 
         if (smartCrits.get()) {
-            boolean isJumpingUp = !mc.player.isOnGround() && mc.player.getVelocity().y >= 0.0;
+            boolean isJumpingUp = !mc.player.onGround() && mc.player.getDeltaMovement().y >= 0.0;
             boolean canCritEnvironment = !mc.player.isTouchingWater() && !mc.player.isInLava() && !mc.player.isClimbing() && !mc.player.hasVehicle();
 
             if (isJumpingUp && canCritEnvironment) {
@@ -111,7 +111,7 @@ public class TriggerBot extends Module {
         }
 
         if (shouldAttack) {
-            Attack.useEntity(target, () -> {}, () -> {}, Hand.MAIN_HAND, true);
+            Attack.useEntity(target, () -> {}, () -> {}, InteractionHand.MAIN_HAND, true);
         }
     }
 
@@ -119,12 +119,12 @@ public class TriggerBot extends Module {
         if (!entity.isAlive()) return false;
         if (entity == mc.player) return false;
 
-        boolean isPlayer = entity instanceof PlayerEntity;
+        boolean isPlayer = entity instanceof Player;
         if (isPlayer && !targets.get("Игроки")) return false;
         if (!isPlayer && !targets.get("Мобы")) return false;
 
         if (isPlayer && !targets.get("Голые")) {
-            PlayerEntity player = (PlayerEntity) entity;
+            Player player = (Player) entity;
             boolean hasArmor = false;
             net.minecraft.entity.EquipmentSlot[] armorSlots = new net.minecraft.entity.EquipmentSlot[]{
                 net.minecraft.entity.EquipmentSlot.HEAD,

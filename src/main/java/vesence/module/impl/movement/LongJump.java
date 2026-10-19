@@ -2,8 +2,8 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Blocks;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.core.BlockPos;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -34,11 +34,11 @@ public class LongJump extends vesence.module.api.Module {
 
    @EventInit
    public void onUpdate(EventUpdate e) {
-      if (mc.player != null && mc.world != null) {
+      if (mc.player != null && mc.level != null) {
          if (mode.is("Water")) {
             this.handleWater();
          } else {
-            if (mc.player.isOnGround()) {
+            if (mc.player.onGround()) {
                this.jumpsUsed = 0;
             }
 
@@ -46,7 +46,7 @@ public class LongJump extends vesence.module.api.Module {
                if (!mc.player.getAbilities().flying) {
                   if (!mc.player.hasVehicle()) {
                      while (mc.options.jumpKey.isPressed()) {
-                        if (mc.player.isOnGround()) {
+                        if (mc.player.onGround()) {
                            return;
                         }
 
@@ -54,7 +54,7 @@ public class LongJump extends vesence.module.api.Module {
                            return;
                         }
 
-                        mc.player.setVelocity(mc.player.getVelocity().x, power.get(), mc.player.getVelocity().z);
+                        mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, power.get(), mc.player.getDeltaMovement().z);
                         mc.player.velocityDirty = true;
                         this.jumpsUsed++;
                      }
@@ -68,10 +68,10 @@ public class LongJump extends vesence.module.api.Module {
    private void handleWater() {
       if (mc.player.isTouchingWater() || this.isPlayerInWaterBlock()) {
          if (mc.options.jumpKey.isPressed()) {
-            double currentY = mc.player.getVelocity().y;
+            double currentY = mc.player.getDeltaMovement().y;
             double targetY = Math.min(currentY + waterAdd.get(), (double)waterMaxY.get());
             if (targetY > currentY) {
-               mc.player.setVelocity(mc.player.getVelocity().x, targetY, mc.player.getVelocity().z);
+               mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, targetY, mc.player.getDeltaMovement().z);
                mc.player.velocityDirty = true;
             }
          }
@@ -80,8 +80,8 @@ public class LongJump extends vesence.module.api.Module {
 
    private boolean isPlayerInWaterBlock() {
       BlockPos pos = BlockPos.ofFloored(mc.player.getX(), mc.player.getY(), mc.player.getZ());
-      return mc.world.getBlockState(pos).isOf(Blocks.WATER)
-         || mc.world.getBlockState(pos.down()).isOf(Blocks.WATER);
+      return mc.level.getBlockState(pos).isOf(Blocks.WATER)
+         || mc.level.getBlockState(pos.down()).isOf(Blocks.WATER);
    }
 
    @Override

@@ -2,7 +2,7 @@ package vesence.ui.clickgui.compact;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.Vesence;
 import vesence.module.api.Category;
 import vesence.module.api.Module;
@@ -439,7 +439,7 @@ public class CompactGuiClick {
     }
 
     private static boolean isSliderAdjustKeyDown() {
-        long h = MinecraftClient.getInstance().getWindow().getHandle();
+        long h = Minecraft.getInstance().getWindow().getHandle();
         return org.lwjgl.glfw.GLFW.glfwGetKey(h, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
                 || org.lwjgl.glfw.GLFW.glfwGetKey(h, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }

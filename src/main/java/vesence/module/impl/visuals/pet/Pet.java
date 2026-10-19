@@ -2,9 +2,9 @@ package vesence.module.impl.visuals.pet;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.EventManager;
 import vesence.event.impl.EventUpdate;
@@ -74,7 +74,7 @@ public class Pet extends Module {
    public void onUpdate(EventUpdate event) {
       // Жаба — реальная клиентская сущность: спавним/двигаем через контроллер только
       // когда выбрана, иначе удаляем. Остальные питомцы рисуются в onRender3D.
-      if (this.isToadSelected() && mc.player != null && mc.world != null) {
+      if (this.isToadSelected() && mc.player != null && mc.level != null) {
          CustomPetVariant variant = CustomPetVariant.fromSettingValue(this.toadVariant.get());
          this.toadController.tick(mc.player, variant, this.size.get().floatValue());
       } else {
@@ -84,41 +84,41 @@ public class Pet extends Module {
 
    @EventInit
    public void onRender3D(EventRender3D event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
 
-      MatrixStack matrices = event.getMatrixStack();
+      PoseStack matrices = event.getMatrixStack();
       float tickDelta = event.getTickDelta();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
       Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
       float scale = this.size.get().floatValue();
 
       if (this.isDragonSelected()) {
          this.dragonBrain.setEntity(mc.player);
-         Vec3d pos = this.dragonBrain.getPos();
-         matrices.push();
+         Vec3 pos = this.dragonBrain.getPos();
+         matrices.pushPose();
          matrices.translate(pos.x - cameraPos.x, pos.y - cameraPos.y, pos.z - cameraPos.z);
          matrices.scale(scale, scale, scale);
-         this.dragonModel.setRotationAngles(mc.player.age + tickDelta, this.dragonBrain);
+         this.dragonModel.setRotationAngles(mc.player.tickCount + tickDelta, this.dragonBrain);
          this.dragonModel.render(matrices, immediate, tickDelta, this.dragonBrain);
-         matrices.pop();
+         matrices.popPose();
       } else if (this.isCowSelected()) {
          this.cowBrain.setEntity(mc.player);
-         Vec3d pos = this.cowBrain.getPos();
-         matrices.push();
+         Vec3 pos = this.cowBrain.getPos();
+         matrices.pushPose();
          matrices.translate(pos.x - cameraPos.x, pos.y - cameraPos.y, pos.z - cameraPos.z);
          matrices.scale(scale, scale, scale);
          this.cowModel.render(matrices, immediate, tickDelta, this.cowBrain);
-         matrices.pop();
+         matrices.popPose();
       } else if (this.isSpikeSelected()) {
          this.spikeBrain.setEntity(mc.player);
-         Vec3d pos = this.spikeBrain.getPos();
-         matrices.push();
+         Vec3 pos = this.spikeBrain.getPos();
+         matrices.pushPose();
          matrices.translate(pos.x - cameraPos.x, pos.y - cameraPos.y, pos.z - cameraPos.z);
          matrices.scale(scale, scale, scale);
          this.spikeModel.render(matrices, immediate, tickDelta, this.spikeBrain);
-         matrices.pop();
+         matrices.popPose();
       }
 
       immediate.draw();

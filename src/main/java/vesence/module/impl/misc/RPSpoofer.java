@@ -25,7 +25,7 @@ public class RPSpoofer extends Module {
 
     @EventInit
     public void onPacket(EventPacket event) {
-        if (!this.enable || event.isSend() || mc.getNetworkHandler() == null) {
+        if (!this.enable || event.isSend() || mc.getConnection() == null) {
             return;
         }
 
@@ -39,12 +39,12 @@ public class RPSpoofer extends Module {
 
     @EventInit
     public void onUpdate(EventUpdate event) {
-        if (!this.enable || mc.getNetworkHandler() == null) {
+        if (!this.enable || mc.getConnection() == null) {
             return;
         }
 
         long now = System.currentTimeMillis();
-        while (!pendingStatuses.isEmpty() && pendingStatuses.peek().sendAt <= now) {
+        while (!pendingStatuses.isEmpty() && pendingStatuses.last().sendAt <= now) {
             QueuedStatus queued = pendingStatuses.poll();
             if (queued != null) {
                 NetworkUtils.sendSilentPacket(

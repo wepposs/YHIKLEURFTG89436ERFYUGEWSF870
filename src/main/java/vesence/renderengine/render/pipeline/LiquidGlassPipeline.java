@@ -1,9 +1,9 @@
 package vesence.renderengine.render.pipeline;
 
 import com.mojang.blaze3d.textures.GpuTextureView;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import org.lwjgl.opengl.*;
 import vesence.renderengine.providers.ShaderProgram;
 import vesence.renderengine.providers.GlState;
@@ -61,12 +61,12 @@ public class LiquidGlassPipeline {
                                 float fresnelMix, float distortStrength, float squirt,
                                 float[] matrix, int viewportW, int viewportH, int customTex) {
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null || client.getWindow().getWidth() <= 0 || client.getWindow().getHeight() <= 0) return;
 
         ensureInitialized();
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
             shader.use();
 
@@ -91,7 +91,7 @@ public class LiquidGlassPipeline {
             setUniform("DistortStrength", distortStrength);
 
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            int texId = customTex != 0 ? customTex : extractGlTexId(MinecraftClient.getInstance().getFramebuffer());
+            int texId = customTex != 0 ? customTex : extractGlTexId(Minecraft.getInstance().getMainRenderTarget());
             if (texId == 0 || !GL11.glIsTexture(texId)) {
                 GlState.pop(state);
                 return;
@@ -145,7 +145,7 @@ public class LiquidGlassPipeline {
         else if (values.length == 4) GL20.glUniform4f(loc, values[0], values[1], values[2], values[3]);
     }
 
-    public static int extractGlTexId(Framebuffer framebuffer) {
+    public static int extractGlTexId(RenderTarget framebuffer) {
         if (framebuffer == null) return 0;
         try {
             GpuTextureView view = framebuffer.getColorAttachmentView();

@@ -1,6 +1,6 @@
 package vesence.utils.player;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import java.util.HashSet;
 import java.util.Set;
 import net.fabricmc.api.EnvType;
@@ -22,16 +22,16 @@ public class MovementManager implements IMinecraft {
    }
 
    public void lockMovement(String moduleName) {
-      if (mc.player != null && mc.player.isAlive() && mc.world != null) {
+      if (mc.player != null && mc.player.isAlive() && mc.level != null) {
          this.lockRequests.add(moduleName);
          this.setMovementKeys(false);
       }
    }
 
    public void unlockMovement(String moduleName) {
-      if (mc.player != null && mc.player.isAlive() && mc.world != null) {
+      if (mc.player != null && mc.player.isAlive() && mc.level != null) {
          this.lockRequests.remove(moduleName);
-         if (this.lockRequests.isEmpty() && mc.currentScreen == null) {
+         if (this.lockRequests.isEmpty() && mc.screen == null) {
             this.setMovementKeys(true);
          }
       }
@@ -52,7 +52,7 @@ public class MovementManager implements IMinecraft {
       };
 
       for (KeyBinding keyBinding : movementKeys) {
-         boolean pressed = state && InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), keyBinding.getDefaultKey().getCode());
+         boolean pressed = state && InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), keyBinding.getDefaultKey().getCode());
          keyBinding.setPressed(pressed);
       }
    }

@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 
 import static vesence.utils.other.IMinecraft.mc;
 
@@ -34,8 +34,8 @@ public class USpookyTimingRotation {
 
     /** True if the server sidebar shows an active spookytime battle. */
     public static boolean isSpookyTime() {
-        if (mc.world == null) return false;
-        var scoreboard = mc.world.getScoreboard();
+        if (mc.level == null) return false;
+        var scoreboard = mc.level.getScoreboard();
         var objective = scoreboard.getObjectiveForSlot(net.minecraft.scoreboard.ScoreboardDisplaySlot.SIDEBAR);
         if (objective == null) return false;
 
@@ -61,7 +61,7 @@ public class USpookyTimingRotation {
 
     /** Per-tick update, mirrors Energy Spooky#onTick. */
     public static void tick() {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         sprinting = isSpookyTime();
     }
 
@@ -86,9 +86,9 @@ public class USpookyTimingRotation {
     public static void executeSprintStop() {
         if (!shouldSprintStop) return;
         shouldSprintStop = false;
-        if (mc.player == null || mc.getNetworkHandler() == null) return;
-        mc.getNetworkHandler().sendPacket(
-                new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+        if (mc.player == null || mc.getConnection() == null) return;
+        mc.getConnection().sendPacket(
+                new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING));
         mc.player.setSprinting(true);
     }
 

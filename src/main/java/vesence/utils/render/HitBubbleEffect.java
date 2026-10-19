@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
@@ -45,7 +45,7 @@ public class HitBubbleEffect {
     }
 
     /** Заспавнить пузырь в позиции {@code pos} с ориентацией камеры yaw/pitch. */
-    public void spawn(Vec3d pos, float yaw, float pitch, float maxTimeMs) {
+    public void spawn(Vec3 pos, float yaw, float pitch, float maxTimeMs) {
         bubbles.add(new Bubble(pos, yaw, pitch, maxTimeMs, System.currentTimeMillis()));
     }
 
@@ -56,8 +56,8 @@ public class HitBubbleEffect {
      * @param voronoiFill      слой TRIANGLES (additive, та же текстура)
      * @param voronoiLine      слой DEBUG_LINES (additive)
      */
-    public void render(MatrixStack ms,
-                       Vec3d cameraPos,
+    public void render(PoseStack ms,
+                       Vec3 cameraPos,
                        VertexConsumer quadBuffer,
                        VertexConsumer voronoiFill,
                        VertexConsumer voronoiLine,
@@ -95,7 +95,7 @@ public class HitBubbleEffect {
         bubbles.removeIf(b -> b.getDeltaTime(now) >= 1.0f);
     }
 
-    private void drawBubble(MatrixStack ms, Bubble bubble, float alphaPC, Vec3d cameraPos,
+    private void drawBubble(PoseStack ms, Bubble bubble, float alphaPC, Vec3 cameraPos,
                             VertexConsumer quadBuffer, VertexConsumer voronoiFill, VertexConsumer voronoiLine,
                             boolean voronoiActive, int voronoiPoints,
                             ColorMode colorMode, int themeColor1, int themeColor2,
@@ -104,7 +104,7 @@ public class HitBubbleEffect {
             return;
         }
 
-        float aPC = (float) easeInOutQuadWave(MathHelper.clamp((delta + 0.1f) * alphaPC, 0.0f, 1.0f)) * 2.0f;
+        float aPC = (float) easeInOutQuadWave(Mth.clamp((delta + 0.1f) * alphaPC, 0.0f, 1.0f)) * 2.0f;
         if (aPC > 1.0f) {
             aPC = 1.0f;
         }
@@ -120,7 +120,7 @@ public class HitBubbleEffect {
         double y = bubble.pos.y - cameraPos.y;
         double z = bubble.pos.z - cameraPos.z;
 
-        ms.push();
+        ms.pushPose();
         ms.translate(x, y, z);
 
         if (!voronoiActive) {
@@ -138,9 +138,9 @@ public class HitBubbleEffect {
         if (voronoiActive) {
             UVoronoiIntegration integration = bubble.getVoronoiIntegration(voronoiPoints);
             if (integration != null) {
-                ms.push();
+                ms.pushPose();
                 ms.scale(rBase, rBase, 1.0f);
-                integration.setMatrix(ms.peek().getPositionMatrix());
+                integration.setMatrix(ms.last().getPositionMatrix());
                 float timePCBase = delta;
                 float timePC = Math.min(delta / 0.75f, 1.0f);
                 timePC = (float) easeInOutExpo(0.25f + timePC);
@@ -168,19 +168,19 @@ public class HitBubbleEffect {
                             60.0f * timePC + 40.0f * timePCBase,
                             voronoiAPC * timePC, lineWhite, lineWhite, lineWhite, lineWhite);
                 }
-                ms.pop();
-                ms.pop();
+                ms.popPose();
+                ms.popPose();
                 return;
             }
         }
 
-        ms.push();
+        ms.pushPose();
         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
-        Matrix4f quadMatrix = ms.peek().getPositionMatrix();
+        Matrix4f quadMatrix = ms.last().getPositionMatrix();
         drawBubbleQuad(quadBuffer, quadMatrix, r, aPC, colorMode, themeColor1, themeColor2, now);
-        ms.pop();
+        ms.popPose();
 
-        ms.pop();
+        ms.popPose();
     }
 
     private void drawBubbleQuad(VertexConsumer buffer, Matrix4f matrix, float size, float alphaPC,
@@ -212,7 +212,7 @@ public class HitBubbleEffect {
                 break;
         }
         int alpha = (int) (ColorUtil.alpha(color) * alphaPC);
-        return ColorUtil.replAlpha(color, MathHelper.clamp(alpha, 0, 255));
+        return ColorUtil.replAlpha(color, Mth.clamp(alpha, 0, 255));
     }
 
     private static int blendWithWhite(int color, float amount) {
@@ -232,13 +232,13 @@ public class HitBubbleEffect {
     }
 
     private static double easeInOutQuadWave(double t) {
-        t = MathHelper.clamp((float) t, 0.0f, 1.0f);
+        t = Mth.clamp((float) t, 0.0f, 1.0f);
         double s = Math.sin(Math.PI * t);
         return s * s;
     }
 
     private static double easeInOutExpo(double t) {
-        t = MathHelper.clamp((float) t, 0.0f, 1.0f);
+        t = Mth.clamp((float) t, 0.0f, 1.0f);
         if (t == 0.0) return 0.0;
         if (t == 1.0) return 1.0;
         return t < 0.5 ? Math.pow(2.0, 20.0 * t - 10.0) / 2.0 : (2.0 - Math.pow(2.0, -20.0 * t + 10.0)) / 2.0;
@@ -246,7 +246,7 @@ public class HitBubbleEffect {
 
     /** Один пузырь: позиция, yaw/pitch камеры при спавне, длительность, время спавна. */
     private static final class Bubble {
-        private final Vec3d pos;
+        private final Vec3 pos;
         private final float viewYaw;
         private final float viewPitch;
         private final float yawSin;
@@ -257,7 +257,7 @@ public class HitBubbleEffect {
         private UVoronoiIntegration voronoi;
         private int voronoiPoints;
 
-        private Bubble(Vec3d pos, float viewYaw, float viewPitch, float maxTime, long startTime) {
+        private Bubble(Vec3 pos, float viewYaw, float viewPitch, float maxTime, long startTime) {
             this.pos = pos;
             this.viewYaw = viewYaw;
             this.viewPitch = viewPitch;
@@ -265,9 +265,9 @@ public class HitBubbleEffect {
             this.startTime = startTime;
             float yawRad = (float) Math.toRadians(viewYaw);
             float pitchRad = (float) Math.toRadians(viewPitch);
-            this.yawSin = MathHelper.sin(yawRad);
-            this.pitchSin = MathHelper.sin(pitchRad);
-            this.pitchCos = MathHelper.cos(pitchRad);
+            this.yawSin = Mth.sin(yawRad);
+            this.pitchSin = Mth.sin(pitchRad);
+            this.pitchCos = Mth.cos(pitchRad);
         }
 
         private float getDeltaTime(long now) {

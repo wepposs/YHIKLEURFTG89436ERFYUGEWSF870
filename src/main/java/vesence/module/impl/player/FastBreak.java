@@ -26,9 +26,9 @@ public class FastBreak extends Module {
 
     @EventInit
     public void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.interactionManager == null) return;
+        if (mc.player == null || mc.gameMode == null) return;
 
-        ((ClientPlayerInteractionManagerAccessor) mc.interactionManager).setBlockBreakingCooldown(0);
+        ((ClientPlayerInteractionManagerAccessor) mc.gameMode).setBlockBreakingCooldown(0);
     }
 
     public static FastBreak getInstance() {

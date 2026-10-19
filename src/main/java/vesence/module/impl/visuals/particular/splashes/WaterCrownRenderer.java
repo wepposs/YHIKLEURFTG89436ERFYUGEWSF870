@@ -4,22 +4,22 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.client.color.world.BiomeColors;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.BiomeColors;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.awt.Color;
@@ -42,24 +42,24 @@ public final class WaterCrownRenderer {
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.POSITION_TEX_COLOR_SNIPPET)
-                    .withLocation(Identifier.of("particular", "pipeline/water_crown"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("particular", "pipeline/water_crown"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
 
-    private static final Map<Identifier, RenderLayer> LAYERS = new HashMap<>();
+    private static final Map<ResourceLocation, RenderType> LAYERS = new HashMap<>();
     private static final List<Crown> CROWNS = new ArrayList<>();
 
-    private static BufferAllocator allocator;
-    private static VertexConsumerProvider.Immediate immediate;
+    private static ByteBufferBuilder allocator;
+    private static MultiBufferSource.Immediate immediate;
 
     private WaterCrownRenderer() {
     }
 
-    public static void spawn(ClientWorld world, double x, double y, double z, float width, float height, boolean foam) {
+    public static void spawn(ClientLevel world, double x, double y, double z, float width, float height, boolean foam) {
         float r;
         float g;
         float b;
@@ -76,7 +76,7 @@ public final class WaterCrownRenderer {
         CROWNS.add(new Crown(x, y, z, width, height, foam, r, g, b));
     }
 
-    public static void tick(ClientWorld world) {
+    public static void tick(ClientLevel world) {
         Iterator<Crown> it = CROWNS.iterator();
         while (it.hasNext()) {
             Crown c = it.next();
@@ -96,21 +96,21 @@ public final class WaterCrownRenderer {
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
             return;
         }
 
         try {
             if (allocator == null) {
-                allocator = new BufferAllocator(1048576);
-                immediate = VertexConsumerProvider.immediate(allocator);
+                allocator = new ByteBufferBuilder(1048576);
+                immediate = MultiBufferSource.immediate(allocator);
             }
 
-            MatrixStack matrices = event.getMatrixStack();
-            Vec3d cam = event.getCameraPos();
+            PoseStack matrices = event.getMatrixStack();
+            Vec3 cam = event.getCameraPos();
             float tickDelta = event.getTickDelta();
-            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            Matrix4f matrix = matrices.last().getPositionMatrix();
 
             for (Crown c : CROWNS) {
                 renderCrown(c, matrix, cam, tickDelta);
@@ -129,7 +129,7 @@ public final class WaterCrownRenderer {
         }
     }
 
-    private static void renderCrown(Crown c, Matrix4f matrix, Vec3d cam, float tickDelta) {
+    private static void renderCrown(Crown c, Matrix4f matrix, Vec3 cam, float tickDelta) {
         float progress = (c.age + tickDelta) / c.maxAge;
         float w = c.width * (0.8F + 0.2F * progress);
         float h = c.height;
@@ -140,7 +140,7 @@ public final class WaterCrownRenderer {
         float topY = baseY + h;
 
         int frame = 1 + Math.min(FRAMES - 1, (int) ((c.age + tickDelta) * FRAMES / c.maxAge));
-        Identifier texture = Identifier.of("particular",
+        ResourceLocation texture = ResourceLocation.of("particular",
                 "textures/particle/" + (c.foam ? "water_splash_foam_" : "water_splash_") + frame + ".png");
         VertexConsumer buffer = immediate.getBuffer(layerFor(texture));
 
@@ -168,8 +168,8 @@ public final class WaterCrownRenderer {
         buffer.vertex(m, ax, topY, az).color(r, g, b, 255).texture(0.0F, 0.0F);
     }
 
-    private static RenderLayer layerFor(Identifier texture) {
-        return LAYERS.computeIfAbsent(texture, tex -> RenderLayer.of(tex.toString(),
+    private static RenderType layerFor(ResourceLocation texture) {
+        return LAYERS.computeIfAbsent(texture, tex -> RenderType.of(tex.toString(),
                 RenderSetup.builder(PIPELINE).expectedBufferSize(1536).translucent().texture("Sampler0", tex).build()));
     }
 

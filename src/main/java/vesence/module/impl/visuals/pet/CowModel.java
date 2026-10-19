@@ -9,14 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.resource.Resource;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -24,16 +24,16 @@ import org.joml.Quaternionf;
 /**
  * Порт xd.harm.modules.models.cow.CowModel — JSON-меш-модель коровки с
  * пер-боун анимацией. Загрузка/матан 1:1 с harmony; рендер адаптирован под
- * 1.21.11 (MatrixStack + собственный POSITION_TEXTURE_COLOR слой, TRIANGLES).
+ * 1.21.11 (PoseStack + собственный POSITION_TEXTURE_COLOR слой, TRIANGLES).
  */
 public class CowModel {
 
-   public static final RenderLayer LAYER = PetRender.meshLayer(
-      "vesence_pet_cow", Identifier.of("vesence", "textures/pet/cow.png"));
-   private static final Identifier MODEL_LOCATION = Identifier.of("vesence", "pet/cow_mesh.json");
+   public static final RenderType LAYER = PetRender.meshLayer(
+      "vesence_pet_cow", ResourceLocation.of("vesence", "textures/pet/cow.png"));
+   private static final ResourceLocation MODEL_LOCATION = ResourceLocation.of("vesence", "pet/cow_mesh.json");
    private static final float MODEL_SCALE = 0.82F;
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
    private final List<ModelNode> nodes = new ArrayList<>();
    private final List<Integer> rootNodes = new ArrayList<>();
    private boolean loaded;
@@ -49,17 +49,17 @@ public class CowModel {
    private float walkCycleProgress;
    private long lastAnimationTimeNanos;
 
-   public void render(MatrixStack matrixStack, VertexConsumerProvider vertexConsumers, float partialTicks, CowBrain brain) {
+   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, CowBrain brain) {
       ensureLoaded();
       if (failed || nodes.isEmpty()) {
          return;
       }
 
       VertexConsumer buffer = vertexConsumers.getBuffer(LAYER);
-      float ageInTicks = mc.player == null ? 0.0F : mc.player.age + partialTicks;
+      float ageInTicks = mc.player == null ? 0.0F : mc.player.tickCount + partialTicks;
       float deltaSeconds = updateAnimationClock();
       float moveSpeed = brain.getMoveSpeed();
-      float interpolatedWalkAmount = MathHelper.lerp(partialTicks, brain.prevLimbSwingAmount, brain.limbSwingAmount);
+      float interpolatedWalkAmount = Mth.lerp(partialTicks, brain.prevLimbSwingAmount, brain.limbSwingAmount);
       float walkAmount = Math.min(Math.max(interpolatedWalkAmount, moveSpeed * 18.0F), 1.0F);
       float targetWalkBlend = walkAmount > 0.025F ? Math.min(1.0F, walkAmount * 1.35F) : 0.0F;
       walkBlend = smoothApproach(walkBlend, targetWalkBlend, deltaSeconds, 3.6F);
@@ -114,7 +114,7 @@ public class CowModel {
       float tailBaseRoll = 4.0F + ((float) Math.cos(idleCycle * 0.4F) * 0.45F) * idleBlend + ((float) Math.cos(walkCycle * 0.9F) * 1.5F) * walkBlend;
       float tailTipYaw = tailBaseYaw * 1.28F + ((float) Math.sin(idleCycle * 0.62F + 0.45F) * 0.9F) * idleBlend;
 
-      matrixStack.push();
+      matrixStack.pushPose();
       matrixStack.translate(sideShift, bob - 0.01 * 10.0F, 0.0D);
       matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(smoothedYaw));
       matrixStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
@@ -133,16 +133,16 @@ public class CowModel {
       for (int rootNode : rootNodes) {
          renderNode(matrixStack, buffer, rootNode, pose);
       }
-      matrixStack.pop();
+      matrixStack.popPose();
    }
 
-   private void renderNode(MatrixStack matrixStack, VertexConsumer buffer, int nodeIndex, AnimationPose pose) {
+   private void renderNode(PoseStack matrixStack, VertexConsumer buffer, int nodeIndex, AnimationPose pose) {
       if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
          return;
       }
 
       ModelNode node = nodes.get(nodeIndex);
-      matrixStack.push();
+      matrixStack.pushPose();
       matrixStack.translate(node.translation[0], node.translation[1], node.translation[2]);
       matrixStack.multiply(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
       if (!isUnitScale(node.scale)) {
@@ -158,10 +158,10 @@ public class CowModel {
       for (int childIndex : node.children) {
          renderNode(matrixStack, buffer, childIndex, pose);
       }
-      matrixStack.pop();
+      matrixStack.popPose();
    }
 
-   private void applyNodeAnimation(MatrixStack matrixStack, String nodeName, AnimationPose pose) {
+   private void applyNodeAnimation(PoseStack matrixStack, String nodeName, AnimationPose pose) {
       if ("bone13".equals(nodeName)) {
          float idleYaw = (float) Math.sin(pose.idleCycle * 0.24F + 0.3F) * 0.35F * pose.idleBlend;
          float idlePitch = (float) Math.cos(pose.idleCycle * 0.3F + 0.8F) * 0.22F * pose.idleBlend;
@@ -513,8 +513,8 @@ public class CowModel {
             array.get(4).getAsFloat());
    }
 
-   private void renderTriangles(MatrixStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
-      Matrix4f matrix = matrixStack.peek().getPositionMatrix();
+   private void renderTriangles(PoseStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
+      Matrix4f matrix = matrixStack.last().getPositionMatrix();
       for (MeshTriangle triangle : triangles) {
          putVertex(buffer, matrix, triangle.a);
          putVertex(buffer, matrix, triangle.b);

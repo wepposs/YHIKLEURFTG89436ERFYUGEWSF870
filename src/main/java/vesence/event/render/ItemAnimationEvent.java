@@ -2,34 +2,34 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Hand;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public class ItemAnimationEvent extends Event {
-   private final MatrixStack matrix;
-   private final Hand hand;
+   private final PoseStack matrix;
+   private final InteractionHand hand;
    private final float swingProgress;
    private final float equipProgress;
 
-   public ItemAnimationEvent(MatrixStack matrix, Hand hand, float swingProgress, float equipProgress) {
+   public ItemAnimationEvent(PoseStack matrix, InteractionHand hand, float swingProgress, float equipProgress) {
       this.matrix = matrix;
       this.hand = hand;
       this.swingProgress = swingProgress;
       this.equipProgress = equipProgress;
    }
 
-   public MatrixStack getMatrix() {
+   public PoseStack getMatrix() {
       return this.matrix;
    }
 
-   public Hand getHand() {
+   public InteractionHand getHand() {
       return this.hand;
    }
 
    public boolean isRightHand() {
-      return this.hand == Hand.MAIN_HAND;
+      return this.hand == InteractionHand.MAIN_HAND;
    }
 
    public float getSwingProgress() {

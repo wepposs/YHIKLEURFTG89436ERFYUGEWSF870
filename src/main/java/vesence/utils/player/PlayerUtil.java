@@ -6,26 +6,26 @@ import java.util.List;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.Block;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
 import vesence.utils.other.IMinecraft;
 
 @Environment(EnvType.CLIENT)
 public final class PlayerUtil implements IMinecraft {
    public static boolean nullCheck() {
-      return mc.player == null || mc.world == null;
+      return mc.player == null || mc.level == null;
    }
 
    public static boolean isBlockSolid(double x, double y, double z) {
       BlockPos pos = BlockPos.ofFloored(x, y, z);
-      return mc.world.getBlockState(pos).isFullCube(mc.world, pos);
+      return mc.level.getBlockState(pos).isFullCube(mc.level, pos);
    }
 
    public static Block block(BlockPos pos) {
-      return mc.world.getBlockState(pos).getBlock();
+      return mc.level.getBlockState(pos).getBlock();
    }
 
    public static float calculateCorrectYawOffset(float yaw) {
@@ -35,15 +35,15 @@ public final class PlayerUtil implements IMinecraft {
       float renderYawOffset = mc.player.lastBodyYaw;
       float offset = renderYawOffset;
       if (distSquared > 0.0025000002F) {
-         offset = (float)MathHelper.atan2(zDiff, xDiff) * 180.0F / (float) Math.PI - 90.0F;
+         offset = (float)Mth.atan2(zDiff, xDiff) * 180.0F / (float) Math.PI - 90.0F;
       }
 
       if (mc.player != null && mc.player.handSwingProgress > 0.0F) {
          offset = yaw;
       }
 
-      float yawOffsetDiff = MathHelper.wrapDegrees(yaw - (renderYawOffset + MathHelper.wrapDegrees(offset - renderYawOffset) * 0.3F));
-      yawOffsetDiff = MathHelper.clamp(yawOffsetDiff, -32.0F, 32.0F);
+      float yawOffsetDiff = Mth.wrapDegrees(yaw - (renderYawOffset + Mth.wrapDegrees(offset - renderYawOffset) * 0.3F));
+      yawOffsetDiff = Mth.clamp(yawOffsetDiff, -32.0F, 32.0F);
       renderYawOffset = yaw - yawOffsetDiff;
       if (yawOffsetDiff * yawOffsetDiff > 2500.0F) {
          renderYawOffset += yawOffsetDiff * 0.2F;
@@ -53,16 +53,16 @@ public final class PlayerUtil implements IMinecraft {
    }
 
    public static boolean isPlayerInWeb() {
-      Box playerBox = mc.player.getBoundingBox();
+      AABB playerBox = mc.player.getBoundingBox();
       BlockPos playerPosition = mc.player.getBlockPos();
       return getNearbyBlockPositions(playerPosition).stream().anyMatch(pos -> isBlockCobweb(playerBox, pos));
    }
 
-   private static boolean isBlockCobweb(Box playerBox, BlockPos pos) {
-      if (!mc.world.getBlockState(pos).isOf(Blocks.COBWEB)) {
+   private static boolean isBlockCobweb(AABB playerBox, BlockPos pos) {
+      if (!mc.level.getBlockState(pos).isOf(Blocks.COBWEB)) {
          return false;
       } else {
-         Box blockBox = new Box(pos);
+         AABB blockBox = new AABB(pos);
          return playerBox.intersects(blockBox);
       }
    }
@@ -84,14 +84,14 @@ public final class PlayerUtil implements IMinecraft {
    public static boolean isServerContains(String searchString) {
       if (searchString == null || searchString.isEmpty()) {
          return false;
-      } else if (!nullCheck() && mc.getNetworkHandler() != null) {
+      } else if (!nullCheck() && mc.getConnection() != null) {
          String serverAddress = null;
          if (mc.getCurrentServerEntry() != null) {
             serverAddress = mc.getCurrentServerEntry().address;
          }
 
-         if ((serverAddress == null || serverAddress.isEmpty()) && mc.getNetworkHandler().getConnection() != null) {
-            SocketAddress address = mc.getNetworkHandler().getConnection().getAddress();
+         if ((serverAddress == null || serverAddress.isEmpty()) && mc.getConnection().getConnection() != null) {
+            SocketAddress address = mc.getConnection().getConnection().getAddress();
             if (address != null) {
                serverAddress = address.toString();
                if (serverAddress.startsWith("/")) {

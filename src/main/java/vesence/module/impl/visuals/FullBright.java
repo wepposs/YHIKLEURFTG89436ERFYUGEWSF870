@@ -2,9 +2,9 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import vesence.event.EventInit;
 import vesence.event.lifecycle.ClientTickEvent;
 import vesence.module.api.Category;
@@ -25,20 +25,20 @@ public class FullBright extends Module {
     @Override
     public void onEnable() {
         super.onEnable();
-        if (mc.worldRenderer != null && this.mode.is("Гамма")) {
-            mc.worldRenderer.reload();
+        if (mc.levelRenderer != null && this.mode.is("Гамма")) {
+            mc.levelRenderer.reload();
         }
     }
 
     @Override
     public void onDisable() {
         super.onDisable();
-        if (mc.worldRenderer != null && this.mode.is("Гамма")) {
-            mc.worldRenderer.reload();
+        if (mc.levelRenderer != null && this.mode.is("Гамма")) {
+            mc.levelRenderer.reload();
         }
 
         if (this.mode.is("Эффект")) {
-            mc.player.removeStatusEffect(StatusEffects.NIGHT_VISION);
+            mc.player.removeStatusEffect(MobEffects.NIGHT_VISION);
         }
     }
 
@@ -46,11 +46,11 @@ public class FullBright extends Module {
     public void onUpdate(ClientTickEvent e) {
         if (mc.player != null) {
             if (this.mode.is("Гамма")) {
-                mc.player.removeStatusEffect(StatusEffects.NIGHT_VISION);
+                mc.player.removeStatusEffect(MobEffects.NIGHT_VISION);
             }
 
             if (this.mode.is("Эффект")) {
-                mc.player.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 300, 0, false, false));
+                mc.player.addStatusEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 300, 0, false, false));
             }
         }
     }

@@ -1,8 +1,8 @@
 package vesence.utils.player;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
 import vesence.event.impl.EventPacket;
 import vesence.utils.other.IMinecraft;
@@ -14,7 +14,7 @@ public class InventoryUtil implements IMinecraft {
         int lastSlot = inHotBar ? 9 : 36;
         int finalSlot = -1;
         for (int i = firstSlot; i < lastSlot; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == item) {
+            if (mc.player.getInventory().getItem(i).getItem() == item) {
                 finalSlot = i;
             }
         }
@@ -25,7 +25,7 @@ public class InventoryUtil implements IMinecraft {
         int start = inHotBar ? 0 : 9;
         int end = inHotBar ? 9 : 45;
         for (int i = start; i < end; ++i) {
-            if (!mc.player.getInventory().getStack(i).isEmpty()) {
+            if (!mc.player.getInventory().getItem(i).isEmpty()) {
                 continue;
             }
             return i;
@@ -33,7 +33,7 @@ public class InventoryUtil implements IMinecraft {
         return -1;
     }
 
-    public static class Hand {
+    public static class InteractionHand {
         public static boolean isEnabled;
         private boolean isChangingItem;
         private int originalSlot = -1;

@@ -2,11 +2,11 @@ package vesence.utils.commands;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -118,30 +118,30 @@ public final class CommandManager {
    // ── helpers ──────────────────────────────────────────────────────────────
 
    private void sendNotFound(String input) {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client == null) return;
 
       MutableText prefix  = buildGradient(PREFIX, ERROR_START, ERROR_END);
-      MutableText payload = Text.literal(" команда не найдена: " + input)
+      MutableText payload = Component.literal(" команда не найдена: " + input)
               .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555)));
       MutableText full = prefix.append(payload);
 
       if (client.player != null) {
          client.player.sendMessage(full, false);
-      } else if (client.inGameHud != null) {
-         client.inGameHud.getChatHud().addMessage(full);
+      } else if (client.gui != null) {
+         client.gui.getChatHud().addMessage(full);
       }
    }
 
    private MutableText buildGradient(String text, int startColor, int endColor) {
-      MutableText result = Text.empty();
+      MutableText result = Component.empty();
       int[] codePoints = text.codePoints().toArray();
       int length = codePoints.length;
       for (int i = 0; i < length; i++) {
          double ratio = length <= 1 ? 0.0 : (double) i / (length - 1);
          int color = interpolateColor(startColor, endColor, ratio);
          String ch = new String(Character.toChars(codePoints[i]));
-         result = result.append(Text.literal(ch).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(color))));
+         result = result.append(Component.literal(ch).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(color))));
       }
       return result;
    }

@@ -1,6 +1,6 @@
 package vesence.renderengine.render.pipeline;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.*;
 import vesence.renderengine.providers.ShaderProgram;
 import vesence.renderengine.providers.GlState;
@@ -70,7 +70,7 @@ public class SquircleTexturePipeline {
                      float[] radii, int color, float smoothness, float cornerSmoothness,
                      float[] matrix, int viewportW, int viewportH, boolean nearest) {
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
             shader.use();
             if (uMatrixLoc != -1) GL20.glUniformMatrix3fv(uMatrixLoc, false, matrix);

@@ -2,10 +2,10 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,15 +21,15 @@ public abstract class EntityMixin {
 
     // require = 0 → если метод не найдётся, Mixin не рушит игру, просто пропустит
     @Inject(method = "isInvisibleTo", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onIsInvisibleTo(PlayerEntity player, CallbackInfoReturnable<Boolean> cir) {
+    private void onIsInvisibleTo(Player player, CallbackInfoReturnable<Boolean> cir) {
         try {
             if (!Vesence.isModInitialized()) return;
             var module = Vesence.get.manager.get(vesence.module.impl.visuals.SeeInvisibles.class);
             if (module == null || !module.enable) return;
 
             Entity self = (Entity) (Object) this;
-            if (self instanceof PlayerEntity
-                    && self != MinecraftClient.getInstance().player) {
+            if (self instanceof Player
+                    && self != Minecraft.getInstance().player) {
                 cir.setReturnValue(false);
             }
         } catch (Throwable ignored) {
@@ -42,10 +42,10 @@ public abstract class EntityMixin {
     }
 
     @Inject(method = "updateVelocity", at = @At("TAIL"), require = 0)
-    private void onUpdateVelocity(float speed, Vec3d movementInput, CallbackInfo ci) {
+    private void onUpdateVelocity(float speed, Vec3 movementInput, CallbackInfo ci) {
         try {
             Entity self = (Entity) (Object) this;
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (mc.player != null && self.getId() == mc.player.getId()) {
                 EventManager.call(new EventOnMovePost(speed, movementInput));
             }

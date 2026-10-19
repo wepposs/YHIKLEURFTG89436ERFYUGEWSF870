@@ -2,9 +2,9 @@ package vesence.utils.render.ttf;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.resource.Resource;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.util.ResourceLocation;
 
 import java.awt.Font;
 import java.io.InputStream;
@@ -16,9 +16,9 @@ public final class TtfFontUtil {
    private TtfFontUtil() {
    }
 
-   public static Font load(Identifier resource, float size) {
+   public static Font load(ResourceLocation resource, float size) {
       try {
-         MinecraftClient mc = MinecraftClient.getInstance();
+         Minecraft mc = Minecraft.getInstance();
          if (mc == null || mc.getResourceManager() == null) return null;
          Optional<Resource> r = mc.getResourceManager().getResource(resource);
          if (r.isEmpty()) return null;

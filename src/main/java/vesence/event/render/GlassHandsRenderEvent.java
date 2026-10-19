@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
-import net.minecraft.client.util.math.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import vesence.event.Event;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -19,6 +19,6 @@ public class GlassHandsRenderEvent extends Event {
     }
 
     Phase phase;
-    MatrixStack matrices;
+    PoseStack matrices;
     float tickDelta;
 }

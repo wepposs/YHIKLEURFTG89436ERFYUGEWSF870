@@ -5,10 +5,10 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.util.math.MatrixStack.Entry;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.util.math.PoseStack.Entry;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -21,7 +21,7 @@ public final class WorldGeometryEmitter {
    private final Matrix4f positionMatrix;
    private final Matrix3f normalMatrix;
    private final VertexConsumer consumer;
-   private final Vec3d cameraPosition;
+   private final Vec3 cameraPosition;
 
    public WorldGeometryEmitter(WorldRenderer renderer, Entry entry, VertexConsumer consumer) {
       this(Objects.requireNonNull(renderer, "renderer").camera(), entry, consumer);
@@ -36,11 +36,11 @@ public final class WorldGeometryEmitter {
       this.normalMatrix = new Matrix3f(entry.getNormalMatrix());
    }
 
-   public void emitQuad(Vec3d v0, Vec3d v1, Vec3d v2, Vec3d v3, int rgbaColor) {
+   public void emitQuad(Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, int rgbaColor) {
       this.emitQuad(v0, v1, v2, v3, rgbaColor, rgbaColor, rgbaColor, rgbaColor);
    }
 
-   public void emitQuad(Vec3d v0, Vec3d v1, Vec3d v2, Vec3d v3, int rgbaColor0, int rgbaColor1, int rgbaColor2, int rgbaColor3) {
+   public void emitQuad(Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, int rgbaColor0, int rgbaColor1, int rgbaColor2, int rgbaColor3) {
       Objects.requireNonNull(v0, "v0");
       Objects.requireNonNull(v1, "v1");
       Objects.requireNonNull(v2, "v2");
@@ -51,18 +51,18 @@ public final class WorldGeometryEmitter {
       this.writeColorVertex(v3, rgbaColor3);
    }
 
-   public void emitCube(Vec3d min, Vec3d max, int rgbaColor) {
+   public void emitCube(Vec3 min, Vec3 max, int rgbaColor) {
       Objects.requireNonNull(min, "min");
       Objects.requireNonNull(max, "max");
       if (!(min.x > max.x) && !(min.y > max.y) && !(min.z > max.z)) {
-         Vec3d p000 = new Vec3d(min.x, min.y, min.z);
-         Vec3d p001 = new Vec3d(min.x, min.y, max.z);
-         Vec3d p010 = new Vec3d(min.x, max.y, min.z);
-         Vec3d p011 = new Vec3d(min.x, max.y, max.z);
-         Vec3d p100 = new Vec3d(max.x, min.y, min.z);
-         Vec3d p101 = new Vec3d(max.x, min.y, max.z);
-         Vec3d p110 = new Vec3d(max.x, max.y, min.z);
-         Vec3d p111 = new Vec3d(max.x, max.y, max.z);
+         Vec3 p000 = new Vec3(min.x, min.y, min.z);
+         Vec3 p001 = new Vec3(min.x, min.y, max.z);
+         Vec3 p010 = new Vec3(min.x, max.y, min.z);
+         Vec3 p011 = new Vec3(min.x, max.y, max.z);
+         Vec3 p100 = new Vec3(max.x, min.y, min.z);
+         Vec3 p101 = new Vec3(max.x, min.y, max.z);
+         Vec3 p110 = new Vec3(max.x, max.y, min.z);
+         Vec3 p111 = new Vec3(max.x, max.y, max.z);
          this.emitQuad(p000, p100, p110, p010, rgbaColor);
          this.emitQuad(p001, p011, p111, p101, rgbaColor);
          this.emitQuad(p000, p001, p101, p100, rgbaColor);
@@ -74,11 +74,11 @@ public final class WorldGeometryEmitter {
       }
    }
 
-   public void emitLine(Vec3d start, Vec3d end, int rgbaColor) {
+   public void emitLine(Vec3 start, Vec3 end, int rgbaColor) {
       this.emitLine(start, end, rgbaColor, rgbaColor);
    }
 
-   public void emitLine(Vec3d start, Vec3d end, int startColor, int endColor) {
+   public void emitLine(Vec3 start, Vec3 end, int startColor, int endColor) {
       Objects.requireNonNull(start, "start");
       Objects.requireNonNull(end, "end");
       Vector3f normal = this.computeLineNormal(start, end);
@@ -87,10 +87,10 @@ public final class WorldGeometryEmitter {
    }
 
    public void emitTexturedQuad(
-      Vec3d v0,
-      Vec3d v1,
-      Vec3d v2,
-      Vec3d v3,
+      Vec3 v0,
+      Vec3 v1,
+      Vec3 v2,
+      Vec3 v3,
       float u0,
       float v0Coord,
       float u1,
@@ -105,10 +105,10 @@ public final class WorldGeometryEmitter {
    }
 
    public void emitTexturedQuad(
-      Vec3d v0,
-      Vec3d v1,
-      Vec3d v2,
-      Vec3d v3,
+      Vec3 v0,
+      Vec3 v1,
+      Vec3 v2,
+      Vec3 v3,
       float u0,
       float v0Coord,
       float u1,
@@ -132,16 +132,16 @@ public final class WorldGeometryEmitter {
       this.writeTexturedVertex(v3, u3, v3Coord, color3);
    }
 
-   private void writeColorVertex(Vec3d worldPos, int rgbaColor) {
-      Vec3d cameraSpace = this.toCameraSpace(worldPos);
+   private void writeColorVertex(Vec3 worldPos, int rgbaColor) {
+      Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
          .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
       vertex.color(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
       this.finalizeVertex(vertex);
    }
 
-   private void writeTexturedVertex(Vec3d worldPos, float u, float v, int rgbaColor) {
-      Vec3d cameraSpace = this.toCameraSpace(worldPos);
+   private void writeTexturedVertex(Vec3 worldPos, float u, float v, int rgbaColor) {
+      Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
          .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
       vertex.texture(u, v);
@@ -149,8 +149,8 @@ public final class WorldGeometryEmitter {
       this.finalizeVertex(vertex);
    }
 
-   private void writeLineVertex(Vec3d worldPos, int rgbaColor, Vector3f normal) {
-      Vec3d cameraSpace = this.toCameraSpace(worldPos);
+   private void writeLineVertex(Vec3 worldPos, int rgbaColor, Vector3f normal) {
+      Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
          .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
       vertex.color(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
@@ -181,20 +181,20 @@ public final class WorldGeometryEmitter {
       }
    }
 
-   private Vec3d toCameraSpace(Vec3d worldPos) {
+   private Vec3 toCameraSpace(Vec3 worldPos) {
       return worldPos.subtract(this.cameraPosition);
    }
 
-   private Vector3f computeLineNormal(Vec3d start, Vec3d end) {
-      Vec3d delta = end.subtract(start);
+   private Vector3f computeLineNormal(Vec3 start, Vec3 end) {
+      Vec3 delta = end.subtract(start);
       Vector3f normal = new Vector3f((float)delta.x, (float)delta.y, (float)delta.z);
-      if (normal.lengthSquared() <= 1.0E-6F) {
+      if (normal.lengthSqr() <= 1.0E-6F) {
          normal.set(0.0F, 1.0F, 0.0F);
       }
 
       normal.normalize();
       this.normalMatrix.transform(normal);
-      if (normal.lengthSquared() <= 1.0E-6F) {
+      if (normal.lengthSqr() <= 1.0E-6F) {
          normal.set(0.0F, 1.0F, 0.0F);
       }
 

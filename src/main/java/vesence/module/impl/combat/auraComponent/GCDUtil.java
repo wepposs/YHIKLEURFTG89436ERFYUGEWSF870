@@ -2,7 +2,7 @@ package vesence.module.impl.combat.auraComponent;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.utils.other.IMinecraft;
 
 /**
@@ -52,7 +52,7 @@ public class GCDUtil implements IMinecraft {
          return DEFAULT_SENSITIVITY;
       }
       float s = mc.options.getMouseSensitivity().getValue().floatValue();
-      return MathHelper.clamp(s, 0.0F, 1.0F);
+      return Mth.clamp(s, 0.0F, 1.0F);
    }
 
    /** Шаг сетки для текущей сенсы игрока. */
@@ -88,7 +88,7 @@ public class GCDUtil implements IMinecraft {
       if (gcd <= 0.0F) {
          return targetYaw;
       }
-      float delta = MathHelper.wrapDegrees(targetYaw - currentYaw);
+      float delta = Mth.wrapDegrees(targetYaw - currentYaw);
       return currentYaw + Math.round(delta / gcd) * gcd;
    }
 

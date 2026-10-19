@@ -1,6 +1,6 @@
 package vesence.module.impl.combat.neuro;
 
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 
 public class EasingUtil {
     public boolean rayAligned;
@@ -24,14 +24,14 @@ public class EasingUtil {
     private static final float MAX_STEP = 90.0f;
 
     public void clamp() {
-        this.distance = MathHelper.clamp(this.distance, MIN_DISTANCE, MAX_DISTANCE);
-        this.yawError = MathHelper.clamp(this.yawError, 0.0f, MAX_YAW_ERROR);
-        this.pitchError = MathHelper.clamp(this.pitchError, 0.0f, MAX_PITCH_ERROR);
-        this.targetSpeed = MathHelper.clamp(this.targetSpeed, 0.0f, MAX_TARGET_SPEED);
-        this.yawGain = MathHelper.clamp(this.yawGain, MIN_GAIN, MAX_YAW_GAIN);
-        this.pitchGain = MathHelper.clamp(this.pitchGain, MIN_GAIN, MAX_PITCH_GAIN);
-        this.yawStepAbs = MathHelper.clamp(this.yawStepAbs, 0.0f, MAX_STEP);
-        this.pitchStepAbs = MathHelper.clamp(this.pitchStepAbs, 0.0f, MAX_STEP);
+        this.distance = Mth.clamp(this.distance, MIN_DISTANCE, MAX_DISTANCE);
+        this.yawError = Mth.clamp(this.yawError, 0.0f, MAX_YAW_ERROR);
+        this.pitchError = Mth.clamp(this.pitchError, 0.0f, MAX_PITCH_ERROR);
+        this.targetSpeed = Mth.clamp(this.targetSpeed, 0.0f, MAX_TARGET_SPEED);
+        this.yawGain = Mth.clamp(this.yawGain, MIN_GAIN, MAX_YAW_GAIN);
+        this.pitchGain = Mth.clamp(this.pitchGain, MIN_GAIN, MAX_PITCH_GAIN);
+        this.yawStepAbs = Mth.clamp(this.yawStepAbs, 0.0f, MAX_STEP);
+        this.pitchStepAbs = Mth.clamp(this.pitchStepAbs, 0.0f, MAX_STEP);
     }
 
     public boolean isValid() {

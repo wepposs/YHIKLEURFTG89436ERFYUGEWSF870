@@ -2,16 +2,16 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.AttackAura;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
@@ -78,12 +78,12 @@ public final class UVulcanRotation {
     public static void rotation(LivingEntity target,
                                 float attackDist,
                                 float preDist,
-                                Vec3d fallbackPoint) {
-        if (mc.player == null || mc.world == null || target == null) return;
+                                Vec3 fallbackPoint) {
+        if (mc.player == null || mc.level == null || target == null) return;
 
         float range = Math.max(3.0F, attackDist + preDist);
 
-        Rotation currentRotation = new Rotation(mc.player.getYaw(), mc.player.getPitch());
+        Rotation currentRotation = new Rotation(mc.player.getYRot(), mc.player.getXRot());
 
         Rotation targetRotation = new Rotation(
                 calculateYaw(target),
@@ -121,7 +121,7 @@ public final class UVulcanRotation {
                                     float attackDist) {
 
         // РђРЅР°Р»РѕРі RotationUtil.calculateDelta(current, target)
-        float yawDelta   = MathHelper.wrapDegrees(targetRotation.yaw - currentRotation.yaw);
+        float yawDelta   = Mth.wrapDegrees(targetRotation.yaw - currentRotation.yaw);
         float pitchDelta = targetRotation.pitch - currentRotation.pitch;
 
         float maxYawSpeed   = dermoYaw   / 3f;
@@ -263,8 +263,8 @@ public final class UVulcanRotation {
         lastPitchDelta = pitchDelta;
 
         return new Rotation(
-                currentRotation.yaw + MathHelper.clamp(yawDelta, -maxYawSpeed, maxYawSpeed),
-                currentRotation.pitch + MathHelper.clamp(pitchDelta, -maxPitchSpeed, maxPitchSpeed)
+                currentRotation.yaw + Mth.clamp(yawDelta, -maxYawSpeed, maxYawSpeed),
+                currentRotation.pitch + Mth.clamp(pitchDelta, -maxPitchSpeed, maxPitchSpeed)
         );
     }
 
@@ -273,26 +273,26 @@ public final class UVulcanRotation {
        ========================================================= */
 
     private static float calculateYaw(LivingEntity target) {
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d point = closestPointOnBox(eye, target.getBoundingBox());
-        Vec3d dir = point.subtract(eye).normalize();
-        return MathHelper.wrapDegrees(
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 point = closestPointOnBox(eye, target.getBoundingBox());
+        Vec3 dir = point.subtract(eye).normalize();
+        return Mth.wrapDegrees(
                 (float) Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0F);
     }
 
     private static float calculatePitch(LivingEntity target) {
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d point = closestPointOnBox(eye, target.getBoundingBox());
-        Vec3d dir = point.subtract(eye).normalize();
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 point = closestPointOnBox(eye, target.getBoundingBox());
+        Vec3 dir = point.subtract(eye).normalize();
         return (float) -Math.toDegrees(
                 Math.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z)));
     }
 
-    private static Vec3d closestPointOnBox(Vec3d p, Box box) {
-        return new Vec3d(
-                MathHelper.clamp(p.x, box.minX, box.maxX),
-                MathHelper.clamp(p.y, box.minY, box.maxY),
-                MathHelper.clamp(p.z, box.minZ, box.maxZ)
+    private static Vec3 closestPointOnBox(Vec3 p, AABB box) {
+        return new Vec3(
+                Mth.clamp(p.x, box.minX, box.maxX),
+                Mth.clamp(p.y, box.minY, box.maxY),
+                Mth.clamp(p.z, box.minZ, box.maxZ)
         );
     }
 
@@ -301,12 +301,12 @@ public final class UVulcanRotation {
        ========================================================= */
 
     private static EntityHitResult raytraceEntity(float range, Rotation rotation) {
-        if (mc.player == null || mc.world == null) return null;
+        if (mc.player == null || mc.level == null) return null;
 
-        Vec3d look = Vec3d.fromPolar(rotation.pitch, rotation.yaw);
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d end = eye.add(look.multiply(range));
-        Box box = mc.player.getBoundingBox().stretch(look.multiply(range)).expand(1.0);
+        Vec3 look = Vec3.fromPolar(rotation.pitch, rotation.yaw);
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 end = eye.add(look.multiply(range));
+        AABB box = mc.player.getBoundingBox().stretch(look.multiply(range)).expand(1.0);
 
         return ProjectileUtil.raycast(
                 mc.player, eye, end, box,
@@ -326,9 +326,9 @@ public final class UVulcanRotation {
     }
 
     private static Block getBlock(int dx, int dy, int dz) {
-        if (mc.player == null || mc.world == null) return Blocks.AIR;
+        if (mc.player == null || mc.level == null) return Blocks.AIR;
         BlockPos pos = mc.player.getBlockPos().add(dx, dy, dz);
-        return mc.world.getBlockState(pos).getBlock();
+        return mc.level.getBlockState(pos).getBlock();
     }
 
     /* =========================================================

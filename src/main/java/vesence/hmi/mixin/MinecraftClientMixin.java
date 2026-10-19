@@ -1,14 +1,14 @@
 package vesence.hmi.mixin;
 
 import vesence.hmi.access.LivingEntityAccessor;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -19,20 +19,20 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(value={MinecraftClient.class})
+@Mixin(value={Minecraft.class})
 public class MinecraftClientMixin {
     @Shadow
     @Nullable
-    public ClientPlayerEntity player;
+    public LocalPlayer player;
     @Shadow
     @Nullable
-    public ClientWorld world;
+    public ClientLevel world;
     @Shadow
     @Final
     public GameRenderer gameRenderer;
     @Shadow
     @Nullable
-    public ClientPlayerInteractionManager interactionManager;
+    public ClientPlayerInteractionManager gameMode;
     @Shadow
     private int itemUseCooldown;
     @Shadow
@@ -60,20 +60,20 @@ public class MinecraftClientMixin {
                 vesence.hmi.CritDetector.isCriticalAttack(this.player, target));
     }
 
-    @Inject(method={"doAttack"}, at={@At(value="INVOKE", target="Lnet/minecraft/client/network/ClientPlayerEntity;swingHand(Lnet/minecraft/util/Hand;)V")})
+    @Inject(method={"doAttack"}, at={@At(value="INVOKE", target="Lnet/minecraft/client/network/LocalPlayer;swingHand(Lnet/minecraft/util/InteractionHand;)V")})
     public void doAttackMix(CallbackInfoReturnable<Boolean> cir) {
-        ClientPlayerEntity class_7462 = this.player;
+        LocalPlayer class_7462 = this.player;
         if (class_7462 instanceof LivingEntityAccessor) {
             LivingEntityAccessor mixin = (LivingEntityAccessor)class_7462;
             mixin.hMI5_0$resetMainHandSwing(false);
         }
     }
 
-    @Redirect(method={"doItemUse"}, at=@At(value="INVOKE", target="Lnet/minecraft/client/network/ClientPlayerEntity;swingHand(Lnet/minecraft/util/Hand;)V"))
-    private void doItemUse(ClientPlayerEntity instance, Hand hand) {
+    @Redirect(method={"doItemUse"}, at=@At(value="INVOKE", target="Lnet/minecraft/client/network/LocalPlayer;swingHand(Lnet/minecraft/util/InteractionHand;)V"))
+    private void doItemUse(LocalPlayer instance, InteractionHand hand) {
         if (instance instanceof LivingEntityAccessor) {
             LivingEntityAccessor accessor = (LivingEntityAccessor)instance;
-            if (hand == Hand.MAIN_HAND) {
+            if (hand == InteractionHand.MAIN_HAND) {
                 accessor.hMI5_0$resetMainHandSwing(true);
             } else {
                 accessor.hMI5_0$resetOffHandSwing(true);

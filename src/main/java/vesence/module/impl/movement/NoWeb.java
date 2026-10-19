@@ -2,7 +2,7 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -33,7 +33,7 @@ public class NoWeb extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate e) {
-      if (mc.player == null || mc.world == null) return;
+      if (mc.player == null || mc.level == null) return;
       if (!PlayerUtil.isPlayerInWeb()) return;
 
       if (mode.is("ReallyWorld")) {
@@ -41,7 +41,7 @@ public class NoWeb extends Module {
          if (mc.options.jumpKey.isPressed()) { y = 1.2; }
          else if (mc.options.sneakKey.isPressed()) { y = -2.0; }
          double[] speed = MoveUtil.calculateDirection(Mathf.random(0.62F, 0.64F));
-         mc.player.setVelocity(speed[0], y, speed[1]);
+         mc.player.setDeltaMovement(speed[0], y, speed[1]);
       }
    }
 

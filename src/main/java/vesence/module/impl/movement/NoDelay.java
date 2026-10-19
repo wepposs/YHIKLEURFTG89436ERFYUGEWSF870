@@ -2,8 +2,8 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ExperienceBottleItem;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ExperienceBottleItem;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.mixin.LivingEntityAccessor;
@@ -38,16 +38,16 @@ public class NoDelay extends Module {
         }
 
         if (bubbles.get()) {
-            net.minecraft.item.ItemStack main = mc.player.getMainHandStack();
-            net.minecraft.item.ItemStack off = mc.player.getOffHandStack();
+            net.minecraft.item.ItemStack main = mc.player.getMainHandItem();
+            net.minecraft.item.ItemStack off = mc.player.getOffhandItem();
             if (main.getItem() instanceof ExperienceBottleItem || off.getItem() instanceof ExperienceBottleItem) {
                 mcAccessor.setItemUseCooldown(0);
             }
         }
 
         if (blocks.get()) {
-            net.minecraft.item.ItemStack main = mc.player.getMainHandStack();
-            net.minecraft.item.ItemStack off = mc.player.getOffHandStack();
+            net.minecraft.item.ItemStack main = mc.player.getMainHandItem();
+            net.minecraft.item.ItemStack off = mc.player.getOffhandItem();
             if (main.getItem() instanceof BlockItem || off.getItem() instanceof BlockItem) {
                 mcAccessor.setItemUseCooldown(0);
             }

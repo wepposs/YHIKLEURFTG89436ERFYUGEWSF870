@@ -2,12 +2,12 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,7 +22,7 @@ import vesence.ui.MainScreen;
 import vesence.ui.MainScreenHelper;
 
 @Environment(EnvType.CLIENT)
-@Mixin(MinecraftClient.class)
+@Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin {
 
    @Inject(method = "tick", at = @At("TAIL"), require = 0)
@@ -30,10 +30,10 @@ public abstract class MinecraftClientMixin {
       try {
          vesence.utils.debug.FreezeWatchdog.beat("tick");
          if (Vesence.isModInitialized()) {
-            MinecraftClient client = (MinecraftClient) (Object) this;
+            Minecraft client = (Minecraft) (Object) this;
             if (!client.isPaused()) {
-               ClientPlayerEntity player = client.player;
-               ClientWorld world = client.world;
+               LocalPlayer player = client.player;
+               ClientLevel world = client.level;
                if (player != null && world != null) {
                   EventManager.call(new ClientTickEvent(client));
                 }
@@ -63,7 +63,7 @@ public abstract class MinecraftClientMixin {
                MainScreenHelper.bypassOnce = false;
                return;
             }
-            MinecraftClient mc = (MinecraftClient) (Object) this;
+            Minecraft mc = (Minecraft) (Object) this;
             ci.cancel();
             mc.setScreen(new MainScreen());
             return;
@@ -75,7 +75,7 @@ public abstract class MinecraftClientMixin {
                MainScreenHelper.bypassOnce = false;
                return;
             }
-            MinecraftClient mc = (MinecraftClient) (Object) this;
+            Minecraft mc = (Minecraft) (Object) this;
             ci.cancel();
             boolean ru = false;
             try {

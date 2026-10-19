@@ -9,27 +9,27 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.component.type.LoreComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.Holder;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.ScoreHolder;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.world.scores.ScoreHolder;
+import net.minecraft.world.scores.Team;
 import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -100,12 +100,12 @@ public final class AuctionHelper extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      if (mc.player == null || mc.currentScreen instanceof ChatScreen) {
+      if (mc.player == null || mc.screen instanceof ChatScreen) {
          this.searchKeyWasDown = false;
          return;
       }
       boolean down = this.searchHeldItem.isPressed();
-      if (down && !this.searchKeyWasDown && mc.currentScreen == null) {
+      if (down && !this.searchKeyWasDown && mc.screen == null) {
          this.searchHeldItem();
       }
       this.searchKeyWasDown = down;
@@ -116,8 +116,8 @@ public final class AuctionHelper extends Module {
    @EventInit
    public void onHandledScreen(HandledScreenEvent event) {
       if (mc.player == null
-            || !(mc.currentScreen instanceof GenericContainerScreen screen)
-            || !(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler handler)) {
+            || !(mc.screen instanceof GenericContainerScreen screen)
+            || !(mc.player.containerMenu instanceof GenericContainerScreenHandler handler)) {
          this.resetState();
          return;
       }
@@ -128,7 +128,7 @@ public final class AuctionHelper extends Module {
 
       this.refreshSlotsIfNeeded(handler);
 
-      DrawContext context = event.getDrawContext();
+      GuiGraphics context = event.getDrawContext();
       int baseX = event.getScreenX();
       int baseY = event.getScreenY();
       float pulse = (float) Math.abs(Math.sin(System.currentTimeMillis() / 800.0 * Math.PI));
@@ -163,7 +163,7 @@ public final class AuctionHelper extends Module {
 
    // ── тултип «цена за штуку» (вызывается из ScreenTooltipMixin) ──────────────
 
-   public static void appendPerUnitTooltip(ItemStack stack, List<Text> tooltip) {
+   public static void appendPerUnitTooltip(ItemStack stack, List<Component> tooltip) {
       AuctionHelper inst = INSTANCE;
       if (inst == null || !inst.enable || !inst.unitPriceTip.get()) {
          return;
@@ -189,11 +189,11 @@ public final class AuctionHelper extends Module {
       String priceStr = "$" + formatMoney(unitPrice);
       String qtyStr = qty > 1 ? " (x" + qty + ")" : "";
 
-      tooltip.add(Text.empty());
-      MutableText line = Text.literal("Цена за штуку: ")
-            .formatted(Formatting.GRAY)
-            .append(Text.literal(priceStr).formatted(Formatting.GREEN))
-            .append(Text.literal(qtyStr).formatted(Formatting.DARK_GRAY));
+      tooltip.add(Component.empty());
+      MutableText line = Component.literal("Цена за штуку: ")
+            .formatted(ChatFormatting.GRAY)
+            .append(Component.literal(priceStr).formatted(ChatFormatting.GREEN))
+            .append(Component.literal(qtyStr).formatted(ChatFormatting.DARK_GRAY));
       tooltip.add(line);
    }
 
@@ -219,7 +219,7 @@ public final class AuctionHelper extends Module {
             continue;
          }
 
-         ItemStack stack = slot.getStack();
+         ItemStack stack = slot.getItem();
          if (isUnavailableLot(stack)) {
             continue;
          }
@@ -258,11 +258,11 @@ public final class AuctionHelper extends Module {
    // ── баланс игрока (для фильтра «только доступные») ────────────────────────
 
    private long getPlayerBalance() {
-      if (mc.world == null || mc.player == null) {
+      if (mc.level == null || mc.player == null) {
          return -1L;
       }
 
-      Scoreboard sb = mc.world.getScoreboard();
+      Scoreboard sb = mc.level.getScoreboard();
       if (sb == null) {
          return -1L;
       }
@@ -276,11 +276,11 @@ public final class AuctionHelper extends Module {
       }
 
       try {
-         PlayerListEntry self = mc.getNetworkHandler() != null
-               ? mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid())
+         PlayerListEntry self = mc.getConnection() != null
+               ? mc.getConnection().getPlayerListEntry(mc.player.getUuid())
                : null;
          if (self != null) {
-            Text display = self.getDisplayName();
+            Component display = self.getDisplayName();
             if (display != null) {
                long money = parseMoneyFromText(display.getString());
                if (money >= 0) {
@@ -380,8 +380,8 @@ public final class AuctionHelper extends Module {
    // ── определение экрана аукциона / лотов ───────────────────────────────────
 
    private static boolean onSupportedAuctionScreen() {
-      if (mc.player == null || !(mc.currentScreen instanceof GenericContainerScreen screen)
-            || !(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler handler)) {
+      if (mc.player == null || !(mc.screen instanceof GenericContainerScreen screen)
+            || !(mc.player.containerMenu instanceof GenericContainerScreenHandler handler)) {
          return false;
       }
       return isSupportedAuctionScreen(screen, handler);
@@ -395,15 +395,15 @@ public final class AuctionHelper extends Module {
       if (handler.getRows() < 6 || handler.slots.size() <= 49) {
          return false;
       }
-      ItemStack refresh = handler.getSlot(49).getStack();
+      ItemStack refresh = handler.getSlot(49).getItem();
       return !refresh.isEmpty() && (refresh.isOf(Items.CLOCK) || refresh.isOf(Items.NETHER_STAR));
    }
 
    private void searchHeldItem() {
-      if (mc.player == null || mc.getNetworkHandler() == null) {
+      if (mc.player == null || mc.getConnection() == null) {
          return;
       }
-      ItemStack stack = mc.player.getMainHandStack();
+      ItemStack stack = mc.player.getMainHandItem();
       if (stack.isEmpty()) {
          sendMessage("AuctionHelper: возьмите предмет в основную руку.");
          return;
@@ -413,14 +413,14 @@ public final class AuctionHelper extends Module {
          sendMessage("AuctionHelper: не удалось построить запрос для поиска.");
          return;
       }
-      mc.getNetworkHandler().sendChatCommand("ah search " + query);
+      mc.getConnection().sendChatCommand("ah search " + query);
       sendMessage("AuctionHelper: поиск " + query + ".");
    }
 
    private boolean hasThorns(ItemStack stack) {
       ItemEnchantmentsComponent enchantments =
             stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
-      for (RegistryEntry<Enchantment> enchantment : enchantments.getEnchantments()) {
+      for (Holder<Enchantment> enchantment : enchantments.getEnchantments()) {
          String id = enchantment.getKey().map(key -> key.getValue().getPath()).orElse("");
          if (id.contains("thorns")) {
             return true;
@@ -482,7 +482,7 @@ public final class AuctionHelper extends Module {
       if (lore == null) {
          return -1;
       }
-      for (Text line : lore.lines()) {
+      for (Component line : lore.lines()) {
          Matcher m = PRICE_PATTERN_FALLBACK.matcher(normalize(line.getString()));
          if (!m.find()) {
             continue;
@@ -501,7 +501,7 @@ public final class AuctionHelper extends Module {
          return List.of();
       }
       List<String> lines = new ArrayList<>();
-      for (Text line : lore.lines()) {
+      for (Component line : lore.lines()) {
          lines.add(line.getString());
       }
       return lines;
@@ -563,7 +563,7 @@ public final class AuctionHelper extends Module {
 
    private static void sendMessage(String text) {
       if (mc.player != null) {
-         mc.player.sendMessage(Text.literal(text), false);
+         mc.player.sendMessage(Component.literal(text), false);
       }
    }
 

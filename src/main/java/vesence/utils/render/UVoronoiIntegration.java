@@ -3,8 +3,8 @@ package vesence.utils.render;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
 
 /**
@@ -13,7 +13,7 @@ import org.joml.Matrix4f;
  *
  * <p>В оригинале каждый полигон рисовался отдельным {@code Tessellator.begin/draw}
  * в режиме {@code TRIANGLE_FAN}/{@code DEBUG_LINE_STRIP}. В immediate-mode все
- * вершины одного {@link net.minecraft.client.render.RenderLayer} попадают в общий
+ * вершины одного {@link net.minecraft.client.render.RenderType} попадают в общий
  * буфер, поэтому несколько fan'ов «слиплись» бы в один. Чтобы этого избежать:
  * <ul>
  *   <li>заливка триангулируется (fan → треугольники {@code v0,vi,vi+1}) и пишется
@@ -104,8 +104,8 @@ public class UVoronoiIntegration {
             if (staticPolygon == null) {
                 continue;
             }
-            List<VoronoiOfQuad.Vec2f> staticVecList = staticPolygon.getAllVertices();
-            List<VoronoiOfQuad.Vec2f> dynamicVecList = renderPolygon.getAllVertices();
+            List<VoronoiOfQuad.Vector2f> staticVecList = staticPolygon.getAllVertices();
+            List<VoronoiOfQuad.Vector2f> dynamicVecList = renderPolygon.getAllVertices();
             int n = Math.min(staticVecList.size(), dynamicVecList.size());
             if (n < 3) {
                 continue;
@@ -151,8 +151,8 @@ public class UVoronoiIntegration {
             if (staticPolygon == null) {
                 continue;
             }
-            List<VoronoiOfQuad.Vec2f> staticVecList = staticPolygon.getAllVertices();
-            List<VoronoiOfQuad.Vec2f> dynamicVecList = renderPolygon.getAllVertices();
+            List<VoronoiOfQuad.Vector2f> staticVecList = staticPolygon.getAllVertices();
+            List<VoronoiOfQuad.Vector2f> dynamicVecList = renderPolygon.getAllVertices();
             int n = Math.min(staticVecList.size(), dynamicVecList.size());
             if (n < 2) {
                 continue;
@@ -164,7 +164,7 @@ public class UVoronoiIntegration {
         }
     }
 
-    private void pushVertex4Color(VertexConsumer buffer, VoronoiOfQuad.Vec2f posVec, VoronoiOfQuad.Vec2f texVec,
+    private void pushVertex4Color(VertexConsumer buffer, VoronoiOfQuad.Vector2f posVec, VoronoiOfQuad.Vector2f texVec,
                                   int c1, int c2, int c3, int c4, float aPC) {
         float u = uvU(texVec);
         float v = uvV(texVec);
@@ -192,7 +192,7 @@ public class UVoronoiIntegration {
     }
 
     /** Контур пишется в POSITION_COLOR-слой (без текстуры/overlay/normal). */
-    private void pushVertexColorOnly(VertexConsumer buffer, VoronoiOfQuad.Vec2f posVec, VoronoiOfQuad.Vec2f texVec,
+    private void pushVertexColorOnly(VertexConsumer buffer, VoronoiOfQuad.Vector2f posVec, VoronoiOfQuad.Vector2f texVec,
                                      int c1, int c2, int c3, int c4, float aPC) {
         float u = uvU(texVec);
         float v = uvV(texVec);
@@ -209,12 +209,12 @@ public class UVoronoiIntegration {
         }
     }
 
-    private float uvU(VoronoiOfQuad.Vec2f texVec) {
+    private float uvU(VoronoiOfQuad.Vector2f texVec) {
         float width = Math.max(0.0001f, voronoi.x2 - voronoi.x);
         return clamp01((texVec.x - voronoi.x) / width);
     }
 
-    private float uvV(VoronoiOfQuad.Vec2f texVec) {
+    private float uvV(VoronoiOfQuad.Vector2f texVec) {
         float height = Math.max(0.0001f, voronoi.y2 - voronoi.y);
         return clamp01((texVec.y - voronoi.y) / height);
     }

@@ -2,13 +2,13 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
 import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Hand;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.InteractionHand;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -66,15 +66,15 @@ public class AutoJoin extends Module {
     @EventInit
     public void onUpdate(EventUpdate e) {
         if (!this.enable) return;
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        if (mc.currentScreen == null) {
+        if (mc.screen == null) {
             waitingForPage = -1;
-            if (mc.player.age < 3) {
+            if (mc.player.tickCount < 3) {
                 useCompass();
             }
-        } else if (mc.player.currentScreenHandler instanceof GenericContainerScreenHandler chest) {
-            String title = mc.currentScreen.getTitle().getString();
+        } else if (mc.player.containerMenu instanceof GenericContainerScreenHandler chest) {
+            String title = mc.screen.getTitle().getString();
 
             if (mode.is("ReallyWorld") && title.contains(REALLYWORLD_GRIEF_MENU_TITLE)) {
                 handleReallyWorldChest(chest, title);
@@ -84,7 +84,7 @@ public class AutoJoin extends Module {
             for (int i = 0; i < chest.slots.size(); i++) {
                 String slotName;
                 try {
-                    slotName = chest.getSlot(i).getStack().getName().getString();
+                    slotName = chest.getSlot(i).getItem().getName().getString();
                 } catch (Exception ignored) {
                     continue;
                 }
@@ -93,14 +93,14 @@ public class AutoJoin extends Module {
                     int numberGrief = griefSelection.get().intValue();
                     if (slotName.contains("ГРИФЕРСКОЕ ВЫЖИВАНИЕ") || slotName.contains("ГРИФ #" + numberGrief + " (1.16.5+)")) {
                         if (timerUtil.finished(speed.get().intValue())) {
-                            mc.interactionManager.clickSlot(chest.syncId, i, 0, SlotActionType.PICKUP, mc.player);
+                            mc.gameMode.clickSlot(chest.syncId, i, 0, ClickType.PICKUP, mc.player);
                             timerUtil.reset();
                         }
                     }
                 } else if (mode.is("Spooky дуэли")) {
                     if (slotName.contains("Дуэли")) {
                         if (timerUtil.finished(speed.get().intValue())) {
-                            mc.interactionManager.clickSlot(chest.syncId, i, 0, SlotActionType.PICKUP, mc.player);
+                            mc.gameMode.clickSlot(chest.syncId, i, 0, ClickType.PICKUP, mc.player);
                             timerUtil.reset();
                         }
                     }
@@ -150,7 +150,7 @@ public class AutoJoin extends Module {
             if (!timerUtil.finished(speed.get().intValue())) return;
 
             int pageButtonSlot = currentPage < targetPage ? NEXT_PAGE_SLOT : PREVIOUS_PAGE_SLOT;
-            mc.interactionManager.clickSlot(chest.syncId, pageButtonSlot, 0, SlotActionType.PICKUP, mc.player);
+            mc.gameMode.clickSlot(chest.syncId, pageButtonSlot, 0, ClickType.PICKUP, mc.player);
             waitingForPage = currentPage < targetPage ? currentPage + 1 : currentPage - 1;
             pageSwitchWatch.reset();
             timerUtil.reset();
@@ -158,26 +158,26 @@ public class AutoJoin extends Module {
         }
 
         if (timerUtil.finished(speed.get().intValue())) {
-            mc.interactionManager.clickSlot(chest.syncId, targetSlot, 0, SlotActionType.PICKUP, mc.player);
+            mc.gameMode.clickSlot(chest.syncId, targetSlot, 0, ClickType.PICKUP, mc.player);
             timerUtil.reset();
         }
     }
 
     private void useCompass() {
-        if (mc.player == null || mc.getNetworkHandler() == null) return;
+        if (mc.player == null || mc.getConnection() == null) return;
 
         for (int i = 0; i < 9; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == Items.COMPASS) {
+            if (mc.player.getInventory().getItem(i).getItem() == Items.COMPASS) {
                 int currentSlot = mc.player.getInventory().getSelectedSlot();
                 mc.player.getInventory().setSelectedSlot(i);
-                mc.getNetworkHandler().sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, mc.player.getYaw(), mc.player.getPitch()));
+                mc.getConnection().sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
                 mc.player.getInventory().setSelectedSlot(currentSlot);
                 return;
             }
         }
 
-        if (mc.player.getStackInHand(Hand.OFF_HAND).getItem() == Items.COMPASS) {
-            mc.getNetworkHandler().sendPacket(new PlayerInteractItemC2SPacket(Hand.OFF_HAND, 0, mc.player.getYaw(), mc.player.getPitch()));
+        if (mc.player.getStackInHand(InteractionHand.OFF_HAND).getItem() == Items.COMPASS) {
+            mc.getConnection().sendPacket(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
         }
     }
 

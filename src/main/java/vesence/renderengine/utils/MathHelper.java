@@ -7,14 +7,14 @@ import java.security.SecureRandom;
 import java.util.Random;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.Window;
-import net.minecraft.entity.Entity;
-import net.minecraft.client.MinecraftClient;
+import com.mojang.blaze3d.platform.Window;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.client.Minecraft;
 import org.joml.Vector3d;
 
 @Environment(EnvType.CLIENT)
-public class MathHelper {
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+public class Mth {
+   public static Minecraft mc = Minecraft.getInstance();
    private static final Random random = new Random();
    public static int scale = 2;
    private static final double FRAC_BIAS = Double.longBitsToDouble(4805340802404319232L);
@@ -86,7 +86,7 @@ public class MathHelper {
    }
 
    public static int calc(int value) {
-      Window mainWindow = MinecraftClient.getInstance().getWindow();
+      Window mainWindow = Minecraft.getInstance().getWindow();
       return (int)((double)value * mainWindow.getScaleFactor() / scale);
    }
 
@@ -287,7 +287,7 @@ public class MathHelper {
    }
 
    public static double deltaTime() {
-      return MinecraftClient.getInstance().getCurrentFps() > 0 ? 1.0 / MinecraftClient.getInstance().getCurrentFps() : 1.0;
+      return Minecraft.getInstance().getCurrentFps() > 0 ? 1.0 / Minecraft.getInstance().getCurrentFps() : 1.0;
    }
 
    public static double clamp(double value, double min, double max) {

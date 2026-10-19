@@ -2,8 +2,8 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.lifecycle.ClientTickEvent;
 import vesence.module.api.Category;
@@ -72,7 +72,7 @@ public class ElytraMotion extends Module {
         return this.enable
                 && mc != null
                 && mc.player != null
-                && mc.world != null
+                && mc.level != null
                 && mc.player.isGliding();
     }
 
@@ -104,7 +104,7 @@ public class ElytraMotion extends Module {
             return;
         }
 
-        Vec3d velocity = mc.player.getVelocity();
+        Vec3 velocity = mc.player.getDeltaMovement();
         double horizontalSpeed = Math.hypot(velocity.x, velocity.z);
         if (horizontalSpeed < 1.0E-3D) {
             return;
@@ -129,23 +129,23 @@ public class ElytraMotion extends Module {
 
         strength = clamp(strength, 0.0D, 1.0D);
         double keep = 1.0D - strength;
-        mc.player.setVelocity(velocity.x * keep, velocity.y, velocity.z * keep);
+        mc.player.setDeltaMovement(velocity.x * keep, velocity.y, velocity.z * keep);
     }
 
     private boolean isPlayerInputting() {
         if (mc.player == null || mc.player.input == null) return false;
-        net.minecraft.util.math.Vec2f move = mc.player.input.getMovementInput();
+        net.minecraft.util.math.Vector2f move = mc.player.input.getMovementInput();
         return move.x != 0.0F || move.y != 0.0F;
     }
 
-    private boolean alignedWithTarget(Vec3d velocity, LivingEntity target) {
-        if (velocity.lengthSquared() < 1.0E-8D) return true;
-        Vec3d toTarget = new Vec3d(
+    private boolean alignedWithTarget(Vec3 velocity, LivingEntity target) {
+        if (velocity.lengthSqr() < 1.0E-8D) return true;
+        Vec3 toTarget = new Vec3(
                 target.getX() - mc.player.getX(),
                 0.0D,
                 target.getZ() - mc.player.getZ()
         );
-        if (toTarget.lengthSquared() < 1.0E-8D) return true;
+        if (toTarget.lengthSqr() < 1.0E-8D) return true;
         return velocity.normalize().dotProduct(toTarget.normalize()) > 0.95D;
     }
 

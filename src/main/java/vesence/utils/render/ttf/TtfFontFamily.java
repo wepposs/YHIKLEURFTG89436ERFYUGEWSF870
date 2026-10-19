@@ -2,7 +2,7 @@ package vesence.utils.render.ttf;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.renderengine.render.Renderer2D;
 
 import java.awt.Font;
@@ -28,7 +28,7 @@ public final class TtfFontFamily {
    public TtfFont size(float size) {
       TtfFont cached = sizeCache.get(size);
       if (cached != null) return cached;
-      Font awt = TtfFontUtil.load(Identifier.of(NAMESPACE, "fonts/ttf/" + fileName), size);
+      Font awt = TtfFontUtil.load(ResourceLocation.of(NAMESPACE, "fonts/ttf/" + fileName), size);
       if (awt == null) {
          awt = new Font("Arial", Font.PLAIN, Math.max(1, Math.round(size)));
       }

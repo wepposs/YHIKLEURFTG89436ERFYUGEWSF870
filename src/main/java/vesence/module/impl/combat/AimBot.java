@@ -10,29 +10,29 @@ import java.util.Comparator;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.ZombieEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.BowItem;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.TridentItem;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TridentItem;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -76,7 +76,7 @@ import vesence.utils.render.ColorUtil;
  *   <li>{@code ListSetting.is} -> {@link MultiBooleanSetting#get};
  *       {@code FloatSetting} -> {@link SliderSetting};
  *       {@code BooleanSetting.isState} -> {@code BooleanSetting.get}.</li>
- *   <li>Рендер прицела переписан под pipeline API (RenderPipeline/RenderLayer),
+ *   <li>Рендер прицела переписан под pipeline API (RenderPipeline/RenderType),
  *       т.к. в 1.21.11 нет ShaderProgramKeys/Tessellator.begin.</li>
  * </ul>
  */
@@ -113,20 +113,20 @@ public class AimBot extends Module {
    private boolean holdingTrident = false;
 
    // ── Рендер прицела (порт под pipeline API 1.21.11, паттерн ContainerESP) ──
-   private static final Identifier CROSSHAIR_TEXTURE = Identifier.of("vesence", "textures/cross/hit.png");
+   private static final ResourceLocation CROSSHAIR_TEXTURE = ResourceLocation.of("vesence", "textures/cross/hit.png");
    private static final RenderPipeline CROSSHAIR_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "aimbot_crosshair"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "aimbot_crosshair"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.LIGHTNING)
          .build());
-   private static final RenderLayer CROSSHAIR_LAYER = RenderLayer.of(
+   private static final RenderType CROSSHAIR_LAYER = RenderType.of(
       "aimbot_crosshair_layer",
       RenderSetup.builder(CROSSHAIR_PIPELINE).expectedBufferSize(512).translucent().texture("Sampler0", CROSSHAIR_TEXTURE).build());
-   private BufferAllocator allocator = null;
+   private ByteBufferBuilder allocator = null;
    private Immediate immediate = null;
 
    public AimBot() {
@@ -138,8 +138,8 @@ public class AimBot extends Module {
    }
 
    private boolean isHoldingRangedWeapon() {
-      ItemStack mainHand = mc.player.getMainHandStack();
-      ItemStack offHand = mc.player.getOffHandStack();
+      ItemStack mainHand = mc.player.getMainHandItem();
+      ItemStack offHand = mc.player.getOffhandItem();
       return mainHand.getItem() instanceof BowItem
          || mainHand.getItem() instanceof CrossbowItem
          || mainHand.getItem() instanceof TridentItem
@@ -149,8 +149,8 @@ public class AimBot extends Module {
    }
 
    private boolean isTridentInHand() {
-      ItemStack mainHand = mc.player.getMainHandStack();
-      ItemStack offHand = mc.player.getOffHandStack();
+      ItemStack mainHand = mc.player.getMainHandItem();
+      ItemStack offHand = mc.player.getOffhandItem();
       return mainHand.getItem() instanceof TridentItem
          || offHand.getItem() instanceof TridentItem;
    }
@@ -163,7 +163,7 @@ public class AimBot extends Module {
          return false;
       } else if (!entity.isAlive() || entity.getHealth() <= 0.0F) {
          return false;
-      } else if (!(entity instanceof PlayerEntity)) {
+      } else if (!(entity instanceof Player)) {
          if (entity instanceof ZombieEntity) {
             return this.targetTypes.get("Зомби");
          } else {
@@ -175,7 +175,7 @@ public class AimBot extends Module {
          return false;
       } else {
          boolean hasArmor = false;
-         PlayerEntity player = (PlayerEntity)entity;
+         Player player = (Player)entity;
 
          for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             if (!player.getEquippedStack(slot).isEmpty()) {
@@ -194,9 +194,9 @@ public class AimBot extends Module {
 
    private LivingEntity findBestTarget() {
       List<LivingEntity> targets = new ArrayList<>();
-      Box searchBox = mc.player.getBoundingBox().expand(this.range.get().floatValue());
+      AABB searchBox = mc.player.getBoundingBox().expand(this.range.get().floatValue());
 
-      for (LivingEntity entity : mc.world.getEntitiesByClass(LivingEntity.class, searchBox, e -> true)) {
+      for (LivingEntity entity : mc.level.getEntitiesByClass(LivingEntity.class, searchBox, e -> true)) {
          if (this.isValidTarget(entity)) {
             double dist = mc.player.distanceTo(entity);
             if (!(dist > this.range.get().floatValue())) {
@@ -214,8 +214,8 @@ public class AimBot extends Module {
    }
 
    private Rotation calculateBowRotation(LivingEntity target) {
-      Vec3d eyes = mc.player.getEyePos();
-      Vec3d targetPos = target.getBoundingBox().getCenter();
+      Vec3 eyes = mc.player.getEyePosition();
+      Vec3 targetPos = target.getBoundingBox().getCenter();
       double dx = targetPos.x - eyes.x;
       double dy = targetPos.y - eyes.y;
       double dz = targetPos.z - eyes.z;
@@ -233,8 +233,8 @@ public class AimBot extends Module {
     * где x = горизонтальное расстояние, dy = вертикальная разница.
     */
    private Rotation calculateTridentRotation(LivingEntity target) {
-      Vec3d eyes = mc.player.getEyePos();
-      Vec3d targetPos = target.getBoundingBox().getCenter();
+      Vec3 eyes = mc.player.getEyePosition();
+      Vec3 targetPos = target.getBoundingBox().getCenter();
       double dx = targetPos.x - eyes.x;
       double dy = targetPos.y - eyes.y;
       double dz = targetPos.z - eyes.z;
@@ -272,7 +272,7 @@ public class AimBot extends Module {
     */
    @EventInit
    public void onUpdate(EventUpdate e) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
 
@@ -309,9 +309,9 @@ public class AimBot extends Module {
       float maxStep = 1.0F / Math.max(1.0F, this.aimTime.get().floatValue());
       this.aimProgress = Math.min(this.aimProgress + maxStep, 1.0F);
 
-      float currentYaw   = mc.player.getYaw();
-      float currentPitch = mc.player.getPitch();
-      float yawDiff   = MathHelper.wrapDegrees(newRotation.yaw   - currentYaw);
+      float currentYaw   = mc.player.getYRot();
+      float currentPitch = mc.player.getXRot();
+      float yawDiff   = Mth.wrapDegrees(newRotation.yaw   - currentYaw);
       float pitchDiff = newRotation.pitch - currentPitch;
 
       this.targetRotation = new Rotation(
@@ -328,12 +328,12 @@ public class AimBot extends Module {
          float gcd = GCDUtil.getGCD();
          float yaw   = this.targetRotation.yaw;
          float pitch = this.targetRotation.pitch;
-         yaw   -= (yaw   - mc.player.getYaw())   % gcd;
-         pitch -= (pitch - mc.player.getPitch()) % gcd;
+         yaw   -= (yaw   - mc.player.getYRot())   % gcd;
+         pitch -= (pitch - mc.player.getXRot()) % gcd;
          URotations.update(new Rotation(yaw, pitch), 180.0F, 180.0F, 45.0F, 45.0F, 0, 2, false);
       } else {
-         mc.player.setYaw(this.targetRotation.yaw);
-         mc.player.setPitch(this.targetRotation.pitch);
+         mc.player.setYRot(this.targetRotation.yaw);
+         mc.player.setXRot(this.targetRotation.pitch);
       }
    }
 
@@ -342,45 +342,45 @@ public class AimBot extends Module {
       if (!this.showCrosshair.get() || this.target == null || !this.isAiming) {
          return;
       }
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
 
       float partialTicks = event.getTickDelta();
-      Vec3d targetPos = new Vec3d(
-         MathHelper.lerp(partialTicks, this.target.lastRenderX, this.target.getX()),
-         MathHelper.lerp(partialTicks, this.target.lastRenderY, this.target.getY()) + this.target.getHeight() / 2.0,
-         MathHelper.lerp(partialTicks, this.target.lastRenderZ, this.target.getZ())
+      Vec3 targetPos = new Vec3(
+         Mth.lerp(partialTicks, this.target.lastRenderX, this.target.getX()),
+         Mth.lerp(partialTicks, this.target.lastRenderY, this.target.getY()) + this.target.getHeight() / 2.0,
+         Mth.lerp(partialTicks, this.target.lastRenderZ, this.target.getZ())
       );
-      Vec3d cameraPos = event.getCameraPos();
-      MatrixStack matrices = event.getMatrixStack();
+      Vec3 cameraPos = event.getCameraPos();
+      PoseStack matrices = event.getMatrixStack();
       double renderX = targetPos.x - cameraPos.x;
       double renderY = targetPos.y - cameraPos.y;
       double renderZ = targetPos.z - cameraPos.z;
 
       if (this.allocator == null) {
-         this.allocator = new BufferAllocator(262144);
-         this.immediate = VertexConsumerProvider.immediate(this.allocator);
+         this.allocator = new ByteBufferBuilder(262144);
+         this.immediate = MultiBufferSource.immediate(this.allocator);
       }
 
       try {
-         matrices.push();
+         matrices.pushPose();
          matrices.translate(renderX, renderY, renderZ);
-         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
+         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
          float size = this.crosshairSize.get().floatValue() * 0.5F;
          int alpha = (int)(255.0F * this.aimProgress);
          int color = ColorUtil.theme(255);
          int r = color >> 16 & 0xFF;
          int g = color >> 8 & 0xFF;
          int b = color & 0xFF;
-         Matrix4f matrix = matrices.peek().getPositionMatrix();
+         Matrix4f matrix = matrices.last().getPositionMatrix();
          VertexConsumer buffer = this.immediate.getBuffer(CROSSHAIR_LAYER);
          buffer.vertex(matrix, -size, -size, 0.0F).texture(0.0F, 1.0F).color(r, g, b, alpha);
          buffer.vertex(matrix, -size, size, 0.0F).texture(0.0F, 0.0F).color(r, g, b, alpha);
          buffer.vertex(matrix, size, size, 0.0F).texture(1.0F, 0.0F).color(r, g, b, alpha);
          buffer.vertex(matrix, size, -size, 0.0F).texture(1.0F, 1.0F).color(r, g, b, alpha);
-         matrices.pop();
+         matrices.popPose();
          this.immediate.draw();
       } catch (Exception ex) {
          if (this.allocator != null) {

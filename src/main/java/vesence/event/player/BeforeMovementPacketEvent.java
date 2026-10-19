@@ -3,32 +3,32 @@ package vesence.event.player;
 import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public final class BeforeMovementPacketEvent extends Event {
-   private final MinecraftClient client;
-   private final ClientPlayerEntity player;
-   private final ClientWorld world;
+   private final Minecraft client;
+   private final LocalPlayer player;
+   private final ClientLevel world;
 
-   public BeforeMovementPacketEvent(MinecraftClient client, ClientPlayerEntity player, ClientWorld world) {
+   public BeforeMovementPacketEvent(Minecraft client, LocalPlayer player, ClientLevel world) {
       this.client = Objects.requireNonNull(client, "client");
       this.player = Objects.requireNonNull(player, "player");
       this.world = Objects.requireNonNull(world, "world");
    }
 
-   public MinecraftClient client() {
+   public Minecraft client() {
       return this.client;
    }
 
-   public ClientPlayerEntity player() {
+   public LocalPlayer player() {
       return this.player;
    }
 
-   public ClientWorld world() {
+   public ClientLevel world() {
       return this.world;
    }
 }

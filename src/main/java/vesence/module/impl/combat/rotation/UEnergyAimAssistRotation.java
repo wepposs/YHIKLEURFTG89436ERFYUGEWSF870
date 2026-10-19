@@ -2,10 +2,10 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
 
@@ -17,12 +17,12 @@ import static vesence.utils.other.IMinecraft.mc;
  *
  * <p>Energy source, verbatim:
  * <pre>
- *   float prevYaw = player.getYaw(), prevPitch = player.getPitch();
+ *   float prevYaw = player.getYRot(), prevPitch = player.getXRot();
  *   boolean visible = isVisible(yaw, pitch, 100.0, target);
  *   if (visible) {
  *       RotationEngine.reset();
  *   } else {
- *       Vec3d v = target.getBoundingBox().getCenter().subtract(player.getEyePos());
+ *       Vec3 v = target.getBoundingBox().getCenter().subtract(player.getEyePosition());
  *       float yaw   = (float) wrapDegrees(Math.toDegrees(Math.atan2(v.z, v.x)) - 90.0);
  *       float pitch = (float) (-Math.toDegrees(Math.atan2(v.y, Math.hypot(v.x, v.z))));
  *       pitch = clamp(pitch, -89.9F, 89.9F);
@@ -45,11 +45,11 @@ public class UEnergyAimAssistRotation {
     /** Energy's aim-force slider value (default 0.5F). */
     public static float force = 0.5F;
 
-    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3d point) {
-        if (mc.player == null || mc.world == null || target == null) return;
+    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3 point) {
+        if (mc.player == null || mc.level == null || target == null) return;
 
-        float yaw = mc.player.getYaw();
-        float pitch = mc.player.getPitch();
+        float yaw = mc.player.getYRot();
+        float pitch = mc.player.getXRot();
 
         if (isVisible(yaw, pitch, target, false)) {
             // Energy: RotationEngine.reset();
@@ -57,15 +57,15 @@ public class UEnergyAimAssistRotation {
             return;
         }
 
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
         // ТЗ: аим-поинт — ближайшая ВИДИМАЯ точка хитбокса, не центр коробки.
-        Vec3d aim = point != null ? point : URotationMath.visibleAimPoint(target, rotateDist, false);
+        Vec3 aim = point != null ? point : URotationMath.visibleAimPoint(target, rotateDist, false);
         if (aim == null) aim = target.getBoundingBox().getCenter();
-        Vec3d v = aim.subtract(eye);
+        Vec3 v = aim.subtract(eye);
 
-        float aimYaw = MathHelper.wrapDegrees(
+        float aimYaw = Mth.wrapDegrees(
                 (float) Math.toDegrees(Math.atan2(v.z, v.x)) - 90.0F);
-        float aimPitch = MathHelper.clamp(
+        float aimPitch = Mth.clamp(
                 (float) (-Math.toDegrees(Math.atan2(v.y, Math.hypot(v.x, v.z)))),
                 PITCH_MIN, PITCH_MAX);
 
@@ -84,9 +84,9 @@ public class UEnergyAimAssistRotation {
     public static boolean isVisible(float yaw, float pitch, LivingEntity target, boolean aimAssist) {
         if (mc.player == null || target == null) return false;
         double range = aimAssist ? VISIBLE_RANGE : 100.0;
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d look = Vec3d.fromPolar(pitch, yaw).multiply(range);
-        Box box = target.getBoundingBox().expand(0.05);
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 look = Vec3.fromPolar(pitch, yaw).multiply(range);
+        AABB box = target.getBoundingBox().expand(0.05);
         return box.raycast(eye, eye.add(look)).isPresent() || box.contains(eye);
     }
 

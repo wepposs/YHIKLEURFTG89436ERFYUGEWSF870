@@ -2,17 +2,17 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.entity.effect.StatusEffectUtil;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Holder;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,21 +33,21 @@ import vesence.event.player.EventOnTravelPost;
 @Mixin({ LivingEntity.class })
 public abstract class LivingEntityMixin {
    @Unique
-   private final MinecraftClient client = MinecraftClient.getInstance();
+   private final Minecraft client = Minecraft.getInstance();
    @Unique
    private static int jumpTicks = 0;
 
    @Shadow
-   public abstract boolean hasStatusEffect(RegistryEntry<StatusEffect> var1);
+   public abstract boolean hasStatusEffect(Holder<MobEffect> var1);
 
    @Shadow
    @Nullable
-   public abstract StatusEffectInstance getStatusEffect(RegistryEntry<StatusEffect> var1);
+   public abstract MobEffectInstance getStatusEffect(Holder<MobEffect> var1);
 
    @Inject(method = { "jump" }, at = { @At("HEAD") })
    public void jumpYo(CallbackInfo ci) {
       LivingEntity self = (LivingEntity) (Object) this;
-      if (self instanceof ClientPlayerEntity) {
+      if (self instanceof LocalPlayer) {
          EventManager.call(new EventJump());
       }
    }
@@ -56,7 +56,7 @@ public abstract class LivingEntityMixin {
     private void swingProgressHook(CallbackInfoReturnable<Integer> cir) {
         if (!Vesence.isModInitialized()) return;
 
-        MinecraftClient localClient = MinecraftClient.getInstance();
+        Minecraft localClient = Minecraft.getInstance();
         if (localClient == null || localClient.player == null) return;
 
         LivingEntity self = (LivingEntity) (Object) this;
@@ -81,12 +81,12 @@ public abstract class LivingEntityMixin {
         if (!Vesence.isModInitialized()) return;
 
         LivingEntity self = (LivingEntity) (Object) this;
-        if (!(self instanceof ClientPlayerEntity)) return;
+        if (!(self instanceof LocalPlayer)) return;
 
         vesence.module.impl.movement.NoPush noPush = vesence.module.impl.movement.NoPush.getInstance();
         if (noPush == null || !noPush.enable) return;
 
-        if (entity instanceof PlayerEntity && noPush.shouldIgnorePlayers()) {
+        if (entity instanceof Player && noPush.shouldIgnorePlayers()) {
             ci.cancel();
             return;
         }
@@ -97,15 +97,15 @@ public abstract class LivingEntityMixin {
     }
 
     @Unique
-    private Vec3d calcGlidingVelocity(Vec3d oldVelocity) {
+    private Vec3 calcGlidingVelocity(Vec3 oldVelocity) {
         return oldVelocity;
     }
 
     @Inject(method = "calcGlidingVelocity", at = @At("RETURN"), cancellable = true)
-    private void onCalcGlidingVelocity(Vec3d oldVelocity, CallbackInfoReturnable<Vec3d> cir) {
+    private void onCalcGlidingVelocity(Vec3 oldVelocity, CallbackInfoReturnable<Vec3> cir) {
         if (!Vesence.isModInitialized()) return;
 
-        Vec3d result = cir.getReturnValue();
+        Vec3 result = cir.getReturnValue();
         EventOnTravelPost event = new EventOnTravelPost(
                 result.multiply(0.9900000095367432, 0.9800000190734863, 0.9900000095367432)
         );
@@ -114,12 +114,12 @@ public abstract class LivingEntityMixin {
     }
 
     @Inject(method = "travel", at = @At("TAIL"))
-    private void onTravelTail(Vec3d movementInput, CallbackInfo ci) {
+    private void onTravelTail(Vec3 movementInput, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.isGliding() && self instanceof ClientPlayerEntity) {
-            Vec3d v = self.getVelocity();
+        if (self.isGliding() && self instanceof LocalPlayer) {
+            Vec3 v = self.getDeltaMovement();
             v = calcGlidingVelocity(v);
-            self.setVelocity(v);
+            self.setDeltaMovement(v);
         }
     }
 }

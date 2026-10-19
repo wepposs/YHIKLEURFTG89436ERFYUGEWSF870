@@ -2,20 +2,20 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.screen.slot.ClickType;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -36,7 +36,7 @@ public abstract class ClientPlayerInteractionManagerMixin {
       at = {@At("HEAD")},
       cancellable = true
    )
-   private void onAttackEntity(PlayerEntity player, Entity target, CallbackInfo ci) {
+   private void onAttackEntity(Player player, Entity target, CallbackInfo ci) {
       AttackEvent event = new AttackEvent(target);
       EventManager.call(event);
       if (event.isCancelled()) {
@@ -51,30 +51,30 @@ public abstract class ClientPlayerInteractionManagerMixin {
    }
 
     @Inject(method = "interactEntity", at = @At("HEAD"), cancellable = true)
-    private void onInteractEntity(PlayerEntity player, Entity entity, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
+    private void onInteractEntity(Player player, Entity entity, InteractionHand hand, CallbackInfoReturnable<ActionResult> cir) {
        if (!Vesence.isModInitialized()) return;
-       if (hand != Hand.MAIN_HAND) return;
+       if (hand != InteractionHand.MAIN_HAND) return;
 
        NoEntityTrace noEntityTrace = NoEntityTrace.getInstance();
        if (noEntityTrace == null || !noEntityTrace.enable) return;
        if (!noEntityTrace.shouldIgnoreEntityTrace()) return;
 
-       MinecraftClient mc = MinecraftClient.getInstance();
-       if (mc.player == null || mc.world == null || mc.getNetworkHandler() == null) return;
+       Minecraft mc = Minecraft.getInstance();
+       if (mc.player == null || mc.level == null || mc.getConnection() == null) return;
 
-       Vec3d eyePos = mc.player.getEyePos();
-       Vec3d lookVec = mc.player.getRotationVec(1.0F);
-       Vec3d endPos = eyePos.add(lookVec.multiply(5.0));
+       Vec3 eyePos = mc.player.getEyePosition();
+       Vec3 lookVec = mc.player.getRotationVec(1.0F);
+       Vec3 endPos = eyePos.add(lookVec.multiply(5.0));
 
-       BlockHitResult blockHit = mc.world.raycast(
-          new RaycastContext(eyePos, endPos,
-             RaycastContext.ShapeType.COLLIDER,
-             RaycastContext.FluidHandling.NONE,
+       BlockHitResult blockHit = mc.level.raycast(
+          new ClipContext(eyePos, endPos,
+             ClipContext.ShapeType.COLLIDER,
+             ClipContext.FluidHandling.NONE,
              mc.player));
 
        if (blockHit != null && blockHit.getType() == HitResult.Type.BLOCK) {
-          mc.getNetworkHandler().sendPacket(
-             new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, blockHit, 0));
+          mc.getConnection().sendPacket(
+             new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, blockHit, 0));
           mc.player.swingHand(hand);
        }
 
@@ -87,7 +87,7 @@ public abstract class ClientPlayerInteractionManagerMixin {
    }
 
    @Inject(method = "clickSlot", at = @At("HEAD"), cancellable = true)
-   private void onClickSlot(int syncId, int slotId, int button, SlotActionType actionType, PlayerEntity player, CallbackInfo ci) {
+   private void onClickSlot(int syncId, int slotId, int button, ClickType actionType, Player player, CallbackInfo ci) {
       ClickSlotEvent event = new ClickSlotEvent(syncId, slotId, button, actionType);
       EventManager.call(event);
       if (event.isCancelled()) ci.cancel();

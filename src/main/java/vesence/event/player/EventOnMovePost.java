@@ -2,15 +2,15 @@ package vesence.event.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public class EventOnMovePost extends Event {
     private final float speed;
-    private final Vec3d movementInput;
+    private final Vec3 movementInput;
 
-    public EventOnMovePost(float speed, Vec3d movementInput) {
+    public EventOnMovePost(float speed, Vec3 movementInput) {
         this.speed = speed;
         this.movementInput = movementInput;
     }
@@ -19,7 +19,7 @@ public class EventOnMovePost extends Event {
         return speed;
     }
 
-    public Vec3d getMovementInput() {
+    public Vec3 getMovementInput() {
         return movementInput;
     }
 }

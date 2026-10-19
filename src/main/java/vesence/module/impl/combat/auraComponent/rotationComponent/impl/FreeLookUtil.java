@@ -6,7 +6,7 @@ import vesence.event.EventInit;
 import vesence.event.player.EventLook;
 import vesence.event.player.EventRotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.Component;
-import vesence.renderengine.utils.MathHelper;
+import vesence.renderengine.utils.Mth;
 
 @Environment(EnvType.CLIENT)
 public class FreeLookUtil extends Component {
@@ -17,7 +17,7 @@ public class FreeLookUtil extends Component {
    @EventInit
    public void onEvent(EventLook event) {
       if (active) {
-         this.rotateTowards(event.getYaw(), event.getPitch());
+         this.rotateTowards(event.getYRot(), event.getXRot());
          event.cancel();
       }
    }
@@ -25,16 +25,16 @@ public class FreeLookUtil extends Component {
    @EventInit
    public void onEvent(EventRotation event) {
       if (active) {
-         event.setYaw(freeYaw);
-         event.setPitch(freePitch);
+         event.setYRot(freeYaw);
+         event.setXRot(freePitch);
       } else {
-         freeYaw = event.getYaw();
-         freePitch = event.getPitch();
+         freeYaw = event.getYRot();
+         freePitch = event.getXRot();
       }
    }
 
    private void rotateTowards(double targetYaw, double targetPitch) {
-      freePitch = MathHelper.clamp((float)(freePitch + targetPitch * 0.15), -90.0F, 90.0F);
+      freePitch = Mth.clamp((float)(freePitch + targetPitch * 0.15), -90.0F, 90.0F);
       freeYaw = (float)(freeYaw + targetYaw * 0.15);
    }
 }

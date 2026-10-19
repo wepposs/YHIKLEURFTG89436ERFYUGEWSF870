@@ -2,10 +2,10 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.KeyInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,12 +27,12 @@ import java.util.List;
 public abstract class ChatScreenMixin extends Screen {
 
    @Shadow
-   protected TextFieldWidget chatField;
+   protected EditBox chatField;
 
    @Unique
    private final CommandSuggestionState vesence$suggestionState = new CommandSuggestionState();
 
-   protected ChatScreenMixin(net.minecraft.text.Text title) {
+   protected ChatScreenMixin(net.minecraft.text.Component title) {
       super(title);
    }
 
@@ -52,7 +52,7 @@ public abstract class ChatScreenMixin extends Screen {
    }
 
    @Inject(method = "render", at = @At("TAIL"))
-   private void vesence$renderSuggestions(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+   private void vesence$renderSuggestions(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
       if (!Vesence.isModInitialized()) return;
       if (chatField == null) return;
       vesence$suggestionState.refresh(chatField.getText());
@@ -63,7 +63,7 @@ public abstract class ChatScreenMixin extends Screen {
       List<CommandSuggestions.SuggestionEntry> entries = vesence$suggestionState.getEntries();
       CommandSuggestionOverlay.Layout layout = CommandSuggestionOverlay.render(
          context,
-         this.textRenderer,
+         this.font,
          chatField,
          this.width,
          entries,
@@ -83,11 +83,11 @@ public abstract class ChatScreenMixin extends Screen {
     * — новый слой гарантированно рисуется поверх текста поля.
     */
    @Inject(method = "render", at = @At("TAIL"))
-   private void vesence$renderNameProtectCensor(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+   private void vesence$renderNameProtectCensor(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
       NameProtect protect = NameProtect.getInstance();
       if (protect == null || !protect.isCensorChatEnabled()) return;
 
-      TextFieldWidget field = this.chatField;
+      EditBox field = this.chatField;
       if (field == null) return;
 
       String text = field.getText();

@@ -10,15 +10,15 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ProfileComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -156,7 +156,7 @@ public class NameProtect extends Module {
             return input;
         }
         String replacement = np.getReplacementName();
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc != null && mc.getSession() != null) {
             input = np.replaceIgnoreCase(input, mc.getSession().getUsername(), replacement);
         }
@@ -178,7 +178,7 @@ public class NameProtect extends Module {
 
     /**
      * Полный патч строки для рендера: имя+друзья, затем грифер- и серверные слова.
-     * Вызывается из DrawContext-миксина (глобальный текст: чат, actionbar и т.д.).
+     * Вызывается из GuiGraphics-миксина (глобальный текст: чат, actionbar и т.д.).
      */
     public String patch(String text) {
         if (!this.shouldPatch()) {
@@ -198,15 +198,15 @@ public class NameProtect extends Module {
         return this.patch(text);
     }
 
-    /** Патч дерева {@link Text} (имя+друзья) с сохранением стилей. */
-    public Text patchText(Text text) {
+    /** Патч дерева {@link Component} (имя+друзья) с сохранением стилей. */
+    public Component patchText(Component text) {
         if (text == null) {
             return null;
         } else if (!this.shouldPatch()) {
             return text;
         } else {
             String replacement = this.getReplacementName();
-            Text output = ReplaceUtils.replace(text, mc.getSession().getUsername(), replacement);
+            Component output = ReplaceUtils.replace(text, mc.getSession().getUsername(), replacement);
             if (this.hideFriends.get()) {
                 for (String friend : FriendStorage.getFriends()) {
                     output = ReplaceUtils.replace(output, friend, replacement);
@@ -338,7 +338,7 @@ public class NameProtect extends Module {
 
     /**
      * Грифер-названия + серверные слова (БЕЗ замены ника) на полной строке.
-     * Для мик-синов, которые уже заменили ник в дереве {@link Text} и хотят
+     * Для мик-синов, которые уже заменили ник в дереве {@link Component} и хотят
      * дочистить домены/грифер на склеенной строке (напр. scoreboard-перерисовка).
      */
     public String patchServerAndGrief(String text) {
@@ -368,7 +368,7 @@ public class NameProtect extends Module {
      * Строит предмет-замену для сферы: голова игрока {@code holder} (PLAYER_HEAD
      * с его GameProfile). Кэшируем по UUID. {@code null}, если неприменимо.
      */
-    public ItemStack buildHeadReplacement(net.minecraft.entity.player.PlayerEntity holder) {
+    public ItemStack buildHeadReplacement(net.minecraft.entity.player.Player holder) {
         if (holder == null) return null;
         UUID uuid = holder.getUuid();
         if (uuid == null) return null;
@@ -426,24 +426,24 @@ public class NameProtect extends Module {
 
     /**
      * Рекурсивно перекрашивает ЛЮБОЙ красный текст в белый во всём дереве
-     * {@link Text}, сохраняя структуру, контент и остальные стили. Возвращает
+     * {@link Component}, сохраняя структуру, контент и остальные стили. Возвращает
      * исходный текст, если перекраска выключена.
      */
-    public Text recolorRedToWhite(Text text) {
+    public Component recolorRedToWhite(Component text) {
         if (text == null || !this.shouldScoreboardRedToWhite()) {
             return text;
         }
         return rebuildRedToWhite(text);
     }
 
-    private static Text rebuildRedToWhite(Text node) {
+    private static Component rebuildRedToWhite(Component node) {
         Style style = node.getStyle();
         TextColor color = style.getColor();
         if (color != null && isRedColor(color.getRgb() & 0xFFFFFF)) {
             style = style.withColor(TextColor.fromRgb(WHITE_RGB));
         }
         MutableText rebuilt = MutableText.of(node.getContent()).setStyle(style);
-        for (Text sibling : node.getSiblings()) {
+        for (Component sibling : node.getSiblings()) {
             rebuilt.append(rebuildRedToWhite(sibling));
         }
         return rebuilt;
@@ -465,6 +465,6 @@ public class NameProtect extends Module {
     }
 
     private boolean shouldPatch() {
-        return this.enable && mc != null && mc.player != null && mc.world != null;
+        return this.enable && mc != null && mc.player != null && mc.level != null;
     }
 }

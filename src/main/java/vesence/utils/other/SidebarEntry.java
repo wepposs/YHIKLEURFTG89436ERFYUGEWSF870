@@ -2,7 +2,7 @@ package vesence.utils.other;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 /**
  * Строка scoreboard-сайдбара (имя + счёт + ширина счёта) для ручной
@@ -11,11 +11,11 @@ import net.minecraft.text.Text;
  */
 @Environment(EnvType.CLIENT)
 public class SidebarEntry {
-    public final Text name;
-    public final Text score;
+    public final Component name;
+    public final Component score;
     public final int scoreWidth;
 
-    public SidebarEntry(Text name, Text score, int scoreWidth) {
+    public SidebarEntry(Component name, Component score, int scoreWidth) {
         this.name = name;
         this.score = score;
         this.scoreWidth = scoreWidth;

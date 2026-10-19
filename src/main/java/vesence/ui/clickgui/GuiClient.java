@@ -2,13 +2,13 @@ package vesence.ui.clickgui;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.Text;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.chat.Component;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import org.lwjgl.glfw.GLFW;
 import vesence.event.EventInit;
 import vesence.event.EventManager;
@@ -35,11 +35,11 @@ import java.util.Map;
 
 @Environment(EnvType.CLIENT)
 public class GuiClient extends Screen {
-   public MinecraftClient mc = MinecraftClient.getInstance();
+   public Minecraft mc = Minecraft.getInstance();
    private static volatile boolean eventsRegistered = false;
 
    public GuiClient() {
-      super(Text.literal("Gui"));
+      super(Component.literal("Gui"));
    }
 
    public static void registerEventHandlers() {
@@ -48,8 +48,8 @@ public class GuiClient extends Screen {
          EventManager.register(new Object() {
             @EventInit
             public void onRender(RenderEvent event) {
-               MinecraftClient client = event.client();
-               if (client != null && client.currentScreen instanceof GuiClient) {
+               Minecraft client = event.client();
+               if (client != null && client.screen instanceof GuiClient) {
                   double[] mouseX = new double[1];
                   double[] mouseY = new double[1];
                   if (client.getWindow() != null) {
@@ -61,7 +61,7 @@ public class GuiClient extends Screen {
 
                   int mouseXInt = (int)mouseX[0];
                   int mouseYInt = (int)mouseY[0];
-                  DrawContext drawContext = null;
+                  GuiGraphics drawContext = null;
                   GuiRender.render(event.renderer(), drawContext, mouseXInt, mouseYInt, client.getRenderTickCounter().getDynamicDeltaTicks());
                }
             }
@@ -70,11 +70,11 @@ public class GuiClient extends Screen {
    }
 
    @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+   public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
    }
 
    @Override
-   public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+   public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
 
    }
 
@@ -217,7 +217,7 @@ public class GuiClient extends Screen {
    public void init() {
       super.init();
       GuiInit.init();
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client != null && client.mouse != null) {
          client.mouse.unlockCursor();
       }

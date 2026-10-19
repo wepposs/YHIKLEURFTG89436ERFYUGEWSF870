@@ -48,7 +48,7 @@ public class SteppedRectPipeline {
         float g = ((color >> 8) & 0xFF) / 255f;
         float b = (color & 0xFF) / 255f;
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
             GL11.glEnable(GL11.GL_BLEND);
             GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);

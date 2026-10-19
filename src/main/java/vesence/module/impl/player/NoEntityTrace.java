@@ -2,7 +2,7 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -34,7 +34,7 @@ public class NoEntityTrace extends Module {
       if (!this.enable || mc.player == null) return false;
       if (!noSword.get()) return true;
 
-      ItemStack stack = mc.player.getMainHandStack();
+      ItemStack stack = mc.player.getMainHandItem();
       String key = stack.getItem().getTranslationKey().toLowerCase();
       return !key.contains("sword");
    }

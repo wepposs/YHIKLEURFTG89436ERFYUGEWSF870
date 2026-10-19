@@ -2,8 +2,8 @@ package vesence.ui;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.sound.SoundCategory;
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundSource;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.math.animation.anim.util.Animation2;
@@ -121,12 +121,12 @@ public class SettingRenderer {
                                       float lmx, float lmy) {
         int labelColor = ColorUtil.getColor(220, 220, 220);
         int subLabelColor = ColorUtil.getColor(160, 160, 165);
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
 
         float vol = state.volumeCache[index];
         if (mc != null && state.dragIndex != index) {
             try {
-                float mcVol = mc.options.getCategorySoundVolume(SoundCategory.values()[index]);
+                float mcVol = mc.options.getCategorySoundVolume(SoundSource.values()[index]);
                 if (mcVol != state.volumeCache[index]) {
                     state.volumeCache[index] = mcVol;
                 }
@@ -139,7 +139,7 @@ public class SettingRenderer {
             vol = Math.max(0f, Math.min(1f, (lmx - sliderX) / Math.max(1f, sliderW)));
             state.volumeCache[index] = vol;
             if (mc != null) {
-                try { mc.options.getSoundVolumeOption(SoundCategory.values()[index]).setValue((double) vol); } catch (Exception ignored) {}
+                try { mc.options.getSoundVolumeOption(SoundSource.values()[index]).setValue((double) vol); } catch (Exception ignored) {}
             }
         }
 
@@ -252,9 +252,9 @@ public class SettingRenderer {
         float sliderX = cX + IOS_PADDING + 160;
         float sliderW = cW - IOS_PADDING * 2 - 200;
         if (lx >= sliderX - 5 && lx <= sliderX + sliderW + 5 && sly >= rowY && sly <= rowY + SLIDER_ROW_H) {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
-                float vol = mc.options.getCategorySoundVolume(SoundCategory.values()[index]);
+                float vol = mc.options.getCategorySoundVolume(SoundSource.values()[index]);
                 state.volumeCache[index] = vol;
                 state.dragIndex = index;
                 state.dragStartX = lx;

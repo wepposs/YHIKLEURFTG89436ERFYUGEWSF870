@@ -2,8 +2,8 @@ package vesence.utils.render.math;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 
 @Environment(EnvType.CLIENT)
 public class ScaledResolution {
@@ -13,15 +13,15 @@ public class ScaledResolution {
    private int scaledHeight;
    private static int scaleFactor;
 
-   public ScaledResolution(MinecraftClient mc) {
+   public ScaledResolution(Minecraft mc) {
       if (mc != null && mc.getWindow() != null) {
          int fbWidth = mc.getWindow().getFramebufferWidth();
          int fbHeight = mc.getWindow().getFramebufferHeight();
          scaleFactor = mc.getWindow().getScaleFactor();
          this.scaledWidthD = (double)fbWidth / scaleFactor;
          this.scaledHeightD = (double)fbHeight / scaleFactor;
-         this.scaledWidth = MathHelper.ceil(this.scaledWidthD);
-         this.scaledHeight = MathHelper.ceil(this.scaledHeightD);
+         this.scaledWidth = Mth.ceil(this.scaledWidthD);
+         this.scaledHeight = Mth.ceil(this.scaledHeightD);
       } else {
          this.scaledWidth = 1920;
          this.scaledHeight = 1080;

@@ -2,11 +2,11 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.screen.DeathScreen;
-import net.minecraft.client.input.Input;
-import net.minecraft.client.input.KeyboardInput;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.client.gui.screens.DeathScreen;
+import net.minecraft.server.dialog.Input;
+import net.minecraft.client.player.KeyboardInput;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -49,7 +49,7 @@ public class AirStuck extends Module {
         // Enable noclip and freeze movement
         mc.player.noClip = true;
         mc.player.setOnGround(false);
-        mc.player.setVelocity(0.0, 0.0, 0.0);
+        mc.player.setDeltaMovement(0.0, 0.0, 0.0);
         mc.player.getAbilities().flying = true;
 
         // Stop sprinting
@@ -60,7 +60,7 @@ public class AirStuck extends Module {
         // Freeze rotation
         mc.player.headYaw = savedYaw;
         mc.player.bodyYaw = savedBodyYaw;
-        mc.player.setPitch(savedPitch);
+        mc.player.setXRot(savedPitch);
     }
 
     @EventInit
@@ -70,8 +70,8 @@ public class AirStuck extends Module {
         }
 
         // Send position packet every 10 ticks to prevent timeout
-        if (mc.player.age % 10 == 0) {
-            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(mc.player.isOnGround(), mc.player.horizontalCollision));
+        if (mc.player.tickCount % 10 == 0) {
+            mc.player.connection.sendPacket(new ServerboundMovePlayerPacket.OnGroundOnly(mc.player.onGround(), mc.player.horizontalCollision));
         }
 
         // Cancel motion
@@ -85,8 +85,8 @@ public class AirStuck extends Module {
         }
 
         // Cancel movement packets
-        if (event.getPacket() instanceof PlayerMoveC2SPacket 
-                || event.getPacket() instanceof ClientCommandC2SPacket) {
+        if (event.getPacket() instanceof ServerboundMovePlayerPacket 
+                || event.getPacket() instanceof ServerboundPlayerCommandPacket) {
             event.cancel();
         }
 
@@ -99,7 +99,7 @@ public class AirStuck extends Module {
     private boolean isPlayerDead() {
         return mc.player != null 
                 && mc.player.getHealth() < 1.0F 
-                && mc.currentScreen instanceof DeathScreen;
+                && mc.screen instanceof DeathScreen;
     }
 
     @Override
@@ -111,8 +111,8 @@ public class AirStuck extends Module {
             mc.player.input = new Input();
             
             // Save current rotation
-            savedYaw = mc.player.getYaw();
-            savedPitch = mc.player.getPitch();
+            savedYaw = mc.player.getYRot();
+            savedPitch = mc.player.getXRot();
             savedBodyYaw = mc.player.bodyYaw;
         }
         super.onEnable();

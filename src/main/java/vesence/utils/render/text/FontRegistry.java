@@ -73,10 +73,10 @@ public final class FontRegistry {
       }
    }
 
-   public static synchronized TextRenderer createTextRenderer(FontObject fontObject) {
+   public static synchronized Font createTextRenderer(FontObject fontObject) {
       ensureBackendConfigured();
       MsdfFont msdfFont = resolve(fontObject);
-      return new TextRenderer(backend, msdfFont);
+      return new Font(backend, msdfFont);
    }
 
    public static synchronized float centeredBaselineOffset(FontObject fontObject, int codepoint, float size) {
@@ -119,7 +119,7 @@ public final class FontRegistry {
    /**
     * {@code true} если MSDF-атлас шрифта содержит глиф для codepoint'а.
     * Best-effort (без исключений): нужен кастомному scoreboard, чтобы
-    * пропускать символы, отсутствующие в атласе (иначе {@code TextRenderer}
+    * пропускать символы, отсутствующие в атласе (иначе {@code Font}
     * для cp&lt;128 рисует «?», а серверные маркеры/рамки видны как мусор).
     * Аналог {@code Font.hasGlyph} из RelevantPremiumpp4.
     */

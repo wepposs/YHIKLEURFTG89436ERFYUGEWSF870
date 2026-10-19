@@ -1,7 +1,7 @@
 package vesence.overlay.core;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import vesence.overlay.browser.BrowserWindow;
 import vesence.overlay.discord.DiscordWindow;
@@ -33,18 +33,18 @@ public final class FloatingWindowManager {
         }
     }
 
-    private <T extends FloatingWindow> void toggle(Class<T> type, java.util.function.Function<Vec3d, T> factory) {
+    private <T extends FloatingWindow> void toggle(Class<T> type, java.util.function.Function<Vec3, T> factory) {
         for (FloatingWindow window : new ArrayList<>(windows)) {
             if (type.isInstance(window)) { windows.remove(window); window.close(); return; }
         }
         open(type, factory);
     }
 
-    private <T extends FloatingWindow> void open(Class<T> type, java.util.function.Function<Vec3d, T> factory) {
+    private <T extends FloatingWindow> void open(Class<T> type, java.util.function.Function<Vec3, T> factory) {
         for (FloatingWindow window : windows) if (type.isInstance(window)) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        Vec3d pos = mc.player.getCameraPosVec(1.0f).add(mc.player.getRotationVec(1.0f).multiply(3.0));
+        Vec3 pos = mc.player.getCameraPosVec(1.0f).add(mc.player.getRotationVec(1.0f).multiply(3.0));
         windows.add(factory.apply(pos));
     }
 

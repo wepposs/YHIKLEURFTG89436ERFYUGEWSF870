@@ -2,8 +2,8 @@ package vesence.utils.commands;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import vesence.utils.waypoint.Waypoint;
 import vesence.utils.waypoint.WaypointManager;
 
@@ -75,7 +75,7 @@ public final class WaypointCommand implements Command {
                   return;
                }
             } else {
-               MinecraftClient mc = ctx.client();
+               Minecraft mc = ctx.client();
                if (mc.player == null) {
                   ctx.sendError("Игрок не найден — укажи координаты: .way add <name> <x> <y> <z>");
                   return;

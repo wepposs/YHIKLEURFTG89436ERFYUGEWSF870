@@ -11,16 +11,16 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.player.EventMotion;
@@ -38,12 +38,12 @@ import vesence.utils.render.world.WorldRenderUtil;
 @IModule(name = "Bloom Tadpoles", description = "Soft translucent tadpoles with bloom and smooth drifting", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class BloomTadpoles extends Module {
-   private static final Identifier GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
-   private static final Identifier SOFT_GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloomsample.png");
+   private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
+   private static final ResourceLocation SOFT_GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloomsample.png");
    private static final RenderPipeline COLOR_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "bloom_tadpoles_color"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "bloom_tadpoles_color"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
@@ -52,17 +52,17 @@ public class BloomTadpoles extends Module {
    );
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "bloom_tadpoles_glow"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "bloom_tadpoles_glow"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.ADDITIVE)
          .build()
    );
-   private static final RenderLayer COLOR_LAYER = RenderLayer.of("bloom_tadpoles_color", RenderSetup.builder(COLOR_PIPELINE).expectedBufferSize(2048).translucent().build());
-   private static final RenderLayer GLOW_LAYER = RenderLayer.of("bloom_tadpoles_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", GLOW_TEXTURE).build());
-   private static final RenderLayer SOFT_GLOW_LAYER = RenderLayer.of("bloom_tadpoles_soft_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", SOFT_GLOW_TEXTURE).build());
+   private static final RenderType COLOR_LAYER = RenderType.of("bloom_tadpoles_color", RenderSetup.builder(COLOR_PIPELINE).expectedBufferSize(2048).translucent().build());
+   private static final RenderType GLOW_LAYER = RenderType.of("bloom_tadpoles_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", GLOW_TEXTURE).build());
+   private static final RenderType SOFT_GLOW_LAYER = RenderType.of("bloom_tadpoles_soft_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(2048).translucent().texture("Sampler0", SOFT_GLOW_TEXTURE).build());
 
    public static final SliderSetting count = new SliderSetting("Count", 12.0, 3.0, 32.0, 1.0, false);
    public static final SliderSetting radius = new SliderSetting("Radius", 7.5, 3.0, 18.0, 0.5, false);
@@ -86,7 +86,7 @@ public class BloomTadpoles extends Module {
 
    @EventInit
    public void onMotion(EventMotion event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          this.tadpoles.clear();
          return;
       }
@@ -94,7 +94,7 @@ public class BloomTadpoles extends Module {
       int desiredCount = count.get().intValue();
       double orbitRadius = radius.get();
       double moveSpeed = speed.get();
-      Vec3d playerCenter = mc.player.getEntityPos().add(0.0, mc.player.getHeight() * 0.55, 0.0);
+      Vec3 playerCenter = mc.player.getEntityPos().add(0.0, mc.player.getHeight() * 0.55, 0.0);
 
       while (this.tadpoles.size() > desiredCount) {
          this.tadpoles.remove(0);
@@ -123,8 +123,8 @@ public class BloomTadpoles extends Module {
       }
 
       Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
-      MatrixStack matrices = event.getMatrixStack();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      PoseStack matrices = event.getMatrixStack();
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
       float size = headSize.get().floatValue();
       float tail = tailLength.get().floatValue();
       boolean glowEnabled = bloom.get();
@@ -136,7 +136,7 @@ public class BloomTadpoles extends Module {
       immediate.draw();
    }
 
-   private static Vec3d lerp(Vec3d from, Vec3d to, double delta) {
+   private static Vec3 lerp(Vec3 from, Vec3 to, double delta) {
       return from.add(to.subtract(from).multiply(delta));
    }
 
@@ -158,10 +158,10 @@ public class BloomTadpoles extends Module {
 
    @Environment(EnvType.CLIENT)
    private static final class TadpoleParticle {
-      private Vec3d position;
-      private Vec3d renderPosition;
-      private Vec3d motion;
-      private Vec3d heading;
+      private Vec3 position;
+      private Vec3 renderPosition;
+      private Vec3 motion;
+      private Vec3 heading;
       private double orbitAngle;
       private double verticalAngle;
       private final double phase;
@@ -173,7 +173,7 @@ public class BloomTadpoles extends Module {
       private final int maxAge;
       private int age;
 
-      private TadpoleParticle(Vec3d center, double radius, double moveSpeed) {
+      private TadpoleParticle(Vec3 center, double radius, double moveSpeed) {
          this.orbitAngle = random(0.0, Math.PI * 2.0);
          this.verticalAngle = random(0.0, Math.PI * 2.0);
          this.phase = random(0.0, Math.PI * 2.0);
@@ -183,46 +183,46 @@ public class BloomTadpoles extends Module {
          this.liftOffset = random(0.4, 2.4);
          this.position = center.add(Math.cos(this.orbitAngle) * this.orbitRadius, this.liftOffset, Math.sin(this.orbitAngle) * this.orbitRadius);
          this.renderPosition = this.position;
-         this.heading = new Vec3d(-Math.sin(this.orbitAngle), 0.08, Math.cos(this.orbitAngle)).normalize();
+         this.heading = new Vec3(-Math.sin(this.orbitAngle), 0.08, Math.cos(this.orbitAngle)).normalize();
          this.motion = this.heading.multiply(0.018 + moveSpeed * 0.012);
          this.colorOffset = ThreadLocalRandom.current().nextInt(0, 4000);
          this.maxAge = ThreadLocalRandom.current().nextInt(220, 360);
       }
 
-      private void update(Vec3d center, double radius, double moveSpeed) {
-         this.age++;
+      private void update(Vec3 center, double radius, double moveSpeed) {
+         this.tickCount++;
          this.orbitAngle += this.orbitSpeed * (0.7 + moveSpeed * 0.55);
          this.verticalAngle += 0.018 + moveSpeed * 0.012;
 
-         Vec3d orbitCenter = center.add(
+         Vec3 orbitCenter = center.add(
             Math.cos(this.orbitAngle) * this.orbitRadius,
             this.liftOffset + Math.sin(this.verticalAngle + this.phase) * 0.85,
             Math.sin(this.orbitAngle) * this.orbitRadius
          );
-         Vec3d tangent = new Vec3d(
+         Vec3 tangent = new Vec3(
             -Math.sin(this.orbitAngle),
             Math.cos(this.verticalAngle + this.phase) * 0.18,
             Math.cos(this.orbitAngle)
          ).normalize();
-         Vec3d desiredPoint = orbitCenter.add(tangent.multiply(0.55));
-         Vec3d seek = desiredPoint.subtract(this.position);
-         if (seek.lengthSquared() > 1.0E-4) {
+         Vec3 desiredPoint = orbitCenter.add(tangent.multiply(0.55));
+         Vec3 seek = desiredPoint.subtract(this.position);
+         if (seek.lengthSqr() > 1.0E-4) {
             this.motion = this.motion.multiply(0.88).add(seek.normalize().multiply(0.008 + moveSpeed * 0.010));
          }
 
-         Vec3d drift = new Vec3d(
-            Math.cos(this.phase + this.age * 0.09),
-            Math.sin(this.phase * 0.5 + this.age * 0.07) * 0.35,
-            Math.sin(this.phase + this.age * 0.09)
+         Vec3 drift = new Vec3(
+            Math.cos(this.phase + this.tickCount * 0.09),
+            Math.sin(this.phase * 0.5 + this.tickCount * 0.07) * 0.35,
+            Math.sin(this.phase + this.tickCount * 0.09)
          ).multiply(this.driftStrength);
          this.motion = this.motion.add(drift).multiply(0.97);
 
-         if (this.motion.lengthSquared() > 1.0E-4) {
+         if (this.motion.lengthSqr() > 1.0E-4) {
             this.heading = BloomTadpoles.lerp(this.heading, this.motion.normalize(), 0.16).normalize();
          }
 
          if (this.position.distanceTo(center) > radius * 1.75) {
-            Vec3d pull = center.subtract(this.position).normalize().multiply(0.016);
+            Vec3 pull = center.subtract(this.position).normalize().multiply(0.016);
             this.motion = this.motion.add(pull);
          }
 
@@ -230,60 +230,60 @@ public class BloomTadpoles extends Module {
          this.renderPosition = BloomTadpoles.lerp(this.renderPosition, this.position, 0.22);
       }
 
-      private boolean shouldRemove(Vec3d center, double radius) {
-         return this.age > this.maxAge || this.position.distanceTo(center) > radius * 2.6;
+      private boolean shouldRemove(Vec3 center, double radius) {
+         return this.tickCount > this.maxAge || this.position.distanceTo(center) > radius * 2.6;
       }
 
       private float alpha() {
-         float fadeIn = Math.min(1.0F, this.age / 18.0F);
-         float fadeOut = Math.min(1.0F, (this.maxAge - this.age) / 28.0F);
+         float fadeIn = Math.min(1.0F, this.tickCount / 18.0F);
+         float fadeOut = Math.min(1.0F, (this.maxAge - this.tickCount) / 28.0F);
          return Math.max(0.0F, fadeIn * fadeOut);
       }
 
-      private void render(MatrixStack matrices, Immediate immediate, Vec3d cameraPos, float baseSize, float tailLength, boolean glowEnabled) {
+      private void render(PoseStack matrices, Immediate immediate, Vec3 cameraPos, float baseSize, float tailLength, boolean glowEnabled) {
          float alpha = this.alpha();
          if (alpha <= 0.01F) {
             return;
          }
 
-         Vec3d dir = this.heading.lengthSquared() > 1.0E-4 ? this.heading.normalize() : new Vec3d(0.0, 0.0, 1.0);
-         Vec3d toCamera = cameraPos.subtract(this.renderPosition);
-         if (toCamera.lengthSquared() < 1.0E-4) {
-            toCamera = new Vec3d(0.0, 1.0, 0.0);
+         Vec3 dir = this.heading.lengthSqr() > 1.0E-4 ? this.heading.normalize() : new Vec3(0.0, 0.0, 1.0);
+         Vec3 toCamera = cameraPos.subtract(this.renderPosition);
+         if (toCamera.lengthSqr() < 1.0E-4) {
+            toCamera = new Vec3(0.0, 1.0, 0.0);
          } else {
             toCamera = toCamera.normalize();
          }
 
-         Vec3d side = dir.crossProduct(toCamera);
-         if (side.lengthSquared() < 1.0E-4) {
-            side = dir.crossProduct(new Vec3d(0.0, 1.0, 0.0));
+         Vec3 side = dir.crossProduct(toCamera);
+         if (side.lengthSqr() < 1.0E-4) {
+            side = dir.crossProduct(new Vec3(0.0, 1.0, 0.0));
          }
-         if (side.lengthSquared() < 1.0E-4) {
-            side = new Vec3d(1.0, 0.0, 0.0);
+         if (side.lengthSqr() < 1.0E-4) {
+            side = new Vec3(1.0, 0.0, 0.0);
          }
          side = side.normalize();
-         Vec3d up = side.crossProduct(dir);
-         if (up.lengthSquared() < 1.0E-4) {
-            up = new Vec3d(0.0, 1.0, 0.0);
+         Vec3 up = side.crossProduct(dir);
+         if (up.lengthSqr() < 1.0E-4) {
+            up = new Vec3(0.0, 1.0, 0.0);
          } else {
             up = up.normalize();
          }
 
          int headColor = ColorUtil.overCol(ColorUtil.fade(this.colorOffset), ColorUtil.getColor(170, 255, 235), 0.22F);
          int tailColor = ColorUtil.overCol(headColor, ColorUtil.getColor(255, 255, 255), 0.18F);
-         float cameraYaw = mc.gameRenderer.getCamera().getYaw();
-         float cameraPitch = mc.gameRenderer.getCamera().getPitch();
+         float cameraYaw = mc.gameRenderer.getCamera().getYRot();
+         float cameraPitch = mc.gameRenderer.getCamera().getXRot();
 
          for (int i = 0; i < 8; i++) {
             float progress = i / 7.0F;
             float inverse = 1.0F - progress;
-            double wave = Math.sin(this.phase + this.age * 0.18 + progress * 6.0) * 0.24 * inverse;
-            double lift = Math.cos(this.phase * 0.7 + this.age * 0.14 + progress * 3.4) * 0.08 * inverse;
-            Vec3d segmentWorld = this.renderPosition
+            double wave = Math.sin(this.phase + this.tickCount * 0.18 + progress * 6.0) * 0.24 * inverse;
+            double lift = Math.cos(this.phase * 0.7 + this.tickCount * 0.14 + progress * 3.4) * 0.08 * inverse;
+            Vec3 segmentWorld = this.renderPosition
                .subtract(dir.multiply(tailLength * progress))
                .add(side.multiply(wave))
                .add(up.multiply(lift));
-            Vec3d segmentRender = segmentWorld.subtract(cameraPos);
+            Vec3 segmentRender = segmentWorld.subtract(cameraPos);
             float size = baseSize * (0.2F + inverse * 0.92F);
             float segmentAlpha = alpha * (0.18F + inverse * 0.82F) * inverse;
             int color = i == 0 ? headColor : tailColor;
@@ -292,9 +292,9 @@ public class BloomTadpoles extends Module {
       }
 
       private static void renderBillboardBlob(
-         MatrixStack matrices,
+         PoseStack matrices,
          Immediate immediate,
-         Vec3d offset,
+         Vec3 offset,
          float size,
          int color,
          float alpha,
@@ -307,11 +307,11 @@ public class BloomTadpoles extends Module {
             return;
          }
 
-         matrices.push();
+         matrices.pushPose();
          matrices.translate(offset.x, offset.y, offset.z);
          matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-cameraYaw));
          matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cameraPitch));
-         Matrix4f matrix = matrices.peek().getPositionMatrix();
+         Matrix4f matrix = matrices.last().getPositionMatrix();
          int coreColor = ColorUtil.multAlpha(color, alpha * (head ? 0.72F : 0.44F));
          drawSolidQuad(immediate.getBuffer(COLOR_LAYER), matrix, size, coreColor);
 
@@ -324,7 +324,7 @@ public class BloomTadpoles extends Module {
             WorldRenderUtil.drawGlow(immediate.getBuffer(SOFT_GLOW_LAYER), matrix, color, softAlpha, size * softScale);
          }
 
-         matrices.pop();
+         matrices.popPose();
       }
    }
 }

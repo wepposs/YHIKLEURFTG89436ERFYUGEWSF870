@@ -1,7 +1,7 @@
 package vesence.hmi.mixin;
 
 import vesence.hmi.access.ItemStackAccessor;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 

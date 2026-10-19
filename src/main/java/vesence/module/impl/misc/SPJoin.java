@@ -3,17 +3,17 @@ package vesence.module.impl.misc;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.server.ServerInfo;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
-import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -40,10 +40,10 @@ import vesence.ui.clickgui.GuiClient;
  * Адаптации 1.21.4/ru.whylol -> 1.21.11/vesence:
  *   - @EventLink -> @EventInit; ModuleCategory.MISC -> Category.MISC.
  *   - TextSetting -> StringSetting; setting.visible(()->X) -> setting.hidden(()->!X).
- *   - ChatUtils.sendMessage -> mc.player.sendMessage(Text.literal(...), false).
- *   - MenuPanel (ClickGui открыт) -> mc.currentScreen instanceof GuiClient.
+ *   - ChatUtils.sendMessage -> mc.player.sendMessage(Component.literal(...), false).
+ *   - MenuPanel (ClickGui открыт) -> mc.screen instanceof GuiClient.
  *   - setEnabled(false) -> toggle() (самоотключение, как AutoDuel).
- *   - mc.player.getScoreboard() -> mc.world.getScoreboard().
+ *   - mc.player.getScoreboard() -> mc.level.getScoreboard().
  *   - getInventory().selectedSlot=X -> getInventory().setSelectedSlot(X).
  */
 @IModule(name = "SPJoin", description = "Автоматический заход на Spooky", category = Category.MISC, bind = -1)
@@ -99,13 +99,13 @@ public class SPJoin extends Module {
         // Если модуль отключен - ничего не делаем
         if (!this.enable) return;
 
-        if (mc.world == null || mc.player == null || mc.interactionManager == null) return;
+        if (mc.level == null || mc.player == null || mc.gameMode == null) return;
 
         // ПРОВЕРКА SCOREBOARD - если есть, отключаемся (общая логика для всех режимов)
         if (checkScoreboard()) {
             if (!hasScoreboard) {
                 hasScoreboard = true;
-                mc.player.sendMessage(Text.literal("§aУспешно зашли на сервер spookytime."), false);
+                mc.player.sendMessage(Component.literal("§aУспешно зашли на сервер spookytime."), false);
                 this.toggle();
             }
             return;
@@ -138,7 +138,7 @@ public class SPJoin extends Module {
         }
 
         // Если открыто GUI меню (HandledScreen) - РАБОТАЕТ ДАЖЕ В МЕНЮ ПАУЗЫ
-        if (mc.currentScreen instanceof HandledScreen<?>) {
+        if (mc.screen instanceof HandledScreen<?>) {
             tryClickInMenu();
             return;
         }
@@ -153,9 +153,9 @@ public class SPJoin extends Module {
      */
     private void handleAnarchyMode() {
         // Пока ClickGui открыт — ничего не отправляем
-        if (mc.currentScreen instanceof GuiClient) return;
+        if (mc.screen instanceof GuiClient) return;
 
-        if (mc.player == null || mc.player.networkHandler == null) return;
+        if (mc.player == null || mc.player.connection == null) return;
 
         String raw = anarchyCommand.get();
         if (raw == null) return;
@@ -164,9 +164,9 @@ public class SPJoin extends Module {
 
         // Отправляем как команду, если начинается с "/", иначе как сообщение
         if (cmd.startsWith("/")) {
-            mc.player.networkHandler.sendChatCommand(cmd.substring(1));
+            mc.player.connection.sendChatCommand(cmd.substring(1));
         } else {
-            mc.player.networkHandler.sendChatMessage(cmd);
+            mc.player.connection.sendChatMessage(cmd);
         }
 
         // Спамим раз в ~1 секунду пока scoreboard не появится
@@ -177,30 +177,30 @@ public class SPJoin extends Module {
      * Проверяет наличие scoreboard
      */
     private boolean checkScoreboard() {
-        if (mc.player == null || mc.world == null) return false;
+        if (mc.player == null || mc.level == null) return false;
 
-        Scoreboard scoreboard = mc.world.getScoreboard();
+        Scoreboard scoreboard = mc.level.getScoreboard();
         ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
 
         // Scoreboard есть, игрок существует больше 1 секунды, нет открытого GUI
-        return sidebar != null && mc.player.age > 20 && mc.currentScreen == null;
+        return sidebar != null && mc.player.tickCount > 20 && mc.screen == null;
     }
 
     /**
      * Пытается кликнуть в открытом меню на нужный слот
      */
     private void tryClickInMenu() {
-        if (mc.player.currentScreenHandler == null || mc.player.currentScreenHandler.slots.isEmpty()) {
+        if (mc.player.containerMenu == null || mc.player.containerMenu.slots.isEmpty()) {
             return;
         }
 
         int targetSlot = findTargetSlot();
         if (targetSlot >= 0) {
-            mc.interactionManager.clickSlot(
-                mc.player.currentScreenHandler.syncId,
+            mc.gameMode.clickSlot(
+                mc.player.containerMenu.syncId,
                 targetSlot,
                 0,
-                SlotActionType.PICKUP,
+                ClickType.PICKUP,
                 mc.player
             );
             delayTicks = 2; // Минимальная задержка (было 5)
@@ -211,11 +211,11 @@ public class SPJoin extends Module {
      * Ищет нужный слот в меню — приоритет: предмет с "дуэл" в названии
      */
     private int findTargetSlot() {
-        if (mc.player.currentScreenHandler == null) return -1;
+        if (mc.player.containerMenu == null) return -1;
 
         // Приоритет 1: ищем по названию "дуэл"
-        for (int slot = 0; slot < mc.player.currentScreenHandler.slots.size(); slot++) {
-            ItemStack stack = mc.player.currentScreenHandler.getSlot(slot).getStack();
+        for (int slot = 0; slot < mc.player.containerMenu.slots.size(); slot++) {
+            ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
             if (stack == null || stack.isEmpty()) continue;
 
             String name = normalizeText(stack.getName().getString());
@@ -225,16 +225,16 @@ public class SPJoin extends Module {
         }
 
         // Приоритет 2: якорь возрождения
-        for (int slot = 0; slot < mc.player.currentScreenHandler.slots.size(); slot++) {
-            ItemStack stack = mc.player.currentScreenHandler.getSlot(slot).getStack();
+        for (int slot = 0; slot < mc.player.containerMenu.slots.size(); slot++) {
+            ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
             if (stack != null && !stack.isEmpty() && stack.isOf(Items.RESPAWN_ANCHOR)) {
                 return slot;
             }
         }
 
         // Приоритет 3: другие ключевые слова
-        for (int slot = 0; slot < mc.player.currentScreenHandler.slots.size(); slot++) {
-            ItemStack stack = mc.player.currentScreenHandler.getSlot(slot).getStack();
+        for (int slot = 0; slot < mc.player.containerMenu.slots.size(); slot++) {
+            ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
             if (stack == null || stack.isEmpty()) continue;
 
             String name = normalizeText(stack.getName().getString());
@@ -258,11 +258,11 @@ public class SPJoin extends Module {
 
         // Переключаемся на слот с компасом
         mc.player.getInventory().setSelectedSlot(compassSlot);
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(compassSlot));
+        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(compassSlot));
 
         // Используем компас
-        mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
-        mc.player.swingHand(Hand.MAIN_HAND);
+        mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
+        mc.player.swingHand(InteractionHand.MAIN_HAND);
 
         delayTicks = 2; // Минимальная задержка (было 5)
     }
@@ -275,7 +275,7 @@ public class SPJoin extends Module {
 
         // Сначала проверяем слоты 3 и 4
         for (int slot : new int[]{3, 4}) {
-            ItemStack stack = mc.player.getInventory().getStack(slot);
+            ItemStack stack = mc.player.getInventory().getItem(slot);
             if (isCompass(stack)) {
                 return slot;
             }
@@ -283,7 +283,7 @@ public class SPJoin extends Module {
 
         // Потом проверяем весь хотбар
         for (int slot = 0; slot < 9; slot++) {
-            ItemStack stack = mc.player.getInventory().getStack(slot);
+            ItemStack stack = mc.player.getInventory().getItem(slot);
             if (isCompass(stack)) {
                 return slot;
             }

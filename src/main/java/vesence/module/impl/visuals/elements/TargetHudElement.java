@@ -4,19 +4,19 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.impl.combat.AttackAura;
@@ -107,24 +107,24 @@ public class TargetHudElement extends HudElement {
     }
 
     private LivingEntity getRenderTarget(boolean chatOpen) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         LivingEntity target = resolveTarget();
         if (target != null) { lastTarget = target; return target; }
         if (chatOpen) return mc.player;
         return lastTarget != null ? lastTarget : mc.player;
     }
 
-    private int getSkinGlId(PlayerEntity player) {
+    private int getSkinGlId(Player player) {
         if (player == null) return 0;
         try {
-            ClientPlayNetworkHandler nh = MinecraftClient.getInstance().getNetworkHandler();
+            ClientPacketListener nh = Minecraft.getInstance().getConnection();
             if (nh == null) return 0;
             PlayerListEntry entry = nh.getPlayerListEntry(player.getUuid());
             if (entry == null) return 0;
             SkinTextures tex = entry.getSkinTextures();
             if (tex == null) return 0;
-            Identifier skinId = tex.body().texturePath();
-            AbstractTexture at = MinecraftClient.getInstance().getTextureManager().getTexture(skinId);
+            ResourceLocation skinId = tex.body().texturePath();
+            AbstractTexture at = Minecraft.getInstance().getTextureManager().getTexture(skinId);
             if (at == null) return 0;
             GpuTextureView view = at.getGlTextureView();
             if (view == null) return 0;
@@ -135,7 +135,7 @@ public class TargetHudElement extends HudElement {
     }
 
     private void drawFace(Renderer2D r, float hx, float hy, LivingEntity target) {
-        int glId = target instanceof PlayerEntity pe ? getSkinGlId(pe) : 0;
+        int glId = target instanceof Player pe ? getSkinGlId(pe) : 0;
         if (glId != 0) {
             r.drawRgbaTextureWithUVRoundedNearest(glId, hx, hy, HEAD_SIZE, HEAD_SIZE, FACE_U0, FACE_V0, FACE_U1, FACE_V1, HEAD_ROUND);
             r.drawRgbaTextureWithUVRoundedNearest(glId, hx, hy, HEAD_SIZE, HEAD_SIZE, HAT_U0,  HAT_V0,  HAT_U1,  HAT_V1,  HEAD_ROUND);
@@ -149,10 +149,10 @@ public class TargetHudElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
         LivingEntity actualTarget = resolveTarget();
-        boolean chatOpen = mc.currentScreen instanceof ChatScreen;
+        boolean chatOpen = mc.screen instanceof ChatScreen;
         boolean shouldShow = actualTarget != null || chatOpen;
 
         visibilityAnim.update();
@@ -185,7 +185,7 @@ public class TargetHudElement extends HudElement {
         renderBarMode(r, font, ctx, target, globalAlpha, scaleAlpha);
 
     }
-    private void renderBarMode(Renderer2D r, FontObject font, DrawContext ctx, LivingEntity target, float globalAlpha, float scaleAlpha) {
+    private void renderBarMode(Renderer2D r, FontObject font, GuiGraphics ctx, LivingEntity target, float globalAlpha, float scaleAlpha) {
         float t = (float) sideAnim.get();
         String nick      = target != null ? target.getName().getString() : "Нет цели";
         float health     = target != null ? ScoreboardHealth.getHealth(target, target.getHealth()) : 0f;
@@ -292,7 +292,7 @@ public class TargetHudElement extends HudElement {
         r.popScale();
         r.popAlpha();
     }
-    private void renderRingMode(Renderer2D r, FontObject font, DrawContext ctx, LivingEntity target, float globalAlpha, float scaleAlpha) {
+    private void renderRingMode(Renderer2D r, FontObject font, GuiGraphics ctx, LivingEntity target, float globalAlpha, float scaleAlpha) {
         String nick      = target != null ? target.getName().getString() : "Нет цели";
         float health     = target != null ? ScoreboardHealth.getHealth(target, target.getHealth()) : 0f;
         float maxHealth  = target != null ? Math.max(1f, target.getMaxHealth()) : 20f;
@@ -396,7 +396,7 @@ public class TargetHudElement extends HudElement {
         r.popScale();
         r.popAlpha();
     }
-    private void drawEquipmentRow(Renderer2D r, DrawContext ctx, float startX, float availableWidth, float y, float alpha, float scale, float elemScale) {
+    private void drawEquipmentRow(Renderer2D r, GuiGraphics ctx, float startX, float availableWidth, float y, float alpha, float scale, float elemScale) {
         if (cachedEquipmentItems.isEmpty() || scale <= 0.01f) return;
 
         float totalWidth = EQUIP_SLOTS * EQUIP_SLOT_SIZE + (EQUIP_SLOTS - 1) * EQUIP_GAP;
@@ -425,12 +425,12 @@ public class TargetHudElement extends HudElement {
         List<ItemStack> items = new ArrayList<>();
         if (target == null) return items;
 
-        appendItem(items, target.getOffHandStack());
+        appendItem(items, target.getOffhandItem());
         appendItem(items, target.getEquippedStack(EquipmentSlot.FEET));
         appendItem(items, target.getEquippedStack(EquipmentSlot.LEGS));
         appendItem(items, target.getEquippedStack(EquipmentSlot.CHEST));
         appendItem(items, target.getEquippedStack(EquipmentSlot.HEAD));
-        appendItem(items, target.getMainHandStack());
+        appendItem(items, target.getMainHandItem());
         return items;
     }
 
@@ -445,8 +445,8 @@ public class TargetHudElement extends HudElement {
         }
     }
 
-    private void drawHudItem(Renderer2D r, DrawContext ctx, ItemStack stack, float x, float y, float size, float elemScale, boolean isArmor) {
-        float guiScale = MinecraftClient.getInstance().getWindow().getScaleFactor();
+    private void drawHudItem(Renderer2D r, GuiGraphics ctx, ItemStack stack, float x, float y, float size, float elemScale, boolean isArmor) {
+        float guiScale = Minecraft.getInstance().getWindow().getScaleFactor();
         float screenX = this.x + (x - this.x) * elemScale;
         float screenY = this.y + (y - this.y) * elemScale;
         float s = size / guiScale / 8f;
@@ -463,7 +463,7 @@ public class TargetHudElement extends HudElement {
         matrices.popMatrix();
     }
 
-    private static void drawVanillaDurabilityBar(DrawContext ctx, ItemStack stack, int ix, int iy) {
+    private static void drawVanillaDurabilityBar(GuiGraphics ctx, ItemStack stack, int ix, int iy) {
         if (stack == null || stack.isEmpty() || !stack.isItemBarVisible()) return;
         int barStep = stack.getItemBarStep();
         int barColor = stack.getItemBarColor();

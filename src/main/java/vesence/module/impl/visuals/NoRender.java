@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.world.effect.MobEffects;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -85,7 +85,7 @@ public class NoRender extends Module {
          NoRender inst = vesence.Vesence.get.manager.get(NoRender.class);
          if (inst == null || !inst.enable || sound == null) return false;
          String path = sound.getId().getPath();
-         if (sounds.get("Пластинки") && sound.getCategory() == net.minecraft.sound.SoundCategory.RECORDS) return true;
+         if (sounds.get("Пластинки") && sound.getCategory() == net.minecraft.sound.SoundSource.RECORDS) return true;
          if (sounds.get("Портал") && path.startsWith("block.portal.")) return true;
          if (sounds.get("Иссушитель") && path.startsWith("entity.wither.")) return true;
          if (sounds.get("Варден") && path.startsWith("entity.warden.")) return true;
@@ -106,9 +106,9 @@ public class NoRender extends Module {
    public void onUpdate(EventUpdate e) {
       if (mc.player != null) {
          if (elements.get("Плохие эффекты")) {
-            if (mc.player.hasStatusEffect(StatusEffects.DARKNESS)) mc.player.removeStatusEffect(StatusEffects.DARKNESS);
-            if (mc.player.hasStatusEffect(StatusEffects.BLINDNESS)) mc.player.removeStatusEffect(StatusEffects.BLINDNESS);
-            if (mc.player.hasStatusEffect(StatusEffects.NAUSEA)) mc.player.removeStatusEffect(StatusEffects.NAUSEA);
+            if (mc.player.hasStatusEffect(MobEffects.DARKNESS)) mc.player.removeStatusEffect(MobEffects.DARKNESS);
+            if (mc.player.hasStatusEffect(MobEffects.BLINDNESS)) mc.player.removeStatusEffect(MobEffects.BLINDNESS);
+            if (mc.player.hasStatusEffect(MobEffects.NAUSEA)) mc.player.removeStatusEffect(MobEffects.NAUSEA);
          }
       }
    }

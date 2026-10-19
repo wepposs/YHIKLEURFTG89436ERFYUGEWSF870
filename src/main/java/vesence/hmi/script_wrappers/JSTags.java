@@ -1,14 +1,14 @@
 package vesence.hmi.script_wrappers;
 
-import net.minecraft.item.Item;
-import net.minecraft.util.Identifier;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.tag.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
 import net.minecraft.registry.RegistryKeys;
 
 public class JSTags {
     public TagKey<Item> getVanillaTag(String id) {
-        return TagKey.of((RegistryKey) RegistryKeys.ITEM, Identifier.ofVanilla(id));
+        return TagKey.of((ResourceKey) RegistryKeys.ITEM, ResourceLocation.ofVanilla(id));
     }
 
     /**
@@ -17,6 +17,6 @@ public class JSTags {
      * TagKey в неймспейсе "c", что эквивалентно по результату и не зависит от internal API.
      */
     public TagKey<Item> getFabricTag(String id) {
-        return TagKey.of((RegistryKey) RegistryKeys.ITEM, Identifier.of("c", id));
+        return TagKey.of((ResourceKey) RegistryKeys.ITEM, ResourceLocation.of("c", id));
     }
 }

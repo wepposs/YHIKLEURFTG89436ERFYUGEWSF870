@@ -2,7 +2,7 @@ package vesence.utils.render.utils;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -34,7 +34,7 @@ public final class ClipboardUtil {
    /** Текущее содержимое буфера обмена (никогда не null; при ошибке — пустая строка). */
    public static String get() {
       try {
-         MinecraftClient mc = MinecraftClient.getInstance();
+         Minecraft mc = Minecraft.getInstance();
          if (mc != null && mc.keyboard != null) {
             String s = mc.keyboard.getClipboard();
             return s == null ? "" : s;
@@ -47,7 +47,7 @@ public final class ClipboardUtil {
    /** Положить текст в буфер обмена (безопасно, ошибки проглатываются). */
    public static void set(String text) {
       try {
-         MinecraftClient mc = MinecraftClient.getInstance();
+         Minecraft mc = Minecraft.getInstance();
          if (mc != null && mc.keyboard != null) {
             mc.keyboard.setClipboard(text == null ? "" : text);
          }

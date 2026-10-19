@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import vesence.Vesence;
 
@@ -76,15 +76,15 @@ public final class MacroManager {
       if (command == null) {
          return;
       }
-      MinecraftClient mc = MinecraftClient.getInstance();
-      if (mc.player == null || mc.player.networkHandler == null) {
+      Minecraft mc = Minecraft.getInstance();
+      if (mc.player == null || mc.player.connection == null) {
          return;
       }
       try {
          if (command.startsWith("/")) {
-            mc.player.networkHandler.sendChatCommand(command.substring(1));
+            mc.player.connection.sendChatCommand(command.substring(1));
          } else {
-            mc.player.networkHandler.sendChatMessage(command);
+            mc.player.connection.sendChatMessage(command);
          }
       } catch (Exception ignored) {
       }

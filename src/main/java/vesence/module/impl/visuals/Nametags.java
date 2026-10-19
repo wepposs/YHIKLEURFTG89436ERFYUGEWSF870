@@ -13,41 +13,41 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.PlayerSkinDrawer;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
-import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.passive.WaterAnimalEntity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import vesence.event.EventInit;
@@ -71,7 +71,7 @@ import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.text.RichTextUtil;
-import vesence.utils.render.text.TextRenderer;
+import vesence.utils.render.text.Font;
 
 @IModule(name = "Nametags", description = "Неймтеги и боксы сущностей (порт EntityESP)", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -169,8 +169,8 @@ public class Nametags extends Module {
 
     public boolean hidesVanillaLabel(Entity entity) {
         if (!this.enable || !elementTags.get()) return false;
-        if (entity instanceof ArmorStandEntity) return false;
-        if (hideNaked.get() && entity instanceof PlayerEntity pl && isNaked(pl)) return false;
+        if (entity instanceof ArmorStand) return false;
+        if (hideNaked.get() && entity instanceof Player pl && isNaked(pl)) return false;
         return matchesTarget(entity);
     }
 
@@ -223,7 +223,7 @@ public class Nametags extends Module {
     }
 
     private final List<CachedTag> cachedTags = new ArrayList<>();
-    private BufferAllocator boxAllocator = null;
+    private ByteBufferBuilder boxAllocator = null;
 
     // Запомненные талисманы/сферы по UUID игрока (порт из harmony).
     private final Map<UUID, List<RememberedItem>> rememberedItems = new HashMap<>();
@@ -242,7 +242,7 @@ public class Nametags extends Module {
         }
     }
 
-    private Vec3d project(Vec3d pos) {
+    private Vec3 project(Vec3 pos) {
         return Mathf.worldSpaceToScreenSpace(pos);
     }
 
@@ -253,7 +253,7 @@ public class Nametags extends Module {
     @EventInit
     public void onRender3D(EventRender3D event) {
         cachedTags.clear();
-        if (!this.enable || mc.world == null || mc.player == null) return;
+        if (!this.enable || mc.level == null || mc.player == null) return;
         if (isTabOpen()) return;
 
         float tickDelta = event.getTickDelta();
@@ -271,20 +271,20 @@ public class Nametags extends Module {
             render3DBoxes(event, tickDelta);
         }
 
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof ArmorStandEntity) continue;
+        for (Entity entity : mc.level.getEntities()) {
+            if (entity instanceof ArmorStand) continue;
             if (entity == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
             if (entity == mc.player && !targetSelf.get()) continue;
             if (!matchesTarget(entity)) continue;
 
-            Vec3d lerped = entity.getLerpedPos(tickDelta);
+            Vec3 lerped = entity.getLerpedPos(tickDelta);
 
             if (entity instanceof ItemEntity itemEntity) {
                 if (!elementTags.get()) continue;
-                Vec3d head = new Vec3d(lerped.x, lerped.y + 0.5 + HEAD_OFFSET, lerped.z);
-                Vec3d sp = project(head);
+                Vec3 head = new Vec3(lerped.x, lerped.y + 0.5 + HEAD_OFFSET, lerped.z);
+                Vec3 sp = project(head);
                 if (sp.z <= 0 || sp.z >= 1) continue;
-                ItemStack stack = itemEntity.getStack();
+                ItemStack stack = itemEntity.getItem();
                 String name = RichTextUtil.itemName(stack, 255);
                 cachedTags.add(new CachedTag(itemEntity.getId(), TagType.ITEM,
                         (float) sp.x * scale, (float) sp.y * scale, (float) sp.y * scale, true,
@@ -294,29 +294,29 @@ public class Nametags extends Module {
             }
 
             LivingEntity living = (LivingEntity) entity;
-            if (hideNaked.get() && living instanceof PlayerEntity pl && isNaked(pl)) continue;
+            if (hideNaked.get() && living instanceof Player pl && isNaked(pl)) continue;
 
             float heightOffset = living.getHeight() + HEAD_OFFSET;
             if (living.isSneaking()) heightOffset -= 0.25f;
-            Vec3d headPos = new Vec3d(lerped.x, lerped.y + heightOffset, lerped.z);
-            Vec3d footPos = new Vec3d(lerped.x, lerped.y - 0.1, lerped.z);
-            Vec3d sp = project(headPos);
-            Vec3d spFoot = project(footPos);
+            Vec3 headPos = new Vec3(lerped.x, lerped.y + heightOffset, lerped.z);
+            Vec3 footPos = new Vec3(lerped.x, lerped.y - 0.1, lerped.z);
+            Vec3 sp = project(headPos);
+            Vec3 spFoot = project(footPos);
             if (sp.z <= 0 || sp.z >= 1) continue;
 
             float bMinX = 0, bMinY = 0, bMaxX = 0, bMaxY = 0;
             boolean hasBox = false;
             if (needs2DBox) {
-                Box box = living.getBoundingBox().offset(lerped.subtract(new Vec3d(living.getX(), living.getY(), living.getZ())));
+                AABB box = living.getBoundingBox().offset(lerped.subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
                 bMinX = Float.MAX_VALUE; bMinY = Float.MAX_VALUE; bMaxX = -Float.MAX_VALUE; bMaxY = -Float.MAX_VALUE;
-                Vec3d[] corners = {
-                    new Vec3d(box.minX, box.minY, box.minZ), new Vec3d(box.maxX, box.minY, box.minZ),
-                    new Vec3d(box.maxX, box.minY, box.maxZ), new Vec3d(box.minX, box.minY, box.maxZ),
-                    new Vec3d(box.minX, box.maxY, box.minZ), new Vec3d(box.maxX, box.maxY, box.minZ),
-                    new Vec3d(box.maxX, box.maxY, box.maxZ), new Vec3d(box.minX, box.maxY, box.maxZ)
+                Vec3[] corners = {
+                    new Vec3(box.minX, box.minY, box.minZ), new Vec3(box.maxX, box.minY, box.minZ),
+                    new Vec3(box.maxX, box.minY, box.maxZ), new Vec3(box.minX, box.minY, box.maxZ),
+                    new Vec3(box.minX, box.maxY, box.minZ), new Vec3(box.maxX, box.maxY, box.minZ),
+                    new Vec3(box.maxX, box.maxY, box.maxZ), new Vec3(box.minX, box.maxY, box.maxZ)
                 };
-                for (Vec3d c : corners) {
-                    Vec3d csp = project(c);
+                for (Vec3 c : corners) {
+                    Vec3 csp = project(c);
                     if (csp.z > 0 && csp.z < 1 && Float.isFinite((float) csp.x) && Float.isFinite((float) csp.y)) {
                         float cx = (float) csp.x * scale, cy = (float) csp.y * scale;
                         if (cx < bMinX) bMinX = cx;
@@ -328,27 +328,27 @@ public class Nametags extends Module {
                 hasBox = bMinX != Float.MAX_VALUE;
             }
 
-            boolean isPlayer = living instanceof PlayerEntity;
+            boolean isPlayer = living instanceof Player;
             String plainName = living.getName().getString();
             String colorName = buildColorName(living, isPlayer);
 
             float hp = living.getHealth() + living.getAbsorptionAmount();
             float maxHp = living.getMaxHealth() + living.getAbsorptionAmount();
             boolean isFriend = isPlayer && FriendStorage.isFriend(plainName);
-            SkinTextures skin = (living instanceof AbstractClientPlayerEntity acp) ? acp.getSkin() : null;
+            SkinTextures skin = (living instanceof AbstractClientPlayer acp) ? acp.getSkin() : null;
 
             List<ItemStack> armorList = new ArrayList<>();
             ItemStack mainHand = ItemStack.EMPTY, offHand = ItemStack.EMPTY;
             if (isPlayer) {
-                PlayerEntity player = (PlayerEntity) living;
+                Player player = (Player) living;
                 if (elementArmor.get()) {
                     for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
                         ItemStack piece = player.getEquippedStack(slot);
                         if (!piece.isEmpty()) armorList.add(piece);
                     }
                 }
-                mainHand = player.getMainHandStack();
-                offHand = player.getOffHandStack();
+                mainHand = player.getMainHandItem();
+                offHand = player.getOffhandItem();
             }
 
             CachedTag tag = new CachedTag(living.getId(),
@@ -358,9 +358,9 @@ public class Nametags extends Module {
                     armorList, mainHand, offHand, ItemStack.EMPTY, 0);
             tag.boxMinX = bMinX; tag.boxMinY = bMinY; tag.boxMaxX = bMaxX; tag.boxMaxY = bMaxY; tag.hasBox = hasBox;
             if (isPlayer) {
-                tag.uuid = ((PlayerEntity) living).getUuid();
+                tag.uuid = ((Player) living).getUuid();
                 if (rememberBonusItems.get()) {
-                    updateRememberedItems((PlayerEntity) living, now);
+                    updateRememberedItems((Player) living, now);
                     tag.remembered = rememberedItems.get(tag.uuid);
                 }
             }
@@ -374,7 +374,7 @@ public class Nametags extends Module {
 
         Renderer2D renderer = event.renderer();
         FontObject font = FontRegistry.SF_MEDIUM;
-        DrawContext drawContext = event.drawContext();
+        GuiGraphics drawContext = event.drawContext();
         float guiScale = (float) Mathf.getScaleFactor();
         int vw = event.viewportWidth();
         int vh = event.viewportHeight();
@@ -422,7 +422,7 @@ public class Nametags extends Module {
      * предметы в руках — своими ректами снизу либо у ног. Справа от имени — полоса
      * запомненных талисманов/сфер.
      */
-    private void drawLivingTag(Renderer2D renderer, FontObject font, DrawContext drawContext, CachedTag tag, float guiScale, int vw, int vh) {
+    private void drawLivingTag(Renderer2D renderer, FontObject font, GuiGraphics drawContext, CachedTag tag, float guiScale, int vw, int vh) {
         if (!elementTags.get()) {
             drawHandItems(renderer, font, tag, tag.screenY + 4, guiScale, vw, vh);
             return;
@@ -434,7 +434,7 @@ public class Nametags extends Module {
         String friendMark = tag.isFriend ? ColorFormat.color(TAG_FRIEND_MARK_COLOR) + " [F]" : "";
         String full = tag.nameText + hpColored + friendMark;
         String stripped = ColorFormat.strip(full);
-        TextRenderer.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
+        Font.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
         float textW = m.width;
         float textH = m.height;
 
@@ -489,7 +489,7 @@ public class Nametags extends Module {
      * центру, с индикацией прочности. Иконки MC 1.21.11 рисуются отложенным
      * GUI-пассом, поэтому фон-рект коммитим (flush) до иконок.
      */
-    private void drawArmorRow(Renderer2D renderer, DrawContext drawContext, CachedTag tag, float tagY, float guiScale, int vw, int vh) {
+    private void drawArmorRow(Renderer2D renderer, GuiGraphics drawContext, CachedTag tag, float tagY, float guiScale, int vw, int vh) {
         if (tag.screenX < -50 || tag.screenX > vw + 50 || tagY < -50 || tagY > vh + 50) return;
 
         int count = tag.armor.size();
@@ -529,7 +529,7 @@ public class Nametags extends Module {
      * «сколько назад видели» (mm:ss, до 10 минут). Иконки MC 1.21.11 рисуются
      * отложенным GUI-пассом, поэтому слот-фон коммитим (flush) до иконок.
      */
-    private void drawRememberedItems(Renderer2D renderer, DrawContext drawContext, FontObject font, CachedTag tag, float startX, float topY, float guiScale) {
+    private void drawRememberedItems(Renderer2D renderer, GuiGraphics drawContext, FontObject font, CachedTag tag, float startX, float topY, float guiScale) {
         List<RememberedItem> items = tag.remembered;
         if (items == null || items.isEmpty()) return;
         long now = System.currentTimeMillis();
@@ -551,7 +551,7 @@ public class Nametags extends Module {
         }
         renderer.flush();
 
-        // 2) Иконки (DrawContext) поверх своих слотов.
+        // 2) Иконки (GuiGraphics) поверх своих слотов.
         org.joml.Matrix3x2fStack matrices = drawContext.getMatrices();
         float s = iconPx / (16f * guiScale);
         for (int i = 0; i < count; i++) {
@@ -583,16 +583,16 @@ public class Nametags extends Module {
 
     /** Ключ для дедупликации: id предмета + его компоненты (чтобы разные талисманы различались). */
     private String getRememberedItemKey(ItemStack stack) {
-        Identifier id = Registries.ITEM.getId(stack.getItem());
+        ResourceLocation id = BuiltInRegistries.ITEM.getId(stack.getItem());
         return id + "|" + String.valueOf(stack.getComponentChanges());
     }
 
-    private void updateRememberedItems(PlayerEntity player, long now) {
-        rememberHeldItem(player, player.getMainHandStack(), now);
-        rememberHeldItem(player, player.getOffHandStack(), now);
+    private void updateRememberedItems(Player player, long now) {
+        rememberHeldItem(player, player.getMainHandItem(), now);
+        rememberHeldItem(player, player.getOffhandItem(), now);
     }
 
-    private void rememberHeldItem(PlayerEntity player, ItemStack stack, long now) {
+    private void rememberHeldItem(Player player, ItemStack stack, long now) {
         if (!isRememberableBonusItem(stack)) return;
         UUID uuid = player.getUuid();
         String key = getRememberedItemKey(stack);
@@ -630,7 +630,7 @@ public class Nametags extends Module {
 
     private boolean matchesTarget(Entity entity) {
         if (entity instanceof CustomPetEntity) return false;
-        if (entity instanceof PlayerEntity) {
+        if (entity instanceof Player) {
             return entity == mc.player ? targetSelf.get() : targetPlayers.get();
         }
         if (entity instanceof ItemEntity) return targetItems.get();
@@ -639,7 +639,7 @@ public class Nametags extends Module {
         return false;
     }
 
-    private static boolean isNaked(PlayerEntity player) {
+    private static boolean isNaked(Player player) {
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             if (!player.getEquippedStack(slot).isEmpty()) return false;
         }
@@ -647,10 +647,10 @@ public class Nametags extends Module {
     }
 
     private static String buildColorName(LivingEntity living, boolean isPlayer) {
-        Text display = living.getDisplayName();
+        Component display = living.getDisplayName();
         String raw = RichTextUtil.toColorFormat(display, 0xFFFFFF, 255);
         if (isPlayer && NameProtect.isEnabled()) {
-            String profile = living instanceof PlayerEntity p && p.getGameProfile() != null ? p.getGameProfile().name() : null;
+            String profile = living instanceof Player p && p.getGameProfile() != null ? p.getGameProfile().name() : null;
             String plain = living.getName().getString();
             String scoreboard = living.getNameForScoreboard();
             String fake = NameProtect.getReplaced(plain);
@@ -668,7 +668,7 @@ public class Nametags extends Module {
     private void drawItemTag(Renderer2D renderer, FontObject font, CachedTag tag) {
         String name = tag.nameText + ColorFormat.color(155, 155, 155, 255) + " " + tag.itemCount + "x";
         String stripped = ColorFormat.strip(name);
-        TextRenderer.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
+        Font.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
         float tagW = m.width + PAD_H * 2f;
         float tagH = m.height + PAD_V * 2f;
         float tagX = tag.screenX - tagW / 2f;
@@ -738,7 +738,7 @@ public class Nametags extends Module {
     private float drawOneHand(Renderer2D renderer, FontObject font, CachedTag tag, ItemStack stack, float y) {
         String name = RichTextUtil.itemName(stack, 255);
         String stripped = ColorFormat.strip(name);
-        TextRenderer.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
+        Font.TextMetrics m = renderer.measureText(font, stripped, FONT_SIZE);
         float w = m.width + HAND_PAD_H * 2f;
         float h = m.height + HAND_PAD_V * 2f;
         float x = tag.screenX - w / 2f;
@@ -749,7 +749,7 @@ public class Nametags extends Module {
         return y + h + HAND_GAP;
     }
 
-    private static void drawDurabilityBar(DrawContext ctx, ItemStack stack) {
+    private static void drawDurabilityBar(GuiGraphics ctx, ItemStack stack) {
         if (stack == null || stack.isEmpty() || !stack.isItemBarVisible()) return;
         int barStep = stack.getItemBarStep();
         int barColor = stack.getItemBarColor();
@@ -770,13 +770,13 @@ public class Nametags extends Module {
 
     private static int friendHealthColor(float hp, float maxHp) {
         if (maxHp <= 0f) maxHp = 20f;
-        float ratio = MathHelper.clamp(hp / maxHp, 0f, 1f);
+        float ratio = Mth.clamp(hp / maxHp, 0f, 1f);
         if (ratio >= 0.5f) return interpolateColor(FRIEND_HP_MID_COLOR, FRIEND_HP_FULL_COLOR, (ratio - 0.5f) / 0.5f);
         return interpolateColor(FRIEND_HP_LOW_COLOR, FRIEND_HP_MID_COLOR, ratio / 0.5f);
     }
 
     private static int interpolateColor(int a, int b, float t) {
-        t = MathHelper.clamp(t, 0f, 1f);
+        t = Mth.clamp(t, 0f, 1f);
         int aa = (a >>> 24) & 0xFF, ar = (a >>> 16) & 0xFF, ag = (a >>> 8) & 0xFF, ab = a & 0xFF;
         int ba = (b >>> 24) & 0xFF, br = (b >>> 16) & 0xFF, bg = (b >>> 8) & 0xFF, bb = b & 0xFF;
         return ((int) (aa + (ba - aa) * t) << 24) | ((int) (ar + (br - ar) * t) << 16)
@@ -833,7 +833,7 @@ public class Nametags extends Module {
 
     private void drawBox2DHealth(Renderer2D r, CachedTag tag, float boxX, float boxY, float boxH) {
         float hp = tag.health, maxHp = tag.maxHealth <= 0 ? 20f : tag.maxHealth;
-        float ratio = MathHelper.clamp(hp / maxHp, 0f, 1f);
+        float ratio = Mth.clamp(hp / maxHp, 0f, 1f);
         float barWidth = box2DHealthWidth.get().floatValue();
         float gap = box2DHealthOffset.get().floatValue();
         float barX = boxX - gap - barWidth;
@@ -853,44 +853,44 @@ public class Nametags extends Module {
 
     private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(Identifier.of("vesence", "nametags_lines"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            .withLocation(ResourceLocation.of("vesence", "nametags_lines"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
             .withCull(false).withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false).withBlend(BlendFunction.LIGHTNING).build());
     private static final RenderPipeline ESP_QUADS_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(Identifier.of("vesence", "nametags_quads"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+            .withLocation(ResourceLocation.of("vesence", "nametags_quads"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
             .withCull(false).withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false).withBlend(BlendFunction.LIGHTNING).build());
-    private static final RenderLayer ESP_LINES_LAYER = RenderLayer.of("nametags_lines",
+    private static final RenderType ESP_LINES_LAYER = RenderType.of("nametags_lines",
         RenderSetup.builder(ESP_LINES_PIPELINE).expectedBufferSize(2048).translucent().build());
-    private static final RenderLayer ESP_QUADS_LAYER = RenderLayer.of("nametags_quads",
+    private static final RenderType ESP_QUADS_LAYER = RenderType.of("nametags_quads",
         RenderSetup.builder(ESP_QUADS_PIPELINE).expectedBufferSize(2048).translucent().build());
 
 
 
     private void render3DBoxes(EventRender3D event, float tickDelta) {
-        MatrixStack matrices = event.getMatrixStack();
-        Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
+        Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
         if (boxAllocator == null) {
-            boxAllocator = new BufferAllocator(262144);
+            boxAllocator = new ByteBufferBuilder(262144);
         }
-        VertexConsumerProvider.Immediate immediate = VertexConsumerProvider.immediate(boxAllocator);
-        final Matrix4f frameMatrix = matrices.peek().getPositionMatrix();
+        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(boxAllocator);
+        final Matrix4f frameMatrix = matrices.last().getPositionMatrix();
         try {
-            for (Entity entity : mc.world.getEntities()) {
-                if (entity instanceof ArmorStandEntity) continue;
+            for (Entity entity : mc.level.getEntities()) {
+                if (entity instanceof ArmorStand) continue;
                 if (entity == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
                 if (entity == mc.player && !targetSelf.get()) continue;
                 if (!matchesTarget(entity)) continue;
                 if (!(entity instanceof LivingEntity living)) continue;
-                if (hideNaked.get() && living instanceof PlayerEntity pl && isNaked(pl)) continue;
+                if (hideNaked.get() && living instanceof Player pl && isNaked(pl)) continue;
 
-                Box box = living.getBoundingBox().offset(living.getLerpedPos(tickDelta).subtract(new Vec3d(living.getX(), living.getY(), living.getZ())));
+                AABB box = living.getBoundingBox().offset(living.getLerpedPos(tickDelta).subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
                 if (box.expand(0.05).contains(camPos)) continue;
 
-                int colorInt = baseBoxColor(living instanceof PlayerEntity && FriendStorage.isFriend(living.getName().getString()));
+                int colorInt = baseBoxColor(living instanceof Player && FriendStorage.isFriend(living.getName().getString()));
                 float r = ((colorInt >> 16) & 0xFF) / 255f, g = ((colorInt >> 8) & 0xFF) / 255f, b = (colorInt & 0xFF) / 255f;
                 double minX = box.minX - camPos.x, minY = box.minY - camPos.y, minZ = box.minZ - camPos.z;
                 double maxX = box.maxX - camPos.x, maxY = box.maxY - camPos.y, maxZ = box.maxZ - camPos.z;

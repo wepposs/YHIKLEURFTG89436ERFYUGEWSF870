@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.renderer.base.BoneSnapshots;

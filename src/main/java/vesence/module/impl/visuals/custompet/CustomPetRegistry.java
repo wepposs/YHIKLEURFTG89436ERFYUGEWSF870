@@ -1,14 +1,14 @@
 package vesence.module.impl.visuals.custompet;
 
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
-import net.minecraft.entity.EntityType;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.entity.passive.FrogEntity;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Регистрация выделенного {@link EntityType} для кастомного питомца.
@@ -22,10 +22,10 @@ import net.minecraft.util.Identifier;
  * сервер о ней не знает. Регистрация типа нужна только чтобы dispatcher знал её рендерер.
  */
 public final class CustomPetRegistry {
-    public static final Identifier ID = Identifier.of("vesence", "custom_pet");
+    public static final ResourceLocation ID = ResourceLocation.of("vesence", "custom_pet");
 
-    public static final RegistryKey<EntityType<?>> KEY =
-            RegistryKey.of(RegistryKeys.ENTITY_TYPE, ID);
+    public static final ResourceKey<EntityType<?>> KEY =
+            ResourceKey.of(RegistryKeys.ENTITY_TYPE, ID);
 
     public static final EntityType<CustomPetEntity> CUSTOM_PET =
             EntityType.Builder.<CustomPetEntity>create(CustomPetEntity::new, SpawnGroup.MISC)
@@ -40,7 +40,7 @@ public final class CustomPetRegistry {
 
     /** Регистрирует тип сущности и атрибуты. Вызывать в инициализации мода. */
     public static void register() {
-        Registry.register(Registries.ENTITY_TYPE, ID, CUSTOM_PET);
+        Registry.register(BuiltInRegistries.ENTITY_TYPE, ID, CUSTOM_PET);
         FabricDefaultAttributeRegistry.register(CUSTOM_PET, FrogEntity.createFrogAttributes());
     }
 }

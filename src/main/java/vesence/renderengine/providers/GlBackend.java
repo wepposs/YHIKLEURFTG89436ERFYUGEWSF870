@@ -4,9 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.MinecraftClient;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
@@ -243,7 +243,7 @@ public final class GlBackend {
    }
 
    public void beginFrame(int width, int height) {
-      this.snapshot = GlState.push();
+      this.snapshot = GlState.pushPose();
       this.viewportWidth = width;
       this.viewportHeight = height;
       GL11.glViewport(0, 0, width, height);
@@ -1230,7 +1230,7 @@ public final class GlBackend {
       int srcY = Math.max(0, this.viewportHeight - y - h);
       int srcW = Math.min(w, this.viewportWidth - srcX);
       int srcH = Math.min(h, this.viewportHeight - Math.max(0, this.viewportHeight - y - h));
-      GlState.Snapshot s = GlState.push();
+      GlState.Snapshot s = GlState.pushPose();
 
       try {
          boolean wasScissorEnabled = GL11.glIsEnabled(3089);
@@ -1265,11 +1265,11 @@ public final class GlBackend {
    }
 
    public GlBackend.FrameCapture captureFullFrame() {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client == null) {
          return new GlBackend.FrameCapture(0, 0, 0, 0);
       } else {
-         Framebuffer framebuffer = client.getFramebuffer();
+         RenderTarget framebuffer = client.getMainRenderTarget();
          if (framebuffer == null) {
             return new GlBackend.FrameCapture(0, 0, 0, 0);
          } else if (extractGlTexId(framebuffer) == 0) {
@@ -1284,7 +1284,7 @@ public final class GlBackend {
             int width = Math.max(1, framebuffer.textureWidth);
             int height = Math.max(1, framebuffer.textureHeight);
             this.fullFrameTarget.ensure(width, height);
-            GlState.Snapshot state = GlState.push();
+            GlState.Snapshot state = GlState.pushPose();
 
             try {
                GL11.glDisable(3089);
@@ -1332,7 +1332,7 @@ public final class GlBackend {
       if (texture > 0 && width > 0 && height > 0) {
          this.ensureFullscreenResources();
          ShaderProgram program = this.ensureFullscreenProgram();
-         GlState.Snapshot state = GlState.push();
+         GlState.Snapshot state = GlState.pushPose();
 
          try {
             GL30.glBindFramebuffer(36160, 0);
@@ -1486,7 +1486,7 @@ public final class GlBackend {
    private static boolean extractLogDone = false;
    private static boolean blurLogDone = false;
 
-   private static int extractGlTexId(Framebuffer framebuffer) {
+   private static int extractGlTexId(RenderTarget framebuffer) {
       if (framebuffer == null) return 0;
 
       try {

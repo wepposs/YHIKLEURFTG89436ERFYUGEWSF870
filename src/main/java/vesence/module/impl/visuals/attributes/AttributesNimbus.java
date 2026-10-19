@@ -5,20 +5,20 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
@@ -32,40 +32,40 @@ import vesence.utils.render.ColorUtil;
  * <p>Порт косметики «Нимб» из клиента RelevantPremium ({@code Cosmetics.renderNimbus}).
  * Оригинал рисовал нимб только над своей головой через immediate-mode Tessellator
  * с ручным additive-blend. Здесь тот же эффект перенесён на render-API MC 1.21.11
- * (RenderPipeline + RenderLayer): glow/core — аддитивный слой, угольки — обычный
+ * (RenderPipeline + RenderType): glow/core — аддитивный слой, угольки — обычный
  * translucent-слой. Рисуется над своей головой и над головами друзей.
  */
 public final class AttributesNimbus {
 
-    private static final Identifier BLOOM = Identifier.of("vesence", "textures/targetesp/bloom.png");
+    private static final ResourceLocation BLOOM = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
 
     /** Glow + сердцевина — аддитивные биллборды (LIGHTNING) без depth-test. */
     private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_nimbus_glow"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_nimbus_glow"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.LIGHTNING)
                     .build());
 
-    private static final RenderLayer GLOW_LAYER = RenderLayer.of(
+    private static final RenderType GLOW_LAYER = RenderType.of(
             "vesence_attributes_nimbus_glow",
             RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(65536).translucent().texture("Sampler0", BLOOM).build());
 
     /** Тёмные угольки — обычный translucent (иначе чёрный в additive невидим). */
     private static final RenderPipeline DARK_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_nimbus_dark"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_nimbus_dark"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
 
-    private static final RenderLayer DARK_LAYER = RenderLayer.of(
+    private static final RenderType DARK_LAYER = RenderType.of(
             "vesence_attributes_nimbus_dark",
             RenderSetup.builder(DARK_PIPELINE).expectedBufferSize(16384).translucent().texture("Sampler0", BLOOM).build());
 
@@ -84,7 +84,7 @@ public final class AttributesNimbus {
     private static final double NIMBUS_HEAD_CLEARANCE = 0.25;
 
     private final Attributes parent;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
 
     public AttributesNimbus(Attributes parent) {
         this.parent = parent;
@@ -93,14 +93,14 @@ public final class AttributesNimbus {
     public void deactivate() {}
 
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         float tickDelta = event.getTickDelta();
-        Vec3d cameraPos = event.getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
+        Vec3 cameraPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
 
-        float camYaw = mc.gameRenderer.getCamera().getYaw();
-        float camPitch = mc.gameRenderer.getCamera().getPitch();
+        float camYaw = mc.gameRenderer.getCamera().getYRot();
+        float camPitch = mc.gameRenderer.getCamera().getXRot();
 
         int theme = ColorUtil.theme(255);
         int themeR = ColorUtil.red(theme);
@@ -110,31 +110,31 @@ public final class AttributesNimbus {
         long nowMs = System.currentTimeMillis();
         double phase = nowMs * NIMBUS_ROTATION_SPEED;
 
-        java.util.List<PlayerEntity> targets = new java.util.ArrayList<>();
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        java.util.List<Player> targets = new java.util.ArrayList<>();
+        for (Player player : mc.level.getPlayers()) {
             if (shouldRender(player) && parent.shouldRenderFor(player, cameraPos)) targets.add(player);
         }
         if (targets.isEmpty()) return;
 
-        Immediate immediate = VertexConsumerProvider.immediate(parent.allocator());
+        Immediate immediate = MultiBufferSource.immediate(parent.allocator());
 
         // Слой glow/core (аддитивный) — пишем полностью до переключения слоя.
         VertexConsumer glowBuf = immediate.getBuffer(GLOW_LAYER);
-        for (PlayerEntity player : targets) {
+        for (Player player : targets) {
             renderNimbusGlow(player, tickDelta, cameraPos, matrices, glowBuf,
                     camYaw, camPitch, phase, themeR, themeG, themeB);
         }
 
         // Слой тёмных угольков (translucent).
         VertexConsumer darkBuf = immediate.getBuffer(DARK_LAYER);
-        for (PlayerEntity player : targets) {
+        for (Player player : targets) {
             renderNimbusDark(player, tickDelta, cameraPos, matrices, darkBuf, camYaw, camPitch, phase);
         }
 
         immediate.draw();
     }
 
-    private boolean shouldRender(PlayerEntity player) {
+    private boolean shouldRender(Player player) {
         if (mc.player == null) return false;
         if (!player.isAlive() || player.isInvisible()) return false;
         if (player == mc.player) {
@@ -143,10 +143,10 @@ public final class AttributesNimbus {
         return FriendStorage.isFriend(player.getName().getString());
     }
 
-    private void renderNimbusGlow(PlayerEntity player, float tickDelta, Vec3d camera, MatrixStack matrices,
+    private void renderNimbusGlow(Player player, float tickDelta, Vec3 camera, PoseStack matrices,
                                   VertexConsumer glowBuf, float camYaw, float camPitch,
                                   double phase, int themeR, int themeG, int themeB) {
-        Vec3d pos = player.getLerpedPos(tickDelta);
+        Vec3 pos = player.getLerpedPos(tickDelta);
         double cx = pos.x;
         double cy = pos.y + player.getHeight() + NIMBUS_HEAD_CLEARANCE;
         double cz = pos.z;
@@ -197,9 +197,9 @@ public final class AttributesNimbus {
 
     }
 
-    private void renderNimbusDark(PlayerEntity player, float tickDelta, Vec3d camera, MatrixStack matrices,
+    private void renderNimbusDark(Player player, float tickDelta, Vec3 camera, PoseStack matrices,
                                   VertexConsumer darkBuf, float camYaw, float camPitch, double phase) {
-        Vec3d pos = player.getLerpedPos(tickDelta);
+        Vec3 pos = player.getLerpedPos(tickDelta);
         double cx = pos.x;
         double cy = pos.y + player.getHeight() + NIMBUS_HEAD_CLEARANCE;
         double cz = pos.z;
@@ -222,22 +222,22 @@ public final class AttributesNimbus {
         }
     }
 
-    private static void drawBillboard(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+    private static void drawBillboard(VertexConsumer buffer, PoseStack matrices, Vec3 cameraPos,
                                       double worldX, double worldY, double worldZ,
                                       float size, float camYaw, float camPitch,
                                       int r, int g, int b, int a) {
         if (a <= 0 || size <= 0f) return;
         float half = size * 0.5F;
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Matrix4f matrix = matrices.last().getPositionMatrix();
         texVertex(buffer, matrix, -half, -half, 0f, 1f, r, g, b, a);
         texVertex(buffer, matrix, -half,  half, 0f, 0f, r, g, b, a);
         texVertex(buffer, matrix,  half,  half, 1f, 0f, r, g, b, a);
         texVertex(buffer, matrix,  half, -half, 1f, 1f, r, g, b, a);
-        matrices.pop();
+        matrices.popPose();
     }
 
     private static void texVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y,

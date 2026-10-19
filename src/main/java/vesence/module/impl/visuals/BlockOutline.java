@@ -6,22 +6,22 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
@@ -41,15 +41,15 @@ public class BlockOutline extends Module {
 
     private float smoothTopAlpha = -1.0f;
     private float smoothBottomAlpha = -1.0f;
-    private BufferAllocator blockOutlineAllocator = null;
+    private ByteBufferBuilder blockOutlineAllocator = null;
     private BlockPos lastBreakPos = null;
     private long breakStartTime = 0L;
     private boolean isBreaking = false;
 
     private static final RenderPipeline QUADS_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.POSITION_COLOR_SNIPPET })
-            .withLocation(Identifier.of("vesence", "pipeline/blockoutline_quads"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+            .withLocation(ResourceLocation.of("vesence", "pipeline/blockoutline_quads"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
             .withCull(false)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false)
@@ -57,17 +57,17 @@ public class BlockOutline extends Module {
             .build());
     private static final RenderPipeline LINES_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.POSITION_COLOR_SNIPPET })
-            .withLocation(Identifier.of("vesence", "pipeline/blockoutline_lines"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            .withLocation(ResourceLocation.of("vesence", "pipeline/blockoutline_lines"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
             .withCull(false)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false)
             .withBlend(BlendFunction.TRANSLUCENT)
             .build());
 
-    private static final RenderLayer QUADS_LAYER = RenderLayer.of("blockoutline_quads",
+    private static final RenderType QUADS_LAYER = RenderType.of("blockoutline_quads",
         RenderSetup.builder(QUADS_PIPELINE).expectedBufferSize(2097152).translucent().build());
-    private static final RenderLayer LINES_LAYER = RenderLayer.of("blockoutline_lines",
+    private static final RenderType LINES_LAYER = RenderType.of("blockoutline_lines",
         RenderSetup.builder(LINES_PIPELINE).expectedBufferSize(65536).translucent().build());
 
     public BlockOutline() {
@@ -83,7 +83,7 @@ public class BlockOutline extends Module {
     @EventInit
     public void onRender3D(EventRender3D event) {
         if (!this.enable) return;
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
         if (mc.crosshairTarget == null || mc.crosshairTarget.getType() != HitResult.Type.BLOCK) {
             isBreaking = false;
             return;
@@ -103,13 +103,13 @@ public class BlockOutline extends Module {
             isBreaking = false;
         }
 
-        BlockState state = mc.world.getBlockState(blockPos);
-        VoxelShape shape = state.getOutlineShape(mc.world, blockPos);
+        BlockState state = mc.level.getBlockState(blockPos);
+        VoxelShape shape = state.getOutlineShape(mc.level, blockPos);
         if (shape.isEmpty()) return;
 
-        Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
-        Box rawBB = shape.getBoundingBox();
-        Box bb = new Box(
+        Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
+        AABB rawBB = shape.getBoundingBox();
+        AABB bb = new AABB(
             rawBB.minX + blockPos.getX() - camPos.x - 0.002,
             rawBB.minY + blockPos.getY() - camPos.y - 0.002,
             rawBB.minZ + blockPos.getZ() - camPos.z - 0.002,
@@ -120,15 +120,15 @@ public class BlockOutline extends Module {
 
         int color = Renderer2D.ColorUtil.getClientColor();
 
-        MatrixStack matrices = event.getMatrixStack();
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        PoseStack matrices = event.getMatrixStack();
+        Matrix4f matrix = matrices.last().getPositionMatrix();
 
-        BufferAllocator allocator = blockOutlineAllocator;
+        ByteBufferBuilder allocator = blockOutlineAllocator;
         if (allocator == null) {
-            allocator = new BufferAllocator(2097152);
+            allocator = new ByteBufferBuilder(2097152);
             blockOutlineAllocator = allocator;
         }
-        VertexConsumerProvider.Immediate immediate = VertexConsumerProvider.immediate(allocator);
+        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(allocator);
 
         try {
             VertexConsumer quadBuf = immediate.getBuffer(QUADS_LAYER);
@@ -168,7 +168,7 @@ public class BlockOutline extends Module {
         return (color & 0x00FFFFFF) | ((alpha & 0xFF) << 24);
     }
 
-    private void renderGradientBox(VertexConsumer buf, Matrix4f m, Box bb, int top, int bot) {
+    private void renderGradientBox(VertexConsumer buf, Matrix4f m, AABB bb, int top, int bot) {
         float rT = ((top >> 16) & 0xFF) / 255f, gT = ((top >> 8) & 0xFF) / 255f, bT = (top & 0xFF) / 255f, aT = ((top >> 24) & 0xFF) / 255f;
         float rB = ((bot >> 16) & 0xFF) / 255f, gB = ((bot >> 8) & 0xFF) / 255f, bB = (bot & 0xFF) / 255f, aB = ((bot >> 24) & 0xFF) / 255f;
         float x0 = (float)bb.minX, y0 = (float)bb.minY, z0 = (float)bb.minZ;
@@ -192,14 +192,14 @@ public class BlockOutline extends Module {
         buf.vertex(m, x1, y1, z1).color(rT, gT, bT, aT); buf.vertex(m, x1, y0, z1).color(rB, gB, bB, aB);
     }
 
-    private void renderBreakWaves(VertexConsumer buf, Matrix4f m, Box bb, int color, float timeSince, float speed) {
+    private void renderBreakWaves(VertexConsumer buf, Matrix4f m, AABB bb, int color, float timeSince, float speed) {
         int r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
         for (int wave = 0; wave < 3; wave++) {
             float wt = (timeSince * speed + wave * 0.3f) % 1.5f;
             if (wt > 1.0f) continue;
             float expand = wt * 0.3f;
             float alpha = (1.0f - wt);
-            Box wb = bb.expand(expand);
+            AABB wb = bb.expand(expand);
             float x0 = (float)wb.minX, y0 = (float)wb.minY, z0 = (float)wb.minZ;
             float x1 = (float)wb.maxX, y1 = (float)wb.maxY, z1 = (float)wb.maxZ;
             int a = (int)(alpha*255);

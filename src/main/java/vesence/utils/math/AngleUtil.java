@@ -1,10 +1,10 @@
 package vesence.utils.math;
 
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 
 public class AngleUtil {
     public static float interpolateAngle(float current, float target, float factor) {
-        float difference = MathHelper.wrapDegrees(target - current);
+        float difference = Mth.wrapDegrees(target - current);
         return current + difference * factor;
     }
 
@@ -16,6 +16,6 @@ public class AngleUtil {
     }
 
     public static float normalizePitch(float pitch) {
-        return MathHelper.clamp(pitch, -90.0F, 90.0F);
+        return Mth.clamp(pitch, -90.0F, 90.0F);
     }
 }

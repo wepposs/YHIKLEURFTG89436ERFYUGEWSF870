@@ -13,14 +13,14 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -36,9 +36,9 @@ import java.util.OptionalInt;
  * рисует кольцо в воздухе.
  */
 public class KillEffectScanPipeline {
-    private static final Identifier PIPELINE_ID = Identifier.of("vesence", "pipeline/killeffect_scan");
-    private static final Identifier VERTEX_SHADER = Identifier.of("vesence", "core/killeffect_scan");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("vesence", "core/killeffect_scan");
+    private static final ResourceLocation PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/killeffect_scan");
+    private static final ResourceLocation VERTEX_SHADER = ResourceLocation.of("vesence", "core/killeffect_scan");
+    private static final ResourceLocation FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/killeffect_scan");
 
     // std140 layout: 2×mat4(64) + 6×vec4(16) = 128 + 96 = 224, паддинг до 256.
     private static final int UNIFORM_SIZE = 256;
@@ -48,7 +48,7 @@ public class KillEffectScanPipeline {
                     .withLocation(PIPELINE_ID)
                     .withVertexShader(VERTEX_SHADER)
                     .withFragmentShader(FRAGMENT_SHADER)
-                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("ScanData", UniformType.UNIFORM_BUFFER)
                     .withSampler("DepthSampler")
                     .withBlend(BlendFunction.ADDITIVE)
@@ -120,11 +120,11 @@ public class KillEffectScanPipeline {
      * @param sharpness  резкость края
      * @param outer/mid/inner/scanline — цвета (ARGB int)
      */
-    public void renderWave(MinecraftClient mc, Matrix4f projection, Matrix4f view, Vec3d cameraPos,
-                           Vec3d center, float radius, float width, float sharpness,
+    public void renderWave(Minecraft mc, Matrix4f projection, Matrix4f view, Vec3 cameraPos,
+                           Vec3 center, float radius, float width, float sharpness,
                            int outerColor, int midColor, int innerColor, int scanlineColor) {
         if (radius <= 0.0f) return;
-        Framebuffer mainFb = mc.getFramebuffer();
+        RenderTarget mainFb = mc.getMainRenderTarget();
         if (mainFb == null || mainFb.getColorAttachment() == null || mainFb.getDepthAttachment() == null) return;
 
         int w = mainFb.textureWidth;
@@ -164,8 +164,8 @@ public class KillEffectScanPipeline {
         }
     }
 
-    private void prepareUniformData(Matrix4f invProj, Matrix4f invView, Vec3d camPos, float radius,
-                                    Vec3d center, float width, int outer, int mid, int inner, int scan, float sharpness) {
+    private void prepareUniformData(Matrix4f invProj, Matrix4f invView, Vec3 camPos, float radius,
+                                    Vec3 center, float width, int outer, int mid, int inner, int scan, float sharpness) {
         dataBuffer.clear();
         putMatrix(dataBuffer, invProj);
         putMatrix(dataBuffer, invView);

@@ -2,9 +2,9 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -43,7 +43,7 @@ public class Speed extends Module {
    private boolean holdingJump;
    private boolean playerJumpWasPressed;
 
-   private Vec3d lastBoostVelocity;
+   private Vec3 lastBoostVelocity;
    private double lastBoostAmount;
 
    public Speed() {
@@ -61,7 +61,7 @@ public class Speed extends Module {
    @EventInit
    public void onUpdate(EventUpdate e) {
       if (!this.enable) return;
-      if (mc.player == null || mc.world == null) return;
+      if (mc.player == null || mc.level == null) return;
 
       if (mode.is("Grim-Entity")) {
           double finalSpeed = 6.0E-4F;
@@ -70,7 +70,7 @@ public class Speed extends Module {
           double bestSq = Double.MAX_VALUE;
           double maxRangeSq = 0.2F;
 
-          for (Entity ent : mc.world.getEntities()) {
+          for (Entity ent : mc.level.getEntities()) {
              if (ent != mc.player) {
 
                 double dx = ent.getX() - mc.player.getX();
@@ -84,29 +84,29 @@ public class Speed extends Module {
           }
 
            if (nearest != null) {
-              double[] dir = this.getDirectionToPoint(new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()), new Vec3d(nearest.getX(), nearest.getY(), nearest.getZ()), finalSpeed);
+              double[] dir = this.getDirectionToPoint(new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ()), new Vec3(nearest.getX(), nearest.getY(), nearest.getZ()), finalSpeed);
               mc.player.addVelocity(dir[0], 0.0, dir[1]);
            }
         }
 
         if (mode.is("GrimGlide")) {
-            if (mc.player.isOnGround() && mc.options.jumpKey.isPressed()) {
-                double yaw = Math.toRadians(mc.player.getYaw());
+            if (mc.player.onGround() && mc.options.jumpKey.isPressed()) {
+                double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
-                Vec3d vel = mc.player.getVelocity();
-                mc.player.setVelocity(vel.add(xt * 0.4, 0.42, zt * 0.4));
-            } else if (!mc.player.isOnGround() && !mc.player.isGliding()) {
-                Vec3d vel = mc.player.getVelocity();
-                double yaw = Math.toRadians(mc.player.getYaw());
+                Vec3 vel = mc.player.getDeltaMovement();
+                mc.player.setDeltaMovement(vel.add(xt * 0.4, 0.42, zt * 0.4));
+            } else if (!mc.player.onGround() && !mc.player.isGliding()) {
+                Vec3 vel = mc.player.getDeltaMovement();
+                double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
-                Vec3d add = new Vec3d(xt, 0, zt).multiply(0.02);
+                Vec3 add = new Vec3(xt, 0, zt).multiply(0.02);
                 if (mc.player.input.hasForwardMovement() || mc.options.leftKey.isPressed() || mc.options.rightKey.isPressed()) {
-                   mc.player.setVelocity(vel.add(add.x, 0, add.z));
+                   mc.player.setDeltaMovement(vel.add(add.x, 0, add.z));
                 }
-                if (mc.player.getVelocity().y > 0) {
-                   mc.player.setVelocity(mc.player.getVelocity().add(0, 0.002, 0));
+                if (mc.player.getDeltaMovement().y > 0) {
+                   mc.player.setDeltaMovement(mc.player.getDeltaMovement().add(0, 0.002, 0));
                 }
             }
         }
@@ -155,7 +155,7 @@ public class Speed extends Module {
       }
 
       double boost = rwBoost.get();
-      if (boost > 0.0D && !mc.player.isOnGround()) {
+      if (boost > 0.0D && !mc.player.onGround()) {
           double yaw = Math.toRadians(MoveUtil.getdir());
           double xt = -Math.sin(yaw);
           double zt = Math.cos(yaw);
@@ -164,9 +164,9 @@ public class Speed extends Module {
              zt = 0.0;
           }
 
-          mc.player.addVelocityInternal(new Vec3d(xt * boost, 0.0D, zt * boost));
+          mc.player.addVelocityInternal(new Vec3(xt * boost, 0.0D, zt * boost));
 
-          lastBoostVelocity = mc.player.getVelocity();
+          lastBoostVelocity = mc.player.getDeltaMovement();
           lastBoostAmount = boost;
       }
    }
@@ -193,12 +193,12 @@ public class Speed extends Module {
       if (debugTickCounter < 20) return;
       debugTickCounter = 0;
 
-      Vec3d v = mc.player.getVelocity();
+      Vec3 v = mc.player.getDeltaMovement();
       this.debugMessage(String.format(
               "RW | h=%.3f y=%.3f ground=%s cooldown=%d setbacks=%d boost=%.3f",
               Math.sqrt(v.x * v.x + v.z * v.z),
               v.y,
-              mc.player.isOnGround(),
+              mc.player.onGround(),
               setbackCooldown,
               setbackCount,
               rwBoost.get()
@@ -215,7 +215,7 @@ public class Speed extends Module {
           setbackCount++;
 
           if (rwDebug.get()) {
-             Vec3d lv = lastBoostVelocity;
+             Vec3 lv = lastBoostVelocity;
              String dump = lv == null
                      ? "no boost"
                      : String.format("h=%.3f y=%.3f (boost=%.3f)",
@@ -229,7 +229,7 @@ public class Speed extends Module {
       if (mc.player == null) return;
       try {
           mc.player.sendMessage(
-                  net.minecraft.text.Text.literal("[Speed] " + message),
+                  net.minecraft.text.Component.literal("[Speed] " + message),
                   false
           );
       } catch (Throwable ignored) {
@@ -243,7 +243,7 @@ public class Speed extends Module {
       super.onDisable();
    }
 
-   private double[] getDirectionToPoint(Vec3d from, Vec3d to, double spd) {
+   private double[] getDirectionToPoint(Vec3 from, Vec3 to, double spd) {
       double dx = to.x - from.x;
       double dz = to.z - from.z;
       double len = Math.sqrt(dx * dx + dz * dz);

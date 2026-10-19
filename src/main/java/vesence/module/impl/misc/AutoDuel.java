@@ -4,10 +4,10 @@ import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.network.packet.Packet;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
 import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.screen.slot.ClickType;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -54,7 +54,7 @@ public class AutoDuel extends Module {
 
     @EventInit
     private void onUpdate(EventUpdate e) {
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             return;
         }
 
@@ -81,8 +81,8 @@ public class AutoDuel extends Module {
         for (final String player : players) {
             if (!sent.contains(player) && !player.equals(mc.getSession().getUsername())) {
                 if (counter.finished(1000)) {
-                    if (mc.player.networkHandler != null) {
-                        mc.player.networkHandler.sendChatMessage("/duel " + player);
+                    if (mc.player.connection != null) {
+                        mc.player.connection.sendChatMessage("/duel " + player);
                     }
                     sent.add(player);
                     counter.reset();
@@ -90,29 +90,29 @@ public class AutoDuel extends Module {
             }
         }
 
-        if (mc.player.currentScreenHandler instanceof GenericContainerScreenHandler chest) {
-            if (mc.currentScreen != null && mc.currentScreen.getTitle().getString().contains("Выбор набора (1/1)")) {
+        if (mc.player.containerMenu instanceof GenericContainerScreenHandler chest) {
+            if (mc.screen != null && mc.screen.getTitle().getString().contains("Выбор набора (1/1)")) {
                 if (counterChoice.finished(150)) {
                     int slotId = getKitSlotId();
-                    if (slotId != -1 && mc.interactionManager != null) {
-                        mc.interactionManager.clickSlot(
+                    if (slotId != -1 && mc.gameMode != null) {
+                        mc.gameMode.clickSlot(
                             chest.syncId,
                             slotId,
                             0,
-                            SlotActionType.QUICK_MOVE,
+                            ClickType.QUICK_MOVE,
                             mc.player
                         );
                     }
                     counterChoice.reset();
                 }
-            } else if (mc.currentScreen != null && mc.currentScreen.getTitle().getString().contains("Настройка поединка")) {
+            } else if (mc.screen != null && mc.screen.getTitle().getString().contains("Настройка поединка")) {
                 if (counterTo.finished(150)) {
-                    if (mc.interactionManager != null) {
-                        mc.interactionManager.clickSlot(
+                    if (mc.gameMode != null) {
+                        mc.gameMode.clickSlot(
                             chest.syncId,
                             0,
                             0,
-                            SlotActionType.QUICK_MOVE,
+                            ClickType.QUICK_MOVE,
                             mc.player
                         );
                     }
@@ -150,12 +150,12 @@ public class AutoDuel extends Module {
     }
 
     private List<String> getOnlinePlayers() {
-        if (mc.player == null || mc.getNetworkHandler() == null) {
+        if (mc.player == null || mc.getConnection() == null) {
             return new ArrayList<>();
         }
 
         List<String> players = new ArrayList<>();
-        for (PlayerListEntry entry : mc.getNetworkHandler().getPlayerList()) {
+        for (PlayerListEntry entry : mc.getConnection().getPlayerList()) {
             GameProfile profile = entry.getProfile();
             if (profile != null) {
                 String name = profile.name();

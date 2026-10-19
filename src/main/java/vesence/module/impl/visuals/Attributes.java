@@ -2,10 +2,10 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
 import vesence.module.api.Category;
@@ -54,7 +54,7 @@ public class Attributes extends Module {
     private final AttributesChinaHat chinaHatRenderer = new AttributesChinaHat(this);
 
     /** ╨Х╨┤╨╕╨╜╤Л╨╣ ╨▒╤Г╤Д╨╡╤А-╨░╨╗╨╗╨╛╨║╨░╤В╨╛╤А ╨╜╨░ ╨▓╤Б╨╡ ╨░╤В╤А╨╕╨▒╤Г╤В╤Л тАФ ╤Н╨║╨╛╨╜╨╛╨╝╨╕╤В ╨┐╨░╨╝╤П╤В╤М. */
-    private BufferAllocator sharedAllocator;
+    private ByteBufferBuilder sharedAllocator;
     /** ╨Ь╨░╨║╤Б╨╕╨╝╨░╨╗╤М╨╜╨░╤П ╨┤╨╕╤Б╤В╨░╨╜╤Ж╨╕╤П ╨╛╤В╤А╨╕╤Б╨╛╨▓╨║╨╕ ╨░╤В╤А╨╕╨▒╤Г╤В╨╛╨▓, ╨▒╨╗╨╛╨║╨╛╨▓. */
     public static final double MAX_RENDER_DISTANCE = 64.0;
     private static final double NEAR_ALWAYS_SQ = 36.0;   // ╨▒╨╗╨╕╨╢╨╡ 6 ╨▒╨╗╨╛╨║╨╛╨▓ тАФ ╤А╨╕╤Б╤Г╨╡╨╝ ╨▓╤Б╨╡╨│╨┤╨░
@@ -66,7 +66,7 @@ public class Attributes extends Module {
 
     @EventInit
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             return;
         }
         if (this.tail.get()) {
@@ -109,10 +109,10 @@ public class Attributes extends Module {
         super.onDisable();
     }
 
-    /** ╨Ю╨▒╤Й╨╕╨╣ {@link BufferAllocator} ╨┤╨╗╤П ╨▓╤Б╨╡╤Е ╤А╨╡╨╜╨┤╨╡╤А╨╡╤А╨╛╨▓ ╨░╤В╤А╨╕╨▒╤Г╤В╨╛╨▓ (╨╗╨╡╨╜╨╕╨▓╨░╤П ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П). */
-    public BufferAllocator allocator() {
+    /** ╨Ю╨▒╤Й╨╕╨╣ {@link ByteBufferBuilder} ╨┤╨╗╤П ╨▓╤Б╨╡╤Е ╤А╨╡╨╜╨┤╨╡╤А╨╡╤А╨╛╨▓ ╨░╤В╤А╨╕╨▒╤Г╤В╨╛╨▓ (╨╗╨╡╨╜╨╕╨▓╨░╤П ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П). */
+    public ByteBufferBuilder allocator() {
         if (this.sharedAllocator == null) {
-            this.sharedAllocator = new BufferAllocator(262144);
+            this.sharedAllocator = new ByteBufferBuilder(262144);
         }
         return this.sharedAllocator;
     }
@@ -122,8 +122,8 @@ public class Attributes extends Module {
      * ╨Ш╨│╤А╨╛╨║ ╨▒╨╗╨╕╨╢╨╡ 6 ╨▒╨╗╨╛╨║╨╛╨▓ ╤А╨╕╤Б╤Г╨╡╤В╤Б╤П ╨▓╤Б╨╡╨│╨┤╨░ (╤З╤В╨╛╨▒╤Л ╨╜╨╡ ╨╝╨╕╨│╨░╨╗ ╤Г ╨║╤А╨░╤С╨▓ ╤Н╨║╤А╨░╨╜╨░ ╨▓ 3-╨╝ ╨╗╨╕╤Ж╨╡),
      * ╨┤╨░╨╗╤М╤И╨╡ тАФ ╤В╨╛╨╗╤М╨║╨╛ ╨╡╤Б╨╗╨╕ ╨┐╨╛╨┐╨░╨┤╨░╨╡╤В ╨▓ ╨┐╨╡╤А╨╡╨┤╨╜╨╕╨╣ ╨║╨╛╨╜╤Г╤Б ╨║╨░╨╝╨╡╤А╤Л, ╨╕ ╨╜╨╡ ╨┤╨░╨╗╤М╤И╨╡ {@link #MAX_RENDER_DISTANCE}.
      */
-    public boolean shouldRenderFor(PlayerEntity player, Vec3d cameraPos) {
-        Vec3d anchor = new Vec3d(player.getX(), player.getY() + player.getHeight() + 0.3, player.getZ());
+    public boolean shouldRenderFor(Player player, Vec3 cameraPos) {
+        Vec3 anchor = new Vec3(player.getX(), player.getY() + player.getHeight() + 0.3, player.getZ());
         double distSq = cameraPos.squaredDistanceTo(anchor);
         if (distSq > MAX_RENDER_DISTANCE_SQ) {
             return false;
@@ -132,13 +132,13 @@ public class Attributes extends Module {
             return true;
         }
         Camera cam = mc.gameRenderer.getCamera();
-        double ry = Math.toRadians(cam.getYaw());
-        double rp = Math.toRadians(cam.getPitch());
-        Vec3d forward = new Vec3d(
+        double ry = Math.toRadians(cam.getYRot());
+        double rp = Math.toRadians(cam.getXRot());
+        Vec3 forward = new Vec3(
                 -Math.sin(ry) * Math.cos(rp),
                 -Math.sin(rp),
                 Math.cos(ry) * Math.cos(rp));
-        Vec3d dir = anchor.subtract(cameraPos).normalize();
+        Vec3 dir = anchor.subtract(cameraPos).normalize();
         return forward.dotProduct(dir) > 0.15;
     }
 
@@ -151,8 +151,8 @@ public class Attributes extends Module {
      * ╨ж╨▓╨╡╤В ╤В╨╡╨╝╤Л ╨║╨╗╨╕╨╡╨╜╤В╨░ ╨▓ ╤Д╨╛╤А╨╝╨░╤В╨╡ 0xRRGGBB тАФ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П ╤Е╨▓╨╛╤Б╤В╨╛╨╝, ╤Г╤И╨║╨░╨╝╨╕ ╨╕ ╤И╨╡╨╡╨╣.
      */
     /** Proxy for the LivingEntityRendererMixin: draws the hat in model space (third person). */
-    public void renderChinaHatOnHead(PlayerEntity player,
-                                      net.minecraft.client.util.math.MatrixStack matrices,
+    public void renderChinaHatOnHead(Player player,
+                                      net.minecraft.client.util.math.PoseStack matrices,
                                       net.minecraft.client.model.Model<?> model,
                                       net.minecraft.client.render.command.OrderedRenderCommandQueue queue) {
         if (model instanceof net.minecraft.client.render.entity.model.BipedEntityModel<?> biped) {

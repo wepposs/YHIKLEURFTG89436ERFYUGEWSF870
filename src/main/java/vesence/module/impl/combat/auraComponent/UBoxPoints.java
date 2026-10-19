@@ -3,19 +3,19 @@ package vesence.module.impl.combat.auraComponent;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.hit.HitResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.util.hit.HitResult.Type;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
-import net.minecraft.world.RaycastContext.FluidHandling;
-import net.minecraft.world.RaycastContext.ShapeType;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.ClipContext.FluidHandling;
+import net.minecraft.world.ClipContext.ShapeType;
 import vesence.utils.other.IMinecraft;
 import vesence.utils.render.animation.util.Easings;
 
@@ -27,29 +27,29 @@ public final class UBoxPoints implements IMinecraft {
     private static int currentZone = 0;
     private static long zoneSwitchTime = 0;
     private static long zoneDuration = 1200;
-    private static Vec3d currentPoint = null;
-    private static Vec3d lastTargetPos = Vec3d.ZERO;
-    private static Vec3d targetVel = Vec3d.ZERO;
-    private static Vec3d targetVelSmooth = Vec3d.ZERO;
+    private static Vec3 currentPoint = null;
+    private static Vec3 lastTargetPos = Vec3.ZERO;
+    private static Vec3 targetVel = Vec3.ZERO;
+    private static Vec3 targetVelSmooth = Vec3.ZERO;
     private static Entity lastTarget = null;
-    private static Vec3d attentionDrift = Vec3d.ZERO;
-    private static Vec3d attentionMomentum = Vec3d.ZERO;
+    private static Vec3 attentionDrift = Vec3.ZERO;
+    private static Vec3 attentionMomentum = Vec3.ZERO;
     private static float noisePhase = 0.0f;
     private static boolean inError = false;
     private static long errorStart = 0;
-    private static Vec3d errorOffset = Vec3d.ZERO;
+    private static Vec3 errorOffset = Vec3.ZERO;
     private static long nextError = 0;
     private static float confidence = 1.0f;
     private static long lastHitTime = 0;
     private static long lastUpdateTime = 0;
     private static long lastSwitchTime = 0;
-    private static List<Vec3d> cachedOffsets = new ArrayList<>();
+    private static List<Vec3> cachedOffsets = new ArrayList<>();
     private static int currentPointIndex = 0;
-    private static Vec3d rotationPoint = Vec3d.ZERO;
-    private static Vec3d rotationMotion = Vec3d.ZERO;
-    private static Vec2f organicRotOffset = Vec2f.ZERO;
-    private static Vec2f organicRotVelocity = Vec2f.ZERO;
-    private static Vec2f organicRotTarget = Vec2f.ZERO;
+    private static Vec3 rotationPoint = Vec3.ZERO;
+    private static Vec3 rotationMotion = Vec3.ZERO;
+    private static Vector2f organicRotOffset = Vector2f.ZERO;
+    private static Vector2f organicRotVelocity = Vector2f.ZERO;
+    private static Vector2f organicRotTarget = Vector2f.ZERO;
     private static long organicLastPhysicsUpdate = 0;
     private static long organicLastTargetPick = 0;
     private static final Random organicRandom = new Random();
@@ -57,36 +57,36 @@ public final class UBoxPoints implements IMinecraft {
     private static AttentionZone organicZone = AttentionZone.CHEST;
     private static long organicZoneSwitchTime = 0;
     private static long organicZoneDwell = 500;
-    private static Vec2f organicSmoothOffset = Vec2f.ZERO;
-    private static Vec2f organicSmoothVel = Vec2f.ZERO;
+    private static Vector2f organicSmoothOffset = Vector2f.ZERO;
+    private static Vector2f organicSmoothVel = Vector2f.ZERO;
     private static double organicLastEntityX = 0, organicLastEntityY = 0, organicLastEntityZ = 0;
     private static long organicLastTrackTime = 0;
     private static long targetAcquiredTime = 0;
-    private static Vec3d organicPredictedLead = Vec3d.ZERO;
+    private static Vec3 organicPredictedLead = Vec3.ZERO;
     private static boolean organicInSaccade = false;
     private static long organicSaccadeEnd = 0;
     private static long organicSaccadeStart = 0;
-    private static Vec2f organicSaccadeFrom = Vec2f.ZERO;
-    private static Vec2f organicSaccadeTo = Vec2f.ZERO;
+    private static Vector2f organicSaccadeFrom = Vector2f.ZERO;
+    private static Vector2f organicSaccadeTo = Vector2f.ZERO;
     private static int gridAnimIndex = 0;
     private static int gridAnimTicks = 0;
-    private static Vec3d localWander = Vec3d.ZERO;
-    private static Vec3d localWanderVel = Vec3d.ZERO;
+    private static Vec3 localWander = Vec3.ZERO;
+    private static Vec3 localWanderVel = Vec3.ZERO;
     private static long lastWanderTime = 0;
-    private static Vec3d lastWanderWorld = Vec3d.ZERO;
-    private static Vec3d wanderWorldVel = Vec3d.ZERO;
+    private static Vec3 lastWanderWorld = Vec3.ZERO;
+    private static Vec3 wanderWorldVel = Vec3.ZERO;
     private static boolean inSaccade = false;
     private static long saccadeEnd = 0;
     private static long saccadeStart = 0;
-    private static Vec3d saccadeFrom = Vec3d.ZERO;
-    private static Vec3d saccadeTo = Vec3d.ZERO;
+    private static Vec3 saccadeFrom = Vec3.ZERO;
+    private static Vec3 saccadeTo = Vec3.ZERO;
     private static long nextSaccadeChance = 0;
     private static boolean inDwell = false;
     private static long dwellEnd = 0;
     private static long nextDwellChance = 0;
-    private static Vec3d dwellCenter = Vec3d.ZERO;
-    private static Vec3d trackedPoint = Vec3d.ZERO;
-    private static Vec3d trackedVel = Vec3d.ZERO;
+    private static Vec3 dwellCenter = Vec3.ZERO;
+    private static Vec3 trackedPoint = Vec3.ZERO;
+    private static Vec3 trackedVel = Vec3.ZERO;
     private static final float TRACK_LAG = 0.18f;
     private static float circlePhase = 0f;
     private static boolean inCircle = false;
@@ -98,11 +98,11 @@ public final class UBoxPoints implements IMinecraft {
     private static float depthFocusVel = 0f;
     private static long lastDepthUpdate = 0;
     private static float tremorPhase = 0f;
-    private static Vec3d handTremor = Vec3d.ZERO;
-    private static Vec3d predictedTargetPos = Vec3d.ZERO;
-    private static Vec3d predictionError = Vec3d.ZERO;
+    private static Vec3 handTremor = Vec3.ZERO;
+    private static Vec3 predictedTargetPos = Vec3.ZERO;
+    private static Vec3 predictionError = Vec3.ZERO;
 
-    public static Vec3d getHumanizedAimPoint(Entity target, float attackDistance) {
+    public static Vec3 getHumanizedAimPoint(Entity target, float attackDistance) {
         long now = System.currentTimeMillis();
 
         if (target != null && target != lastTarget) {
@@ -119,17 +119,17 @@ public final class UBoxPoints implements IMinecraft {
 
         handleErrorState(now, attackDistance);
 
-        Vec3d base = getZonePoint(target, currentZone);
+        Vec3 base = getZonePoint(target, currentZone);
 
-        Vec3d swim = calculateSwim(now, attackDistance);
+        Vec3 swim = calculateSwim(now, attackDistance);
 
-        Vec3d lead = calculateLead(target, attackDistance);
+        Vec3 lead = calculateLead(target, attackDistance);
 
-        Vec3d drift = calculateDrift(now);
+        Vec3 drift = calculateDrift(now);
 
-        Vec3d err = inError ? errorOffset : Vec3d.ZERO;
+        Vec3 err = inError ? errorOffset : Vec3.ZERO;
 
-        Vec3d targetPoint = base.add(swim).add(lead).add(drift).add(err);
+        Vec3 targetPoint = base.add(swim).add(lead).add(drift).add(err);
 
         targetPoint = applyAttentionInertia(targetPoint, now);
 
@@ -204,8 +204,8 @@ public final class UBoxPoints implements IMinecraft {
         currentZone = 9;
     }
 
-    private static Vec3d getZonePoint(Entity target, int zone) {
-        Box box = target.getBoundingBox();
+    private static Vec3 getZonePoint(Entity target, int zone) {
+        AABB box = target.getBoundingBox();
         double cx = (box.minX + box.maxX) / 2.0;
         double cz = (box.minZ + box.maxZ) / 2.0;
         double h = box.maxY - box.minY;
@@ -270,14 +270,14 @@ public final class UBoxPoints implements IMinecraft {
                 x = cx; z = cz;
         }
 
-        Vec3d vel = targetVelSmooth;
+        Vec3 vel = targetVelSmooth;
         x += vel.x * 0.03;
         z += vel.z * 0.03;
 
-        return new Vec3d(x, y, z);
+        return new Vec3(x, y, z);
     }
 
-    private static Vec3d calculateSwim(long now, float distance) {
+    private static Vec3 calculateSwim(long now, float distance) {
         float t = now / 1000.0f;
         double amp = 0.006 + Math.min(distance / 200.0, 0.025);
 
@@ -288,14 +288,14 @@ public final class UBoxPoints implements IMinecraft {
         double z = Math.cos(t * 0.38 + noisePhase * 0.9) * amp
                 + Math.sin(t * 0.19 + noisePhase * 2.1) * amp * 0.5;
 
-        return new Vec3d(x, y, z);
+        return new Vec3(x, y, z);
     }
 
-    private static Vec3d calculateLead(Entity target, float distance) {
-        if (lastTargetPos.equals(Vec3d.ZERO)) return Vec3d.ZERO;
+    private static Vec3 calculateLead(Entity target, float distance) {
+        if (lastTargetPos.equals(Vec3.ZERO)) return Vec3.ZERO;
 
         double speed = targetVelSmooth.length();
-        if (speed < 0.03) return Vec3d.ZERO;
+        if (speed < 0.03) return Vec3.ZERO;
 
         double leadAmt = Math.min(distance / 18.0, 0.9) * 0.06;
         leadAmt *= (1.0 + speed * 2.5);
@@ -304,7 +304,7 @@ public final class UBoxPoints implements IMinecraft {
         return targetVelSmooth.multiply(leadAmt);
     }
 
-    private static Vec3d calculateDrift(long now) {
+    private static Vec3 calculateDrift(long now) {
         attentionMomentum = attentionMomentum.add(
                 (random.nextDouble() - 0.5) * 0.003,
                 (random.nextDouble() - 0.5) * 0.002,
@@ -335,7 +335,7 @@ public final class UBoxPoints implements IMinecraft {
             double baseAmp = 0.03 + (distance / 100.0);
             double amp = baseAmp * (1.15 - confidence * 0.35);
 
-            errorOffset = new Vec3d(
+            errorOffset = new Vec3(
                     gaussian() * amp,
                     gaussian() * amp * 0.5,
                     gaussian() * amp
@@ -348,12 +348,12 @@ public final class UBoxPoints implements IMinecraft {
             inError = false;
             errorOffset = errorOffset.multiply(0.6);
             if (errorOffset.length() < 0.001) {
-                errorOffset = Vec3d.ZERO;
+                errorOffset = Vec3.ZERO;
             }
         }
     }
 
-    private static Vec3d applyAttentionInertia(Vec3d targetPoint, long now) {
+    private static Vec3 applyAttentionInertia(Vec3 targetPoint, long now) {
         if (currentPoint == null) return targetPoint;
 
         double lerpFactor;
@@ -369,17 +369,17 @@ public final class UBoxPoints implements IMinecraft {
 
         lerpFactor *= (0.45 + confidence * 0.55);
 
-        return new Vec3d(
+        return new Vec3(
                 lerp(currentPoint.x, targetPoint.x, lerpFactor),
                 lerp(currentPoint.y, targetPoint.y, lerpFactor),
                 lerp(currentPoint.z, targetPoint.z, lerpFactor)
         );
     }
 
-    private static Vec3d clampPointSpeed(Vec3d targetPoint, float distance) {
+    private static Vec3 clampPointSpeed(Vec3 targetPoint, float distance) {
         if (currentPoint == null) return targetPoint;
 
-        Vec3d delta = targetPoint.subtract(currentPoint);
+        Vec3 delta = targetPoint.subtract(currentPoint);
         double maxSpeed = 0.05 + (distance / 100.0);
 
         if (System.currentTimeMillis() - zoneSwitchTime < 180) {
@@ -396,10 +396,10 @@ public final class UBoxPoints implements IMinecraft {
 
     private static void updateTargetVelocity(Entity target, long now) {
         if (target == null) return;
-        Vec3d pos = target.getEntityPos();
+        Vec3 pos = target.getEntityPos();
 
-        if (!lastTargetPos.equals(Vec3d.ZERO)) {
-            Vec3d rawVel = pos.subtract(lastTargetPos);
+        if (!lastTargetPos.equals(Vec3.ZERO)) {
+            Vec3 rawVel = pos.subtract(lastTargetPos);
             targetVel = rawVel;
             targetVelSmooth = targetVelSmooth.add(targetVel.subtract(targetVelSmooth).multiply(0.20));
         }
@@ -410,18 +410,18 @@ public final class UBoxPoints implements IMinecraft {
     private static void onNewTarget(Entity target) {
         lastTarget = target;
         lastTargetPos = target.getEntityPos();
-        targetVel = Vec3d.ZERO;
-        targetVelSmooth = Vec3d.ZERO;
+        targetVel = Vec3.ZERO;
+        targetVelSmooth = Vec3.ZERO;
         currentPoint = null;
-        attentionDrift = Vec3d.ZERO;
-        attentionMomentum = Vec3d.ZERO;
+        attentionDrift = Vec3.ZERO;
+        attentionMomentum = Vec3.ZERO;
         noisePhase = random.nextFloat() * 6.28f;
         inError = false;
         confidence = 0.7f + random.nextFloat() * 0.3f;
         nextError = System.currentTimeMillis() + 500 + random.nextInt(1500);
         initWander(target);
         trackedPoint = target.getEntityPos();
-        trackedVel = Vec3d.ZERO;
+        trackedVel = Vec3.ZERO;
         inSaccade = false;
         inDwell = false;
         inCircle = false;
@@ -430,9 +430,9 @@ public final class UBoxPoints implements IMinecraft {
         depthFocus = 0.5f;
         depthFocusVel = 0f;
         tremorPhase = random.nextFloat() * 6.28f;
-        handTremor = Vec3d.ZERO;
+        handTremor = Vec3.ZERO;
         predictedTargetPos = target.getEntityPos();
-        predictionError = Vec3d.ZERO;
+        predictionError = Vec3.ZERO;
     }
 
     private static double gaussian() {
@@ -440,25 +440,25 @@ public final class UBoxPoints implements IMinecraft {
     }
 
     private static double lerp(double a, double b, double t) {
-        return a + (b - a) * MathHelper.clamp(t, 0.0, 1.0);
+        return a + (b - a) * Mth.clamp(t, 0.0, 1.0);
     }
 
-    public static Vec3d getAimPoint(Entity target, float attackDistance) {
+    public static Vec3 getAimPoint(Entity target, float attackDistance) {
         return getHumanizedAimPoint(target, attackDistance);
     }
 
     private static void initWander(Entity entity) {
-        Box box = entity.getBoundingBox();
+        AABB box = entity.getBoundingBox();
         double h = box.maxY - box.minY;
         localWander = getZoneLocalCenter(h);
-        localWanderVel = Vec3d.ZERO;
-        lastWanderWorld = Vec3d.ZERO;
-        wanderWorldVel = Vec3d.ZERO;
+        localWanderVel = Vec3.ZERO;
+        lastWanderWorld = Vec3.ZERO;
+        wanderWorldVel = Vec3.ZERO;
         lastWanderTime = 0;
         circlePhase = random.nextFloat() * 6.28f;
     }
 
-    private static Vec3d getZoneLocalCenter(double h) {
+    private static Vec3 getZoneLocalCenter(double h) {
         double y;
         switch (currentZone) {
             case 0: y = h * 0.93; break;
@@ -473,7 +473,7 @@ public final class UBoxPoints implements IMinecraft {
             case 9: y = h * 0.09; break;
             default: y = h * 0.64;
         }
-        return new Vec3d(0, y, 0);
+        return new Vec3(0, y, 0);
     }
 
     private static void updateWander(Entity entity, long now) {
@@ -486,7 +486,7 @@ public final class UBoxPoints implements IMinecraft {
         double dt = Math.min((now - lastWanderTime) / 1000.0, 0.05);
         if (dt <= 0) return;
 
-        Box box = entity.getBoundingBox();
+        AABB box = entity.getBoundingBox();
         double w = box.maxX - box.minX;
         double h = box.maxY - box.minY;
         double d = box.maxZ - box.minZ;
@@ -496,7 +496,7 @@ public final class UBoxPoints implements IMinecraft {
         double minY = margin, maxY = h - margin;
         double minZ = -d / 2 + margin, maxZ = d / 2 - margin;
 
-        Vec3d zoneCenter = getZoneLocalCenter(h);
+        Vec3 zoneCenter = getZoneLocalCenter(h);
 
         if (!inSaccade && now > nextSaccadeChance && random.nextFloat() < 0.008f) {
             inSaccade = true;
@@ -505,10 +505,10 @@ public final class UBoxPoints implements IMinecraft {
             saccadeFrom = localWander;
             float sacAngle = random.nextFloat() * (float)(Math.PI * 2);
             float sacDist = 0.15f + random.nextFloat() * 0.35f;
-            saccadeTo = new Vec3d(
-                    MathHelper.clamp(localWander.x + Math.cos(sacAngle) * sacDist * w, minX, maxX),
-                    MathHelper.clamp(localWander.y + (random.nextFloat() - 0.5f) * sacDist * h * 0.6, minY, maxY),
-                    MathHelper.clamp(localWander.z + Math.sin(sacAngle) * sacDist * d, minZ, maxZ)
+            saccadeTo = new Vec3(
+                    Mth.clamp(localWander.x + Math.cos(sacAngle) * sacDist * w, minX, maxX),
+                    Mth.clamp(localWander.y + (random.nextFloat() - 0.5f) * sacDist * h * 0.6, minY, maxY),
+                    Mth.clamp(localWander.z + Math.sin(sacAngle) * sacDist * d, minZ, maxZ)
             );
             nextSaccadeChance = now + 200 + random.nextInt(1800);
         }
@@ -517,7 +517,7 @@ public final class UBoxPoints implements IMinecraft {
             if (now > saccadeEnd) {
                 inSaccade = false;
                 localWander = saccadeTo;
-                localWanderVel = Vec3d.ZERO;
+                localWanderVel = Vec3.ZERO;
                 if (random.nextFloat() < 0.55f) {
                     inDwell = true;
                     dwellEnd = now + 120 + random.nextInt(380);
@@ -525,9 +525,9 @@ public final class UBoxPoints implements IMinecraft {
                 }
             } else {
                 float dur = saccadeEnd - saccadeStart;
-                float prog = MathHelper.clamp((now - saccadeStart) / dur, 0.0f, 1.0f);
+                float prog = Mth.clamp((now - saccadeStart) / dur, 0.0f, 1.0f);
                 float ease = 1.0f - (float)Math.pow(1.0 - prog, 3.0);
-                localWander = new Vec3d(
+                localWander = new Vec3(
                         saccadeFrom.x + (saccadeTo.x - saccadeFrom.x) * ease,
                         saccadeFrom.y + (saccadeTo.y - saccadeFrom.y) * ease,
                         saccadeFrom.z + (saccadeTo.z - saccadeFrom.z) * ease
@@ -543,12 +543,12 @@ public final class UBoxPoints implements IMinecraft {
                 inDwell = false;
             } else {
                 float dwellT = (now - (dwellEnd - (120 + random.nextInt(380)))) / 1000.0f;
-                localWander = new Vec3d(
+                localWander = new Vec3(
                         dwellCenter.x + Math.sin(dwellT * 2.1) * 0.02,
                         dwellCenter.y + Math.cos(dwellT * 1.7) * 0.015,
                         dwellCenter.z + Math.sin(dwellT * 2.9) * 0.02
                 );
-                localWanderVel = Vec3d.ZERO;
+                localWanderVel = Vec3.ZERO;
                 lastWanderTime = now;
                 updateWanderWorldVel(entity);
                 return;
@@ -568,25 +568,25 @@ public final class UBoxPoints implements IMinecraft {
             } else {
                 circlePhase += dt * circleSpeed;
                 float t = circlePhase;
-                localWander = new Vec3d(
+                localWander = new Vec3(
                         zoneCenter.x + Math.cos(t) * circleRadius * w * 0.3,
                         zoneCenter.y + Math.sin(t * 0.7) * circleRadius * h * 0.15,
                         zoneCenter.z + Math.sin(t) * circleRadius * d * 0.3
                 );
-                localWanderVel = Vec3d.ZERO;
+                localWanderVel = Vec3.ZERO;
                 lastWanderTime = now;
                 updateWanderWorldVel(entity);
                 return;
             }
         }
 
-        Vec3d accel = new Vec3d(
+        Vec3 accel = new Vec3(
                 (random.nextDouble() - 0.5) * 2.2,
                 (random.nextDouble() - 0.5) * 1.4,
                 (random.nextDouble() - 0.5) * 2.2
         );
 
-        Vec3d toZone = zoneCenter.subtract(localWander);
+        Vec3 toZone = zoneCenter.subtract(localWander);
         accel = accel.add(toZone.multiply(1.5));
 
         double centerDistXZ = Math.sqrt(localWander.x * localWander.x + localWander.z * localWander.z);
@@ -595,7 +595,7 @@ public final class UBoxPoints implements IMinecraft {
         double zoneRadiusY = h * 0.10;
         if (centerDistXZ < zoneRadiusXZ && centerDistY < zoneRadiusY) {
             double angle = random.nextDouble() * Math.PI * 2;
-            accel = accel.add(new Vec3d(
+            accel = accel.add(new Vec3(
                     Math.cos(angle) * 1.0,
                     (random.nextDouble() - 0.5) * 0.6,
                     Math.sin(angle) * 1.0
@@ -612,12 +612,12 @@ public final class UBoxPoints implements IMinecraft {
 
         localWander = localWander.add(localWanderVel.multiply(dt));
 
-        if (localWander.x < minX) { localWander = new Vec3d(minX, localWander.y, localWander.z); localWanderVel = new Vec3d(Math.abs(localWanderVel.x) * 0.25, localWanderVel.y, localWanderVel.z); }
-        if (localWander.x > maxX) { localWander = new Vec3d(maxX, localWander.y, localWander.z); localWanderVel = new Vec3d(-Math.abs(localWanderVel.x) * 0.25, localWanderVel.y, localWanderVel.z); }
-        if (localWander.y < minY) { localWander = new Vec3d(localWander.x, minY, localWander.z); localWanderVel = new Vec3d(localWanderVel.x, Math.abs(localWanderVel.y) * 0.25, localWanderVel.z); }
-        if (localWander.y > maxY) { localWander = new Vec3d(localWander.x, maxY, localWander.z); localWanderVel = new Vec3d(localWanderVel.x, -Math.abs(localWanderVel.y) * 0.25, localWanderVel.z); }
-        if (localWander.z < minZ) { localWander = new Vec3d(localWander.x, localWander.y, minZ); localWanderVel = new Vec3d(localWanderVel.x, localWanderVel.y, Math.abs(localWanderVel.z) * 0.25); }
-        if (localWander.z > maxZ) { localWander = new Vec3d(localWander.x, localWander.y, maxZ); localWanderVel = new Vec3d(localWanderVel.x, localWanderVel.y, -Math.abs(localWanderVel.z) * 0.25); }
+        if (localWander.x < minX) { localWander = new Vec3(minX, localWander.y, localWander.z); localWanderVel = new Vec3(Math.abs(localWanderVel.x) * 0.25, localWanderVel.y, localWanderVel.z); }
+        if (localWander.x > maxX) { localWander = new Vec3(maxX, localWander.y, localWander.z); localWanderVel = new Vec3(-Math.abs(localWanderVel.x) * 0.25, localWanderVel.y, localWanderVel.z); }
+        if (localWander.y < minY) { localWander = new Vec3(localWander.x, minY, localWander.z); localWanderVel = new Vec3(localWanderVel.x, Math.abs(localWanderVel.y) * 0.25, localWanderVel.z); }
+        if (localWander.y > maxY) { localWander = new Vec3(localWander.x, maxY, localWander.z); localWanderVel = new Vec3(localWanderVel.x, -Math.abs(localWanderVel.y) * 0.25, localWanderVel.z); }
+        if (localWander.z < minZ) { localWander = new Vec3(localWander.x, localWander.y, minZ); localWanderVel = new Vec3(localWanderVel.x, localWanderVel.y, Math.abs(localWanderVel.z) * 0.25); }
+        if (localWander.z > maxZ) { localWander = new Vec3(localWander.x, localWander.y, maxZ); localWanderVel = new Vec3(localWanderVel.x, localWanderVel.y, -Math.abs(localWanderVel.z) * 0.25); }
 
         if (random.nextFloat() < 0.002f && !inDwell) {
             inDwell = true;
@@ -630,38 +630,38 @@ public final class UBoxPoints implements IMinecraft {
     }
 
     private static void updateWanderWorldVel(Entity entity) {
-        Vec3d currentWorld = getWanderWorldPoint(entity);
-        if (!lastWanderWorld.equals(Vec3d.ZERO)) {
+        Vec3 currentWorld = getWanderWorldPoint(entity);
+        if (!lastWanderWorld.equals(Vec3.ZERO)) {
             wanderWorldVel = currentWorld.subtract(lastWanderWorld).multiply(20.0); // blocks/sec
         } else {
-            wanderWorldVel = Vec3d.ZERO;
+            wanderWorldVel = Vec3.ZERO;
         }
         lastWanderWorld = currentWorld;
     }
 
-    private static Vec3d getWanderWorldPoint(Entity entity) {
-        Box box = entity.getBoundingBox();
+    private static Vec3 getWanderWorldPoint(Entity entity) {
+        AABB box = entity.getBoundingBox();
         double cx = (box.minX + box.maxX) / 2.0;
         double cz = (box.minZ + box.maxZ) / 2.0;
-        return new Vec3d(cx + localWander.x, box.minY + localWander.y, cz + localWander.z);
+        return new Vec3(cx + localWander.x, box.minY + localWander.y, cz + localWander.z);
     }
 
-    public static Vec3d getWanderWorldVel() {
+    public static Vec3 getWanderWorldVel() {
         return wanderWorldVel;
     }
 
-    public static Vec3d getOrganicPoint(Entity entity) {
+    public static Vec3 getOrganicPoint(Entity entity) {
         return getOrganicPoint(entity, 0.0f);
     }
 
-    public static Vec3d getOrganicPoint(Entity entity, float tickDelta) {
+    public static Vec3 getOrganicPoint(Entity entity, float tickDelta) {
         if (entity == null || mc.player == null) {
-            return mc.player != null ? mc.player.getEyePos() : Vec3d.ZERO;
+            return mc.player != null ? mc.player.getEyePosition() : Vec3.ZERO;
         }
 
         long now = System.currentTimeMillis();
-        Box box = entity.getBoundingBox();
-        Vec3d eyes = mc.player.getEyePos();
+        AABB box = entity.getBoundingBox();
+        Vec3 eyes = mc.player.getEyePosition();
         double dist = eyes.distanceTo(entity.getEntityPos());
 
         if (entity != lastTarget) {
@@ -686,34 +686,34 @@ public final class UBoxPoints implements IMinecraft {
 
         handleErrorState(now, (float) dist);
 
-        Vec3d rawPoint = getWanderWorldPoint(entity);
+        Vec3 rawPoint = getWanderWorldPoint(entity);
         rawPoint = rawPoint.add(organicPredictedLead);
 
-        Vec3d perlinOffset = calculatePerlinOffset(now, dist);
+        Vec3 perlinOffset = calculatePerlinOffset(now, dist);
         rawPoint = rawPoint.add(perlinOffset);
 
-        Vec3d depthOffset = calculateDepthOffset(box, dist);
+        Vec3 depthOffset = calculateDepthOffset(box, dist);
         rawPoint = rawPoint.add(depthOffset);
 
         rawPoint = rawPoint.add(handTremor);
 
-        Vec3d swim = calculateSwim(now, (float) dist);
-        Vec3d drift = calculateDrift(now);
-        Vec3d err = inError ? errorOffset : Vec3d.ZERO;
+        Vec3 swim = calculateSwim(now, (float) dist);
+        Vec3 drift = calculateDrift(now);
+        Vec3 err = inError ? errorOffset : Vec3.ZERO;
 
-        Vec3d targetPoint = rawPoint.add(swim).add(drift).add(err);
+        Vec3 targetPoint = rawPoint.add(swim).add(drift).add(err);
         targetPoint = applyAttentionInertia(targetPoint, now);
         targetPoint = clampPointSpeed(targetPoint, (float) dist);
 
-        Vec3d toTarget = targetPoint.subtract(trackedPoint);
+        Vec3 toTarget = targetPoint.subtract(trackedPoint);
         trackedVel = trackedVel.add(toTarget.multiply(TRACK_LAG));
         trackedVel = trackedVel.multiply(0.82);
         trackedPoint = trackedPoint.add(trackedVel);
 
-        Vec3d organicOffsetPoint = calculateOrganicOffsetPoint(now, dist, tickDelta);
-        Vec3d finalPoint = trackedPoint.add(organicOffsetPoint);
+        Vec3 organicOffsetPoint = calculateOrganicOffsetPoint(now, dist, tickDelta);
+        Vec3 finalPoint = trackedPoint.add(organicOffsetPoint);
 
-        Vec2f finalRot = getVanillaRotate(finalPoint);
+        Vector2f finalRot = getVanillaRotate(finalPoint);
 
         currentPoint = trackedPoint;
         return organicRotationToPoint(eyes, finalRot.x, finalRot.y, box, dist);
@@ -727,12 +727,12 @@ public final class UBoxPoints implements IMinecraft {
         }
         depthFocus += depthFocusVel;
         depthFocusVel *= 0.95f;
-        depthFocus = MathHelper.clamp(depthFocus, 0.2f, 0.8f);
+        depthFocus = Mth.clamp(depthFocus, 0.2f, 0.8f);
     }
 
-    private static Vec3d calculateDepthOffset(Box box, double dist) {
+    private static Vec3 calculateDepthOffset(AABB box, double dist) {
         double depthAmt = (depthFocus - 0.5) * 0.08 * (dist / 10.0);
-        Vec3d toPlayer = mc.player.getEyePos().subtract(new Vec3d(
+        Vec3 toPlayer = mc.player.getEyePosition().subtract(new Vec3(
                 (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, (box.minZ + box.maxZ) / 2
         )).normalize();
         return toPlayer.multiply(depthAmt);
@@ -741,20 +741,20 @@ public final class UBoxPoints implements IMinecraft {
     private static void updateHandTremor(long now) {
         tremorPhase += 0.15f;
         float tremorAmp = 0.003f;
-        handTremor = new Vec3d(
+        handTremor = new Vec3(
                 Math.sin(tremorPhase * 3.7) * Math.cos(tremorPhase * 2.3) * tremorAmp,
                 Math.sin(tremorPhase * 4.1) * Math.sin(tremorPhase * 1.9) * tremorAmp * 0.8,
                 Math.cos(tremorPhase * 2.9) * tremorAmp * 0.5
         );
     }
 
-    private static Vec3d calculatePerlinOffset(long now, double dist) {
+    private static Vec3 calculatePerlinOffset(long now, double dist) {
         double scale = 0.3 + Math.min(dist / 20.0, 0.5);
         double t = now / 1000.0;
         double px = perlinNoise(t * scale, 50, 100) * 0.02;
         double py = perlinNoise(100, t * scale + 50, 200) * 0.015;
         double pz = perlinNoise(200, 300, t * scale + 100) * 0.02;
-        return new Vec3d(px, py, pz);
+        return new Vec3(px, py, pz);
     }
 
     private static void updatePrediction(Entity entity, long now) {
@@ -771,9 +771,9 @@ public final class UBoxPoints implements IMinecraft {
             double dx = entity.getX() - organicLastEntityX;
             double dy = entity.getY() - organicLastEntityY;
             double dz = entity.getZ() - organicLastEntityZ;
-            double factor = MathHelper.clamp(90.0 / dt, 0.8, 3.0);
-            organicPredictedLead = new Vec3d(dx * factor * 0.50, dy * factor * 0.30, dz * factor * 0.50);
-            Vec3d predictedNow = predictedTargetPos.add(new Vec3d(dx, dy, dz).multiply(factor));
+            double factor = Mth.clamp(90.0 / dt, 0.8, 3.0);
+            organicPredictedLead = new Vec3(dx * factor * 0.50, dy * factor * 0.30, dz * factor * 0.50);
+            Vec3 predictedNow = predictedTargetPos.add(new Vec3(dx, dy, dz).multiply(factor));
             predictionError = entity.getEntityPos().subtract(predictedNow).multiply(0.3);
             predictedTargetPos = entity.getEntityPos();
         } else {
@@ -786,14 +786,14 @@ public final class UBoxPoints implements IMinecraft {
         organicLastTrackTime = now;
     }
 
-    private static Vec3d calculateOrganicOffsetPoint(long now, double dist, float tickDelta) {
+    private static Vec3 calculateOrganicOffsetPoint(long now, double dist, float tickDelta) {
         float t = now / 1000.0f;
         float amp = dist < 1.8 ? 0.015f : dist < 3.5 ? 0.025f : 0.04f;
         double wanderSpeed = wanderWorldVel.length();
-        float wanderDamp = MathHelper.clamp((float)(1.0 - wanderSpeed * 2.0), 0.30f, 1.0f);
+        float wanderDamp = Mth.clamp((float)(1.0 - wanderSpeed * 2.0), 0.30f, 1.0f);
         amp *= wanderDamp;
         long timeOnTarget = now - targetAcquiredTime;
-        float fatigue = MathHelper.clamp(timeOnTarget / 8000f, 0f, 0.35f);
+        float fatigue = Mth.clamp(timeOnTarget / 8000f, 0f, 0.35f);
         amp *= (1.0f + fatigue);
 
         double ox = Math.sin(t * 0.618) * Math.cos(t * 0.414) * amp;
@@ -811,58 +811,58 @@ public final class UBoxPoints implements IMinecraft {
             organicSaccadeFrom = organicSmoothOffset;
             float sacAmp = 0.02f + organicRandom.nextFloat() * 0.035f;
             float sacAngle = organicRandom.nextFloat() * (float)(Math.PI * 2);
-            organicSaccadeTo = new Vec2f(
+            organicSaccadeTo = new Vector2f(
                     organicSaccadeFrom.x + (float)Math.cos(sacAngle) * sacAmp,
                     organicSaccadeFrom.y + (float)Math.sin(sacAngle) * sacAmp * 0.72f
             );
         }
-        Vec2f sacOffset = applyOrganicSaccade(now, Vec2f.ZERO);
+        Vector2f sacOffset = applyOrganicSaccade(now, Vector2f.ZERO);
         ox += sacOffset.x;
         oy += sacOffset.y;
 
-        return new Vec3d(ox, oy, oz);
+        return new Vec3(ox, oy, oz);
     }
 
-    private static Vec2f applyOrganicSaccade(long now, Vec2f offset) {
+    private static Vector2f applyOrganicSaccade(long now, Vector2f offset) {
         if (!organicInSaccade) return offset;
         if (now > organicSaccadeEnd) {
             organicInSaccade = false;
             return offset;
         }
         float dur = organicSaccadeEnd - organicSaccadeStart;
-        float prog = MathHelper.clamp((now - organicSaccadeStart) / dur, 0.0f, 1.0f);
+        float prog = Mth.clamp((now - organicSaccadeStart) / dur, 0.0f, 1.0f);
         float ease = 1.0f - (float)Math.pow(1.0 - prog, 3.0);
-        return new Vec2f(
+        return new Vector2f(
                 organicSaccadeFrom.x + (organicSaccadeTo.x - organicSaccadeFrom.x) * ease,
                 organicSaccadeFrom.y + (organicSaccadeTo.y - organicSaccadeFrom.y) * ease
         );
     }
 
-    private static Vec3d organicRotationToPoint(Vec3d eyes, float yaw, float pitch, Box box, double dist) {
+    private static Vec3 organicRotationToPoint(Vec3 eyes, float yaw, float pitch, AABB box, double dist) {
         double yawRad = Math.toRadians(yaw);
         double pitchRad = Math.toRadians(pitch);
         double dirX = -Math.sin(yawRad) * Math.cos(pitchRad);
         double dirY = -Math.sin(pitchRad);
         double dirZ = Math.cos(yawRad) * Math.cos(pitchRad);
-        Vec3d dir = new Vec3d(dirX, dirY, dirZ);
+        Vec3 dir = new Vec3(dirX, dirY, dirZ);
 
         double reach = dist + box.getLengthX() + box.getLengthY() + box.getLengthZ() + 3.0;
-        Optional<Vec3d> hit = box.raycast(eyes, eyes.add(dir.multiply(reach)));
+        Optional<Vec3> hit = box.raycast(eyes, eyes.add(dir.multiply(reach)));
 
         if (hit.isPresent()) {
-            Vec3d p = hit.get();
+            Vec3 p = hit.get();
             double m = 0.05;
-            return new Vec3d(
-                    MathHelper.clamp(p.x, box.minX + m, box.maxX - m),
-                    MathHelper.clamp(p.y, box.minY + m, box.maxY - m),
-                    MathHelper.clamp(p.z, box.minZ + m, box.maxZ - m)
+            return new Vec3(
+                    Mth.clamp(p.x, box.minX + m, box.maxX - m),
+                    Mth.clamp(p.y, box.minY + m, box.maxY - m),
+                    Mth.clamp(p.z, box.minZ + m, box.maxZ - m)
             );
         }
 
-        return new Vec3d(
-                MathHelper.clamp(eyes.x, box.minX, box.maxX),
-                MathHelper.clamp(eyes.y, box.minY, box.maxY),
-                MathHelper.clamp(eyes.z, box.minZ, box.maxZ)
+        return new Vec3(
+                Mth.clamp(eyes.x, box.minX, box.maxX),
+                Mth.clamp(eyes.y, box.minY, box.maxY),
+                Mth.clamp(eyes.z, box.minZ, box.maxZ)
         );
     }
 
@@ -911,9 +911,9 @@ public final class UBoxPoints implements IMinecraft {
 
     static { for (int i = 0; i < 256; i++) p[256 + i] = p[i] = permutation[i]; }
 
-    public static Vec3d getBestVector3dOnEntityBox(Entity entity, boolean alwaysMultipoints) {
-        if (entity == null) return mc.player.getEyePos();
-        Box aabb = entity.getBoundingBox();
+    public static Vec3 getBestVector3dOnEntityBox(Entity entity, boolean alwaysMultipoints) {
+        if (entity == null) return mc.player.getEyePosition();
+        AABB aabb = entity.getBoundingBox();
         double[] whh = new double[]{entity.getWidth(), entity.getHeight(), entity.getHeight() / 1.05F};
         double[] xyz = new double[]{entity.getX(), entity.getY(), entity.getZ()};
         if (aabb != null) {
@@ -924,36 +924,36 @@ public final class UBoxPoints implements IMinecraft {
         double ddtn = clamp(Easings.QUART_OUT.ease((diffs[1] - whh[0] / 2.F) / (5.D + whh[0] / 2.D)), 0.1D, .95D);
         double pca = clamp(ddtn * ddtn, 0.D, 1.D);
         final double pitchPointHeight = clamp((whh[2] / 2.D * pca + (whh[2] / 2.D) * (clamp(diffs[0] + pca, 0.D, 1.D))), 0, whh[2]);
-        Vec3d defaultVec = new Vec3d(xyz[0], xyz[1] + pitchPointHeight, xyz[2]);
+        Vec3 defaultVec = new Vec3(xyz[0], xyz[1] + pitchPointHeight, xyz[2]);
         if (!alwaysMultipoints && !seenOnceVector3d(mc.player, defaultVec))
             defaultVec = defaultVec.add(0.D, -pitchPointHeight / 2.D, 0.D);
         if (whh[1] <= 1D || !alwaysMultipoints && seenOnceVector3d(mc.player, defaultVec)) {
             return defaultVec;
         } else {
-            final List<Vec3d> normalVecs = entityBoxVec3dsAlternate(entity, aabb);
+            final List<Vec3> normalVecs = entityBoxVec3dsAlternate(entity, aabb);
             float factorDown = 1.F - (float) Math.max(Math.min((diffs[1] - 2.F) / 3.F, 1.F), 0.F);
-            final Vec3d toSortVec = new Vec3d(mc.player.getX(), mc.player.getY() + .6F + lerp(pitchPointHeight, pitchPointHeight / 2.5F, factorDown), mc.player.getZ());
+            final Vec3 toSortVec = new Vec3(mc.player.getX(), mc.player.getY() + .6F + lerp(pitchPointHeight, pitchPointHeight / 2.5F, factorDown), mc.player.getZ());
             if (normalVecs != null && normalVecs.size() > 1)
                 normalVecs.sort(Comparator.comparing(vec3 -> getDistanceAtVec3dToVec3d(toSortVec, vec3)));
             return normalVecs != null && normalVecs.size() > 0 ? normalVecs.get(0) : defaultVec;
         }
     }
 
-    public static Vec3d getBestVector3dOnEntityBox(Entity entity) {
+    public static Vec3 getBestVector3dOnEntityBox(Entity entity) {
         return getBestVector3dOnEntityBox(entity, mc.player.getEntityPos().distanceTo(entity.getEntityPos()) > entity.getWidth() * 1.37F);
     }
 
-    public static Vec3d getBestVector3dOnEntityBox(Box aabb) {
+    public static Vec3 getBestVector3dOnEntityBox(AABB aabb) {
         return getBestVector3dOnEntityBox(aabb, true, false);
     }
 
-    public static Vec3d getBestVector3dOnEntityBox(Box aabb, boolean alwaysMultipoints) {
+    public static Vec3 getBestVector3dOnEntityBox(AABB aabb, boolean alwaysMultipoints) {
         return getBestVector3dOnEntityBox(aabb, alwaysMultipoints, false);
     }
 
-    public static Vec3d getBestVector3dOnEntityBox(Box aabb, boolean alwaysMultipoints, boolean animate) {
+    public static Vec3 getBestVector3dOnEntityBox(AABB aabb, boolean alwaysMultipoints, boolean animate) {
         if (aabb == null) {
-            return mc.player.getEyePos();
+            return mc.player.getEyePosition();
         } else {
             double[] whh = new double[]{aabb.maxX - aabb.minX, aabb.maxY - aabb.minY, (aabb.maxY - aabb.minY) / 1.1F};
             double[] xyz = new double[]{aabb.minX + whh[0] / 2.D, aabb.minY, aabb.minZ + whh[0] / 2.D};
@@ -961,15 +961,15 @@ public final class UBoxPoints implements IMinecraft {
             double ddtn = clamp(Easings.QUART_OUT.ease((diffs[1] - whh[0] / 2.F) / (5.D + whh[0] / 2.D)), 0.1D, .95D);
             double pca = clamp(ddtn * ddtn, 0.D, 1.D);
             final double pitchPointHeight = clamp((whh[2] / 2.D * pca + (whh[2] / 2.D) * (clamp(diffs[0] + pca, 0.D, 1.D))), 0, whh[2]);
-            Vec3d defaultVec = new Vec3d(xyz[0], xyz[1] + pitchPointHeight, xyz[2]);
+            Vec3 defaultVec = new Vec3(xyz[0], xyz[1] + pitchPointHeight, xyz[2]);
             if (!alwaysMultipoints && !seenOnceVector3d(mc.player, defaultVec))
                 defaultVec = defaultVec.add(0.D, -pitchPointHeight / 2.D, 0.D);
             if (whh[1] <= 1D || !alwaysMultipoints && seenOnceVector3d(mc.player, defaultVec)) {
                 return defaultVec;
             } else {
-                final List<Vec3d> normalVecs = entityBoxVec3dsAlternate(aabb);
+                final List<Vec3> normalVecs = entityBoxVec3dsAlternate(aabb);
                 float factorDown = 1.F - (float) Math.max(Math.min((diffs[1] - 2.F) / 3.F, 1.F), 0.F);
-                final Vec3d toSortVec = new Vec3d(mc.player.getX(), mc.player.getY() + .6F + lerp(pitchPointHeight, pitchPointHeight / 2.5F, factorDown), mc.player.getZ());
+                final Vec3 toSortVec = new Vec3(mc.player.getX(), mc.player.getY() + .6F + lerp(pitchPointHeight, pitchPointHeight / 2.5F, factorDown), mc.player.getZ());
                 if (normalVecs != null && normalVecs.size() > 1)
                     normalVecs.sort(Comparator.comparing(vec3 -> getDistanceAtVec3dToVec3d(toSortVec, vec3)));
                 if (animate && normalVecs != null && !normalVecs.isEmpty()) {
@@ -985,39 +985,39 @@ public final class UBoxPoints implements IMinecraft {
         }
     }
 
-    public static Vec2f getBestRotateVector2fOnEntityBox(Entity entity, boolean alwaysMultipoints) {
-        Vec3d vec = UBoxPoints.getBestVector3dOnEntityBox(entity, alwaysMultipoints);
+    public static Vector2f getBestRotateVector2fOnEntityBox(Entity entity, boolean alwaysMultipoints) {
+        Vec3 vec = UBoxPoints.getBestVector3dOnEntityBox(entity, alwaysMultipoints);
         return UBoxPoints.getVanillaRotate(vec);
     }
 
-    public static Vec2f getBestRotateVector2fOnEntityBox(Entity entity) {
+    public static Vector2f getBestRotateVector2fOnEntityBox(Entity entity) {
         return getBestRotateVector2fOnEntityBox(entity, true);
     }
 
-    public static Vec3d getClosestRotationPoint(Entity entity, boolean visibilityCheck) {
+    public static Vec3 getClosestRotationPoint(Entity entity, boolean visibilityCheck) {
         if (entity == null || mc.player == null) {
-            return mc.player != null ? mc.player.getEyePos() : Vec3d.ZERO;
+            return mc.player != null ? mc.player.getEyePosition() : Vec3.ZERO;
         }
 
-        List<Vec3d> candidates = entityBoxVec3dsAlternate(entity, entity.getBoundingBox());
+        List<Vec3> candidates = entityBoxVec3dsAlternate(entity, entity.getBoundingBox());
         if (candidates == null || candidates.isEmpty()) {
             return closestPoint(entity);
         }
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
 
-        Vec3d bestPoint = null;
+        Vec3 bestPoint = null;
         double bestAngle = Double.MAX_VALUE;
 
-        for (Vec3d point : candidates) {
+        for (Vec3 point : candidates) {
             if (visibilityCheck && !seenOnceVector3d(mc.player, point)) {
                 continue;
             }
 
-            Vec2f rot = getVanillaRotate(point);
-            float yawDiff = Math.abs(MathHelper.wrapDegrees(rot.x - currentYaw));
-            float pitchDiff = Math.abs(MathHelper.wrapDegrees(rot.y - currentPitch));
+            Vector2f rot = getVanillaRotate(point);
+            float yawDiff = Math.abs(Mth.wrapDegrees(rot.x - currentYaw));
+            float pitchDiff = Math.abs(Mth.wrapDegrees(rot.y - currentPitch));
             double angleDist = Math.hypot(yawDiff, pitchDiff);
 
             if (angleDist < bestAngle) {
@@ -1029,22 +1029,22 @@ public final class UBoxPoints implements IMinecraft {
         return bestPoint != null ? bestPoint : closestPoint(entity);
     }
 
-    public static Vec3d getClosestRotationPoint(Entity entity) {
+    public static Vec3 getClosestRotationPoint(Entity entity) {
         return getClosestRotationPoint(entity, true);
     }
 
-    public static Vec3d closestPoint(Entity entity) {
-        if (entity == null) return Vec3d.ZERO;
-        Vec3d playerEyes = mc.player.getEyePos();
-        Box box = entity.getBoundingBox();
-        double closestX = MathHelper.clamp(playerEyes.x, box.minX, box.maxX);
-        double closestY = MathHelper.clamp(playerEyes.y, box.minY, box.maxY);
-        double closestZ = MathHelper.clamp(playerEyes.z, box.minZ, box.maxZ);
-        return new Vec3d(closestX, closestY, closestZ);
+    public static Vec3 closestPoint(Entity entity) {
+        if (entity == null) return Vec3.ZERO;
+        Vec3 playerEyes = mc.player.getEyePosition();
+        AABB box = entity.getBoundingBox();
+        double closestX = Mth.clamp(playerEyes.x, box.minX, box.maxX);
+        double closestY = Mth.clamp(playerEyes.y, box.minY, box.maxY);
+        double closestZ = Mth.clamp(playerEyes.z, box.minZ, box.maxZ);
+        return new Vec3(closestX, closestY, closestZ);
     }
 
-    public static Vec3d smartRandomPoint(Entity entity, boolean alwaysMultipoints, int pointCount, float switchDelayMs) {
-        if (entity == null) return mc.player.getEyePos();
+    public static Vec3 smartRandomPoint(Entity entity, boolean alwaysMultipoints, int pointCount, float switchDelayMs) {
+        if (entity == null) return mc.player.getEyePosition();
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastUpdateTime > 1000 || cachedOffsets.isEmpty()) {
             generateSmartPointsV2(entity, pointCount, alwaysMultipoints);
@@ -1057,8 +1057,8 @@ public final class UBoxPoints implements IMinecraft {
             lastSwitchTime = currentTime;
         }
         if (cachedOffsets.isEmpty()) return getBestVector3dOnEntityBox(entity, alwaysMultipoints);
-        Vec3d entityPos = entity.getEntityPos();
-        Vec3d selectedOffset = cachedOffsets.get(currentPointIndex);
+        Vec3 entityPos = entity.getEntityPos();
+        Vec3 selectedOffset = cachedOffsets.get(currentPointIndex);
         double tremor = 0.005D;
         long tremorPhase = currentTime / 16L;
         double tremorX = Math.sin(tremorPhase * 0.8D) * tremor;
@@ -1067,53 +1067,53 @@ public final class UBoxPoints implements IMinecraft {
         return entityPos.add(selectedOffset).add(tremorX, tremorY, tremorZ);
     }
 
-    public static Vec3d smartRandomPoint(Entity entity) {
+    public static Vec3 smartRandomPoint(Entity entity) {
         return smartRandomPoint(entity, mc.player.getEntityPos().distanceTo(entity.getEntityPos()) > entity.getWidth() * 1.37F, 75, 300.0F);
     }
 
-    public static Vec3d getMultipoint(Entity target, double distance) {
+    public static Vec3 getMultipoint(Entity target, double distance) {
         float minMotionXZ = 0.005f, maxMotionXZ = 0.015f;
         float minMotionY = 0.0015f, maxMotionY = 0.015f;
         double lenghtX = target.getBoundingBox().getLengthX();
         double lenghtY = target.getBoundingBox().getLengthY();
         double lenghtZ = target.getBoundingBox().getLengthZ();
-        if (rotationMotion.equals(Vec3d.ZERO))
-            rotationMotion = new Vec3d(random.nextFloat() * 0.04f - 0.02f, random.nextFloat() * 0.04f - 0.02f, random.nextFloat() * 0.04f - 0.02f);
-        if (rotationPoint.equals(Vec3d.ZERO))
-            rotationPoint = new Vec3d(0, lenghtY * 0.5, 0);
+        if (rotationMotion.equals(Vec3.ZERO))
+            rotationMotion = new Vec3(random.nextFloat() * 0.04f - 0.02f, random.nextFloat() * 0.04f - 0.02f, random.nextFloat() * 0.04f - 0.02f);
+        if (rotationPoint.equals(Vec3.ZERO))
+            rotationPoint = new Vec3(0, lenghtY * 0.5, 0);
         rotationPoint = rotationPoint.add(rotationMotion);
         double safeX = (lenghtX - 0.1) / 2f;
         double safeZ = (lenghtZ - 0.1) / 2f;
         if (rotationPoint.x >= safeX)
-            rotationMotion = new Vec3d(-(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ), rotationMotion.y, rotationMotion.z);
+            rotationMotion = new Vec3(-(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ), rotationMotion.y, rotationMotion.z);
         else if (rotationPoint.x <= -safeX)
-            rotationMotion = new Vec3d(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ, rotationMotion.y, rotationMotion.z);
+            rotationMotion = new Vec3(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ, rotationMotion.y, rotationMotion.z);
         if (rotationPoint.y >= lenghtY * 0.75)
-            rotationMotion = new Vec3d(rotationMotion.x, -(random.nextFloat() * (maxMotionY - minMotionY) + minMotionY), rotationMotion.z);
+            rotationMotion = new Vec3(rotationMotion.x, -(random.nextFloat() * (maxMotionY - minMotionY) + minMotionY), rotationMotion.z);
         else if (rotationPoint.y <= lenghtY * 0.3)
-            rotationMotion = new Vec3d(rotationMotion.x, random.nextFloat() * (maxMotionY - minMotionY) + minMotionY, rotationMotion.z);
+            rotationMotion = new Vec3(rotationMotion.x, random.nextFloat() * (maxMotionY - minMotionY) + minMotionY, rotationMotion.z);
         if (rotationPoint.z >= safeZ)
-            rotationMotion = new Vec3d(rotationMotion.x, rotationMotion.y, -(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ));
+            rotationMotion = new Vec3(rotationMotion.x, rotationMotion.y, -(random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ));
         else if (rotationPoint.z <= -safeZ)
-            rotationMotion = new Vec3d(rotationMotion.x, rotationMotion.y, random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ);
+            rotationMotion = new Vec3(rotationMotion.x, rotationMotion.y, random.nextFloat() * (maxMotionXZ - minMotionXZ) + minMotionXZ);
         rotationPoint.add(random.nextFloat() * 0.1f - 0.05f, 0f, random.nextFloat() * 0.1f - 0.05f);
-        Vec3d eyePos = mc.player.getEyePos();
-        Vec3d lookVec = mc.player.getRotationVector();
+        Vec3 eyePos = mc.player.getEyePosition();
+        Vec3 lookVec = mc.player.getRotationVector();
         if (!rayTraceToBox(eyePos, lookVec, distance, target.getBoundingBox())) {
             float halfBox = (float) (lenghtX / 2f) * 0.8f;
             for (float x1 = -halfBox; x1 <= halfBox; x1 += 0.1f) {
                 for (float z1 = -halfBox; z1 <= halfBox; z1 += 0.1f) {
                     for (float y1 = (float) (lenghtY * 0.9); y1 >= lenghtY * 0.3; y1 -= 0.1f) {
-                        Vec3d v1 = new Vec3d(target.getX() + x1, target.getY() + y1, target.getZ() + z1);
-                        Vec2f rot = getVanillaRotate(v1);
+                        Vec3 v1 = new Vec3(target.getX() + x1, target.getY() + y1, target.getZ() + z1);
+                        Vector2f rot = getVanillaRotate(v1);
                         float yawRad = (float) Math.toRadians(rot.x);
                         float pitchRad = (float) Math.toRadians(rot.y);
                         double x = -Math.sin(yawRad) * Math.cos(pitchRad);
                         double y = -Math.sin(pitchRad);
                         double z = Math.cos(yawRad) * Math.cos(pitchRad);
-                        Vec3d direction = new Vec3d(x, y, z);
+                        Vec3 direction = new Vec3(x, y, z);
                         if (rayTraceToBox(eyePos, direction, distance, target.getBoundingBox())) {
-                            rotationPoint = new Vec3d(x1, y1, z1);
+                            rotationPoint = new Vec3(x1, y1, z1);
                             return target.getEntityPos().add(rotationPoint);
                         }
                     }
@@ -1134,11 +1134,11 @@ public final class UBoxPoints implements IMinecraft {
 
     private static void generateSmartPointsV2(Entity entity, int pointCount, boolean alwaysMultipoints) {
         cachedOffsets.clear();
-        Box box = entity.getBoundingBox();
+        AABB box = entity.getBoundingBox();
         double width = box.maxX - box.minX;
         double height = box.maxY - box.minY;
         double depth = box.maxZ - box.minZ;
-        Vec3d playerEyes = mc.player.getEyePos();
+        Vec3 playerEyes = mc.player.getEyePosition();
         List<TargetZone> zones = new ArrayList<>();
         double headHeight = 0.85D;
         zones.add(new TargetZone(0.3D, headHeight, 0.3D, 1.0f));
@@ -1154,7 +1154,7 @@ public final class UBoxPoints implements IMinecraft {
                 double offsetX = (random.nextGaussian() * 0.15D + zone.xOffset) * width - width/2;
                 double offsetY = (random.nextGaussian() * 0.1D + zone.yOffset) * height;
                 double offsetZ = (random.nextGaussian() * 0.15D + zone.zOffset) * depth - depth/2;
-                Vec3d absolutePoint = new Vec3d(box.minX + width/2 + offsetX, box.minY + offsetY, box.minZ + depth/2 + offsetZ);
+                Vec3 absolutePoint = new Vec3(box.minX + width/2 + offsetX, box.minY + offsetY, box.minZ + depth/2 + offsetZ);
                 if (!alwaysMultipoints && !seenOnceVector3d(mc.player, absolutePoint)) continue;
                 float score = calculatePointScore(absolutePoint, playerEyes, entity, zone.weight);
                 score += random.nextFloat() * 0.1f;
@@ -1162,7 +1162,7 @@ public final class UBoxPoints implements IMinecraft {
             }
         }
         if (candidates.size() < 3) {
-            Vec3d bestVec = getBestVector3dOnEntityBox(entity, alwaysMultipoints);
+            Vec3 bestVec = getBestVector3dOnEntityBox(entity, alwaysMultipoints);
             candidates.add(new WeightedPoint(bestVec.subtract(entity.getEntityPos()), 0.5f));
         }
         candidates.sort((a, b) -> Float.compare(b.score, a.score));
@@ -1171,18 +1171,18 @@ public final class UBoxPoints implements IMinecraft {
         if (cachedOffsets.size() > 3) Collections.shuffle(cachedOffsets.subList(3, cachedOffsets.size()), random);
     }
 
-    private static float calculatePointScore(Vec3d point, Vec3d playerEyes, Entity entity, float baseWeight) {
+    private static float calculatePointScore(Vec3 point, Vec3 playerEyes, Entity entity, float baseWeight) {
         float score = baseWeight * 10.0f;
-        Vec2f currentRot = new Vec2f(mc.player.getYaw(), mc.player.getPitch());
-        Vec2f targetRot = getVanillaRotate(point);
-        float yawDiff = Math.abs(MathHelper.wrapDegrees(targetRot.x - currentRot.x));
+        Vector2f currentRot = new Vector2f(mc.player.getYRot(), mc.player.getXRot());
+        Vector2f targetRot = getVanillaRotate(point);
+        float yawDiff = Math.abs(Mth.wrapDegrees(targetRot.x - currentRot.x));
         float pitchDiff = Math.abs(targetRot.y - currentRot.y);
         float angleDiff = (yawDiff + pitchDiff) / 2.0f;
         float aimPenalty = (angleDiff / 180.0f) * (angleDiff / 180.0f) * 5.0f;
         score -= aimPenalty;
         double dist = playerEyes.distanceTo(point);
         score -= (dist / 10.0f);
-        Vec3d center = entity.getEntityPos().add(0, entity.getHeight() / 2, 0);
+        Vec3 center = entity.getEntityPos().add(0, entity.getHeight() / 2, 0);
         double distToCenter = point.distanceTo(center);
         score -= distToCenter * 2.0f;
         double relativeHeight = (point.y - entity.getY()) / entity.getHeight();
@@ -1192,36 +1192,36 @@ public final class UBoxPoints implements IMinecraft {
         return Math.max(0.1f, score);
     }
 
-    public static Vec2f getVanillaRotate(Vec3d vec) {
-        final Vec3d eyesPos = mc.player.getEyePos();
-        final Vec3d rot = vec.add(-eyesPos.x, -eyesPos.y, -eyesPos.z);
-        final double xzD = MathHelper.sqrt((float) (rot.x * rot.x + rot.z * rot.z));
+    public static Vector2f getVanillaRotate(Vec3 vec) {
+        final Vec3 eyesPos = mc.player.getEyePosition();
+        final Vec3 rot = vec.add(-eyesPos.x, -eyesPos.y, -eyesPos.z);
+        final double xzD = Mth.sqrt((float) (rot.x * rot.x + rot.z * rot.z));
         float yaw = (float) (Math.atan2(rot.z, rot.x) * 180.F / Math.PI - 90.F);
         float pitch = (float) Math.toDegrees(-Math.atan2(rot.y, xzD));
-        return new Vec2f(yaw, pitch);
+        return new Vector2f(yaw, pitch);
     }
 
-    public static HitResult traceBlock(Vec3d startVec, Vec3d endVec, ShapeType blockMode, FluidHandling fluidMode) {
-        return mc.world.raycast(new RaycastContext(startVec, endVec, blockMode, fluidMode, mc.player));
+    public static HitResult traceBlock(Vec3 startVec, Vec3 endVec, ShapeType blockMode, FluidHandling fluidMode) {
+        return mc.level.raycast(new ClipContext(startVec, endVec, blockMode, fluidMode, mc.player));
     }
 
-    private static double getDistanceXZ(ClientPlayerEntity self, double x, double z) {
+    private static double getDistanceXZ(LocalPlayer self, double x, double z) {
         double d0 = self.getX() - x;
         double d1 = self.getZ() - z;
-        return MathHelper.sqrt((float) (d0 * d0 + d1 * d1));
+        return Mth.sqrt((float) (d0 * d0 + d1 * d1));
     }
 
-    private static boolean seenOnce3(ClientPlayerEntity self, double x, double y, double z) {
-        Vec3d vector3d1 = new Vec3d(x, y, z);
-        return mc.world != null && traceBlock(self.getEyePos(), vector3d1, ShapeType.COLLIDER, FluidHandling.NONE).getType() != Type.BLOCK;
+    private static boolean seenOnce3(LocalPlayer self, double x, double y, double z) {
+        Vec3 vector3d1 = new Vec3(x, y, z);
+        return mc.level != null && traceBlock(self.getEyePosition(), vector3d1, ShapeType.COLLIDER, FluidHandling.NONE).getType() != Type.BLOCK;
     }
 
-    public static boolean seenOnceVector3d(ClientPlayerEntity self, Vec3d vec) {
-        Vec3d vector3d = new Vec3d(self.getX(), self.getEyeY(), self.getZ());
-        return mc.world != null && traceBlock(vector3d, vec, ShapeType.COLLIDER, FluidHandling.NONE).getType() != Type.BLOCK;
+    public static boolean seenOnceVector3d(LocalPlayer self, Vec3 vec) {
+        Vec3 vector3d = new Vec3(self.getX(), self.getEyeY(), self.getZ());
+        return mc.level != null && traceBlock(vector3d, vec, ShapeType.COLLIDER, FluidHandling.NONE).getType() != Type.BLOCK;
     }
 
-    private static boolean localSeen(ClientPlayerEntity selfEntity, final Vec3d xyz, final float scale) {
+    private static boolean localSeen(LocalPlayer selfEntity, final Vec3 xyz, final float scale) {
         return scale == 0 ? seenOnce3(selfEntity, xyz.x, xyz.y, xyz.z) :
                 seenOnce3(selfEntity, xyz.x, xyz.y, xyz.z) &&
                         seenOnce3(selfEntity, xyz.x, xyz.y + scale, xyz.z) &&
@@ -1232,13 +1232,13 @@ public final class UBoxPoints implements IMinecraft {
                         seenOnce3(selfEntity, xyz.x, xyz.y, xyz.z - scale);
     }
 
-    public static List<Vec3d> entityBoxVec3dsAlternates(Entity entity) {
+    public static List<Vec3> entityBoxVec3dsAlternates(Entity entity) {
         return entityBoxVec3dsAlternate(entity, entity.getBoundingBox());
     }
 
-    public static List<Vec3d> entityBoxVec3dsAlternate(Entity entity, Box aabb) {
+    public static List<Vec3> entityBoxVec3dsAlternate(Entity entity, AABB aabb) {
         if (entity == null) return null;
-        final List<Vec3d> vecs = new ArrayList<>();
+        final List<Vec3> vecs = new ArrayList<>();
         double offsetXYZ = .02F;
         int maxPointsCountXZ = 14, minPointsCountXZ = 5;
         int maxPointsCountY = 27, minPointsCountY = 9;
@@ -1257,10 +1257,10 @@ public final class UBoxPoints implements IMinecraft {
             xyz1 = new double[]{xyz[0] - whh[0] / 2.D, xyz[1], xyz[2] - whh[0] / 2.D};
         }
         float sqrtWHH0CubeD2 = (float) Math.sqrt(whh[0] * whh[0] + whh[0] * whh[0] + whh[0] * whh[0]) / 2.F;
-        final ClientPlayerEntity me = mc.player;
+        final LocalPlayer me = mc.player;
         if (me == null) return null;
-        Vec3d mePos = new Vec3d(me.getX(), me.getY(), me.getZ());
-        final float factorCount = (1.F - Math.min((float) mePos.distanceTo(new Vec3d(xyz[0], xyz[1], xyz[2])) / 5.F, 1.F)) * Math.min((float) mePos.distanceTo(new Vec3d(xyz[0], me.getY(), xyz[2])) / .6F, 1.F);
+        Vec3 mePos = new Vec3(me.getX(), me.getY(), me.getZ());
+        final float factorCount = (1.F - Math.min((float) mePos.distanceTo(new Vec3(xyz[0], xyz[1], xyz[2])) / 5.F, 1.F)) * Math.min((float) mePos.distanceTo(new Vec3(xyz[0], me.getY(), xyz[2])) / .6F, 1.F);
         final int pointsCountXZ = lerp(minPointsCountXZ, maxPointsCountXZ, factorCount);
         final int pointsCountY = lerp(minPointsCountY, maxPointsCountY, factorCount);
         float scaleSeenCheck = .0F;
@@ -1280,7 +1280,7 @@ public final class UBoxPoints implements IMinecraft {
                         double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                         if (dist >= sqrtWHH0CubeD2) continue;
                     }
-                    final Vec3d vec = new Vec3d(xs, ys, zs);
+                    final Vec3 vec = new Vec3(xs, ys, zs);
                     if (!localSeen(me, vec, scaleSeenCheck)) continue;
                     vecs.add(vec);
                 }
@@ -1289,9 +1289,9 @@ public final class UBoxPoints implements IMinecraft {
         return vecs;
     }
 
-    public static List<Vec3d> entityBoxVec3dsAlternate(Box aabb) {
+    public static List<Vec3> entityBoxVec3dsAlternate(AABB aabb) {
         if (aabb == null) return null;
-        final List<Vec3d> vecs = new ArrayList<>();
+        final List<Vec3> vecs = new ArrayList<>();
         double offsetXYZ = .02F;
         int maxPointsCountXZ = 14, minPointsCountXZ = 5;
         int maxPointsCountY = 27, minPointsCountY = 9;
@@ -1301,10 +1301,10 @@ public final class UBoxPoints implements IMinecraft {
         double[] xyz1 = new double[]{aabb.minX, aabb.minY, aabb.minZ};
         double[] xyz2 = new double[]{aabb.maxX, aabb.maxY, aabb.maxZ};
         float sqrtWHH0CubeD2 = (float) Math.sqrt(whh[0] * whh[0] + whh[0] * whh[0] + whh[0] * whh[0]) / 2.F;
-        final ClientPlayerEntity me = mc.player;
+        final LocalPlayer me = mc.player;
         if (me == null) return null;
-        Vec3d mePos = new Vec3d(me.getX(), me.getY(), me.getZ());
-        final float factorCount = (1.F - Math.min((float) mePos.distanceTo(new Vec3d(xyz[0], xyz[1], xyz[2])) / 5.F, 1.F)) * Math.min((float) mePos.distanceTo(new Vec3d(xyz[0], me.getY(), xyz[2])) / .6F, 1.F);
+        Vec3 mePos = new Vec3(me.getX(), me.getY(), me.getZ());
+        final float factorCount = (1.F - Math.min((float) mePos.distanceTo(new Vec3(xyz[0], xyz[1], xyz[2])) / 5.F, 1.F)) * Math.min((float) mePos.distanceTo(new Vec3(xyz[0], me.getY(), xyz[2])) / .6F, 1.F);
         final int pointsCountXZ = lerp(minPointsCountXZ, maxPointsCountXZ, factorCount);
         final int pointsCountY = lerp(minPointsCountY, maxPointsCountY, factorCount);
         float scaleSeenCheck = .0F;
@@ -1324,7 +1324,7 @@ public final class UBoxPoints implements IMinecraft {
                         double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                         if (dist >= sqrtWHH0CubeD2) continue;
                     }
-                    final Vec3d vec = new Vec3d(xs, ys, zs);
+                    final Vec3 vec = new Vec3(xs, ys, zs);
                     if (!localSeen(me, vec, scaleSeenCheck)) continue;
                     vecs.add(vec);
                 }
@@ -1333,13 +1333,13 @@ public final class UBoxPoints implements IMinecraft {
         return vecs;
     }
 
-    private static double getDistanceAtVec3dToVec3d(Vec3d first, Vec3d second) {
+    private static double getDistanceAtVec3dToVec3d(Vec3 first, Vec3 second) {
         final double xDiff, yDiff, zDiff;
         return Math.sqrt((xDiff = first.x - second.x) * xDiff + (yDiff = first.y - second.y) * yDiff + (zDiff = first.z - second.z) * zDiff);
     }
 
-    private static boolean rayTraceToBox(Vec3d start, Vec3d direction, double distance, Box box) {
-        Vec3d end = start.add(direction.multiply(distance));
+    private static boolean rayTraceToBox(Vec3 start, Vec3 direction, double distance, AABB box) {
+        Vec3 end = start.add(direction.multiply(distance));
         return box.raycast(start, end).isPresent();
     }
 
@@ -1347,17 +1347,17 @@ public final class UBoxPoints implements IMinecraft {
         final double xOffset, yOffset, zOffset;
         final float weight;
         TargetZone(double x, double y, double z, float weight) {
-            this.xOffset = MathHelper.clamp(x, 0.0, 1.0);
-            this.yOffset = MathHelper.clamp(y, 0.0, 1.0);
-            this.zOffset = MathHelper.clamp(z, 0.0, 1.0);
+            this.xOffset = Mth.clamp(x, 0.0, 1.0);
+            this.yOffset = Mth.clamp(y, 0.0, 1.0);
+            this.zOffset = Mth.clamp(z, 0.0, 1.0);
             this.weight = weight;
         }
     }
 
     private static class WeightedPoint {
-        final Vec3d offset;
+        final Vec3 offset;
         final float score;
-        WeightedPoint(Vec3d offset, float score) {
+        WeightedPoint(Vec3 offset, float score) {
             this.offset = offset;
             this.score = score;
         }

@@ -3,7 +3,7 @@ package vesence.debug;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.util.ScreenshotRecorder;
 import vesence.module.impl.visuals.Ambience;
 import vesence.renderengine.render.SkyShaderRenderer;
@@ -13,7 +13,7 @@ import java.io.File;
 /**
  * Временный авто-тест неба: активируется ТОЛЬКО при переменной окружения
  * VESENCE_SKYTEST=1. Заходит в мир (через --quickPlaySingleplayer), включает
- * модуль Custom World с шейдером неба, фотографирует все режимы по очереди
+ * модуль Custom Level с шейдером неба, фотографирует все режимы по очереди
  * и выключает клиент. Скриншоты — в run/skytest-shots/.
  */
 @Environment(EnvType.CLIENT)
@@ -35,13 +35,13 @@ public final class SkyShotTest {
         System.out.println("[skytest] harness active");
     }
 
-    private static void tick(MinecraftClient mc) {
-        if (finished || mc.player == null || mc.world == null) return;
+    private static void tick(Minecraft mc) {
+        if (finished || mc.player == null || mc.level == null) return;
         ticks++;
 
         // Фиксируем ракурс: как у оффлайн-рендера, только взгляд чуть вверх.
-        mc.player.setYaw(35.0F);
-        mc.player.setPitch(-12.0F);
+        mc.player.setYRot(35.0F);
+        mc.player.setXRot(-12.0F);
         mc.options.hudHidden = true;
 
         if (ticks < WARMUP_TICKS) return;
@@ -77,7 +77,7 @@ public final class SkyShotTest {
         if (rel % TICKS_PER_MODE == TICKS_PER_MODE - 2) {
             String file = SkyShaderRenderer.SHADER_NAMES[modeIdx] + ".png";
             ScreenshotRecorder.saveScreenshot(new File("skytest-shots"), file,
-                    mc.getFramebuffer(), 1, t -> System.out.println("[skytest] saved " + file));
+                    mc.getMainRenderTarget(), 1, t -> System.out.println("[skytest] saved " + file));
         }
     }
 }

@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.UBoxPoints;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
@@ -17,10 +17,10 @@ public class UFastRotation {
     private static float basePitch = 0.0f;
 
     public static void rotation(LivingEntity target, boolean attack) {
-        Vec3d point = UBoxPoints.getBestVector3dOnEntityBox(target).subtract(mc.player.getEyePos());
+        Vec3 point = UBoxPoints.getBestVector3dOnEntityBox(target).subtract(mc.player.getEyePosition());
 
         float yaw = (float) Math.toDegrees(Math.atan2(-point.x, point.z));
-        basePitch = (float) MathHelper.clamp(
+        basePitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(point.y, Math.hypot(point.x, point.z))),
                 -90.0, 90.0
         );
@@ -43,6 +43,6 @@ public class UFastRotation {
     }
 
     public static void state() {
-        basePitch = mc.player.getPitch();
+        basePitch = mc.player.getXRot();
     }
 }

@@ -27,7 +27,7 @@ public final class TransformStack {
       float c = (float)Math.cos(rad);
       float s = (float)Math.sin(rad);
       float[] r = new float[]{c, -s, 0.0F, s, c, 0.0F, 0.0F, 0.0F, 1.0F};
-      float[] top = this.stack.peek();
+      float[] top = this.stack.last();
       this.stack.push(mul(top, r));
    }
 
@@ -39,13 +39,13 @@ public final class TransformStack {
       float tx = originX - (c * originX - s * originY);
       float ty = originY - (s * originX + c * originY);
       float[] r = new float[]{c, -s, tx, s, c, ty, 0.0F, 0.0F, 1.0F};
-      float[] top = this.stack.peek();
+      float[] top = this.stack.last();
       this.stack.push(mul(top, r));
    }
 
    public void pushTranslation(float tx, float ty) {
       float[] t = new float[]{1.0F, 0.0F, tx, 0.0F, 1.0F, ty, 0.0F, 0.0F, 1.0F};
-      float[] top = this.stack.peek();
+      float[] top = this.stack.last();
       this.stack.push(mul(top, t));
    }
 
@@ -57,7 +57,7 @@ public final class TransformStack {
       float translateX = originX - originX * sx;
       float translateY = originY - originY * sy;
       float[] s = new float[]{sx, 0.0F, translateX, 0.0F, sy, translateY, 0.0F, 0.0F, 1.0F};
-      float[] top = this.stack.peek();
+      float[] top = this.stack.last();
       this.stack.push(mul(top, s));
    }
 
@@ -81,7 +81,7 @@ public final class TransformStack {
             throw new IllegalStateException("cannot replace top matrix on an empty stack");
          } else {
             float[] copy = Arrays.copyOf(matrix, matrix.length);
-            this.stack.pop();
+            this.stack.popPose();
             this.stack.push(copy);
          }
       }
@@ -89,20 +89,20 @@ public final class TransformStack {
 
    public void pop() {
       if (this.stack.size() > 1) {
-         this.stack.pop();
+         this.stack.popPose();
       }
    }
 
    public void popN(int count) {
       for (int i = 0; i < count; i++) {
          if (this.stack.size() > 1) {
-            this.stack.pop();
+            this.stack.popPose();
          }
       }
    }
 
    public float[] current() {
-      return this.stack.peek();
+      return this.stack.last();
    }
 
    private static float[] mul(float[] a, float[] b) {

@@ -2,11 +2,11 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
@@ -102,13 +102,13 @@ public class StaffListElement extends HudElement {
     }
 
     private List<StaffInfo> collectStaff() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.getNetworkHandler() == null) return new ArrayList<>(knownStaff.values());
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() == null) return new ArrayList<>(knownStaff.values());
 
         Set<String> current = new HashSet<>();
-        for (PlayerListEntry entry : mc.getNetworkHandler().getPlayerList()) {
+        for (PlayerListEntry entry : mc.getConnection().getPlayerList()) {
             String nick = entry.getProfile().name();
-            Text displayName = entry.getDisplayName();
+            Component displayName = entry.getDisplayName();
             String displayText = displayName != null ? displayName.getString() : nick;
 
             if (!isStaff(displayText) && !isStaff(nick) && !StaffStorage.isStaff(nick)) continue;
@@ -134,9 +134,9 @@ public class StaffListElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean isChatOpen = mc.screen instanceof ChatScreen;
 
         List<StaffInfo> staff = collectStaff();
 

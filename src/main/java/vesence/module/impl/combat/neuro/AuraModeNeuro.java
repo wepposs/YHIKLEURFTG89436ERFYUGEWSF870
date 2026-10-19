@@ -1,11 +1,11 @@
 package vesence.module.impl.combat.neuro;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector2f;
 import vesence.module.impl.combat.AttackAura;
 
@@ -14,7 +14,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class AuraModeNeuro {
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
     private static final float MIN_DISTANCE_SQ = 1.0E-6f;
     private static final double RAY_EXPAND = 0.05;
     private static final double ROTATION_POINT_REACH_BONUS = 7.5;
@@ -82,8 +82,8 @@ public class AuraModeNeuro {
         }
 
         if (!this.rotationInitialized) {
-            this.lastYaw = mc.player.getYaw();
-            this.lastPitch = mc.player.getPitch();
+            this.lastYaw = mc.player.getYRot();
+            this.lastPitch = mc.player.getXRot();
             this.rotationInitialized = true;
         }
 
@@ -94,15 +94,15 @@ public class AuraModeNeuro {
             // Training mode: record player's manual rotations
             recordTrainingSample(profile, aura, target);
             autoSave(profile);
-            this.lastYaw = mc.player.getYaw();
-            this.lastPitch = mc.player.getPitch();
+            this.lastYaw = mc.player.getYRot();
+            this.lastPitch = mc.player.getXRot();
             return;
         }
 
         // Prediction mode: use trained model
         applyNeuroRotation(profile, aura, target);
-        this.lastYaw = mc.player.getYaw();
-        this.lastPitch = mc.player.getPitch();
+        this.lastYaw = mc.player.getYRot();
+        this.lastPitch = mc.player.getXRot();
     }
 
     public void onAttack(LivingEntity target) {
@@ -116,8 +116,8 @@ public class AuraModeNeuro {
         }
 
         // Record hit point
-        NeuroPoint hitPoint = calculateHitPoint(target, mc.player.getYaw(), 
-            mc.player.getPitch(), AttackAura.attackRange.get() + AttackAura.preRange.get(), RAY_EXPAND);
+        NeuroPoint hitPoint = calculateHitPoint(target, mc.player.getYRot(), 
+            mc.player.getXRot(), AttackAura.attackRange.get() + AttackAura.preRange.get(), RAY_EXPAND);
         
         if (hitPoint != null) {
             profile.hitPoint.addSample(hitPoint.x, hitPoint.y, hitPoint.z);
@@ -139,7 +139,7 @@ public class AuraModeNeuro {
 
         // During prediction, check if we're aimed at target
         double reach = aura.attackRange.get() + aura.preRange.get();
-        return canHitTarget(mc.player.getYaw(), mc.player.getPitch(), reach, target);
+        return canHitTarget(mc.player.getYRot(), mc.player.getXRot(), reach, target);
     }
 
     private void recordRotationPoint(NeuroSampler profile, AttackAura aura, LivingEntity target) {
@@ -148,8 +148,8 @@ public class AuraModeNeuro {
         }
 
         double reach = aura.attackRange.get() + aura.preRange.get() + ROTATION_POINT_REACH_BONUS;
-        NeuroPoint point = calculateHitPoint(target, mc.player.getYaw(), 
-            mc.player.getPitch(), reach, ROTATION_POINT_EXPAND);
+        NeuroPoint point = calculateHitPoint(target, mc.player.getYRot(), 
+            mc.player.getXRot(), reach, ROTATION_POINT_EXPAND);
         
         if (point != null) {
             profile.rotationPoint.addSample(point.x, point.y, point.z);
@@ -163,19 +163,19 @@ public class AuraModeNeuro {
             return;
         }
 
-        Vec3d targetPos = getTargetPosition(target, profile, true);
+        Vec3 targetPos = getTargetPosition(target, profile, true);
         Vector2f targetRot = RotationUtil.getRotationTo(targetPos);
         if (targetRot == null) {
             return;
         }
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
         
-        float actualYawStep = MathHelper.wrapDegrees(currentYaw - this.lastYaw);
+        float actualYawStep = Mth.wrapDegrees(currentYaw - this.lastYaw);
         float actualPitchStep = currentPitch - this.lastPitch;
         
-        float targetYawError = MathHelper.wrapDegrees(targetRot.x - this.lastYaw);
+        float targetYawError = Mth.wrapDegrees(targetRot.x - this.lastYaw);
         float targetPitchError = targetRot.y - this.lastPitch;
         
         float mouseSens = RotationUtil.getMouseSensitivity();
@@ -191,17 +191,17 @@ public class AuraModeNeuro {
 
         InterpolationUtil behavior = profile.behavior;
         EasingUtil sample = new EasingUtil();
-        sample.distance = (float) mc.player.getEyePos().distanceTo(targetPos);
+        sample.distance = (float) mc.player.getEyePosition().distanceTo(targetPos);
         sample.yawError = Math.abs(targetYawError);
         sample.pitchError = Math.abs(targetPitchError);
-        sample.targetSpeed = MathHelper.clamp((float) target.getVelocity().length() * 20.0f, 0.0f, 50.0f);
+        sample.targetSpeed = Mth.clamp((float) target.getDeltaMovement().length() * 20.0f, 0.0f, 50.0f);
         
         sample.yawGain = AttackAura.neuroTrainYawSpeed.get() ? 
-            MathHelper.clamp(Math.abs(actualYawStep) / Math.max(Math.abs(targetYawError), mouseSens), 0.02f, 1.35f) :
+            Mth.clamp(Math.abs(actualYawStep) / Math.max(Math.abs(targetYawError), mouseSens), 0.02f, 1.35f) :
             behavior.yawResponse;
             
         sample.pitchGain = AttackAura.neuroTrainPitchSpeed.get() ?
-            MathHelper.clamp(Math.abs(actualPitchStep) / Math.max(Math.abs(targetPitchError), mouseSens), 0.02f, 1.2f) :
+            Mth.clamp(Math.abs(actualPitchStep) / Math.max(Math.abs(targetPitchError), mouseSens), 0.02f, 1.2f) :
             behavior.pitchResponse;
             
         sample.yawStepAbs = Math.abs(actualYawStep);
@@ -245,7 +245,7 @@ public class AuraModeNeuro {
     }
 
     private void applyNeuroRotation(NeuroSampler profile, AttackAura aura, LivingEntity target) {
-        Vec3d targetPos = getTargetPosition(target, profile, true);
+        Vec3 targetPos = getTargetPosition(target, profile, true);
         Vector2f targetRot = RotationUtil.getRotationTo(targetPos);
         if (targetRot == null) {
             return;
@@ -255,10 +255,10 @@ public class AuraModeNeuro {
         this.targetPitch = targetRot.y;
         this.hasTargetRotation = true;
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
         
-        float yawError = MathHelper.wrapDegrees(targetRot.x - currentYaw);
+        float yawError = Mth.wrapDegrees(targetRot.x - currentYaw);
         float pitchError = targetRot.y - currentPitch;
         
         float mouseSens = RotationUtil.getMouseSensitivity();
@@ -271,14 +271,14 @@ public class AuraModeNeuro {
         boolean rayAligned = canHitTarget(currentYaw, currentPitch, reach, target);
         
         PredictedStep step = predictStep(profile, Math.abs(yawError), Math.abs(pitchError),
-            (float) mc.player.getEyePos().distanceTo(targetPos),
-            MathHelper.clamp((float) target.getVelocity().length() * 20.0f, 0.0f, 50.0f),
+            (float) mc.player.getEyePosition().distanceTo(targetPos),
+            Mth.clamp((float) target.getDeltaMovement().length() * 20.0f, 0.0f, 50.0f),
             rayAligned);
 
         InterpolationUtil behavior = profile.behavior;
         
-        float yawStep = MathHelper.lerp(0.45f, Math.abs(yawError) * step.yawGain, step.yawStep);
-        float pitchStep = MathHelper.lerp(0.45f, Math.abs(pitchError) * step.pitchGain, step.pitchStep);
+        float yawStep = Mth.lerp(0.45f, Math.abs(yawError) * step.yawGain, step.yawStep);
+        float pitchStep = Mth.lerp(0.45f, Math.abs(pitchError) * step.pitchGain, step.pitchStep);
 
         // Add micro-pauses
         if (Math.abs(yawError) < 6.5f && ThreadLocalRandom.current().nextFloat() < behavior.holdChance) {
@@ -298,16 +298,16 @@ public class AuraModeNeuro {
         float finalPitchStep = Math.copySign(pitchStep + pitchJitter, pitchError);
 
         // Apply smoothing
-        float smoothness = MathHelper.clamp(behavior.smoothness, 0.1f, 0.92f);
-        float smoothedYaw = MathHelper.lerp(smoothness, finalYawStep, this.smoothedYawStep);
-        float smoothedPitch = MathHelper.lerp(smoothness, finalPitchStep, this.smoothedPitchStep);
+        float smoothness = Mth.clamp(behavior.smoothness, 0.1f, 0.92f);
+        float smoothedYaw = Mth.lerp(smoothness, finalYawStep, this.smoothedYawStep);
+        float smoothedPitch = Mth.lerp(smoothness, finalPitchStep, this.smoothedPitchStep);
 
         // Clamp to error bounds
         float maxYawStep = Math.abs(yawError) + Math.max(mouseSens, behavior.yawJitter * 0.3f);
         float maxPitchStep = Math.abs(pitchError) + Math.max(mouseSens, behavior.pitchJitter * 0.25f);
         
-        smoothedYaw = MathHelper.clamp(smoothedYaw, -maxYawStep, maxYawStep);
-        smoothedPitch = MathHelper.clamp(smoothedPitch, -maxPitchStep, maxPitchStep);
+        smoothedYaw = Mth.clamp(smoothedYaw, -maxYawStep, maxYawStep);
+        smoothedPitch = Mth.clamp(smoothedPitch, -maxPitchStep, maxPitchStep);
 
         // Snap to grid
         smoothedYaw = snapToMouseGrid(smoothedYaw, yawError, mouseSens);
@@ -317,10 +317,10 @@ public class AuraModeNeuro {
         this.smoothedPitchStep = smoothedPitch;
 
         float newYaw = currentYaw + smoothedYaw;
-        float newPitch = MathHelper.clamp(currentPitch + smoothedPitch, -89.9f, 89.9f);
+        float newPitch = Mth.clamp(currentPitch + smoothedPitch, -89.9f, 89.9f);
 
-        mc.player.setYaw(newYaw);
-        mc.player.setPitch(newPitch);
+        mc.player.setYRot(newYaw);
+        mc.player.setXRot(newPitch);
     }
 
     private float snapToMouseGrid(float step, float error, float mouseSens) {
@@ -357,7 +357,7 @@ public class AuraModeNeuro {
             
             if (nearest.size() < 24) {
                 nearest.offer(new double[]{weight, sample.yawGain, sample.pitchGain, sample.yawStepAbs, sample.pitchStepAbs});
-            } else if (weight > nearest.peek()[0]) {
+            } else if (weight > nearest.last()[0]) {
                 nearest.poll();
                 nearest.offer(new double[]{weight, sample.yawGain, sample.pitchGain, sample.yawStepAbs, sample.pitchStepAbs});
             }
@@ -396,12 +396,12 @@ public class AuraModeNeuro {
         );
     }
 
-    private Vec3d getTargetPosition(LivingEntity target, NeuroSampler profile, boolean interpolate) {
-        Box box = target.getBoundingBox();
-        Vec3d rotPoint = new Vec3d(
-            MathHelper.lerp(profile.rotationPoint.meanX, (float) box.minX, (float) box.maxX),
-            MathHelper.lerp(profile.rotationPoint.meanY, (float) box.minY, (float) box.maxY),
-            MathHelper.lerp(profile.rotationPoint.meanZ, (float) box.minZ, (float) box.maxZ)
+    private Vec3 getTargetPosition(LivingEntity target, NeuroSampler profile, boolean interpolate) {
+        AABB box = target.getBoundingBox();
+        Vec3 rotPoint = new Vec3(
+            Mth.lerp(profile.rotationPoint.meanX, (float) box.minX, (float) box.maxX),
+            Mth.lerp(profile.rotationPoint.meanY, (float) box.minY, (float) box.maxY),
+            Mth.lerp(profile.rotationPoint.meanZ, (float) box.minZ, (float) box.maxZ)
         );
 
         if (!interpolate) {
@@ -413,35 +413,35 @@ public class AuraModeNeuro {
             return rotPoint;
         }
 
-        float totalError = Math.abs(MathHelper.wrapDegrees(rot.x - mc.player.getYaw())) + 
-                          Math.abs(rot.y - mc.player.getPitch());
-        float lerpFactor = MathHelper.clamp(1.0f - totalError / 14.0f, 0.0f, 0.65f);
+        float totalError = Math.abs(Mth.wrapDegrees(rot.x - mc.player.getYRot())) + 
+                          Math.abs(rot.y - mc.player.getXRot());
+        float lerpFactor = Mth.clamp(1.0f - totalError / 14.0f, 0.0f, 0.65f);
 
-        Vec3d hitPoint = new Vec3d(
-            MathHelper.lerp(profile.hitPoint.meanX, (float) box.minX, (float) box.maxX),
-            MathHelper.lerp(profile.hitPoint.meanY, (float) box.minY, (float) box.maxY),
-            MathHelper.lerp(profile.hitPoint.meanZ, (float) box.minZ, (float) box.maxZ)
+        Vec3 hitPoint = new Vec3(
+            Mth.lerp(profile.hitPoint.meanX, (float) box.minX, (float) box.maxX),
+            Mth.lerp(profile.hitPoint.meanY, (float) box.minY, (float) box.maxY),
+            Mth.lerp(profile.hitPoint.meanZ, (float) box.minZ, (float) box.maxZ)
         );
 
         return rotPoint.lerp(hitPoint, lerpFactor);
     }
 
     private NeuroPoint calculateHitPoint(LivingEntity target, float yaw, float pitch, double reach, double expand) {
-        Vec3d eyePos = mc.player.getCameraPosVec(1.0f);
-        Vec3d rotVec = mc.player.getRotationVector(pitch, yaw);
-        Vec3d rayEnd = eyePos.add(rotVec.multiply(reach));
+        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
+        Vec3 rotVec = mc.player.getRotationVector(pitch, yaw);
+        Vec3 rayEnd = eyePos.add(rotVec.multiply(reach));
         
-        Box box = target.getBoundingBox();
-        Box expandedBox = box.expand(expand);
+        AABB box = target.getBoundingBox();
+        AABB expandedBox = box.expand(expand);
         
-        Vec3d hit = expandedBox.raycast(eyePos, rayEnd).orElse(null);
+        Vec3 hit = expandedBox.raycast(eyePos, rayEnd).orElse(null);
         if (hit == null) {
             return null;
         }
 
-        double clampedX = MathHelper.clamp(hit.x, box.minX, box.maxX);
-        double clampedY = MathHelper.clamp(hit.y, box.minY, box.maxY);
-        double clampedZ = MathHelper.clamp(hit.z, box.minZ, box.maxZ);
+        double clampedX = Mth.clamp(hit.x, box.minX, box.maxX);
+        double clampedY = Mth.clamp(hit.y, box.minY, box.maxY);
+        double clampedZ = Mth.clamp(hit.z, box.minZ, box.maxZ);
 
         float normX = (float) ((clampedX - box.minX) / Math.max(box.getLengthX(), 1.0E-4));
         float normY = (float) ((clampedY - box.minY) / Math.max(box.getLengthY(), 1.0E-4));
@@ -451,9 +451,9 @@ public class AuraModeNeuro {
     }
 
     private boolean canHitTarget(float yaw, float pitch, double reach, Entity target) {
-        Vec3d eyePos = mc.player.getCameraPosVec(1.0f);
-        Vec3d rotVec = mc.player.getRotationVector(pitch, yaw);
-        Vec3d rayEnd = eyePos.add(rotVec.multiply(reach));
+        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
+        Vec3 rotVec = mc.player.getRotationVector(pitch, yaw);
+        Vec3 rayEnd = eyePos.add(rotVec.multiply(reach));
         return target.getBoundingBox().raycast(eyePos, rayEnd).isPresent();
     }
 

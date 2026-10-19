@@ -2,7 +2,7 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.event.Event;
 import vesence.utils.render.text.FontObject;
 import vesence.renderengine.render.Renderer2D;
@@ -11,13 +11,13 @@ import java.util.Objects;
 
 @Environment(EnvType.CLIENT)
 public final class RenderEvent extends Event {
-   private final MinecraftClient client;
+   private final Minecraft client;
    private final Renderer2D renderer;
    private final FontObject defaultFont;
    private final int viewportWidth;
    private final int viewportHeight;
 
-   public RenderEvent(MinecraftClient client, Renderer2D renderer, FontObject defaultFont, int viewportWidth, int viewportHeight) {
+   public RenderEvent(Minecraft client, Renderer2D renderer, FontObject defaultFont, int viewportWidth, int viewportHeight) {
       this.client = Objects.requireNonNull(client, "client");
       this.renderer = Objects.requireNonNull(renderer, "renderer");
       this.defaultFont = Objects.requireNonNull(defaultFont, "defaultFont");
@@ -25,7 +25,7 @@ public final class RenderEvent extends Event {
       this.viewportHeight = viewportHeight;
    }
 
-   public MinecraftClient client() {
+   public Minecraft client() {
       return this.client;
    }
 

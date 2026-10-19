@@ -4,10 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.DyedColorComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.util.ResourceLocation;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,7 +35,7 @@ public class ItemColorExtractor {
     }
 
     private static int getColorByName(Item item) {
-        Identifier id = Registries.ITEM.getId(item);
+        ResourceLocation id = BuiltInRegistries.ITEM.getId(item);
         String path = id.getPath();
 
         if (path.contains("netherite")) return 0x4D3B2F;

@@ -2,7 +2,7 @@ package vesence.module.impl.visuals.elements.modern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.notifications.Notifications;
@@ -27,7 +27,7 @@ public class ModernNotificationsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
         lastScreenW = screenWidth;
         lastScreenH = screenHeight;
         float scale = getScale();

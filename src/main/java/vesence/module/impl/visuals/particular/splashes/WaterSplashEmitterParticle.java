@@ -3,11 +3,11 @@ package vesence.module.impl.visuals.particular.splashes;
 import net.minecraft.client.particle.NoRenderParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.math.random.Random;
 import vesence.module.impl.visuals.particular.ParticularParticles;
 
@@ -16,7 +16,7 @@ public class WaterSplashEmitterParticle extends NoRenderParticle {
     private final float width;
     private final float height;
 
-    protected WaterSplashEmitterParticle(ClientWorld world, double x, double y, double z, float width, float speed) {
+    protected WaterSplashEmitterParticle(ClientLevel world, double x, double y, double z, float width, float speed) {
         super(world, x, y, z);
         this.gravityStrength = 0.0F;
         this.maxAge = 24;
@@ -38,7 +38,7 @@ public class WaterSplashEmitterParticle extends NoRenderParticle {
     @Override
     public void tick() {
         super.tick();
-        if (this.age == 8) {
+        if (this.tickCount == 8) {
             WaterCrownRenderer.spawn(this.world, this.x, this.y, this.z, this.width * 0.66F, this.height * 2.0F, false);
             WaterCrownRenderer.spawn(this.world, this.x, this.y, this.z, this.width * 0.66F, this.height * 2.0F, true);
             this.world.addParticleClient(ParticularParticles.WATER_SPLASH_RING, true, false, this.x, this.y, this.z, this.width * 0.66F, 0.0D, 0.0D);
@@ -61,7 +61,7 @@ public class WaterSplashEmitterParticle extends NoRenderParticle {
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new WaterSplashEmitterParticle(world, x, y, z, (float) velocityX, (float) velocityY);
         }
     }

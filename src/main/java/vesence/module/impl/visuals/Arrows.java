@@ -2,13 +2,13 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 
 import vesence.event.EventInit;
 import vesence.event.render.EventScreen;
@@ -36,7 +36,7 @@ import vesence.utils.render.text.FontObject;
 @Environment(EnvType.CLIENT)
 public class Arrows extends Module {
 
-   private static final Identifier TRIANGLE = Identifier.of("vesence", "textures/arrows/triangle.png");
+   private static final ResourceLocation TRIANGLE = ResourceLocation.of("vesence", "textures/arrows/triangle.png");
 
    // Дистанция (блоки), с которой начинается затухание, и на которой достигается минимум.
    private static final float FADE_NEAR = 4.0F;
@@ -69,7 +69,7 @@ public class Arrows extends Module {
 
    @EventInit
    public void onRender(EventScreen event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
       // divine recode: не рисуем указатели при открытом отладочном экране (F3)
@@ -83,15 +83,15 @@ public class Arrows extends Module {
       float centerX = event.viewportWidth() / 2.0F;
       float centerY = event.viewportHeight() / 2.0F;
 
-      double yawRad = Math.toRadians(mc.gameRenderer.getCamera().getYaw());
+      double yawRad = Math.toRadians(mc.gameRenderer.getCamera().getYRot());
       double cos = Math.cos(yawRad);
       double sin = Math.sin(yawRad);
       double partialTicks = mc.gameRenderer.getCamera().getLastTickProgress();
-      Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
 
       double baseRadius = radius.get();
 
-      for (Entity entity : mc.world.getEntities()) {
+      for (Entity entity : mc.level.getEntities()) {
          if (!isValidEntity(entity)) {
             continue;
          }
@@ -167,7 +167,7 @@ public class Arrows extends Module {
    }
 
    private boolean isPlayerTarget(Entity entity) {
-      if (!(entity instanceof PlayerEntity player) || entity == mc.player) {
+      if (!(entity instanceof Player player) || entity == mc.player) {
          return false;
       }
       boolean isFriend = FriendStorage.isFriend(player.getNameForScoreboard());
@@ -186,15 +186,15 @@ public class Arrows extends Module {
    }
 
    private boolean isEntityVisible(Entity entity) {
-      Vec3d start = mc.player.getEyePos();
-      Vec3d end = entity.getBoundingBox().getCenter();
-      RaycastContext context = new RaycastContext(
-            start, end, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mc.player);
-      return mc.world.raycast(context).getType() == HitResult.Type.MISS;
+      Vec3 start = mc.player.getEyePosition();
+      Vec3 end = entity.getBoundingBox().getCenter();
+      ClipContext context = new ClipContext(
+            start, end, ClipContext.ShapeType.COLLIDER, ClipContext.FluidHandling.NONE, mc.player);
+      return mc.level.raycast(context).getType() == HitResult.Type.MISS;
    }
 
    private int determineEntityColor(Entity entity) {
-      if (entity instanceof PlayerEntity player) {
+      if (entity instanceof Player player) {
          if (FriendStorage.isFriend(player.getNameForScoreboard())) {
             return friendColor.getRGB();
          }

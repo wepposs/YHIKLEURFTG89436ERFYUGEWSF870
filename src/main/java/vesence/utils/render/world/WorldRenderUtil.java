@@ -2,8 +2,8 @@ package vesence.utils.render.world;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.OverlayTexture;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import org.joml.Matrix4f;
 import vesence.utils.render.ColorUtil;
 

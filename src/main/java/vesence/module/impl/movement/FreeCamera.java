@@ -2,8 +2,8 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -27,9 +27,9 @@ public class FreeCamera extends Module {
    private double smoothForward;
    private double smoothSideways;
    private double smoothVertical;
-   private Vec3d savedPos;
+   private Vec3 savedPos;
    private float savedYaw, savedPitch;
-   private Vec3d cameraPos;
+   private Vec3 cameraPos;
    private float cameraYaw, cameraPitch;
    private boolean prevNoClip;
 
@@ -45,15 +45,15 @@ public class FreeCamera extends Module {
       FreecamState.prevYaw = cameraYaw;
       FreecamState.prevPitch = cameraPitch;
 
-      float deltaYaw = MathHelper.wrapDegrees(mc.player.getYaw() - savedYaw);
-      float deltaPitch = mc.player.getPitch() - savedPitch;
+      float deltaYaw = Mth.wrapDegrees(mc.player.getYRot() - savedYaw);
+      float deltaPitch = mc.player.getXRot() - savedPitch;
       cameraYaw += deltaYaw;
-      cameraPitch = MathHelper.clamp(cameraPitch + deltaPitch, -90, 90);
+      cameraPitch = Mth.clamp(cameraPitch + deltaPitch, -90, 90);
 
-      mc.player.setYaw(savedYaw);
-      mc.player.setPitch(savedPitch);
+      mc.player.setYRot(savedYaw);
+      mc.player.setXRot(savedPitch);
       mc.player.setPosition(savedPos.x, savedPos.y, savedPos.z);
-      mc.player.setVelocity(Vec3d.ZERO);
+      mc.player.setDeltaMovement(Vec3.ZERO);
       mc.player.noClip = true;
       mc.player.fallDistance = 0;
 
@@ -90,8 +90,8 @@ public class FreeCamera extends Module {
    public void onEnable() {
       if (mc.player == null) return;
       savedPos = mc.player.getEntityPos();
-      savedYaw = mc.player.getYaw();
-      savedPitch = mc.player.getPitch();
+      savedYaw = mc.player.getYRot();
+      savedPitch = mc.player.getXRot();
       cameraPos = savedPos;
       cameraYaw = savedYaw;
       cameraPitch = savedPitch;
@@ -110,9 +110,9 @@ public class FreeCamera extends Module {
       if (mc.player != null) {
          mc.player.noClip = prevNoClip;
          mc.player.setPosition(savedPos.x, savedPos.y, savedPos.z);
-         mc.player.setYaw(savedYaw);
-         mc.player.setPitch(savedPitch);
-         mc.player.setVelocity(Vec3d.ZERO);
+         mc.player.setYRot(savedYaw);
+         mc.player.setXRot(savedPitch);
+         mc.player.setDeltaMovement(Vec3.ZERO);
       }
       FreecamState.pos = null;
       super.onDisable();

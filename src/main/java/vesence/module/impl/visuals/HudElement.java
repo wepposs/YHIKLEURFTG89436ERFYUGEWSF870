@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.MultiBooleanSetting;
@@ -195,7 +195,7 @@ public abstract class HudElement {
         return null;
     }
 
-    public abstract void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext drawContext);
+    public abstract void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics drawContext);
     public abstract float getWidth(Renderer2D renderer, FontObject font);
     public abstract float getHeight(Renderer2D renderer, FontObject font);
 

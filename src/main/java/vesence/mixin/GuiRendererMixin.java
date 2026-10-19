@@ -12,7 +12,7 @@ import vesence.Vesence;
 import vesence.module.impl.misc.BetterMinecraft;
 
 /**
- * In 1.21.11 every {@link net.minecraft.client.gui.DrawContext} draw call (item textures, widget
+ * In 1.21.11 every {@link net.minecraft.client.gui.GuiGraphics} draw call (item textures, widget
  * textures, screen background blur) is recorded into a {@code GuiRenderState} and only painted to
  * the framebuffer here, when {@link GuiRenderer#render} flushes that state. Our raw-GL renderer
  * draws immediately during the record phase, so it always ends up underneath the vanilla GUI.

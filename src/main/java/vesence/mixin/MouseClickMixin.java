@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.input.MouseInput;
 import org.lwjgl.glfw.GLFW;
@@ -28,10 +28,10 @@ public class MouseClickMixin {
       double[] yPos = new double[1];
       GLFW.glfwGetCursorPos(window, xPos, yPos);
 
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (action == GLFW.GLFW_PRESS
               && client != null
-              && client.currentScreen == null
+              && client.screen == null
               && Vesence.get != null
               && Vesence.get.manager != null) {
          int mouseKey = -100 - input.button();
@@ -55,7 +55,7 @@ public class MouseClickMixin {
       cancellable = true
    )
    private void preventCursorLock(CallbackInfo ci) {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       long handle = 0L;
       if (client != null && client.getWindow() != null) {
          handle = client.getWindow().getHandle();

@@ -4,17 +4,17 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.Team;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.GameMode;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
@@ -87,8 +87,8 @@ public class ModernStaffListElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        boolean chatOpen = MinecraftClient.getInstance().currentScreen instanceof ChatScreen;
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        boolean chatOpen = Minecraft.getInstance().screen instanceof ChatScreen;
 
         for (RowState st : rows.values()) st.active = false;
         for (StaffInfo info : collectStaff()) {
@@ -223,14 +223,14 @@ public class ModernStaffListElement extends HudElement {
 
     private int skinGlId(String name) {
         try {
-            ClientPlayNetworkHandler nh = MinecraftClient.getInstance().getNetworkHandler();
+            ClientPacketListener nh = Minecraft.getInstance().getConnection();
             if (nh == null) return 0;
             PlayerListEntry entry = nh.getPlayerListEntry(name);
             if (entry == null) return 0;
             SkinTextures tex = entry.getSkinTextures();
             if (tex == null) return 0;
-            Identifier skinId = tex.body().texturePath();
-            AbstractTexture at = MinecraftClient.getInstance().getTextureManager().getTexture(skinId);
+            ResourceLocation skinId = tex.body().texturePath();
+            AbstractTexture at = Minecraft.getInstance().getTextureManager().getTexture(skinId);
             if (at == null) return 0;
             GpuTextureView view = at.getGlTextureView();
             if (view == null) return 0;
@@ -264,13 +264,13 @@ public class ModernStaffListElement extends HudElement {
     }
 
     private List<StaffInfo> collectStaff() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) return List.of();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return List.of();
 
         Map<String, StaffInfo> map = new LinkedHashMap<>();
-        Scoreboard scoreboard = mc.world.getScoreboard();
+        Scoreboard scoreboard = mc.level.getScoreboard();
 
-        for (PlayerListEntry e : mc.getNetworkHandler().getPlayerList()) {
+        for (PlayerListEntry e : mc.getConnection().getPlayerList()) {
             String nick = e.getProfile().name();
             if (!NAME_PATTERN.matcher(nick).matches()) continue;
 

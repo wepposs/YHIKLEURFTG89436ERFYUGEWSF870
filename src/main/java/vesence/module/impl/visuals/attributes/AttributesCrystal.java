@@ -5,21 +5,21 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
@@ -31,39 +31,39 @@ import vesence.utils.friends.FriendStorage;
  * <p>Порт косметики «Кристалл друга» из клиента RelevantPremium. Кристалл
  * рисуется над nametag'ом каждого игрока из списка друзей (см. {@link FriendStorage}),
  * чуть выше ванильного/клиентского ника. Адаптирован под render-API MC 1.21.11
- * (RenderPipeline + RenderLayer).
+ * (RenderPipeline + RenderType).
  */
 public final class AttributesCrystal {
 
-    private static final Identifier BLOOM = Identifier.of("vesence", "textures/targetesp/bloom.png");
+    private static final ResourceLocation BLOOM = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
 
     /** Тело кристалла — цветные треугольники без depth-test (видно сквозь стены). */
     private static final RenderPipeline CRYSTAL_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_crystal"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLES)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_crystal"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
 
-    private static final RenderLayer CRYSTAL_LAYER = RenderLayer.of(
+    private static final RenderType CRYSTAL_LAYER = RenderType.of(
             "vesence_attributes_crystal",
             RenderSetup.builder(CRYSTAL_PIPELINE).expectedBufferSize(4096).translucent().build());
 
     /** Glow вокруг кристалла — аддитивные биллборды без depth-test. */
     private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_crystal_glow"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_crystal_glow"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.LIGHTNING)
                     .build());
 
-    private static final RenderLayer GLOW_LAYER = RenderLayer.of(
+    private static final RenderType GLOW_LAYER = RenderType.of(
             "vesence_attributes_crystal_glow",
             RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(4096).translucent().texture("Sampler0", BLOOM).build());
 
@@ -80,7 +80,7 @@ public final class AttributesCrystal {
     private static final float GLOW_OUTER_SIZE = 0.7F;
 
     private final Attributes parent;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
 
     private float rotationAngle = 0.0F;
 
@@ -93,22 +93,22 @@ public final class AttributesCrystal {
     }
 
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         float partialTicks = event.getTickDelta();
-        Vec3d cameraPos = event.getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
+        Vec3 cameraPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
 
         this.rotationAngle += 1.2F;
 
-        float camYaw = mc.gameRenderer.getCamera().getYaw();
-        float camPitch = mc.gameRenderer.getCamera().getPitch();
+        float camYaw = mc.gameRenderer.getCamera().getYRot();
+        float camPitch = mc.gameRenderer.getCamera().getXRot();
 
         // Считаем размещение кристалла для каждого друга заранее, затем рисуем
-        // послойно (тело → glow). Один RenderLayer должен быть записан целиком
+        // послойно (тело → glow). Один RenderType должен быть записан целиком
         // до переключения на следующий — иначе "Not building!".
         java.util.List<Placement> placements = new java.util.ArrayList<>();
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (player == mc.player) continue;
             if (!player.isAlive() || player.isInvisible()) continue;
             if (!FriendStorage.isFriend(player.getName().getString())) continue;
@@ -117,17 +117,17 @@ public final class AttributesCrystal {
         }
         if (placements.isEmpty()) return;
 
-        Immediate immediate = VertexConsumerProvider.immediate(parent.allocator());
+        Immediate immediate = MultiBufferSource.immediate(parent.allocator());
 
         // ─── Тело кристалла ───────────────────────────────────────────────
         VertexConsumer crystalBuf = immediate.getBuffer(CRYSTAL_LAYER);
         for (Placement p : placements) {
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(p.worldX - cameraPos.x, p.worldY - cameraPos.y, p.worldZ - cameraPos.z);
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(this.rotationAngle));
-            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            Matrix4f matrix = matrices.last().getPositionMatrix();
             renderCrystalShape(crystalBuf, matrix, p.crystalW, p.crystalH, GREEN_COLOR);
-            matrices.pop();
+            matrices.popPose();
         }
 
         // ─── Glow ─────────────────────────────────────────────────────────
@@ -140,12 +140,12 @@ public final class AttributesCrystal {
         immediate.draw();
     }
 
-    private Placement computePlacement(PlayerEntity player, float partialTicks, Vec3d cameraPos) {
-        Vec3d pos = player.getLerpedPos(partialTicks);
+    private Placement computePlacement(Player player, float partialTicks, Vec3 cameraPos) {
+        Vec3 pos = player.getLerpedPos(partialTicks);
 
         // Лёгкий рост кристалла на дистанции — чтобы над ником друга он читался и издалека.
         double anchorY = pos.y + player.getHeight() + 0.6;
-        double dist = cameraPos.distanceTo(new Vec3d(pos.x, anchorY, pos.z));
+        double dist = cameraPos.distanceTo(new Vec3(pos.x, anchorY, pos.z));
         if (dist < 1.0) dist = 1.0;
         float scale = (float) Math.pow(dist / 3.0, 0.7);
         if (scale < 1.0F) scale = 1.0F;
@@ -158,7 +158,7 @@ public final class AttributesCrystal {
         p.glowOuter = GLOW_OUTER_SIZE * scale;
 
         // Нижний кончик кристалла над ником (CLEARANCE выше макушки) + покачивание.
-        float bottomTipOffset = CLEARANCE + MathHelper.sin((player.age + partialTicks) * 0.08F) * 0.04F;
+        float bottomTipOffset = CLEARANCE + Mth.sin((player.tickCount + partialTicks) * 0.08F) * 0.04F;
         p.worldX = pos.x;
         p.worldY = pos.y + player.getHeight() + bottomTipOffset + p.crystalH;
         p.worldZ = pos.z;
@@ -211,7 +211,7 @@ public final class AttributesCrystal {
         colorVertex(buffer, matrix, 0.0F, 0.0F, -w, r, g, b, a);
     }
 
-    private void drawGlowBillboard(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+    private void drawGlowBillboard(VertexConsumer buffer, PoseStack matrices, Vec3 cameraPos,
                                    double worldX, double worldY, double worldZ,
                                    float size, float camYaw, float camPitch, int color) {
         int r = (color >> 16) & 0xFF;
@@ -221,16 +221,16 @@ public final class AttributesCrystal {
         if (a <= 0) return;
         float half = size * 0.5F;
 
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Matrix4f matrix = matrices.last().getPositionMatrix();
         texVertex(buffer, matrix, -half, -half, 0f, 1f, r, g, b, a);
         texVertex(buffer, matrix, -half,  half, 0f, 0f, r, g, b, a);
         texVertex(buffer, matrix,  half,  half, 1f, 0f, r, g, b, a);
         texVertex(buffer, matrix,  half, -half, 1f, 1f, r, g, b, a);
-        matrices.pop();
+        matrices.popPose();
     }
 
     private static void colorVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y, float z,

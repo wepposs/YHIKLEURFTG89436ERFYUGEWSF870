@@ -5,21 +5,21 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
@@ -57,50 +57,50 @@ public final class AttributesWings {
     /** Заливка крыла — translucent цветные треугольники. */
     private static final RenderPipeline FILL_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_wings_fill"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLES)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_wings_fill"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
 
-    private static final RenderLayer FILL_LAYER = RenderLayer.of(
+    private static final RenderType FILL_LAYER = RenderType.of(
             "vesence_attributes_wings_fill",
             RenderSetup.builder(FILL_PIPELINE).expectedBufferSize(32768).translucent().build());
 
     /** Свечение крыла — аддитивные (LIGHTNING) треугольники. */
     private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_wings_glow"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLES)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_wings_glow"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.LIGHTNING)
                     .build());
 
-    private static final RenderLayer GLOW_LAYER = RenderLayer.of(
+    private static final RenderType GLOW_LAYER = RenderType.of(
             "vesence_attributes_wings_glow",
             RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(32768).translucent().build());
 
     /** Контур и жилки — цветные линии. */
     private static final RenderPipeline LINES_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_wings_lines"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_wings_lines"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
 
-    private static final RenderLayer LINES_LAYER = RenderLayer.of(
+    private static final RenderType LINES_LAYER = RenderType.of(
             "vesence_attributes_wings_lines",
             RenderSetup.builder(LINES_PIPELINE).expectedBufferSize(8192).translucent().build());
 
     private final Attributes parent;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
 
     public AttributesWings(Attributes parent) {
         this.parent = parent;
@@ -109,29 +109,29 @@ public final class AttributesWings {
     public void deactivate() {}
 
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         float tickDelta = event.getTickDelta();
-        Vec3d cameraPos = event.getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
+        Vec3 cameraPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
 
         int base = ColorUtil.theme(255);
         int glow = ColorUtil.interpolate(base, 0xFFFFFFFF, 0.28);
         int core = ColorUtil.interpolate(base, 0xFFFFFFFF, 0.55);
 
         // Собираем матрицы всех сторон крыльев всех игроков заранее, затем
-        // рисуем послойно (заливка → свечение → линии). Переключать RenderLayer
+        // рисуем послойно (заливка → свечение → линии). Переключать RenderType
         // можно только последовательно: писать в один слой полностью, потом
         // в следующий — иначе BufferBuilder бросает "Not building!".
         java.util.List<WingSide> sides = new java.util.ArrayList<>();
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (!shouldRender(player)) continue;
             if (!parent.shouldRenderFor(player, cameraPos)) continue;
             collectWingSides(player, tickDelta, cameraPos, matrices, sides);
         }
         if (sides.isEmpty()) return;
 
-        Immediate immediate = VertexConsumerProvider.immediate(parent.allocator());
+        Immediate immediate = MultiBufferSource.immediate(parent.allocator());
 
         // Заливка (translucent).
         VertexConsumer fillBuf = immediate.getBuffer(FILL_LAYER);
@@ -156,7 +156,7 @@ public final class AttributesWings {
         immediate.draw();
     }
 
-    private boolean shouldRender(PlayerEntity player) {
+    private boolean shouldRender(Player player) {
         if (mc.player == null) return false;
         if (!player.isAlive() || player.isInvisible()) return false;
         EntityPose pose = player.getPose();
@@ -167,24 +167,24 @@ public final class AttributesWings {
         return FriendStorage.isFriend(player.getName().getString());
     }
 
-    private void collectWingSides(PlayerEntity player, float tickDelta, Vec3d camera, MatrixStack matrices,
+    private void collectWingSides(Player player, float tickDelta, Vec3 camera, PoseStack matrices,
                                   java.util.List<WingSide> out) {
         WingPose pose = resolvePose(player, tickDelta);
         if (pose == null) return;
 
-        Vec3d pos = player.getLerpedPos(tickDelta);
+        Vec3 pos = player.getLerpedPos(tickDelta);
         double x = pos.x - camera.x;
         double y = pos.y - camera.y;
         double z = pos.z - camera.z;
 
-        float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
-        float move = (float) MathHelper.clamp(player.getVelocity().horizontalLength() / 0.18, 0.0, 1.0);
+        float bodyYaw = Mth.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
+        float move = (float) Mth.clamp(player.getDeltaMovement().horizontalLength() / 0.18, 0.0, 1.0);
 
-        float flap = (float) Math.sin((player.age + tickDelta) * pose.flapSpeed) * pose.flapAmplitude;
+        float flap = (float) Math.sin((player.tickCount + tickDelta) * pose.flapSpeed) * pose.flapAmplitude;
         float open = (DEFAULT_SPREAD + flap + move * pose.motionSpreadBoost) * pose.openMultiplier;
         float wingScale = pose.scaleMultiplier;
 
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(x, y, z);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - bodyYaw));
         if (pose.preTranslateY != 0f || pose.preTranslateZ != 0f)
@@ -197,15 +197,15 @@ public final class AttributesWings {
         matrices.scale(wingScale, wingScale, wingScale);
 
         for (float side : new float[]{-1f, 1f}) {
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(side * pose.sideOffset, pose.sideYOffset, pose.sideZOffset);
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(side * open));
             matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(side * pose.sideRoll));
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.sidePitch));
-            out.add(new WingSide(new Matrix4f(matrices.peek().getPositionMatrix()), side));
-            matrices.pop();
+            out.add(new WingSide(new Matrix4f(matrices.last().getPositionMatrix()), side));
+            matrices.popPose();
         }
-        matrices.pop();
+        matrices.popPose();
     }
 
     private void drawWingLayer(VertexConsumer buffer, Matrix4f matrix, float side, float scale, int rootColor, int edgeColor) {
@@ -242,7 +242,7 @@ public final class AttributesWings {
     }
 
     private static int setAlpha(int color, int a) {
-        return ColorUtil.replAlpha(color, MathHelper.clamp(a, 0, 255));
+        return ColorUtil.replAlpha(color, Mth.clamp(a, 0, 255));
     }
 
     private static int alpha(int color) { return ColorUtil.alpha(color); }
@@ -252,12 +252,12 @@ public final class AttributesWings {
                 .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color));
     }
 
-    private WingPose resolvePose(PlayerEntity player, float tickDelta) {
+    private WingPose resolvePose(Player player, float tickDelta) {
         float pitch = player.getPitch(tickDelta);
 
         if (player.isGliding()) {
-            float flightTicks = (float) player.age + tickDelta;
-            float flightProgress = MathHelper.clamp(flightTicks * flightTicks / 100f, 0f, 1f);
+            float flightTicks = (float) player.tickCount + tickDelta;
+            float flightProgress = Mth.clamp(flightTicks * flightTicks / 100f, 0f, 1f);
             float pitchRotation = flightProgress * (-90f - pitch);
             return new WingPose(0.34f, 0.46f, 0f, 0f, pitchRotation, 0f,
                 0.76f, 0.92f, 0.10f, 0.58f, 0.05f, 0.06f, -5f, -2f, 0.13f);

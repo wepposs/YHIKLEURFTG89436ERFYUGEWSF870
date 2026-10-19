@@ -2,9 +2,9 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Hand;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.Event;
 
 /**
@@ -14,17 +14,17 @@ import vesence.event.Event;
  */
 @Environment(EnvType.CLIENT)
 public class ItemTransformEvent extends Event {
-   private final MatrixStack matrices;
+   private final PoseStack matrices;
    private final ItemStack stack;
-   private final Hand hand;
+   private final InteractionHand hand;
 
-   public ItemTransformEvent(MatrixStack matrices, ItemStack stack, Hand hand) {
+   public ItemTransformEvent(PoseStack matrices, ItemStack stack, InteractionHand hand) {
       this.matrices = matrices;
       this.stack = stack;
       this.hand = hand;
    }
 
-   public MatrixStack getMatrices() {
+   public PoseStack getMatrices() {
       return this.matrices;
    }
 
@@ -32,7 +32,7 @@ public class ItemTransformEvent extends Event {
       return this.stack;
    }
 
-   public Hand getHand() {
+   public InteractionHand getHand() {
       return this.hand;
    }
 }

@@ -3,9 +3,9 @@ package vesence.utils.config;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.Colors;
 import vesence.Vesence;
 import vesence.module.impl.visuals.Hud;
@@ -138,15 +138,15 @@ public final class ConfigCommand implements Command {
       if (configs.isEmpty()) {
          context.sendInfo("No available configs");
       } else {
-         MutableText builder = Text.literal("Available configs: ");
+         MutableText builder = Component.literal("Available configs: ");
 
          for (int i = 0; i < configs.size(); i++) {
             String name = configs.get(i).getName();
-            MutableText nameText = Text.literal(name);
+            MutableText nameText = Component.literal(name);
             nameText = nameText.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(Renderer2D.ColorUtil.getClientColor())));
             builder = builder.append(nameText);
             if (i < configs.size() - 1) {
-               builder = builder.append(Text.literal(" | "));
+               builder = builder.append(Component.literal(" | "));
             }
          }
 

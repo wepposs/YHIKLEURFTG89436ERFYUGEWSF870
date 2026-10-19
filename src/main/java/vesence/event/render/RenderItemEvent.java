@@ -2,37 +2,37 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Hand;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public class RenderItemEvent extends Event {
-   private static final MinecraftClient mc = MinecraftClient.getInstance();
-   private final MatrixStack matrix;
-   private final Hand hand;
+   private static final Minecraft mc = Minecraft.getInstance();
+   private final PoseStack matrix;
+   private final InteractionHand hand;
 
-   public RenderItemEvent(MatrixStack matrix, Hand hand) {
+   public RenderItemEvent(PoseStack matrix, InteractionHand hand) {
       this.matrix = matrix;
       this.hand = hand;
    }
 
-   public MatrixStack getMatrix() {
+   public PoseStack getMatrix() {
       return this.matrix;
    }
 
-   public Hand getHand() {
+   public InteractionHand getHand() {
       return this.hand;
    }
 
    public boolean isRightHand() {
       if (mc != null && mc.player != null) {
          net.minecraft.util.Arm mainArm = mc.player.getMainArm();
-         boolean isMainHandRight = (mainArm == net.minecraft.util.Arm.RIGHT && this.hand == Hand.MAIN_HAND);
-         boolean isOffHandRight = (mainArm == net.minecraft.util.Arm.LEFT && this.hand == Hand.OFF_HAND);
+         boolean isMainHandRight = (mainArm == net.minecraft.util.Arm.RIGHT && this.hand == InteractionHand.MAIN_HAND);
+         boolean isOffHandRight = (mainArm == net.minecraft.util.Arm.LEFT && this.hand == InteractionHand.OFF_HAND);
          return isMainHandRight || isOffHandRight;
       }
-      return this.hand == Hand.MAIN_HAND;
+      return this.hand == InteractionHand.MAIN_HAND;
    }
 }

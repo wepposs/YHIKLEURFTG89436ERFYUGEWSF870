@@ -31,7 +31,7 @@ public class AutoAccept extends Module {
     // с опциональной проверкой «только друзья».
     @EventInit
     public void onPacket(EventPacket e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (e.isSend()) return; // только RECEIVE
 
         if (e.getPacket() instanceof GameMessageS2CPacket p) {
@@ -47,7 +47,7 @@ public class AutoAccept extends Module {
                     }
                     if (!isFriend) return;
                 }
-                mc.player.networkHandler.sendChatCommand("tpaccept");
+                mc.player.connection.sendChatCommand("tpaccept");
             }
         }
     }

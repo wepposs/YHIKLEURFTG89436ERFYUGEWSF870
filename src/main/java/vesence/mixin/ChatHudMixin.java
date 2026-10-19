@@ -2,10 +2,10 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.ChatComponent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -27,7 +27,7 @@ import vesence.module.impl.misc.BetterMinecraft;
  * amount so nothing moves.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(ChatHud.class)
+@Mixin(ChatComponent.class)
 public abstract class ChatHudMixin {
 
    @Shadow
@@ -68,8 +68,8 @@ public abstract class ChatHudMixin {
       vesence$userScrolled = true;
    }
 
-   @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"), require = 0, expect = 0)
-   private void vesence$pushSmoothScroll(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
+   @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;IIIZZ)V", at = @At("HEAD"), require = 0, expect = 0)
+   private void vesence$pushSmoothScroll(GuiGraphics context, Font font, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
       // Гарантия видимости чата: если chatOpacity занулена — временно рисуем видимо.
       vesence$clampChatOpacity();
 
@@ -117,8 +117,8 @@ public abstract class ChatHudMixin {
       double offset = frac * getLineHeight() * chatScale;
 
       // Рисуем набор строк для округлённой позиции со сдвигом на дробный остаток строки.
-      // ФИКС 1.21.11: БОЛЬШЕ НЕ вызываем context.enableScissor вокруг ChatHud.render.
-      // Под слоёной (deferred) отрисовкой DrawContext в 1.21.11 scissor вокруг рендера
+      // ФИКС 1.21.11: БОЛЬШЕ НЕ вызываем context.enableScissor вокруг ChatComponent.render.
+      // Под слоёной (deferred) отрисовкой GuiGraphics в 1.21.11 scissor вокруг рендера
       // чата «вырезал» сам ТЕКСТ сообщений — чат пропадал, оставался только скролл-
       // индикатор. Для плавности достаточно сдвига матрицы на дробную часть (< 1 строки);
       // клиппинг краёв не нужен (в худшем случае строка на краю чуть выходит за область
@@ -131,8 +131,8 @@ public abstract class ChatHudMixin {
       vesence$pushed = true;
    }
 
-   @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"), require = 0, expect = 0)
-   private void vesence$popSmoothScroll(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
+   @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;IIIZZ)V", at = @At("RETURN"), require = 0, expect = 0)
+   private void vesence$popSmoothScroll(GuiGraphics context, Font font, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
       // Восстанавливаем исходную непрозрачность чата (значение не сохраняется на диск).
       vesence$restoreChatOpacity();
 
@@ -158,7 +158,7 @@ public abstract class ChatHudMixin {
    private void vesence$clampChatOpacity() {
       vesence$opacityClamped = false;
       try {
-         MinecraftClient mc = MinecraftClient.getInstance();
+         Minecraft mc = Minecraft.getInstance();
          if (mc == null || mc.options == null) return;
          double op = mc.options.getChatOpacity().getValue();
          if (op < 0.1) {
@@ -175,7 +175,7 @@ public abstract class ChatHudMixin {
       if (!vesence$opacityClamped) return;
       vesence$opacityClamped = false;
       try {
-         MinecraftClient mc = MinecraftClient.getInstance();
+         Minecraft mc = Minecraft.getInstance();
          if (mc != null && mc.options != null) {
             mc.options.getChatOpacity().setValue(vesence$savedChatOpacity);
          }

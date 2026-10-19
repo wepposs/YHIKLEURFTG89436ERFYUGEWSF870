@@ -1,26 +1,26 @@
 package vesence.module.impl.visuals.pet;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.impl.combat.AttackAura;
 
 /**
  * Порт xd.harm.modules.models.dragon.DragonBrain — летающий питомец (парит над
- * игроком/у цели, обходит препятствия через findSafePosition). Vector3d -> Vec3d,
+ * игроком/у цели, обходит препятствия через findSafePosition). Vector3d -> Vec3,
  * HitAura.getTarget() -> AttackAura.target, PlayerUtils/RotateUtility -> PetUtil.
  */
 public class DragonBrain {
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
 
-   private Vec3d pos;
-   private Vec3d motion = Vec3d.ZERO;
+   private Vec3 pos;
+   private Vec3 motion = Vec3.ZERO;
    private float direction = (float) (Math.random() * 360.0);
    private float yaw;
    private float body;
@@ -43,9 +43,9 @@ public class DragonBrain {
    private long circleTimer = System.currentTimeMillis();
    private float flyHeight = 1.5F;
 
-   private PlayerEntity entity;
+   private Player entity;
 
-   public void setEntity(PlayerEntity entity) {
+   public void setEntity(Player entity) {
       this.entity = entity;
    }
 
@@ -56,10 +56,10 @@ public class DragonBrain {
          return;
       }
 
-      Vec3d playerPos = entity.getEntityPos();
+      Vec3 playerPos = entity.getEntityPos();
 
       if (pos == null || pos.distanceTo(playerPos) > 15) {
-         Vec3d startPos = new Vec3d(playerPos.x, playerPos.y + flyHeight, playerPos.z);
+         Vec3 startPos = new Vec3(playerPos.x, playerPos.y + flyHeight, playerPos.z);
          pos = findSafePosition(startPos, playerPos);
          x.animate((float) pos.x, 1);
          y.animate((float) pos.y, 1);
@@ -68,34 +68,34 @@ public class DragonBrain {
 
       LivingEntity target = AttackAura.target;
 
-      Vec3d newTargetPos;
-      if (target != null && entity instanceof ClientPlayerEntity) {
-         Vec3d targetPos = target.getEntityPos();
+      Vec3 newTargetPos;
+      if (target != null && entity instanceof LocalPlayer) {
+         Vec3 targetPos = target.getEntityPos();
          double targetX = targetPos.x + 1.5;
          double targetY = targetPos.y + flyHeight;
          double targetZ = targetPos.z + 1.5;
 
-         newTargetPos = new Vec3d(targetX, targetY, targetZ);
+         newTargetPos = new Vec3(targetX, targetY, targetZ);
       } else {
          double targetX = playerPos.x + 2.0;
-         double targetY = playerPos.y + flyHeight + Math.sin(mc.player.age * 0.1F) * 0.3;
+         double targetY = playerPos.y + flyHeight + Math.sin(mc.player.tickCount * 0.1F) * 0.3;
          double targetZ = playerPos.z;
 
-         newTargetPos = new Vec3d(targetX, targetY, targetZ);
+         newTargetPos = new Vec3(targetX, targetY, targetZ);
       }
 
-      Vec3d safeTargetPos = findSafePosition(newTargetPos, playerPos);
+      Vec3 safeTargetPos = findSafePosition(newTargetPos, playerPos);
 
-      Vec3d diff = safeTargetPos.subtract(pos);
+      Vec3 diff = safeTargetPos.subtract(pos);
       double speed = target != null ? 0.2 : 0.15;
       motion = diff.multiply(speed);
 
-      Vec3d newPos = pos.add(motion);
+      Vec3 newPos = pos.add(motion);
       if (!PetUtil.isBlockSolid(newPos.x, newPos.y, newPos.z)
             && !PetUtil.isBlockSolid(newPos.x, newPos.y + 0.5, newPos.z)) {
          pos = newPos;
       } else {
-         Vec3d horizontalPos = pos.add(motion.x * 0.35, 0.0, motion.z * 0.35);
+         Vec3 horizontalPos = pos.add(motion.x * 0.35, 0.0, motion.z * 0.35);
          if (!PetUtil.isBlockSolid(horizontalPos.x, horizontalPos.y, horizontalPos.z)
                && !PetUtil.isBlockSolid(horizontalPos.x, horizontalPos.y + 0.5, horizontalPos.z)) {
             pos = horizontalPos;
@@ -129,8 +129,8 @@ public class DragonBrain {
    private void handleRotation() {
       LivingEntity target = AttackAura.target;
 
-      if (target != null && entity instanceof ClientPlayerEntity) {
-         Vec2f targetRotation = PetUtil.rotations(pos, target.getEntityPos());
+      if (target != null && entity instanceof LocalPlayer) {
+         Vector2f targetRotation = PetUtil.rotations(pos, target.getEntityPos());
          yaw = targetRotation.x;
       } else {
          if (motion.x != 0 || motion.z != 0) {
@@ -162,8 +162,8 @@ public class DragonBrain {
       return pitchAnim.get();
    }
 
-   public Vec3d getPos() {
-      return new Vec3d(x.get(), y.get(), z.get());
+   public Vec3 getPos() {
+      return new Vec3(x.get(), y.get(), z.get());
    }
 
    public float getWingFlap() {
@@ -182,10 +182,10 @@ public class DragonBrain {
       if (entity == null) {
          return false;
       }
-      return entity.getVelocity().lengthSquared() > 0.01;
+      return entity.getDeltaMovement().lengthSqr() > 0.01;
    }
 
-   private Vec3d findSafePosition(Vec3d targetPos, Vec3d playerPos) {
+   private Vec3 findSafePosition(Vec3 targetPos, Vec3 playerPos) {
       if (!PetUtil.isBlockSolid(targetPos.x, targetPos.y, targetPos.z)
             && !PetUtil.isBlockSolid(targetPos.x, targetPos.y + 0.5, targetPos.z)) {
          return targetPos;
@@ -195,7 +195,7 @@ public class DragonBrain {
       for (double radius : radii) {
          for (int i = 0; i < 8; i++) {
             double angle = Math.toRadians(i * 45.0);
-            Vec3d testPos = new Vec3d(
+            Vec3 testPos = new Vec3(
                   targetPos.x + Math.cos(angle) * radius,
                   targetPos.y,
                   targetPos.z + Math.sin(angle) * radius);
@@ -206,6 +206,6 @@ public class DragonBrain {
          }
       }
 
-      return new Vec3d(playerPos.x, playerPos.y + flyHeight, playerPos.z);
+      return new Vec3(playerPos.x, playerPos.y + flyHeight, playerPos.z);
    }
 }

@@ -2,13 +2,13 @@ package vesence.module.impl.visuals.elements.modern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix3x2fStack;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
@@ -49,7 +49,7 @@ public class ModernPotionsElement extends HudElement {
 
     private static final class RowState {
         String name, value;
-        StatusEffectInstance inst;
+        MobEffectInstance inst;
         boolean active;
         final Animation2 anim = new Animation2();
         final Animation2 slot = new Animation2();
@@ -68,12 +68,12 @@ public class ModernPotionsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean chatOpen = mc.currentScreen instanceof ChatScreen;
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean chatOpen = mc.screen instanceof ChatScreen;
 
         for (RowState st : rows.values()) st.active = false;
-        for (StatusEffectInstance inst : sortedEffects(mc)) {
+        for (MobEffectInstance inst : sortedEffects(mc)) {
             RowState st = rows.computeIfAbsent(effectName(inst), k -> new RowState());
             st.inst = inst;
             st.name = effectName(inst) + amplifier(inst);
@@ -182,15 +182,15 @@ public class ModernPotionsElement extends HudElement {
         boundsH = panelH;
     }
 
-    private void drawEffectSprite(DrawContext ctx, StatusEffectInstance inst, float px, float py, float size, float alpha) {
+    private void drawEffectSprite(GuiGraphics ctx, MobEffectInstance inst, float px, float py, float size, float alpha) {
         if (inst == null || alpha <= 0.01f) return;
         try {
-            Identifier effId = Registries.STATUS_EFFECT.getId(inst.getEffectType().value());
+            ResourceLocation effId = BuiltInRegistries.STATUS_EFFECT.getId(inst.getEffectType().value());
             if (effId == null) return;
-            Identifier spriteId = Identifier.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
+            ResourceLocation spriteId = ResourceLocation.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
 
             float elemScale = getScale();
-            float guiScale = (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+            float guiScale = (float) Minecraft.getInstance().getWindow().getScaleFactor();
             float sx = this.x + (px - this.x) * elemScale;
             float sy = this.y + (py - this.y) * elemScale;
             float drawSize = size * elemScale;
@@ -205,11 +205,11 @@ public class ModernPotionsElement extends HudElement {
         } catch (Exception ignored) {}
     }
 
-    private String effectName(StatusEffectInstance inst) {
+    private String effectName(MobEffectInstance inst) {
         return inst.getEffectType().value().getName().getString();
     }
 
-    private String formatDuration(StatusEffectInstance inst) {
+    private String formatDuration(MobEffectInstance inst) {
         if (inst.isInfinite()) return "\u221E";
         int totalSec = inst.getDuration() / 20;
         int min = totalSec / 60;
@@ -218,25 +218,25 @@ public class ModernPotionsElement extends HudElement {
         return sec + "\u0441";
     }
 
-    private String amplifier(StatusEffectInstance inst) {
+    private String amplifier(MobEffectInstance inst) {
         int amp = inst.getAmplifier();
         return amp <= 0 ? "" : " " + (amp + 1);
     }
 
-    private List<StatusEffectInstance> sortedEffects(MinecraftClient mc) {
+    private List<MobEffectInstance> sortedEffects(Minecraft mc) {
         if (mc.player == null) return List.of();
-        Collection<StatusEffectInstance> raw = mc.player.getStatusEffects();
-        List<StatusEffectInstance> beneficial = new ArrayList<>();
-        List<StatusEffectInstance> neutral = new ArrayList<>();
-        List<StatusEffectInstance> harmful = new ArrayList<>();
-        for (StatusEffectInstance e : raw) {
+        Collection<MobEffectInstance> raw = mc.player.getStatusEffects();
+        List<MobEffectInstance> beneficial = new ArrayList<>();
+        List<MobEffectInstance> neutral = new ArrayList<>();
+        List<MobEffectInstance> harmful = new ArrayList<>();
+        for (MobEffectInstance e : raw) {
             switch (e.getEffectType().value().getCategory()) {
                 case BENEFICIAL -> beneficial.add(e);
                 case HARMFUL    -> harmful.add(e);
                 default         -> neutral.add(e);
             }
         }
-        List<StatusEffectInstance> result = new ArrayList<>();
+        List<MobEffectInstance> result = new ArrayList<>();
         result.addAll(beneficial);
         result.addAll(neutral);
         result.addAll(harmful);

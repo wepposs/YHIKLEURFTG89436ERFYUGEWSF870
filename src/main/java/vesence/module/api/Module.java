@@ -4,7 +4,7 @@ import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.Vesence;
 import vesence.event.EventManager;
 import vesence.module.api.setting.Config;
@@ -35,7 +35,7 @@ import vesence.utils.render.utils.ClientSound;
 @Environment(EnvType.CLIENT)
 public class Module extends Config {
    public IModule module = this.getClass().getAnnotation(IModule.class);
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+   public static Minecraft mc = Minecraft.getInstance();
    public String name;
    public int bind;
    public boolean enable;

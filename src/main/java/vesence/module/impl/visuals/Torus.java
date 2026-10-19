@@ -2,14 +2,14 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.network.packet.s2c.play.DamageTiltS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityDamageS2CPacket;
-import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -39,7 +39,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Environment(EnvType.CLIENT)
 public class Torus extends Module {
 
-    private static final MinecraftClient MC = MinecraftClient.getInstance();
+    private static final Minecraft MC = Minecraft.getInstance();
 
     private final BooleanSetting depth = new BooleanSetting("Глубина", false);
     private final SliderSetting frequency = new SliderSetting("Частота шума", 50.0, 0.0, 100.0, 1.0, false);
@@ -71,9 +71,9 @@ public class Torus extends Module {
         }
 
         if (hitEntity != null && hitEntity != MC.player) {
-            Vec3d hitPos = (MC.crosshairTarget instanceof EntityHitResult ehr && ehr.getEntity() == hitEntity)
+            Vec3 hitPos = (MC.crosshairTarget instanceof EntityHitResult ehr && ehr.getEntity() == hitEntity)
                     ? ehr.getPos()
-                    : hitEntity.getEyePos();
+                    : hitEntity.getEyePosition();
 
             float[] rot = this.getRotations(hitPos);
             this.toruses.add(new ActiveTorus(hitPos, rot[0], rot[1],
@@ -88,8 +88,8 @@ public class Torus extends Module {
         this.toruses.removeIf(ActiveTorus::isFinished);
         if (this.toruses.isEmpty()) return;
 
-        MatrixStack matrices = event.getMatrixStack();
-        Vec3d camPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
+        Vec3 camPos = event.getCameraPos();
         Matrix4f projection = event.getProjectionMatrix();
         float freq = frequency.get().floatValue() / 100.0F;
 
@@ -100,15 +100,15 @@ public class Torus extends Module {
             for (ActiveTorus torus : this.toruses) {
                 torus.update();
 
-                matrices.push();
+                matrices.pushPose();
                 matrices.translate(torus.pos.x - camPos.x, torus.pos.y - camPos.y, torus.pos.z - camPos.z);
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-torus.yaw));
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(torus.pitch));
 
-                Matrix4f modelView = new Matrix4f(matrices.peek().getPositionMatrix());
+                Matrix4f modelView = new Matrix4f(matrices.last().getPositionMatrix());
                 renderer.renderTorus(modelView, torus.outerRadAnim.get(), torus.innerRadAnim.get());
 
-                matrices.pop();
+                matrices.popPose();
             }
         } finally {
             renderer.end();
@@ -116,8 +116,8 @@ public class Torus extends Module {
     }
 
     /** Углы поворота (yaw, pitch) от игрока к точке — как PlayerUtility.getRotations. */
-    private float[] getRotations(Vec3d target) {
-        Vec3d eyes = MC.player.getEyePos();
+    private float[] getRotations(Vec3 target) {
+        Vec3 eyes = MC.player.getEyePosition();
         double dx = target.x - eyes.x;
         double dy = target.y - eyes.y;
         double dz = target.z - eyes.z;
@@ -132,7 +132,7 @@ public class Torus extends Module {
      * расширяется easeOut-кубик, тело тора (inner) сжимается easeIn-кубик.
      */
     private static final class ActiveTorus {
-        private final Vec3d pos;
+        private final Vec3 pos;
         private final float yaw;
         private final float pitch;
         private final long spawnTime;
@@ -141,7 +141,7 @@ public class Torus extends Module {
         private final Animation2 outerRadAnim = new Animation2();
         private final Animation2 innerRadAnim = new Animation2();
 
-        ActiveTorus(Vec3d pos, float yaw, float pitch, double lifetime, float size) {
+        ActiveTorus(Vec3 pos, float yaw, float pitch, double lifetime, float size) {
             this.pos = pos;
             this.yaw = yaw;
             this.pitch = pitch;

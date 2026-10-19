@@ -2,7 +2,7 @@ package vesence.event.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.Box;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.client.util.math.Vector2f;
 import vesence.event.Event;
 
@@ -14,10 +14,10 @@ public class EventMotion extends Event {
    private double posY;
    private double posZ;
    private boolean onGround;
-   private Box aabbFrom;
+   private AABB aabbFrom;
    Runnable postMotion;
 
-   public EventMotion(float yaw, float pitch, double posX, double posY, double posZ, boolean onGround, Box aabbFrom, Runnable postMotion) {
+   public EventMotion(float yaw, float pitch, double posX, double posY, double posZ, boolean onGround, AABB aabbFrom, Runnable postMotion) {
       this.yaw = yaw;
       this.pitch = pitch;
       this.posX = posX;
@@ -29,15 +29,15 @@ public class EventMotion extends Event {
    }
 
    public void setRotate(Vector2f vector2f) {
-      this.setYaw(vector2f.x());
-      this.setPitch(vector2f.y());
+      this.setYRot(vector2f.x());
+      this.setXRot(vector2f.y());
    }
 
-   public Box getAabbFrom() {
+   public AABB getAabbFrom() {
       return this.aabbFrom;
    }
 
-   public void setAabbFrom(Box aabbFrom) {
+   public void setAabbFrom(AABB aabbFrom) {
       this.aabbFrom = aabbFrom;
    }
 

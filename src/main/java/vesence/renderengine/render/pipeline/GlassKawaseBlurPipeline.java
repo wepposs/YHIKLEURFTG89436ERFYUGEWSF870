@@ -15,29 +15,29 @@ import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import java.nio.ByteBuffer;
 import java.util.OptionalInt;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 public class GlassKawaseBlurPipeline {
-    private static final Identifier DOWN_PIPELINE_ID = Identifier.of("vesence", "pipeline/glass_kawase_down");
-    private static final Identifier DOWN_VERTEX_SHADER = Identifier.of("vesence", "core/glass_kawase_down");
-    private static final Identifier DOWN_FRAGMENT_SHADER = Identifier.of("vesence", "core/glass_kawase_down");
-    private static final Identifier UP_PIPELINE_ID = Identifier.of("vesence", "pipeline/glass_kawase_up");
-    private static final Identifier UP_VERTEX_SHADER = Identifier.of("vesence", "core/glass_kawase_up");
-    private static final Identifier UP_FRAGMENT_SHADER = Identifier.of("vesence", "core/glass_kawase_up");
+    private static final ResourceLocation DOWN_PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/glass_kawase_down");
+    private static final ResourceLocation DOWN_VERTEX_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_down");
+    private static final ResourceLocation DOWN_FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_down");
+    private static final ResourceLocation UP_PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/glass_kawase_up");
+    private static final ResourceLocation UP_VERTEX_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_up");
+    private static final ResourceLocation UP_FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_up");
     private static final RenderPipeline DOWN_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
             .withLocation(DOWN_PIPELINE_ID)
             .withVertexShader(DOWN_VERTEX_SHADER)
             .withFragmentShader(DOWN_FRAGMENT_SHADER)
-            .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
             .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withBlend(BlendFunction.TRANSLUCENT)
@@ -51,7 +51,7 @@ public class GlassKawaseBlurPipeline {
             .withLocation(UP_PIPELINE_ID)
             .withVertexShader(UP_VERTEX_SHADER)
             .withFragmentShader(UP_FRAGMENT_SHADER)
-            .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
             .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withBlend(BlendFunction.TRANSLUCENT)

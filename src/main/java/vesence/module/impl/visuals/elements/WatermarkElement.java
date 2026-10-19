@@ -2,8 +2,8 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.Vesence;
 import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.Hud;
@@ -84,9 +84,9 @@ public class WatermarkElement extends HudElement {
 
     @Override
     public void render(Renderer2D renderer, FontObject font,
-                       int screenWidth, int screenHeight, DrawContext ctx) {
+                       int screenWidth, int screenHeight, GuiGraphics ctx) {
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
 
         int themeColor = Renderer2D.ColorUtil.getClientColor1();
         int textColor  = ColorUtil.replAlpha(-1, 255);
@@ -200,7 +200,7 @@ public class WatermarkElement extends HudElement {
 
     /* ================================================================ BPS */
 
-    private double updateAndGetBps(MinecraftClient mc) {
+    private double updateAndGetBps(Minecraft mc) {
         if (mc.player == null) {
             windowStartX = Double.NaN; windowStartZ = Double.NaN;
             displayedBps = 0.0; return 0.0;
@@ -337,16 +337,16 @@ public class WatermarkElement extends HudElement {
 
     /* ================================================================ PLAYER */
 
-    private static String playerPosition(MinecraftClient mc) {
+    private static String playerPosition(Minecraft mc) {
         if (mc.player == null) return "0x 0y 0z";
         return (int) Math.floor(mc.player.getX()) + "x "
                 + (int) Math.floor(mc.player.getY()) + "y "
                 + (int) Math.floor(mc.player.getZ()) + "z";
     }
 
-    private static String playerPing(MinecraftClient mc) {
-        if (mc.player == null || mc.getNetworkHandler() == null) return "0";
-        var entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
+    private static String playerPing(Minecraft mc) {
+        if (mc.player == null || mc.getConnection() == null) return "0";
+        var entry = mc.getConnection().getPlayerListEntry(mc.player.getUuid());
         return entry == null ? "0" : Integer.toString(entry.getLatency());
     }
 

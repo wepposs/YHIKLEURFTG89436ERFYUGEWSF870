@@ -2,9 +2,9 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventChangeWorld;
@@ -100,10 +100,10 @@ public class AutoSprint extends Module {
         if (!e.isSend()) {
             return;
         }
-        if (e.getPacket() instanceof ClientCommandC2SPacket dcp) {
-            if (dcp.getMode() == ClientCommandC2SPacket.Mode.START_SPRINTING) {
+        if (e.getPacket() instanceof ServerboundPlayerCommandPacket dcp) {
+            if (dcp.getMode() == ServerboundPlayerCommandPacket.Mode.START_SPRINTING) {
                 serverSprintState = true;
-            } else if (dcp.getMode() == ClientCommandC2SPacket.Mode.STOP_SPRINTING) {
+            } else if (dcp.getMode() == ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING) {
                 serverSprintState = false;
             }
         }
@@ -124,19 +124,19 @@ public class AutoSprint extends Module {
                 && !mc.player.horizontalCollision
                 && mc.player.input.playerInput.forward()
                 && !mc.player.isInSneakingPose()
-                && !mc.player.hasStatusEffect(StatusEffects.SLOWNESS)
-                && !mc.player.hasStatusEffect(StatusEffects.BLINDNESS)
+                && !mc.player.hasStatusEffect(MobEffects.SLOWNESS)
+                && !mc.player.hasStatusEffect(MobEffects.BLINDNESS)
                 && !mc.player.isInSwimmingPose()
                 && !mc.player.isUsingItem();
     }
 
     public boolean canSprint() {
-        return mc.world.getBlockState(mc.player.getBlockPos()).isOf(Blocks.COBWEB)
+        return mc.level.getBlockState(mc.player.getBlockPos()).isOf(Blocks.COBWEB)
                 || mc.player.getAbilities().flying
                 || mc.player.isTouchingWater()
                 || mc.player.isInLava()
                 || mc.player.hasVehicle()
-                || (mc.player.fallDistance <= 0.0F && mc.player.isOnGround());
+                || (mc.player.fallDistance <= 0.0F && mc.player.onGround());
     }
 
     @Override
@@ -160,7 +160,7 @@ public class AutoSprint extends Module {
         if (as == null || !as.enable || !as.mode.is("\u041f\u0430\u043a\u0435\u0442\u043d\u044b\u0439")) { // "Пакетный"
             return;
         }
-        if (mc.player == null || mc.player.networkHandler == null) {
+        if (mc.player == null || mc.player.connection == null) {
             return;
         }
         boolean sprint = serverSprintState && !mc.player.isInLava();
@@ -169,8 +169,8 @@ public class AutoSprint extends Module {
             if (serverSprintState) {
                 serverSprintState = false;
                 mc.player.setSprinting(false);
-                mc.player.networkHandler.sendPacket(
-                        new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+                mc.player.connection.sendPacket(
+                        new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING));
             }
         }
     }

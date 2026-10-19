@@ -5,11 +5,11 @@ import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.Minecraft;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.mixin.AbstractTextureAccessor;
 
 import javax.imageio.ImageIO;
@@ -48,7 +48,7 @@ public final class VideoBackground {
 
     private final String dir;
     private final String key;
-    private final Identifier texId;
+    private final ResourceLocation texId;
 
     private volatile boolean started = false;
     private volatile boolean ready = false;
@@ -76,7 +76,7 @@ public final class VideoBackground {
     private VideoBackground(String dir) {
         this.dir = dir.endsWith("/") ? dir.substring(0, dir.length() - 1) : dir;
         this.key = this.dir.replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase(Locale.ROOT);
-        this.texId = Identifier.of("vesence", "menu_video/" + key + ".png");
+        this.texId = ResourceLocation.of("vesence", "menu_video/" + key + ".png");
     }
 
     public static VideoBackground of(String framesDir) {
@@ -93,7 +93,7 @@ public final class VideoBackground {
     public int getHeight() { return h; }
 
     /** render-поток: id текущего кадра по системным часам или null (пока не готово). */
-    public Identifier currentFrameId() {
+    public ResourceLocation currentFrameId() {
         if (failed) return null;
         if (!started) start();
         if (!ready) return null;
@@ -124,7 +124,7 @@ public final class VideoBackground {
 
     private void uploadFrame(int absIdx, NativeImage img) {
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.getTextureManager() == null) { img.close(); return; }
             if (linearSampler == null) {
                 linearSampler = RenderSystem.getSamplerCache().get(

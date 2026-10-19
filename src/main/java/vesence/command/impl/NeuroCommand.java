@@ -1,6 +1,6 @@
 package vesence.command.impl;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.module.impl.combat.neuro.NeuroProfileStorage;
 import vesence.utils.commands.Command;
 import vesence.utils.commands.CommandContext;
@@ -9,7 +9,7 @@ import vesence.utils.commands.CommandException;
 import java.util.List;
 
 public class NeuroCommand implements Command {
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
     private static NeuroCommand instance;
 
     private NeuroCommand() {

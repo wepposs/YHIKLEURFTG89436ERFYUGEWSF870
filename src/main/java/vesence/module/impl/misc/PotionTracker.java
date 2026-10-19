@@ -2,21 +2,21 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.PotionContentsComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.entity.projectile.thrown.PotionEntity;
-import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.core.Holder;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
-import net.minecraft.util.math.Box;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.world.phys.AABB;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -46,7 +46,7 @@ public class PotionTracker extends Module {
    private static final int PLAYER = new Color(235, 235, 235).getRGB();
 
    private final Map<Integer, PotionData> trackedPotions = new HashMap<>();
-   private ClientWorld lastWorld;
+   private ClientLevel lastWorld;
 
    public PotionTracker() {
    }
@@ -60,22 +60,22 @@ public class PotionTracker extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          this.trackedPotions.clear();
          this.lastWorld = null;
          return;
       }
 
-      if (this.lastWorld != mc.world) {
+      if (this.lastWorld != mc.level) {
          this.trackedPotions.clear();
-         this.lastWorld = mc.world;
+         this.lastWorld = mc.level;
       }
 
       Set<Integer> currentPotions = new HashSet<>();
 
       double trackRadiusSq = TRACK_RADIUS * TRACK_RADIUS;
-      Box searchBox = mc.player.getBoundingBox().expand(TRACK_RADIUS);
-      for (PotionEntity potionEntity : mc.world.getEntitiesByClass(PotionEntity.class, searchBox, Entity::isAlive)) {
+      AABB searchBox = mc.player.getBoundingBox().expand(TRACK_RADIUS);
+      for (PotionEntity potionEntity : mc.level.getEntitiesByClass(PotionEntity.class, searchBox, Entity::isAlive)) {
          if (mc.player.squaredDistanceTo(potionEntity) > trackRadiusSq) {
             continue;
          }
@@ -117,7 +117,7 @@ public class PotionTracker extends Module {
    }
 
    private void printSplash(PotionData data) {
-      Box potionBox = new Box(
+      AABB potionBox = new AABB(
          data.lastX - SPLASH_RADIUS,
          data.lastY - SPLASH_HEIGHT,
          data.lastZ - SPLASH_RADIUS,
@@ -128,7 +128,7 @@ public class PotionTracker extends Module {
 
       List<PlayerHit> hits = new ArrayList<>();
 
-      for (PlayerEntity player : mc.world.getPlayers()) {
+      for (Player player : mc.level.getPlayers()) {
          if (player == null || !player.isAlive()) {
             continue;
          }
@@ -158,14 +158,14 @@ public class PotionTracker extends Module {
    }
 
    private PotionInfo getPotionInfo(PotionEntity potionEntity) {
-      PotionContentsComponent contents = potionEntity.getStack().get(DataComponentTypes.POTION_CONTENTS);
+      PotionContentsComponent contents = potionEntity.getItem().get(DataComponentTypes.POTION_CONTENTS);
 
       PotionInfo byEffects = this.getPotionInfo(contents);
       if (byEffects != null) {
          return byEffects;
       }
 
-      return this.getPotionInfo(potionEntity.getStack().getName().getString());
+      return this.getPotionInfo(potionEntity.getItem().getName().getString());
    }
 
    private PotionInfo getPotionInfo(PotionContentsComponent contents) {
@@ -173,11 +173,11 @@ public class PotionTracker extends Module {
          return null;
       }
 
-      boolean regenerationTwo = this.hasEffect(contents, StatusEffects.REGENERATION, 1);
-      boolean strengthFive = this.hasEffect(contents, StatusEffects.STRENGTH, 4);
-      boolean healthBoostThree = this.hasEffect(contents, StatusEffects.HEALTH_BOOST, 2);
-      boolean strengthFour = this.hasEffect(contents, StatusEffects.STRENGTH, 3);
-      boolean speedThree = this.hasEffect(contents, StatusEffects.SPEED, 2);
+      boolean regenerationTwo = this.hasEffect(contents, MobEffects.REGENERATION, 1);
+      boolean strengthFive = this.hasEffect(contents, MobEffects.STRENGTH, 4);
+      boolean healthBoostThree = this.hasEffect(contents, MobEffects.HEALTH_BOOST, 2);
+      boolean strengthFour = this.hasEffect(contents, MobEffects.STRENGTH, 3);
+      boolean speedThree = this.hasEffect(contents, MobEffects.SPEED, 2);
 
       if (regenerationTwo) {
          return PotionInfo.HOLY_WATER;
@@ -198,8 +198,8 @@ public class PotionTracker extends Module {
       return null;
    }
 
-   private boolean hasEffect(PotionContentsComponent contents, RegistryEntry<StatusEffect> effect, int amplifier) {
-      for (StatusEffectInstance instance : contents.getEffects()) {
+   private boolean hasEffect(PotionContentsComponent contents, Holder<MobEffect> effect, int amplifier) {
+      for (MobEffectInstance instance : contents.getEffects()) {
          if (instance.getEffectType().equals(effect) && instance.getAmplifier() == amplifier) {
             return true;
          }
@@ -237,24 +237,24 @@ public class PotionTracker extends Module {
       int themeStart = ColorUtil.fade(0);
       int themeEnd = ColorUtil.fade(90);
 
-      MutableText text = Text.literal("");
+      MutableText text = Component.literal("");
       text.append(this.gradientText("vesence", themeStart, themeEnd, true));
-      text.append(Text.literal(" ⇒ ").setStyle(this.grayStyle()));
-      text.append(Text.literal(playerName).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(PLAYER))));
-      text.append(Text.literal(" получил ").setStyle(this.grayStyle()));
+      text.append(Component.literal(" ⇒ ").setStyle(this.grayStyle()));
+      text.append(Component.literal(playerName).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(PLAYER))));
+      text.append(Component.literal(" получил ").setStyle(this.grayStyle()));
       text.append(this.gradientText(potionInfo.displayName, potionInfo.startColor, potionInfo.endColor, true));
-      text.append(Text.literal(" " + percent + "%").setStyle(this.grayStyle()));
+      text.append(Component.literal(" " + percent + "%").setStyle(this.grayStyle()));
 
       mc.player.sendMessage(text, false);
    }
 
    private MutableText gradientText(String text, int startColor, int endColor, boolean bold) {
-      MutableText result = Text.literal("");
+      MutableText result = Component.literal("");
 
       for (int i = 0; i < text.length(); i++) {
          float progress = text.length() <= 1 ? 0.0F : (float) i / (text.length() - 1);
          int color = ColorUtil.interpolate(startColor, endColor, progress);
-         result.append(Text.literal(String.valueOf(text.charAt(i)))
+         result.append(Component.literal(String.valueOf(text.charAt(i)))
             .setStyle(Style.EMPTY
                .withBold(bold)
                .withColor(TextColor.fromRgb(color & 0xFFFFFF))));

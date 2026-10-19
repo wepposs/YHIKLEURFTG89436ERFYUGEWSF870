@@ -2,8 +2,8 @@ package vesence.module.impl.visuals.elements.modern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
@@ -58,13 +58,13 @@ public class ModernWatermarkElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
         int theme = Renderer2D.ColorUtil.getClientColor();
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
 
-        String ping = (mc.getNetworkHandler() != null && mc.player != null
-                && mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid()) != null)
-                ? String.valueOf(mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid()).getLatency())
+        String ping = (mc.getConnection() != null && mc.player != null
+                && mc.getConnection().getPlayerListEntry(mc.player.getUuid()) != null)
+                ? String.valueOf(mc.getConnection().getPlayerListEntry(mc.player.getUuid()).getLatency())
                 : "0 ms";
         String user = System.getProperty("user.name");
         String fps = "FPS: " + ColorFormat.color(theme) + mc.getCurrentFps();

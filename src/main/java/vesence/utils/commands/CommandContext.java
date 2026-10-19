@@ -2,11 +2,11 @@ package vesence.utils.commands;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import vesence.renderengine.render.Renderer2D;
 
 @Environment(EnvType.CLIENT)
@@ -33,50 +33,50 @@ public final class CommandContext {
    public String rawInput() { return this.rawInput; }
    public String arguments(){ return this.arguments; }
 
-   public MinecraftClient client() {
-      return MinecraftClient.getInstance();
+   public Minecraft client() {
+      return Minecraft.getInstance();
    }
 
    public void sendSuccess(String message) {
-      send(Text.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(SUCCESS_COLOR))));
+      send(Component.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(SUCCESS_COLOR))));
    }
 
    public void sendError(String message) {
-      send(Text.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(ERROR_COLOR))));
+      send(Component.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(ERROR_COLOR))));
    }
 
    public void sendInfo(String message) {
-      send(Text.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(INFO_COLOR))));
+      send(Component.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(INFO_COLOR))));
    }
 
-   public void sendInfo(Text message) {
+   public void sendInfo(Component message) {
       send(message);
    }
 
    // ── internal ──────────────────────────────────────────────────────────────
 
-   private void send(Text payload) {
+   private void send(Component payload) {
       int themeColor = Renderer2D.ColorUtil.getClientColor();
 
-      MutableText prefix = Text.literal(MESSAGE_PREFIX)
+      MutableText prefix = Component.literal(MESSAGE_PREFIX)
               .setStyle(Style.EMPTY
                       .withColor(TextColor.fromRgb(themeColor))
                       .withBold(true));
 
       MutableText full = prefix
-              .append(Text.literal(" ").setStyle(Style.EMPTY.withBold(false)))
+              .append(Component.literal(" ").setStyle(Style.EMPTY.withBold(false)))
               .append(payload.copy());
 
       dispatch(full);
    }
 
    private void dispatch(MutableText text) {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client == null) return;
       if (client.player != null) {
          client.player.sendMessage(text, false);
-      } else if (client.inGameHud != null) {
-         client.inGameHud.getChatHud().addMessage(text);
+      } else if (client.gui != null) {
+         client.gui.getChatHud().addMessage(text);
       }
    }
 }

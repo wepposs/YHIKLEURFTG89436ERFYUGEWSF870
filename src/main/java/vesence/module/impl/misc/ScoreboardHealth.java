@@ -2,17 +2,17 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.decoration.ArmorStandEntity;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.client.Minecraft;
+import net.minecraft.server.ServerInfo;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.scoreboard.ReadableScoreboardScore;
-import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.util.math.Box;
+import net.minecraft.world.phys.AABB;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -36,25 +36,25 @@ public class ScoreboardHealth extends Module {
     }
 
     public static float getHealth(LivingEntity target, float originalHealth) {
-        if (!isEnabled() || !(target instanceof PlayerEntity)) {
+        if (!isEnabled() || !(target instanceof Player)) {
             return originalHealth;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) return originalHealth;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return originalHealth;
 
         ServerInfo serverInfo = mc.getCurrentServerEntry();
         if (serverInfo != null) {
             String ip = serverInfo.address.toLowerCase();
             if (ip.contains("funtime.su") || ip.contains("funtime.me") || ip.contains("spookytime.net")) {
-                if (target.hasStatusEffect(StatusEffects.INVISIBILITY)) {
+                if (target.hasStatusEffect(MobEffects.INVISIBILITY)) {
                     return -1f;
                 }
 
-                Box box = target.getBoundingBox().expand(0.5, 2.0, 0.5);
-                List<ArmorStandEntity> armorStands = mc.world.getEntitiesByClass(ArmorStandEntity.class, box, armorStand -> armorStand.getY() > target.getY() + 1.0);
+                AABB box = target.getBoundingBox().expand(0.5, 2.0, 0.5);
+                List<ArmorStand> armorStands = mc.level.getEntitiesByClass(ArmorStand.class, box, armorStand -> armorStand.getY() > target.getY() + 1.0);
 
-                for (ArmorStandEntity armorStand : armorStands) {
+                for (ArmorStand armorStand : armorStands) {
                     if (armorStand.hasCustomName()) {
                         String name = armorStand.getCustomName().getString();
                         Pattern pattern = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*❤");
@@ -78,7 +78,7 @@ public class ScoreboardHealth extends Module {
         }
 
         try {
-            Scoreboard scoreboard = mc.world.getScoreboard();
+            Scoreboard scoreboard = mc.level.getScoreboard();
 
             ScoreboardDisplaySlot[] slots = {
                 ScoreboardDisplaySlot.BELOW_NAME,

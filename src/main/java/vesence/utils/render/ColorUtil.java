@@ -3,7 +3,7 @@ package vesence.utils.render;
 import java.awt.Color;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL11;
 import vesence.hmi.script_wrappers.C;
 import vesence.utils.other.Mathf;
@@ -30,7 +30,7 @@ public final class ColorUtil {
       return ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor1(), alpha);
    }
    public static int reAlphaInt(int color, int alpha) {
-      return MathHelper.clamp(alpha, 0, 255) << 24 | color & 16777215;
+      return Mth.clamp(alpha, 0, 255) << 24 | color & 16777215;
    }
 
    public static int interpolateInt(int oldValue, int newValue, double interpolationValue) {
@@ -246,7 +246,7 @@ public final class ColorUtil {
    }
 
    public static int overCol(int color1, int color2, float percent01) {
-      float percent = MathHelper.clamp(percent01, 0.0F, 1.0F);
+      float percent = Mth.clamp(percent01, 0.0F, 1.0F);
       return getColor(
          Interpolator.lerp(red(color1), red(color2), percent),
          Interpolator.lerp(green(color1), green(color2), percent),
@@ -271,7 +271,7 @@ public final class ColorUtil {
    }
 
    public static int interpolate(int color1, int color2, double amount) {
-      amount = (float)MathHelper.clamp(amount, 0.0, 1.0);
+      amount = (float)Mth.clamp(amount, 0.0, 1.0);
       return getColor(
          Interpolator.lerp(red(color1), red(color2), amount),
          Interpolator.lerp(green(color1), green(color2), amount),
@@ -304,7 +304,7 @@ public final class ColorUtil {
    public static int gradient(int start, int end, int index, int speed) {
       int angle = (int)((System.currentTimeMillis() / speed + index) % 360L);
       angle = (angle > 180 ? 360 - angle : angle) + 180;
-      int color = interpolate(start, end, MathHelper.clamp(angle / 180.0F - 1.0F, 0.0F, 1.0F));
+      int color = interpolate(start, end, Mth.clamp(angle / 180.0F - 1.0F, 0.0F, 1.0F));
       float[] hs = rgba(color);
       float[] hsb = Color.RGBtoHSB((int)(hs[0] * 255.0F), (int)(hs[1] * 255.0F), (int)(hs[2] * 255.0F), null);
       hsb[1] *= 1.5F;
@@ -313,10 +313,10 @@ public final class ColorUtil {
    }
 
    public static int getColor(int red, int green, int blue, int alpha) {
-      return MathHelper.clamp(alpha, 0, 255) << 24
-         | MathHelper.clamp(red, 0, 255) << 16
-         | MathHelper.clamp(green, 0, 255) << 8
-         | MathHelper.clamp(blue, 0, 255);
+      return Mth.clamp(alpha, 0, 255) << 24
+         | Mth.clamp(red, 0, 255) << 16
+         | Mth.clamp(green, 0, 255) << 8
+         | Mth.clamp(blue, 0, 255);
    }
 
    public static int getColor(int red, int green, int blue) {

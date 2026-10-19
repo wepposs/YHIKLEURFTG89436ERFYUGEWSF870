@@ -2,10 +2,10 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Hand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.event.player.EventMotion;
@@ -37,7 +37,7 @@ public class AutoFix extends Module {
     @EventInit
     public void onMotion(EventMotion e) {
         if (!mode.is("Зелье")) return;
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
         if (!bind.isPressed()) return;
         if (!isOnGroundSafe()) return;
 
@@ -47,20 +47,20 @@ public class AutoFix extends Module {
         int xpSlotInv = findXpBottleInventory();
         if (xpSlot == -1 && xpSlotInv == -1) return;
 
-        e.setPitch(90.0F);
+        e.setXRot(90.0F);
     }
 
     @EventInit
     public void onUpdate(EventUpdate e) {
         if (mode.is("Команда")) {
-            if (System.currentTimeMillis() - lastUseTime >= 1000 && needsFix(mc.player.getMainHandStack())) {
-                mc.player.networkHandler.sendChatMessage(name.get());
+            if (System.currentTimeMillis() - lastUseTime >= 1000 && needsFix(mc.player.getMainHandItem())) {
+                mc.player.connection.sendChatMessage(name.get());
                 lastUseTime = System.currentTimeMillis();
             }
         }
 
         if (mode.is("Зелье")) {
-            if (mc.currentScreen != null) return;
+            if (mc.screen != null) return;
             if (!bind.isPressed()) return;
 
             ItemStack fixItem = findFixItem();
@@ -69,12 +69,12 @@ public class AutoFix extends Module {
                     int xpSlot = findXpBottleHotbar();
                     if (xpSlot != -1) {
                         mc.player.getInventory().setSelectedSlot(xpSlot);
-                        mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
+                        mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
                         lastThrowTime = System.currentTimeMillis();
                     } else {
                         int xpSlotInv = findXpBottleInventory();
                         if (xpSlotInv != -1) {
-                            mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, xpSlotInv, 0, SlotActionType.PICKUP, mc.player);
+                            mc.gameMode.clickSlot(mc.player.containerMenu.syncId, xpSlotInv, 0, ClickType.PICKUP, mc.player);
                             lastThrowTime = System.currentTimeMillis();
                         }
                     }
@@ -84,19 +84,19 @@ public class AutoFix extends Module {
     }
 
     private boolean isOnGroundSafe() {
-        return mc.player.isOnGround() || mc.player.isClimbing() || mc.player.hasVehicle();
+        return mc.player.onGround() || mc.player.isClimbing() || mc.player.hasVehicle();
     }
 
     private int findXpBottleHotbar() {
         for (int i = 0; i < 9; ++i) {
-            if (mc.player.getInventory().getStack(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
+            if (mc.player.getInventory().getItem(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
         }
         return -1;
     }
 
     private int findXpBottleInventory() {
         for (int i = 9; i < 36; ++i) {
-            if (mc.player.getInventory().getStack(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
+            if (mc.player.getInventory().getItem(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
         }
         return -1;
     }
@@ -112,7 +112,7 @@ public class AutoFix extends Module {
             if (stack.isDamageable() && stack.getDamage() > 0 && hasMending(stack)) return stack;
         }
         for (int i = 0; i < 36; ++i) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
             if (stack.isDamageable() && stack.getDamage() > 0 && hasMending(stack)) return stack;
         }

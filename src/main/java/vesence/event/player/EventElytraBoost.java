@@ -1,20 +1,20 @@
 package vesence.event.player;
 
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.Event;
 
 public class EventElytraBoost extends Event {
-    private Vec3d boost;
+    private Vec3 boost;
 
-    public EventElytraBoost(Vec3d boost) {
+    public EventElytraBoost(Vec3 boost) {
         this.boost = boost;
     }
 
-    public Vec3d getBoost() {
+    public Vec3 getBoost() {
         return boost;
     }
 
-    public void setBoost(Vec3d boost) {
+    public void setBoost(Vec3 boost) {
         this.boost = boost;
     }
 }

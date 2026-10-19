@@ -2,7 +2,7 @@ package vesence.utils.render.utils;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.module.api.setting.impl.TitleSetting;
@@ -36,7 +36,7 @@ public final class ClientSound {
    }
 
    public static void playModuleToggle(boolean enabled) {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client == null || client.player == null) {
          return;
       }

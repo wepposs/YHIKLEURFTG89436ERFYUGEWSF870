@@ -10,7 +10,7 @@ import vesence.ui.clickgui.component.mouse.module.GuiMouseClickedModule;
 import vesence.ui.clickgui.component.render.ClickRippleEffect;
 import vesence.ui.clickgui.component.render.GuiRenderModePopup;
 import vesence.renderengine.render.Renderer2D;
-import vesence.utils.math.MathHelper;
+import vesence.utils.math.Mth;
 import vesence.utils.render.math.ScaledResolution;
 
 @Environment(EnvType.CLIENT)
@@ -19,8 +19,8 @@ public class GuiMouseClicked extends GuiScreen {
         int mouseX = (int)pMouseX;
         int mouseY = (int)pMouseY;
         ScaledResolution sr = new ScaledResolution(GuiScreen.mc);
-        GuiScreen.x = (int)MathHelper.clamp(GuiScreen.x, 0.0F, sr.getWidth() - GuiScreen.width);
-        GuiScreen.y = (int)MathHelper.clamp(GuiScreen.y, 0.0F, sr.getHeight() - GuiScreen.height);
+        GuiScreen.x = (int)Mth.clamp(GuiScreen.x, 0.0F, sr.getWidth() - GuiScreen.width);
+        GuiScreen.y = (int)Mth.clamp(GuiScreen.y, 0.0F, sr.getHeight() - GuiScreen.height);
 
         ClickGui clickGuiModule = (ClickGui) Vesence.get.manager.module.stream()
                 .filter(m -> m instanceof ClickGui).findFirst().orElse(null);

@@ -9,31 +9,31 @@ import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -56,18 +56,18 @@ import vesence.utils.render.text.FontRegistry;
 @Environment(EnvType.CLIENT)
 public class Projectile extends Module {
 
-   private static final Identifier BLOOM_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
+   private static final ResourceLocation BLOOM_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
 
    private static final RenderPipeline BLOOM_PIPELINE = RenderPipelines.register(
          RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-               .withLocation(Identifier.of("vesence", "projectile_bloom"))
-               .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+               .withLocation(ResourceLocation.of("vesence", "projectile_bloom"))
+               .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                .withCull(false)
                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                .withDepthWrite(false)
                .withBlend(BlendFunction.LIGHTNING)
                .build());
-   private static final RenderLayer BLOOM_LAYER = RenderLayer.of(
+   private static final RenderType BLOOM_LAYER = RenderType.of(
          "projectile_bloom",
          RenderSetup.builder(BLOOM_PIPELINE)
                .expectedBufferSize(8192)
@@ -85,10 +85,10 @@ public class Projectile extends Module {
    private final java.util.Map<Integer, Anim> animations = new java.util.HashMap<>();
    private final Matrix4f lastProjectionMatrix = new Matrix4f();
    private final Quaternionf lastCameraRotation = new Quaternionf();
-   private Vec3d lastCameraPos = Vec3d.ZERO;
+   private Vec3 lastCameraPos = Vec3.ZERO;
    private boolean hasMatrices;
 
-   private BufferAllocator allocator;
+   private ByteBufferBuilder allocator;
    private Immediate immediate;
 
    public Projectile() {
@@ -97,7 +97,7 @@ public class Projectile extends Module {
 
    @EventInit
    public void onRender3D(EventRender3D event) {
-      if (mc.world == null || mc.player == null) return;
+      if (mc.level == null || mc.player == null) return;
 
       impactPoints.clear();
       hasMatrices = true;
@@ -105,31 +105,31 @@ public class Projectile extends Module {
       lastCameraPos = event.getCameraPos();
       lastCameraRotation.set(event.getCameraRotation());
 
-      MatrixStack matrices = event.getMatrixStack();
+      PoseStack matrices = event.getMatrixStack();
       Camera camera = mc.gameRenderer.getCamera();
-      Vec3d cameraPos = camera.getCameraPos();
+      Vec3 cameraPos = camera.getCameraPos();
       Quaternionf cameraRotation = camera.getRotation();
       float tickDelta = event.getTickDelta();
 
       if (allocator == null) {
-         allocator = new BufferAllocator(262144);
-         immediate = VertexConsumerProvider.immediate(allocator);
+         allocator = new ByteBufferBuilder(262144);
+         immediate = MultiBufferSource.immediate(allocator);
       }
 
       try {
-         Box searchBox = mc.player.getBoundingBox().expand(128.0D);
+         AABB searchBox = mc.player.getBoundingBox().expand(128.0D);
 
-         for (Entity entity : mc.world.getEntitiesByClass(Entity.class, searchBox, this::shouldTrack)) {
+         for (Entity entity : mc.level.getEntitiesByClass(Entity.class, searchBox, this::shouldTrack)) {
             ProjectileType type = this.classify(entity);
             if (type == null) continue;
 
             if (this.hasLanded(entity)) continue;
 
-            List<Vec3d> points = simulate(entity, type, tickDelta);
+            List<Vec3> points = simulate(entity, type, tickDelta);
             if (points.size() < 2) continue;
 
             float seconds = (points.size() - 1) / 20.0F;
-            Vec3d endPos = points.get(points.size() - 1);
+            Vec3 endPos = points.get(points.size() - 1);
             impactPoints.add(new ImpactPoint(endPos, seconds, this.iconFor(entity, type), entity.getId()));
 
             float quadSize = size.get().floatValue() * 0.2F;
@@ -139,27 +139,27 @@ public class Projectile extends Module {
             int b = color & 0xFF;
             int a = (color >> 24) & 0xFF;
 
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
             VertexConsumer buffer = immediate.getBuffer(BLOOM_LAYER);
             for (int i = 0; i < points.size() - 1; i++) {
-               Vec3d start = points.get(i);
-               Vec3d end = points.get(i + 1);
+               Vec3 start = points.get(i);
+               Vec3 end = points.get(i + 1);
 
                int samples = Math.max(2, Math.min(12, (int) Math.ceil(start.distanceTo(end) / Math.max(quadSize * 1.75F, 0.08F))));
                for (int j = 0; j < samples; j++) {
-                  Vec3d interp = start.lerp(end, j / (double) samples);
+                  Vec3 interp = start.lerp(end, j / (double) samples);
 
-                  matrices.push();
+                  matrices.pushPose();
                   matrices.translate(interp.x, interp.y, interp.z);
                   matrices.multiply(cameraRotation);
-                  Matrix4f matrix = matrices.peek().getPositionMatrix();
+                  Matrix4f matrix = matrices.last().getPositionMatrix();
                   addBloomQuad(buffer, matrix, -quadSize, -quadSize, quadSize * 2.0F, quadSize * 2.0F, r, g, b, a);
-                  matrices.pop();
+                  matrices.popPose();
                }
             }
-            matrices.pop();
+            matrices.popPose();
          }
 
          immediate.draw();
@@ -197,11 +197,11 @@ public class Projectile extends Module {
          float progress = anim.value;
          if (progress <= 0.001F) continue;
 
-         Vec3d smoothWorld = anim.smooth(impact.pos, now);
-         Vec3d screen = worldToScreen(smoothWorld);
+         Vec3 smoothWorld = anim.smooth(impact.pos, now);
+         Vec3 screen = worldToScreen(smoothWorld);
          if (screen == null) continue;
 
-         float alpha = MathHelper.clamp(progress, 0.0F, 1.0F);
+         float alpha = Mth.clamp(progress, 0.0F, 1.0F);
 
          boolean hasIcon = impact.icon != null && !impact.icon.isEmpty();
 
@@ -229,7 +229,7 @@ public class Projectile extends Module {
    }
 
    private void DrawContextDraw(EventScreen event, ItemStack stack, float cx, float cy, float iconSize, float guiScale, float alpha) {
-      net.minecraft.client.gui.DrawContext ctx = event.drawContext();
+      net.minecraft.client.gui.GuiGraphics ctx = event.drawContext();
       if (ctx == null) return;
 
       float scaledCx = cx / guiScale;
@@ -269,11 +269,11 @@ public class Projectile extends Module {
    }
 
    private boolean hasLanded(Entity entity) {
-      if (entity.isOnGround()) {
+      if (entity.onGround()) {
          return true;
       }
 
-      return entity.getVelocity().lengthSquared() < 1.0E-4;
+      return entity.getDeltaMovement().lengthSqr() < 1.0E-4;
    }
 
    private ProjectileType classify(Entity entity) {
@@ -294,7 +294,7 @@ public class Projectile extends Module {
 
    private ItemStack iconFor(Entity entity, ProjectileType type) {
       if (entity instanceof ItemEntity itemEntity) {
-         return itemEntity.getStack();
+         return itemEntity.getItem();
       }
       if (type == ProjectileType.PEARL) {
          return new ItemStack(Items.ENDER_PEARL);
@@ -314,7 +314,7 @@ public class Projectile extends Module {
       buffer.vertex(matrix, x2, y, 0).texture(1, 0).color(r, g, b, a);
    }
 
-   private Vec3d worldToScreen(Vec3d worldPos) {
+   private Vec3 worldToScreen(Vec3 worldPos) {
       if (mc == null || mc.getWindow() == null) return null;
 
       Vector3f relative = new Vector3f(
@@ -348,7 +348,7 @@ public class Projectile extends Module {
       }
 
       float guiScale = (float) Mathf.getScaleFactor();
-      return new Vec3d(screenX * guiScale, screenY * guiScale, ndcZ);
+      return new Vec3(screenX * guiScale, screenY * guiScale, ndcZ);
    }
 
    private String formatOneDecimal(float value) {
@@ -356,16 +356,16 @@ public class Projectile extends Module {
       return (scaled / 10) + "." + Math.abs(scaled % 10);
    }
 
-   private List<Vec3d> simulate(Entity entity, ProjectileType type, float tickDelta) {
-      List<Vec3d> points = new ArrayList<>();
-      Vec3d pos = new Vec3d(
-            MathHelper.lerp(tickDelta, entity.lastX, entity.getX()),
-            MathHelper.lerp(tickDelta, entity.lastY, entity.getY()),
-            MathHelper.lerp(tickDelta, entity.lastZ, entity.getZ()));
-      Vec3d motion = entity.getVelocity();
+   private List<Vec3> simulate(Entity entity, ProjectileType type, float tickDelta) {
+      List<Vec3> points = new ArrayList<>();
+      Vec3 pos = new Vec3(
+            Mth.lerp(tickDelta, entity.lastX, entity.getX()),
+            Mth.lerp(tickDelta, entity.lastY, entity.getY()),
+            Mth.lerp(tickDelta, entity.lastZ, entity.getZ()));
+      Vec3 motion = entity.getDeltaMovement();
       points.add(pos);
 
-      if (motion.lengthSquared() < 1.0E-6) {
+      if (motion.lengthSqr() < 1.0E-6) {
          return points;
       }
 
@@ -374,14 +374,14 @@ public class Projectile extends Module {
       double waterDrag = type.waterDrag;
 
       for (int i = 0; i < 300; i++) {
-         Vec3d lastPos = pos;
-         Vec3d nextPos = pos.add(motion);
+         Vec3 lastPos = pos;
+         Vec3 nextPos = pos.add(motion);
 
-         BlockHitResult hit = mc.world.raycast(new RaycastContext(
+         BlockHitResult hit = mc.level.raycast(new ClipContext(
                lastPos,
                nextPos,
-               RaycastContext.ShapeType.COLLIDER,
-               RaycastContext.FluidHandling.NONE,
+               ClipContext.ShapeType.COLLIDER,
+               ClipContext.FluidHandling.NONE,
                mc.player));
 
          if (hit.getType() == HitResult.Type.BLOCK) {
@@ -392,7 +392,7 @@ public class Projectile extends Module {
          points.add(nextPos);
          pos = nextPos;
 
-         boolean inWater = mc.world.getBlockState(BlockPos.ofFloored(pos)).isOf(Blocks.WATER);
+         boolean inWater = mc.level.getBlockState(BlockPos.ofFloored(pos)).isOf(Blocks.WATER);
          double drag = inWater ? waterDrag : airDrag;
          motion = motion.multiply(drag).subtract(0.0, gravity, 0.0);
 
@@ -400,13 +400,13 @@ public class Projectile extends Module {
             break;
          }
 
-         if (pos.y <= mc.world.getBottomY()) break;
+         if (pos.y <= mc.level.getBottomY()) break;
       }
 
       return points;
    }
 
-   private record ImpactPoint(Vec3d pos, float seconds, ItemStack icon, int entityId) {
+   private record ImpactPoint(Vec3 pos, float seconds, ItemStack icon, int entityId) {
    }
 
    private static final class Anim {
@@ -414,7 +414,7 @@ public class Projectile extends Module {
       private float value;
       private long lastTime;
       private long lastSmoothTime;
-      private Vec3d smoothPos;
+      private Vec3 smoothPos;
 
       private Anim(long now) {
          this.value = 0.0F;
@@ -434,7 +434,7 @@ public class Projectile extends Module {
          }
       }
 
-      private Vec3d smooth(Vec3d target, long now) {
+      private Vec3 smooth(Vec3 target, long now) {
          float dt = Math.max(0.0F, Math.min(100.0F, now - this.lastSmoothTime));
          this.lastSmoothTime = now;
 

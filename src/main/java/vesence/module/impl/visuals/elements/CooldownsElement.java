@@ -2,14 +2,14 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.entity.player.ItemCooldownManager;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix3x2fStack;
 import vesence.mixin.ItemCooldownManagerAccessor;
 import vesence.mixin.ItemCooldownManagerEntryAccessor;
@@ -61,14 +61,14 @@ public class CooldownsElement extends HudElement {
 
     private record CooldownEntry(String key, String displayName, ItemStack stack, float progress, int remainingTicks) {}
 
-    private List<CooldownEntry> collectCooldowns(MinecraftClient mc) {
+    private List<CooldownEntry> collectCooldowns(Minecraft mc) {
         if (mc.player == null) return List.of();
         List<CooldownEntry> result = new ArrayList<>();
         Set<Item> seen = new LinkedHashSet<>();
 
         ItemCooldownManager cdm = mc.player.getItemCooldownManager();
 
-        Map<Identifier, ?> entriesMap = null;
+        Map<ResourceLocation, ?> entriesMap = null;
         int currentTick = 0;
         try {
             ItemCooldownManagerAccessor accessor = (ItemCooldownManagerAccessor) cdm;
@@ -77,7 +77,7 @@ public class CooldownsElement extends HudElement {
         } catch (ClassCastException ignored) {}
 
         for (int i = 0; i < 36; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
             Item item = stack.getItem();
             if (seen.contains(item)) continue;
@@ -95,7 +95,7 @@ public class CooldownsElement extends HudElement {
             result.add(new CooldownEntry(item.toString(), stack.getName().getString(), stack.copy(), progress, remainingTicks));
         }
 
-        ItemStack offHand = mc.player.getOffHandStack();
+        ItemStack offHand = mc.player.getOffhandItem();
         if (!offHand.isEmpty()) {
             Item item = offHand.getItem();
             if (!seen.contains(item)) {
@@ -112,9 +112,9 @@ public class CooldownsElement extends HudElement {
         return result;
     }
 
-    private int getRemainingTicks(ItemStack stack, Map<Identifier, ?> entries, int currentTick) {
+    private int getRemainingTicks(ItemStack stack, Map<ResourceLocation, ?> entries, int currentTick) {
         try {
-            Identifier itemId = stack.getItem().getRegistryEntry().getKey().map(k -> k.getValue()).orElse(null);
+            ResourceLocation itemId = stack.getItem().getRegistryEntry().getKey().map(k -> k.getValue()).orElse(null);
             if (itemId == null) return 0;
             Object entry = entries.get(itemId);
             if (entry instanceof ItemCooldownManagerEntryAccessor entryAcc) {
@@ -136,9 +136,9 @@ public class CooldownsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean isChatOpen = mc.screen instanceof ChatScreen;
 
         List<CooldownEntry> entries = collectCooldowns(mc);
 
@@ -273,10 +273,10 @@ public class CooldownsElement extends HudElement {
         boundsH = visibleSlotHeight < 0.5f ? HEADER_BOX_HEIGHT : (y + PADDING_V + 9 + HEADER_HEIGHT + visibleSlotHeight + (ROW_BOX_HEIGHT - LINE_HEIGHT)) - y;
     }
 
-    private void drawItemIcon(DrawContext ctx, ItemStack stack, float px, float py, float size, float alpha) {
+    private void drawItemIcon(GuiGraphics ctx, ItemStack stack, float px, float py, float size, float alpha) {
         if (stack == null || stack.isEmpty() || alpha <= 0.01f) return;
         float elemScale = getScale();
-        float guiScale = (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+        float guiScale = (float) Minecraft.getInstance().getWindow().getScaleFactor();
         float sx = this.x + (px - this.x) * elemScale;
         float sy = this.y + (py - this.y) * elemScale;
         float drawSize = size * elemScale;

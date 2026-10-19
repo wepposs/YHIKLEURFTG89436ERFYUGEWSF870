@@ -3,7 +3,7 @@ package vesence.event.impl;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.Packet;
+import net.minecraft.network.protocol.Packet;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)

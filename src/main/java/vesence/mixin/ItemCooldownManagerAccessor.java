@@ -1,7 +1,7 @@
 package vesence.mixin;
 
 import net.minecraft.entity.player.ItemCooldownManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -11,7 +11,7 @@ import java.util.Map;
 public interface ItemCooldownManagerAccessor {
 
     @Accessor("entries")
-    Map<Identifier, ?> getEntries();
+    Map<ResourceLocation, ?> getEntries();
 
     @Accessor("tick")
     int getTick();

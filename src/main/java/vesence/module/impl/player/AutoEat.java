@@ -3,8 +3,8 @@ package vesence.module.impl.player;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Hand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -22,7 +22,7 @@ public class AutoEat extends Module {
     private boolean isEating = false;
     private int prevSlot = -1;
     private int swappedFoodSlot = -1;
-    private Hand eatHand = Hand.MAIN_HAND;
+    private InteractionHand eatHand = InteractionHand.MAIN_HAND;
 
     public AutoEat() {
         hungerLevel.name = "Уровень голода";
@@ -32,8 +32,8 @@ public class AutoEat extends Module {
     @EventInit
     public void onUpdate(EventUpdate e) {
         if (!this.enable) return;
-        if (mc.player == null || mc.world == null || mc.interactionManager == null) return;
-        if (mc.currentScreen != null) {
+        if (mc.player == null || mc.level == null || mc.gameMode == null) return;
+        if (mc.screen != null) {
             if (isEating) {
                 stopEating();
             }
@@ -53,23 +53,23 @@ public class AutoEat extends Module {
         if (foodLevel > getConfiguredHungerLevel()) return;
         if (!mc.player.canConsume(false)) return;
 
-        ItemStack offhand = mc.player.getStackInHand(Hand.OFF_HAND);
+        ItemStack offhand = mc.player.getStackInHand(InteractionHand.OFF_HAND);
         if (isFood(offhand)) {
-            eatHand = Hand.OFF_HAND;
+            eatHand = InteractionHand.OFF_HAND;
             swappedFoodSlot = -1;
-            startEating(Hand.OFF_HAND);
+            startEating(InteractionHand.OFF_HAND);
             return;
         }
 
         int hotbarSlot = findFoodSlot(0, 9);
         if (hotbarSlot != -1) {
             prevSlot = mc.player.getInventory().getSelectedSlot();
-            eatHand = Hand.MAIN_HAND;
+            eatHand = InteractionHand.MAIN_HAND;
             swappedFoodSlot = -1;
             if (prevSlot != hotbarSlot) {
                 InventoryActionUtil.selectSlot(hotbarSlot);
             }
-            startEating(Hand.MAIN_HAND);
+            startEating(InteractionHand.MAIN_HAND);
             return;
         }
 
@@ -77,16 +77,16 @@ public class AutoEat extends Module {
         if (invSlot != -1) {
             if (InventoryActionUtil.swapWithOffhand(invSlot)) {
                 swappedFoodSlot = invSlot;
-                eatHand = Hand.OFF_HAND;
-                startEating(Hand.OFF_HAND);
+                eatHand = InteractionHand.OFF_HAND;
+                startEating(InteractionHand.OFF_HAND);
             }
             return;
         }
     }
 
-    private void startEating(Hand hand) {
+    private void startEating(InteractionHand hand) {
         mc.options.useKey.setPressed(true);
-        mc.interactionManager.interactItem(mc.player, hand);
+        mc.gameMode.interactItem(mc.player, hand);
         isEating = true;
     }
 
@@ -96,12 +96,12 @@ public class AutoEat extends Module {
 
         restoreSwappedFood();
 
-        if (eatHand == Hand.MAIN_HAND && prevSlot != -1) {
+        if (eatHand == InteractionHand.MAIN_HAND && prevSlot != -1) {
             InventoryActionUtil.selectSlot(prevSlot);
         }
 
         prevSlot = -1;
-        eatHand = Hand.MAIN_HAND;
+        eatHand = InteractionHand.MAIN_HAND;
     }
 
     private void restoreSwappedFood() {
@@ -120,7 +120,7 @@ public class AutoEat extends Module {
 
     private int findFoodSlot(int start, int end) {
         for (int i = start; i < end; i++) {
-            if (isFood(mc.player.getInventory().getStack(i))) {
+            if (isFood(mc.player.getInventory().getItem(i))) {
                 return i;
             }
         }

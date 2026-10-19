@@ -1,6 +1,6 @@
 package vesence.module.impl.combat.neuro;
 
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 
 public class AngleUtil {
     public float meanX;
@@ -24,9 +24,9 @@ public class AngleUtil {
     }
 
     public void addSample(float x, float y, float z) {
-        x = MathHelper.clamp(x, 0.0f, 1.0f);
-        y = MathHelper.clamp(y, 0.0f, 1.0f);
-        z = MathHelper.clamp(z, 0.0f, 1.0f);
+        x = Mth.clamp(x, 0.0f, 1.0f);
+        y = Mth.clamp(y, 0.0f, 1.0f);
+        z = Mth.clamp(z, 0.0f, 1.0f);
         
         this.count++;
         float weight = 1.0f / (float) this.count;
@@ -48,8 +48,8 @@ public class AngleUtil {
         if (!Float.isFinite(this.meanZ)) {
             this.meanZ = defaultZ;
         }
-        this.meanX = MathHelper.clamp(this.meanX, 0.0f, 1.0f);
-        this.meanY = MathHelper.clamp(this.meanY, 0.0f, 1.0f);
-        this.meanZ = MathHelper.clamp(this.meanZ, 0.0f, 1.0f);
+        this.meanX = Mth.clamp(this.meanX, 0.0f, 1.0f);
+        this.meanY = Mth.clamp(this.meanY, 0.0f, 1.0f);
+        this.meanZ = Mth.clamp(this.meanZ, 0.0f, 1.0f);
     }
 }

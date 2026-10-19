@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.gui.hud.InGameOverlayRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,7 +26,7 @@ public class InGameOverlayRendererMixin {
             return;
         }
         // Лава на экране: пламя рисуется при погружении в лаву — режем его.
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         if (NoRender.elements.get("Лава на экране")
                 && client.player != null && client.player.isInLava()) {
             ci.cancel();

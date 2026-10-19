@@ -3,10 +3,10 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.listener.PacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.network.PacketListener;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -53,9 +53,9 @@ public class ClientConnectionMixin {
             info.cancel();
          }
 
-         if (packet instanceof CloseHandledScreenC2SPacket closePacket) {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            ScreenCloseEvent screenCloseEvent = new ScreenCloseEvent(mc.currentScreen, closePacket.getSyncId());
+         if (packet instanceof ServerboundContainerClosePacket closePacket) {
+            Minecraft mc = Minecraft.getInstance();
+            ScreenCloseEvent screenCloseEvent = new ScreenCloseEvent(mc.screen, closePacket.getSyncId());
             EventManager.call(screenCloseEvent);
             if (screenCloseEvent.isCancelled()) {
                info.cancel();

@@ -2,9 +2,9 @@ package vesence.module.impl.combat.auraComponent.rotationComponent.impl;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
+import net.minecraft.world.entity.Entity;
 import org.joml.Vector2f;
-import vesence.renderengine.utils.MathHelper;
+import vesence.renderengine.utils.Mth;
 import vesence.utils.other.IMinecraft;
 
 @Environment(EnvType.CLIENT)
@@ -13,8 +13,8 @@ public class Rotation implements IMinecraft {
    public float pitch;
 
    public Rotation(Entity entity) {
-      this.yaw = entity.getYaw();
-      this.pitch = entity.getPitch();
+      this.yaw = entity.getYRot();
+      this.pitch = entity.getXRot();
    }
 
    public Rotation(float yawN, float pitchN) {
@@ -23,14 +23,14 @@ public class Rotation implements IMinecraft {
    }
 
    public float getDelta(Rotation target) {
-      float yawDelta = MathHelper.wrapDegrees(target.yaw - this.yaw);
+      float yawDelta = Mth.wrapDegrees(target.yaw - this.yaw);
       float pitchDelta = target.pitch - this.pitch;
       return (float)Math.hypot(Math.abs(yawDelta), Math.abs(pitchDelta));
    }
 
    public double getDeltaDouble(Rotation target) {
-      double yawDelta = MathHelper.wrapDegrees(target.yaw - this.yaw);
-      double pitchDelta = MathHelper.wrapDegrees(target.pitch - this.pitch);
+      double yawDelta = Mth.wrapDegrees(target.yaw - this.yaw);
+      double pitchDelta = Mth.wrapDegrees(target.pitch - this.pitch);
       return Math.hypot(yawDelta, pitchDelta);
    }
 
@@ -39,10 +39,10 @@ public class Rotation implements IMinecraft {
    }
 
    public static float cameraYaw() {
-      return MathHelper.wrapDegrees(mc.gameRenderer.getCamera().getYaw() + (mc.gameRenderer.getCamera().isThirdPerson() ? 180 : 0));
+      return Mth.wrapDegrees(mc.gameRenderer.getCamera().getYRot() + (mc.gameRenderer.getCamera().isThirdPerson() ? 180 : 0));
    }
 
    public static float cameraPitch() {
-      return (mc.gameRenderer.getCamera().isThirdPerson() ? -1 : 1) * mc.gameRenderer.getCamera().getPitch();
+      return (mc.gameRenderer.getCamera().isThirdPerson() ? -1 : 1) * mc.gameRenderer.getCamera().getXRot();
    }
 }

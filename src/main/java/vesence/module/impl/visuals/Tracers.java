@@ -7,22 +7,22 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.option.Perspective;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
@@ -51,7 +51,7 @@ import vesence.utils.render.ColorUtil;
 public class Tracers extends Module {
 
     private static final double MAX_SAFE_COORD = 3.0E7;
-    private static final MinecraftClient MC = MinecraftClient.getInstance();
+    private static final Minecraft MC = Minecraft.getInstance();
 
     private final SliderSetting height = new SliderSetting("Высота", 0.0, 0.0, 2.0, 0.05, false);
     private final SliderSetting thickness = new SliderSetting("Толщина линий", 1.0, 0.3, 5.0, 0.1, false);
@@ -64,15 +64,15 @@ public class Tracers extends Module {
     // Гладкие (не пиксельные) линии: обращённые к камере квады, additive.
     private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "tracers_quad_lines"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "tracers_quad_lines"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build()
     );
-    private static final RenderLayer LINE_LAYER = RenderLayer.of(
+    private static final RenderType LINE_LAYER = RenderType.of(
             "tracers_quad_lines", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(8192).translucent().build()
     );
 
@@ -91,8 +91,8 @@ public class Tracers extends Module {
 
         float partialTicks = event.getTickDelta();
         Camera camera = MC.gameRenderer.getCamera();
-        Vec3d cameraPos = camera.getCameraPos();
-        Vec3d start = this.getStartPoint(camera);
+        Vec3 cameraPos = camera.getCameraPos();
+        Vec3 start = this.getStartPoint(camera);
         if (!this.isSafe(start)) {
             return;
         }
@@ -108,22 +108,22 @@ public class Tracers extends Module {
         // тонкая линия, но сглаженная, не пиксельная).
         float baseHalf = (float) (thickness.current * 0.00065);
 
-        MatrixStack matrices = event.getMatrixStack();
+        PoseStack matrices = event.getMatrixStack();
         Immediate immediate = MC.getBufferBuilders().getEntityVertexConsumers();
         VertexConsumer buffer = immediate.getBuffer(LINE_LAYER);
 
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Matrix4f matrix = matrices.last().getPositionMatrix();
 
-        for (PlayerEntity player : MC.world.getPlayers()) {
+        for (Player player : MC.world.getPlayers()) {
             if (player == null || player == MC.player || player.isRemoved()) {
                 continue;
             }
             if (this.ignoreNaked.get() && this.isNaked(player)) {
                 continue;
             }
-            Vec3d target = this.interpolate(player, partialTicks).add(0.0, height.current, 0.0);
+            Vec3 target = this.interpolate(player, partialTicks).add(0.0, height.current, 0.0);
             if (!this.isSafe(target)) {
                 continue;
             }
@@ -132,7 +132,7 @@ public class Tracers extends Module {
         }
 
         immediate.draw();
-        matrices.pop();
+        matrices.popPose();
     }
 
     /**
@@ -141,24 +141,24 @@ public class Tracers extends Module {
      * расстоянию до камеры, поэтому толщина в пикселях постоянна вдоль всей
      * линии (не раздувается у ближнего конца).
      */
-    private void drawQuadLine(VertexConsumer buffer, Matrix4f matrix, Vec3d cameraPos,
-                              Vec3d start, Vec3d end, float baseHalf, int r, int g, int b, int a) {
-        Vec3d dir = end.subtract(start);
+    private void drawQuadLine(VertexConsumer buffer, Matrix4f matrix, Vec3 cameraPos,
+                              Vec3 start, Vec3 end, float baseHalf, int r, int g, int b, int a) {
+        Vec3 dir = end.subtract(start);
         double len = dir.length();
         if (len < 1.0E-4) {
             return;
         }
-        Vec3d dirN = dir.multiply(1.0 / len);
+        Vec3 dirN = dir.multiply(1.0 / len);
 
         // Перпендикуляр «в сторону» для КАЖДОГО конца отдельно — считается от
         // вектора взгляда именно в этой точке, ширина ∝ расстоянию до камеры.
-        Vec3d startSide = this.sideVector(dirN, start.subtract(cameraPos), baseHalf);
-        Vec3d endSide = this.sideVector(dirN, end.subtract(cameraPos), baseHalf);
+        Vec3 startSide = this.sideVector(dirN, start.subtract(cameraPos), baseHalf);
+        Vec3 endSide = this.sideVector(dirN, end.subtract(cameraPos), baseHalf);
 
-        Vec3d s0 = start.subtract(startSide);
-        Vec3d s1 = start.add(startSide);
-        Vec3d e1 = end.add(endSide);
-        Vec3d e0 = end.subtract(endSide);
+        Vec3 s0 = start.subtract(startSide);
+        Vec3 s1 = start.add(startSide);
+        Vec3 e1 = end.add(endSide);
+        Vec3 e0 = end.subtract(endSide);
 
         buffer.vertex(matrix, (float) s0.x, (float) s0.y, (float) s0.z).color(r, g, b, a);
         buffer.vertex(matrix, (float) s1.x, (float) s1.y, (float) s1.z).color(r, g, b, a);
@@ -170,17 +170,17 @@ public class Tracers extends Module {
      * Боковой перпендикуляр для одного конца линии. Длина = baseHalf ×
      * расстояние_до_камеры → на экране всегда одинаковая тонкая толщина.
      */
-    private Vec3d sideVector(Vec3d dirN, Vec3d toPointFromCam, float baseHalf) {
+    private Vec3 sideVector(Vec3 dirN, Vec3 toPointFromCam, float baseHalf) {
         double dist = toPointFromCam.length();
         float half = (float) (baseHalf * Math.max(0.05, dist));
 
-        Vec3d side = dirN.crossProduct(toPointFromCam);
+        Vec3 side = dirN.crossProduct(toPointFromCam);
         double sideLen = side.length();
         if (sideLen < 1.0E-6) {
-            side = dirN.crossProduct(new Vec3d(0, 1, 0));
+            side = dirN.crossProduct(new Vec3(0, 1, 0));
             sideLen = side.length();
             if (sideLen < 1.0E-6) {
-                side = new Vec3d(1, 0, 0);
+                side = new Vec3(1, 0, 0);
                 sideLen = 1.0;
             }
         }
@@ -191,21 +191,21 @@ public class Tracers extends Module {
      * Стартовая точка привязана к прицелу (центру экрана): origin камеры +
      * полблока вперёд по camera-forward. Так линии не «ходят» по экрану.
      */
-    private Vec3d getStartPoint(Camera camera) {
-        Vec3d cameraPos = camera.getCameraPos();
-        Vec3d forward = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
+    private Vec3 getStartPoint(Camera camera) {
+        Vec3 cameraPos = camera.getCameraPos();
+        Vec3 forward = Vec3.fromPolar(camera.getXRot(), camera.getYRot());
         return cameraPos.add(forward.multiply(0.5));
     }
 
-    private Vec3d interpolate(PlayerEntity player, float partialTicks) {
-        return new Vec3d(
-                MathHelper.lerp(partialTicks, player.lastRenderX, player.getX()),
-                MathHelper.lerp(partialTicks, player.lastRenderY, player.getY()),
-                MathHelper.lerp(partialTicks, player.lastRenderZ, player.getZ())
+    private Vec3 interpolate(Player player, float partialTicks) {
+        return new Vec3(
+                Mth.lerp(partialTicks, player.lastRenderX, player.getX()),
+                Mth.lerp(partialTicks, player.lastRenderY, player.getY()),
+                Mth.lerp(partialTicks, player.lastRenderZ, player.getZ())
         );
     }
 
-    private boolean isNaked(PlayerEntity player) {
+    private boolean isNaked(Player player) {
         for (EquipmentSlot slot : new EquipmentSlot[]{
                 EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             ItemStack stack = player.getEquippedStack(slot);
@@ -214,7 +214,7 @@ public class Tracers extends Module {
         return true;
     }
 
-    private boolean isSafe(Vec3d vec) {
+    private boolean isSafe(Vec3 vec) {
         return vec != null
                 && Double.isFinite(vec.x) && Double.isFinite(vec.y) && Double.isFinite(vec.z)
                 && Math.abs(vec.x) <= MAX_SAFE_COORD && Math.abs(vec.y) <= MAX_SAFE_COORD && Math.abs(vec.z) <= MAX_SAFE_COORD;

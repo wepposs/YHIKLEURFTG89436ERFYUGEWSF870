@@ -2,7 +2,7 @@ package vesence.utils.render.math.animation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.utils.render.math.animation.anim.util.Easing;
 import vesence.utils.render.math.animation.anim.util.Easings;
 
@@ -53,7 +53,7 @@ public class AnimationUtils {
       } else {
          double part = this.calculatePart();
          float easedPart = (float) this.easing.ease(part);
-         this.currentValue = MathHelper.lerp(easedPart, this.fromValue, this.targetValue);
+         this.currentValue = Mth.lerp(easedPart, this.fromValue, this.targetValue);
       }
    }
 
@@ -63,7 +63,7 @@ public class AnimationUtils {
       }
       long now = System.nanoTime();
       double elapsed = (now - this.startTime) / 1.0E9;
-      return MathHelper.clamp(elapsed / this.duration, 0.0, 1.0);
+      return Mth.clamp(elapsed / this.duration, 0.0, 1.0);
    }
 
    public float getValue() {

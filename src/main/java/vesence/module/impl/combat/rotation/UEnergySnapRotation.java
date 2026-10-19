@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
 
@@ -42,16 +42,16 @@ public class UEnergySnapRotation {
     private static int lastTargetId = AIM_SLOT;
     private static Rotation pending;
 
-    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3d point) {
-        if (mc.player == null || mc.world == null || target == null) return;
+    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3 point) {
+        if (mc.player == null || mc.level == null || target == null) return;
 
-        if (lastTick == mc.player.age && lastTargetId == target.getId()) return;
-        lastTick = mc.player.age;
+        if (lastTick == mc.player.tickCount && lastTargetId == target.getId()) return;
+        lastTick = mc.player.tickCount;
         lastTargetId = target.getId();
 
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d look = mc.player.getRotationVec(1.0F);
-        Rotation from = new Rotation(mc.player.getYaw(), mc.player.getPitch());
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 look = mc.player.getRotationVec(1.0F);
+        Rotation from = new Rotation(mc.player.getYRot(), mc.player.getXRot());
 
         Rotation chosen = armed && !mc.player.isSneaking()
                 ? sampleBox(target, eye, from)
@@ -67,8 +67,8 @@ public class UEnergySnapRotation {
     }
 
     /** Energy: pick the closest visible box sample. */
-    private static Rotation sampleBox(LivingEntity target, Vec3d eye, Rotation from) {
-        Box box = target.getBoundingBox();
+    private static Rotation sampleBox(LivingEntity target, Vec3 eye, Rotation from) {
+        AABB box = target.getBoundingBox();
         double reach = reachDist(target);
         Rotation best = null;
         Rotation reachable = null;
@@ -78,14 +78,14 @@ public class UEnergySnapRotation {
         double visDist = Double.POSITIVE_INFINITY;
         boolean anyVisible = false;
 
-        for (Vec3d sample : samples(box)) {
+        for (Vec3 sample : samples(box)) {
             Rotation rot = toRotation(sample.subtract(eye));
             double dist = angleDist(from, rot);
             boolean traced = hasLineOfSight(eye, sample);
             anyVisible |= traced;
             if (dist < bestDist) { bestDist = dist; best = rot; }
 
-            Vec3d probe = eye.add(sample.subtract(eye).normalize().multiply(reach));
+            Vec3 probe = eye.add(sample.subtract(eye).normalize().multiply(reach));
             if (box.contains(eye) || box.raycast(eye, probe).isPresent()) {
                 if (dist < reachDist) { reachDist = dist; reachable = rot; }
                 if (traced && dist < visDist) { visDist = dist; visible = rot; }
@@ -98,9 +98,9 @@ public class UEnergySnapRotation {
     }
 
     /** Energy: when not armed, aim along the current view direction. */
-    private static Rotation sampleAway(LivingEntity target, Vec3d eye, Vec3d look, Rotation from) {
+    private static Rotation sampleAway(LivingEntity target, Vec3 eye, Vec3 look, Rotation from) {
         double reach = reachDist(target);
-        Vec3d probe = eye.add(look.multiply(reach));
+        Vec3 probe = eye.add(look.multiply(reach));
         return target.getBoundingBox().raycast(eye, probe).isPresent()
                 ? toRotation(probe.subtract(eye)) : from;
     }
@@ -110,38 +110,38 @@ public class UEnergySnapRotation {
     }
 
     /** Energy: 3x3x3 grid over the hitbox. */
-    private static List<Vec3d> samples(Box box) {
-        List<Vec3d> out = new ArrayList<>();
+    private static List<Vec3> samples(AABB box) {
+        List<Vec3> out = new ArrayList<>();
         for (int x = 0; x < 3; x++) {
             for (int y = 0; y < 3; y++) {
                 for (int z = 0; z < 3; z++) {
                     double fx = box.minX + (box.maxX - box.minX) * (x / 2.0);
                     double fy = box.minY + (box.maxY - box.minY) * (y / 2.0);
                     double fz = box.minZ + (box.maxZ - box.minZ) * (z / 2.0);
-                    out.add(new Vec3d(fx, fy, fz));
+                    out.add(new Vec3(fx, fy, fz));
                 }
             }
         }
         return out;
     }
 
-    private static boolean hasLineOfSight(Vec3d eye, Vec3d point) {
-        RaycastContext ctx = new RaycastContext(eye, point, RaycastContext.ShapeType.COLLIDER,
-                RaycastContext.FluidHandling.NONE, mc.player);
-        HitResult hit = mc.world.raycast(ctx);
+    private static boolean hasLineOfSight(Vec3 eye, Vec3 point) {
+        ClipContext ctx = new ClipContext(eye, point, ClipContext.ShapeType.COLLIDER,
+                ClipContext.FluidHandling.NONE, mc.player);
+        HitResult hit = mc.level.raycast(ctx);
         return hit.getType() == HitResult.Type.MISS
                 || point.squaredDistanceTo(eye) <= hit.getPos().squaredDistanceTo(eye) + EPS;
     }
 
     private static double angleDist(Rotation a, Rotation b) {
-        double dYaw = Math.abs(MathHelper.wrapDegrees(a.yaw - b.yaw));
+        double dYaw = Math.abs(Mth.wrapDegrees(a.yaw - b.yaw));
         double dPitch = Math.abs(a.pitch - b.pitch);
         return Math.sqrt(dYaw * dYaw + dPitch * dPitch);
     }
 
-    private static Rotation toRotation(Vec3d v) {
+    private static Rotation toRotation(Vec3 v) {
         float yaw = (float) Math.toDegrees(Math.atan2(-v.x, v.z));
-        float pitch = (float) MathHelper.clamp(
+        float pitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(v.y, Math.hypot(v.x, v.z))), -90.0F, 90.0F);
         return new Rotation(yaw, pitch);
     }

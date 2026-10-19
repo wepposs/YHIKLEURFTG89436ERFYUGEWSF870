@@ -1,9 +1,9 @@
 package vesence.access;
 
-import net.minecraft.client.render.entity.state.LivingEntityRenderState;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import com.mojang.blaze3d.vertex.PoseStack;
 
 public interface ILivingEntityRendererAccess {
-    void vesence$invokeSetupTransforms(LivingEntityRenderState state, MatrixStack matrices, float bodyYaw, float scale);
-    void vesence$invokeScale(LivingEntityRenderState state, MatrixStack matrices);
+    void vesence$invokeSetupTransforms(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale);
+    void vesence$invokeScale(LivingEntityRenderState state, PoseStack matrices);
 }

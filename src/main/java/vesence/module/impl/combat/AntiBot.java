@@ -3,13 +3,13 @@ package vesence.module.impl.combat;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRemoveS2CPacket;
 import vesence.event.EventInit;
@@ -70,10 +70,10 @@ public class AntiBot extends Module {
     @EventInit
     public void onTick(ClientTickEvent event) {
         if (!this.enable) return;
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         if (!suspectSet.isEmpty()) {
-            for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
+            for (AbstractClientPlayer player : mc.level.getPlayers()) {
                 if (suspectSet.contains(player.getUuid())) {
                     evaluateSuspectPlayer(player);
                 }
@@ -100,24 +100,24 @@ public class AntiBot extends Module {
     }
 
     private boolean isDuplicateProfile(GameProfile profile) {
-        if (mc.getNetworkHandler() == null) return false;
-        return mc.getNetworkHandler().getPlayerList().stream()
+        if (mc.getConnection() == null) return false;
+        return mc.getConnection().getPlayerList().stream()
                 .filter(p -> p.getProfile().name().equals(profile.name())
                         && !p.getProfile().id().equals(profile.id()))
                 .count() == 1;
     }
 
-    private void evaluateSuspectPlayer(PlayerEntity player) {
+    private void evaluateSuspectPlayer(Player player) {
         ItemStack prevBoots = null;
         ItemStack prevLeggings = null;
         ItemStack prevChestplate = null;
         ItemStack prevHelmet = null;
 
         if (!isFullyEquipped(player)) {
-            prevBoots = getArmor((AbstractClientPlayerEntity) player, EquipmentSlot.FEET);
-            prevLeggings = getArmor((AbstractClientPlayerEntity) player, EquipmentSlot.LEGS);
-            prevChestplate = getArmor((AbstractClientPlayerEntity) player, EquipmentSlot.CHEST);
-            prevHelmet = getArmor((AbstractClientPlayerEntity) player, EquipmentSlot.HEAD);
+            prevBoots = getArmor((AbstractClientPlayer) player, EquipmentSlot.FEET);
+            prevLeggings = getArmor((AbstractClientPlayer) player, EquipmentSlot.LEGS);
+            prevChestplate = getArmor((AbstractClientPlayer) player, EquipmentSlot.CHEST);
+            prevHelmet = getArmor((AbstractClientPlayer) player, EquipmentSlot.HEAD);
         }
         if (isFullyEquipped(player) || hasArmorChanged(player, prevBoots, prevLeggings, prevChestplate, prevHelmet)) {
             botSet.add(player.getUuid());
@@ -125,21 +125,21 @@ public class AntiBot extends Module {
         suspectSet.remove(player.getUuid());
     }
 
-    private boolean isFullyEquipped(PlayerEntity entity) {
+    private boolean isFullyEquipped(Player entity) {
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD}) {
-            ItemStack stack = getArmor((AbstractClientPlayerEntity) entity, slot);
+            ItemStack stack = getArmor((AbstractClientPlayer) entity, slot);
             if (stack.isEmpty() || !stack.hasEnchantments()) return false;
         }
         return true;
     }
 
-    private boolean hasArmorChanged(PlayerEntity entity, ItemStack prevBoots, ItemStack prevLeggings, ItemStack prevChestplate, ItemStack prevHelmet) {
+    private boolean hasArmorChanged(Player entity, ItemStack prevBoots, ItemStack prevLeggings, ItemStack prevChestplate, ItemStack prevHelmet) {
         if (prevBoots == null) return true;
 
-        ItemStack currentBoots = getArmor((AbstractClientPlayerEntity) entity, EquipmentSlot.FEET);
-        ItemStack currentLeggings = getArmor((AbstractClientPlayerEntity) entity, EquipmentSlot.LEGS);
-        ItemStack currentChestplate = getArmor((AbstractClientPlayerEntity) entity, EquipmentSlot.CHEST);
-        ItemStack currentHelmet = getArmor((AbstractClientPlayerEntity) entity, EquipmentSlot.HEAD);
+        ItemStack currentBoots = getArmor((AbstractClientPlayer) entity, EquipmentSlot.FEET);
+        ItemStack currentLeggings = getArmor((AbstractClientPlayer) entity, EquipmentSlot.LEGS);
+        ItemStack currentChestplate = getArmor((AbstractClientPlayer) entity, EquipmentSlot.CHEST);
+        ItemStack currentHelmet = getArmor((AbstractClientPlayer) entity, EquipmentSlot.HEAD);
 
         if (!ItemStack.areItemsAndComponentsEqual(currentBoots, prevBoots)) return true;
         if (!ItemStack.areItemsAndComponentsEqual(currentLeggings, prevLeggings)) return true;
@@ -149,12 +149,12 @@ public class AntiBot extends Module {
         return false;
     }
 
-    private ItemStack getArmor(AbstractClientPlayerEntity entity, EquipmentSlot slot) {
+    private ItemStack getArmor(AbstractClientPlayer entity, EquipmentSlot slot) {
         return entity.getEquippedStack(slot);
     }
 
     private void matrixMode() {
-        for (AbstractClientPlayerEntity entity : mc.world.getPlayers()) {
+        for (AbstractClientPlayer entity : mc.level.getPlayers()) {
             if (entity == mc.player) continue;
 
             ItemStack boots      = getArmor(entity, EquipmentSlot.FEET);
@@ -172,7 +172,7 @@ public class AntiBot extends Module {
             boolean chestplateEnch = chestplate.isEnchantable();
             boolean helmetEnch     = helmet.isEnchantable();
 
-            boolean emptyOffhand = entity.getOffHandStack().isEmpty();
+            boolean emptyOffhand = entity.getOffhandItem().isEmpty();
 
             boolean hasLeatherOrIron =
                     boots.isOf(Items.LEATHER_BOOTS)        || leggings.isOf(Items.LEATHER_LEGGINGS)    ||
@@ -180,7 +180,7 @@ public class AntiBot extends Module {
                     boots.isOf(Items.IRON_BOOTS)           || leggings.isOf(Items.IRON_LEGGINGS)       ||
                     chestplate.isOf(Items.IRON_CHESTPLATE) || helmet.isOf(Items.IRON_HELMET);
 
-            boolean hasMainHand = !entity.getMainHandStack().isEmpty();
+            boolean hasMainHand = !entity.getMainHandItem().isEmpty();
 
             boolean notDamaged = !boots.isDamaged() && !leggings.isDamaged()
                     && !chestplate.isDamaged() && !helmet.isDamaged();
@@ -198,7 +198,7 @@ public class AntiBot extends Module {
     }
 
     private void reallyWorldMode() {
-        for (AbstractClientPlayerEntity entity : mc.world.getPlayers()) {
+        for (AbstractClientPlayer entity : mc.level.getPlayers()) {
             if (entity == mc.player) continue;
 
             String name = entity.getName().getString();
@@ -214,7 +214,7 @@ public class AntiBot extends Module {
     }
 
     private void uniACMode() {
-        for (AbstractClientPlayerEntity entity : mc.world.getPlayers()) {
+        for (AbstractClientPlayer entity : mc.level.getPlayers()) {
             if (entity == mc.player) continue;
 
             ItemStack boots      = getArmor(entity, EquipmentSlot.FEET);
@@ -244,7 +244,7 @@ public class AntiBot extends Module {
     }
 
     public static boolean isBot(Entity entity) {
-        if (entity instanceof AbstractClientPlayerEntity player) {
+        if (entity instanceof AbstractClientPlayer player) {
             return isInvalidName(player.getGameProfile().name()) || botSet.contains(player.getUuid());
         }
         return isInvalidName(entity.getName().getString()) || botSet.contains(entity.getUuid());

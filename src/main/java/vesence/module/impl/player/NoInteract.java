@@ -2,18 +2,18 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.DoorBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.block.TrapdoorBlock;
-import net.minecraft.block.ButtonBlock;
-import net.minecraft.block.BedBlock;
-import net.minecraft.block.ShulkerBoxBlock;
-import net.minecraft.entity.Entity;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -83,19 +83,19 @@ public class NoInteract extends Module {
    public void onPacket(EventPacket e) {
       if (!this.enable) return;
       if (!e.isSend()) return;
-      if (mc.player == null || mc.world == null) return;
+      if (mc.player == null || mc.level == null) return;
       if (onlyWithAura.get()) {
          AttackAura aura = Vesence.get.manager.get(AttackAura.class);
          if (aura == null || !aura.enable || AttackAura.target == null) return;
       }
 
-      if (e.getPacket() instanceof PlayerInteractBlockC2SPacket packet) {
+      if (e.getPacket() instanceof ServerboundUseItemOnPacket packet) {
          net.minecraft.util.math.BlockPos pos = packet.getBlockHitResult().getBlockPos();
-         net.minecraft.block.Block block = mc.world.getBlockState(pos).getBlock();
+         net.minecraft.block.Block block = mc.level.getBlockState(pos).getBlock();
          if (shouldBlock(block)) {
             e.cancel();
          }
-      } else if (e.getPacket() instanceof PlayerInteractEntityC2SPacket packet) {
+      } else if (e.getPacket() instanceof ServerboundInteractPacket packet) {
          if (packet.isPlayerSneaking()) return;
 
          if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == net.minecraft.util.hit.HitResult.Type.ENTITY) {

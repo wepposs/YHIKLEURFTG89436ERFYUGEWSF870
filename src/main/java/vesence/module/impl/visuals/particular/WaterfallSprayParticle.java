@@ -3,19 +3,19 @@ package vesence.module.impl.visuals.particular;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.math.random.Random;
-import net.minecraft.client.color.world.BiomeColors;
+import net.minecraft.client.renderer.BiomeColors;
 
 import java.awt.Color;
 
 public class WaterfallSprayParticle extends BillboardParticle {
-    protected WaterfallSprayParticle(ClientWorld world, double x, double y, double z, double motionX, double motionY, double motionZ, SpriteProvider provider) {
+    protected WaterfallSprayParticle(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.setSprite(provider.getSprite(this.random));
         this.gravityStrength = 0.04F;
@@ -78,14 +78,14 @@ public class WaterfallSprayParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new WaterfallSprayParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.provider);
         }
     }

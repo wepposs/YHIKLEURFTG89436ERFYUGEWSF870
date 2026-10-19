@@ -2,10 +2,10 @@ package vesence.utils.render;
 
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
@@ -18,7 +18,7 @@ public class ResourceManager {
 
     private final String path;
     private final String namespace;
-    private final Identifier identifier;
+    private final ResourceLocation identifier;
     private int cachedGlId = -1;
 
     public ResourceManager(String path) {
@@ -39,7 +39,7 @@ public class ResourceManager {
     public ResourceManager(String namespace, String path) {
         this.namespace = namespace;
         this.path = path;
-        this.identifier = Identifier.of(namespace, path);
+        this.identifier = ResourceLocation.of(namespace, path);
     }
 
     public int getGlId() {
@@ -69,7 +69,7 @@ public class ResourceManager {
 
     private int loadTexture() {
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (mc == null) {
                 return 0;
             }
@@ -96,7 +96,7 @@ public class ResourceManager {
         return 0;
     }
 
-    public Identifier getIdentifier() {
+    public ResourceLocation getIdentifier() {
         return identifier;
     }
 

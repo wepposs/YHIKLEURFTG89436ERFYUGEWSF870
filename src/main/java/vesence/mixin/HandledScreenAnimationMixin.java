@@ -2,8 +2,8 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -36,11 +36,11 @@ public abstract class HandledScreenAnimationMixin {
             method = "renderBackground",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screen/ingame/HandledScreen;drawBackground(Lnet/minecraft/client/gui/DrawContext;FII)V",
+                    target = "Lnet/minecraft/client/gui/screen/ingame/HandledScreen;drawBackground(Lnet/minecraft/client/gui/GuiGraphics;FII)V",
                     shift = At.Shift.BEFORE
             )
     )
-    private void vesence$onBeforeDrawBackground(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void vesence$onBeforeDrawBackground(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!vesence$animEnabled()) {
             vesence$pushed = false;
             return;
@@ -49,7 +49,7 @@ public abstract class HandledScreenAnimationMixin {
         anim.update(1.0f);
         float v = anim.getValue();
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         float pivotX = mc.getWindow().getScaledWidth() / 2f;
         float pivotY = mc.getWindow().getScaledHeight() / 2f;
 
@@ -62,7 +62,7 @@ public abstract class HandledScreenAnimationMixin {
     }
 
     @Inject(method = "render", at = @At("RETURN"))
-    private void vesence$onRenderReturn(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void vesence$onRenderReturn(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (vesence$pushed) {
             context.getMatrices().popMatrix();
             vesence$pushed = false;

@@ -2,14 +2,14 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.Items;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Items;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.AttackAura;
 import vesence.module.impl.combat.auraComponent.Attack;
 import vesence.module.impl.combat.auraComponent.GCDUtil;
@@ -64,8 +64,8 @@ public class UEnergySpookyRotation {
 
     // ── Вход ─────────────────────────────────────────────────────────────────
 
-    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3d point) {
-        if (mc.player == null || mc.world == null || target == null) {
+    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3 point) {
+        if (mc.player == null || mc.level == null || target == null) {
             return;
         }
         boolean attack = URotationMath.inAttackWindow();
@@ -78,10 +78,10 @@ public class UEnergySpookyRotation {
 
     /** Class62#m1014: в sidebar-объективе второй сегмент после «-» — 702/704. */
     private static boolean isSpookyAnarchy() {
-        if (mc.world == null) {
+        if (mc.level == null) {
             return false;
         }
-        ScoreboardObjective objective = mc.world.getScoreboard()
+        ScoreboardObjective objective = mc.level.getScoreboard()
                 .getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
         if (objective == null) {
             return false;
@@ -92,9 +92,9 @@ public class UEnergySpookyRotation {
 
     /** Аура в состоянии крита/смэша (Deluxe: Class62#m1022). */
     private static boolean critState() {
-        return !mc.player.isOnGround() && (AttackAura.extraSettings.get("Умные криты")
+        return !mc.player.onGround() && (AttackAura.extraSettings.get("Умные криты")
                 || AttackAura.extraSettings.get("Смэш булавой")
-                || mc.player.getMainHandStack().isOf(Items.MACE));
+                || mc.player.getMainHandItem().isOf(Items.MACE));
     }
 
     /** Кулдаун почти готов (Deluxe: Class83#m1205(-30) без внутреннего таймера). */
@@ -125,23 +125,23 @@ public class UEnergySpookyRotation {
             deadZone = URotationMath.rand(0.4F, 0.9F);
         }
 
-        Vec3d camera = mc.player.getCameraPosVec(mc.getRenderTickCounter().getTickProgress(false));
-        Vec3d center = target.getBoundingBox().getCenter();
+        Vec3 camera = mc.player.getCameraPosVec(mc.getRenderTickCounter().getTickProgress(false));
+        Vec3 center = target.getBoundingBox().getCenter();
         boolean throughNonFull = AttackAura.misc.get("Бить через блоки")
                 && !Attack.clearLineOfSight(camera, center)
                 && Attack.clearIgnoringNonFull(camera, center);
 
         double offsetX = !crit && !throughNonFull ? aimOffsetX : 0.0;
         double offsetZ = !crit && !throughNonFull ? aimOffsetZ : 0.0;
-        Vec3d aim = aimPoint(target, crit ? 1.0 : heightFrac, offsetX, offsetZ)
+        Vec3 aim = aimPoint(target, crit ? 1.0 : heightFrac, offsetX, offsetZ)
                 .subtract(camera)
                 .normalize();
         float goalYaw = (float) Math.toDegrees(Math.atan2(-aim.x, aim.z));
-        float goalPitch = (float) MathHelper.clamp(
+        float goalPitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(aim.y, Math.hypot(aim.x, aim.z))), -90.0, 90.0);
 
-        float curYaw = mc.player.getYaw();
-        float curPitch = mc.player.getPitch();
+        float curYaw = mc.player.getYRot();
+        float curPitch = mc.player.getXRot();
 
         boolean pulse = false;
         if (attack && distanceToBox(target) < range) {
@@ -164,7 +164,7 @@ public class UEnergySpookyRotation {
             goalPitch = freezePitch;
         }
 
-        if (rayHitsBox(mc.player.getEyePos(), direction(curYaw, curPitch),
+        if (rayHitsBox(mc.player.getEyePosition(), direction(curYaw, curPitch),
                 target.getBoundingBox(), range + 1.0)) {
             if (aimStartMs == 0L) {
                 aimStartMs = now;
@@ -173,7 +173,7 @@ public class UEnergySpookyRotation {
             aimStartMs = 0L;
         }
 
-        float fatigueTarget = MathHelper.clamp(
+        float fatigueTarget = Mth.clamp(
                 ((float) (aimStartMs == 0L ? 0L : now - aimStartMs) - 250.0F) / 300.0F, 0.0F, 1.0F);
         if (fatigueTarget >= aimFatigue) {
             aimFatigue = fatigueTarget;
@@ -181,28 +181,28 @@ public class UEnergySpookyRotation {
             aimFatigue = aimFatigue + (fatigueTarget - aimFatigue) * 4.0F;
         }
 
-        float yawDelta = MathHelper.wrapDegrees(goalYaw - curYaw);
+        float yawDelta = Mth.wrapDegrees(goalYaw - curYaw);
         float pitchDelta = goalPitch - curPitch;
         float total = (float) Math.hypot(yawDelta, pitchDelta);
         float speed = baseSpeed
-                * MathHelper.clamp(total / angleDivisor, 0.0F, 1.0F)
-                * MathHelper.lerp(MathHelper.clamp((float) (now - firstTickMs) / 220.0F, 0.0F, 1.0F), 0.78F, 1.0F)
-                * (1.0F - MathHelper.clamp(aimFatigue, 0.0F, 1.0F) * (crit ? 0.35F : 1.0F))
+                * Mth.clamp(total / angleDivisor, 0.0F, 1.0F)
+                * Mth.lerp(Mth.clamp((float) (now - firstTickMs) / 220.0F, 0.0F, 1.0F), 0.78F, 1.0F)
+                * (1.0F - Mth.clamp(aimFatigue, 0.0F, 1.0F) * (crit ? 0.35F : 1.0F))
                 * (pulse ? 1.25F : 1.0F)
                 * (crit ? 3.2F : 1.0F)
                 * (mc.player.handSwingTicks > URotationMath.rand(0.2F, 0.4F) && !crit ? 0.5F : 1.0F);
         float accelCap = accelCapBase * (pulse ? 4.0F : 1.0F) * (crit ? 2.6F : 1.0F);
 
-        springYaw += MathHelper.clamp(
+        springYaw += Mth.clamp(
                 speed * (total < 0.001F ? 0.0F : yawDelta / total) * 1.25F
                         / (intersecting(target) ? 2.0F : 1.0F) - springYaw,
                 -accelCap * (crit ? 0.6F : 1.2F), accelCap * (crit ? 0.6F : 1.2F));
-        springPitch += MathHelper.clamp(
+        springPitch += Mth.clamp(
                 speed * (total < 0.001F ? 0.0F : pitchDelta / total)
                         + springYaw * axisCoupling - springPitch,
                 -accelCap * 0.68F, accelCap * 0.68F);
-        springYaw = MathHelper.clamp(springYaw, -Math.abs(yawDelta), Math.abs(yawDelta));
-        springPitch = MathHelper.clamp(springPitch,
+        springYaw = Mth.clamp(springYaw, -Math.abs(yawDelta), Math.abs(yawDelta));
+        springPitch = Mth.clamp(springPitch,
                 -Math.abs(pitchDelta) - Math.abs(springYaw * axisCoupling),
                 Math.abs(pitchDelta) + Math.abs(springYaw * axisCoupling));
         if (total < deadZone) {
@@ -218,9 +218,9 @@ public class UEnergySpookyRotation {
     }
 
     /** Class101#m1365: точка на высоте-фракции хитбокса со смещением. */
-    private static Vec3d aimPoint(LivingEntity target, double frac, double offsetX, double offsetZ) {
+    private static Vec3 aimPoint(LivingEntity target, double frac, double offsetX, double offsetZ) {
         return target.getEntityPos().add(offsetX,
-                MathHelper.clamp(target.getHeight() * frac, 0.1,
+                Mth.clamp(target.getHeight() * frac, 0.1,
                         Math.max(0.1, target.getHeight() - 0.1)),
                 offsetZ);
     }
@@ -228,24 +228,24 @@ public class UEnergySpookyRotation {
     // ── Вариант «анархия 702/704» (Class212#m2388) ───────────────────────────
 
     private static void spookyAnarchy(LivingEntity target, boolean attack, float range) {
-        float curYaw = mc.player.getYaw();
-        float curPitch = mc.player.getPitch();
-        Vec3d eye = mc.player.getEyePos();
-        Box box = target.getBoundingBox();
-        Vec3d prediction = new Vec3d(target.getX() - target.lastRenderX, 0.0, target.getZ() - target.lastRenderZ)
-                .subtract(mc.player.getVelocity().x, 0.0, mc.player.getVelocity().z)
+        float curYaw = mc.player.getYRot();
+        float curPitch = mc.player.getXRot();
+        Vec3 eye = mc.player.getEyePosition();
+        AABB box = target.getBoundingBox();
+        Vec3 prediction = new Vec3(target.getX() - target.lastRenderX, 0.0, target.getZ() - target.lastRenderZ)
+                .subtract(mc.player.getDeltaMovement().x, 0.0, mc.player.getDeltaMovement().z)
                 .multiply(1.5);
-        Vec3d aim = new Vec3d(box.getCenter().x, box.minY + box.getLengthY() * 0.82, box.getCenter().z)
+        Vec3 aim = new Vec3(box.getCenter().x, box.minY + box.getLengthY() * 0.82, box.getCenter().z)
                 .add(prediction)
                 .subtract(eye);
         boolean veryClose = aim.x * aim.x + aim.z * aim.z < 0.03F;
         double horizDist = Math.max(0.05, Math.hypot(aim.x, aim.z));
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        float distFactor = (float) MathHelper.clamp(horizDist / 2.0, 0.7, 1.0);
-        Vec3d pitchAim = new Vec3d(box.getCenter().x, box.minY + box.getLengthY() * 0.87, box.getCenter().z)
+        float distFactor = (float) Mth.clamp(horizDist / 2.0, 0.7, 1.0);
+        Vec3 pitchAim = new Vec3(box.getCenter().x, box.minY + box.getLengthY() * 0.87, box.getCenter().z)
                 .subtract(eye);
         float yawDelta = veryClose ? 0.0F
-                : MathHelper.wrapDegrees((float) Math.toDegrees(Math.atan2(-aim.x, aim.z)) - curYaw);
+                : Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-aim.x, aim.z)) - curYaw);
         float pitchDelta = (float) (-Math.toDegrees(
                 Math.atan2(pitchAim.y, Math.max(0.7, Math.hypot(pitchAim.x, pitchAim.z))))) - curPitch;
         float angularSize = (float) Math.toDegrees(Math.atan(box.getLengthX() * 0.5 / horizDist));
@@ -258,14 +258,14 @@ public class UEnergySpookyRotation {
                 * (angularSize * 1.8F + 7.0F) + random.nextFloat(-4.0F, 4.0F)) * wobbleScale;
         float wobblePitch = ((float) (Math.sin(time * 0.55) + Math.cos(time * 1.3) * 0.4) * 6.0F
                 + random.nextFloat(-2.0F, 2.0F)) * wobbleScale;
-        float speedFactor = MathHelper.clamp(
+        float speedFactor = Mth.clamp(
                 (windowYaw ? random.nextFloat(0.85F, 1.0F)
                         : random.nextFloat(0.55F, 0.85F) * (1.0F - cooldown * 0.35F))
                         * (1.0F + Math.min(Math.abs(yawDelta), 90.0F) / 300.0F)
                         * distFactor,
                 0.1F, 1.0F);
         float maxStep = random.nextFloat(55.0F, 80.0F) * distFactor;
-        float yawStep = MathHelper.clamp((yawDelta + wobbleYaw) * speedFactor, -maxStep, maxStep);
+        float yawStep = Mth.clamp((yawDelta + wobbleYaw) * speedFactor, -maxStep, maxStep);
         if (attack && !box.contains(eye)
                 && box.raycast(eye, eye.add(direction(curYaw + yawStep, curPitch).multiply(range + 1.0)))
                         .isEmpty()) {
@@ -280,21 +280,21 @@ public class UEnergySpookyRotation {
         }
 
         float newYaw = curYaw + yawStep;
-        float newPitch = MathHelper.clamp(curPitch + pitchStep, -89.0F, 89.0F);
+        float newPitch = Mth.clamp(curPitch + pitchStep, -89.0F, 89.0F);
         URotationMath.submit(veryClose ? 8.0F : 35.0F, 22.0F, 30.0F, 30.0F, 0, 15, newYaw, newPitch);
     }
 
     // ── Общие хелперы (Deluxe: Class359) ─────────────────────────────────────
 
     /** Class359#m3920: вектор взгляда по yaw/pitch. */
-    private static Vec3d direction(float yaw, float pitch) {
+    private static Vec3 direction(float yaw, float pitch) {
         return Attack.directionVec(yaw, pitch);
     }
 
     /** Class359#m3926: дистанция от глаз до хитбокса. */
     private static double distanceToBox(Entity entity) {
-        Vec3d eye = mc.player.getEyePos();
-        Box box = entity.getBoundingBox();
+        Vec3 eye = mc.player.getEyePosition();
+        AABB box = entity.getBoundingBox();
         double dx = Math.max(Math.max(box.minX - eye.x, eye.x - box.maxX), 0.0);
         double dy = Math.max(Math.max(box.minY - eye.y, eye.y - box.maxY), 0.0);
         double dz = Math.max(Math.max(box.minZ - eye.z, eye.z - box.maxZ), 0.0);
@@ -302,7 +302,7 @@ public class UEnergySpookyRotation {
     }
 
     /** Class359#m3909: slab-тест пересечения луча с боксом. */
-    private static boolean rayHitsBox(Vec3d start, Vec3d dir, Box box, double maxDist) {
+    private static boolean rayHitsBox(Vec3 start, Vec3 dir, AABB box, double maxDist) {
         double enter = 0.0;
         double exit = maxDist;
         double sx = start.x;
@@ -343,13 +343,13 @@ public class UEnergySpookyRotation {
 
     /** Class359#m3907: скорость yaw пропорциональна оставшемуся углу. */
     private static float yawSpeedFor(float goalYaw, float minDiv, float maxDiv) {
-        return Math.max(GCDUtil.getGCDValue(), Math.abs(MathHelper.wrapDegrees(goalYaw - mc.player.getYaw()))
+        return Math.max(GCDUtil.getGCDValue(), Math.abs(Mth.wrapDegrees(goalYaw - mc.player.getYRot()))
                 / Math.max(1.0F, URotationMath.rand(minDiv, maxDiv)));
     }
 
     /** Class359#m3911: то же для pitch. */
     private static float pitchSpeedFor(float goalPitch, float minDiv, float maxDiv) {
-        return Math.max(GCDUtil.getGCDValue(), Math.abs(goalPitch - mc.player.getPitch())
+        return Math.max(GCDUtil.getGCDValue(), Math.abs(goalPitch - mc.player.getXRot())
                 / Math.max(1.0F, URotationMath.rand(minDiv, maxDiv)));
     }
 

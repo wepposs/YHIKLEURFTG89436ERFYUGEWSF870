@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.fog.FogRenderer;
-import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.fog.FogRenderer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,7 +17,7 @@ import vesence.module.impl.visuals.Ambience;
 @Mixin(FogRenderer.class)
 public class FogRendererMixin {
     @Inject(method = "getFogColor", at = @At("RETURN"), cancellable = true)
-    private static void onGetFogColor(Camera camera, float tickProgress, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfoReturnable<Vector4f> cir) {
+    private static void onGetFogColor(Camera camera, float tickProgress, ClientLevel world, int viewDistance, float skyDarkness, CallbackInfoReturnable<Vector4f> cir) {
         Ambience ambience = Ambience.getInstance();
         if (ambience != null && Ambience.isEnabled() && ambience.shouldOverrideFog()) {
             int color = ambience.getFogColorValue();
@@ -51,8 +51,8 @@ public class FogRendererMixin {
     private float vesence$fogStart(float renderDistanceStart) {
         Ambience amb = Ambience.getInstance();
         if (amb == null || !Ambience.isEnabled()) return renderDistanceStart;
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null || client.world == null || client.player == null) {
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null || client.gameRenderer == null || client.level == null || client.player == null) {
             return renderDistanceStart;
         }
         if (amb.isFogClearMode()) return 1.0E7f;
@@ -75,8 +75,8 @@ public class FogRendererMixin {
     private float vesence$fogEnd(float renderDistanceEnd) {
         Ambience amb = Ambience.getInstance();
         if (amb == null || !Ambience.isEnabled()) return renderDistanceEnd;
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null || client.world == null || client.player == null) {
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null || client.gameRenderer == null || client.level == null || client.player == null) {
             return renderDistanceEnd;
         }
         if (amb.isFogClearMode()) return 1.0E7f + 1.0f;

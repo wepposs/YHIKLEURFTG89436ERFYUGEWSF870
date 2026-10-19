@@ -1,6 +1,6 @@
 package vesence.renderengine.render.pipeline;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.opengl.*;
 import vesence.renderengine.providers.ShaderProgram;
 import vesence.renderengine.providers.GlState;
@@ -72,7 +72,7 @@ public class ShapePipeline {
                      float smoothness, float cornerSmoothness, float[] matrix,
                      int viewportW, int viewportH) {
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
 
             if (state.scissorEnabled) {
@@ -128,7 +128,7 @@ public class ShapePipeline {
                             float smoothness, float cornerSmoothness, float outlineWidth,
                             float[] matrix, int viewportW, int viewportH) {
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
 
             if (state.scissorEnabled) {
@@ -184,7 +184,7 @@ public class ShapePipeline {
                            float smoothness, float cornerSmoothness, float shadowBlur, float shadowSpread,
                            float[] matrix, int viewportW, int viewportH) {
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
 
             if (state.scissorEnabled) {
@@ -261,7 +261,7 @@ public class ShapePipeline {
         float bBL = (cBL & 0xFF) / 255.0f;
         float aBL = (cBL >> 24 & 0xFF) / 255.0f;
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
 
             if (state.scissorEnabled) {
@@ -333,7 +333,7 @@ public class ShapePipeline {
         float bBL = (cBL & 0xFF) / 255.0f;
         float aBL = (cBL >> 24 & 0xFF) / 255.0f;
 
-        GlState.Snapshot state = GlState.push();
+        GlState.Snapshot state = GlState.pushPose();
         try {
             shader.use();
             if (uMatrixLoc != -1) GL20.glUniformMatrix3fv(uMatrixLoc, false, matrix);

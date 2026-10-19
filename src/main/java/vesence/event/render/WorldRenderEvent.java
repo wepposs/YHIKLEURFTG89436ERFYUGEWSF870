@@ -2,9 +2,9 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Matrix4f;
 import vesence.event.Event;
 import vesence.utils.render.world.WorldRenderer;
@@ -13,19 +13,19 @@ import java.util.Objects;
 
 @Environment(EnvType.CLIENT)
 public final class WorldRenderEvent extends Event {
-   private final MinecraftClient client;
+   private final Minecraft client;
    private final GameRenderer gameRenderer;
-   private final WorldRenderer worldRenderer;
+   private final WorldRenderer levelRenderer;
    private final float frameDepth;
 
-   public WorldRenderEvent(MinecraftClient client, GameRenderer gameRenderer, WorldRenderer worldRenderer, float frameDepth) {
+   public WorldRenderEvent(Minecraft client, GameRenderer gameRenderer, WorldRenderer levelRenderer, float frameDepth) {
       this.client = Objects.requireNonNull(client, "client");
       this.gameRenderer = Objects.requireNonNull(gameRenderer, "gameRenderer");
-      this.worldRenderer = Objects.requireNonNull(worldRenderer, "worldRenderer");
+      this.levelRenderer = Objects.requireNonNull(levelRenderer, "levelRenderer");
       this.frameDepth = frameDepth;
    }
 
-   public MinecraftClient client() {
+   public Minecraft client() {
       return this.client;
    }
 
@@ -33,20 +33,20 @@ public final class WorldRenderEvent extends Event {
       return this.gameRenderer;
    }
 
-   public WorldRenderer worldRenderer() {
-      return this.worldRenderer;
+   public WorldRenderer levelRenderer() {
+      return this.levelRenderer;
    }
 
-   public MatrixStack matrixStack() {
-      return this.worldRenderer.matrixStack();
+   public PoseStack matrixStack() {
+      return this.levelRenderer.matrixStack();
    }
 
    public Matrix4f positionMatrix() {
-      return this.worldRenderer.positionMatrix();
+      return this.levelRenderer.positionMatrix();
    }
 
    public Matrix4f projectionMatrix() {
-      return this.worldRenderer.projectionMatrix();
+      return this.levelRenderer.projectionMatrix();
    }
 
    public float frameDepth() {

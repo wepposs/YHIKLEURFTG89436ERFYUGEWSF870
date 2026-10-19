@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
 
@@ -15,7 +15,7 @@ import static vesence.utils.other.IMinecraft.mc;
  * (original class rPLzNOwUg2Zo11au, id "Ares/FT").
  *
  * Energy drives the aim with two multi-tone sine/cosine generators, one for
- * yaw and one for pitch, both keyed on (player.age + targetId * 0.137):
+ * yaw and one for pitch, both keyed on (player.tickCount + targetId * 0.137):
  *
  *   yawDrift(t) = sin(t*0.48*2.17)*24.0*0.19*speed
  *               + cos(t*0.72*2.17 + 0.84)*16.5*0.55*speed
@@ -87,23 +87,23 @@ public class UEnergyAresFTRotation {
     private static boolean boosting;
     private static int boostTicksLeft;
 
-    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3d point) {
+    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3 point) {
         if (mc.player == null || target == null) return;
 
         boolean newTarget = target.getId() != lastTargetId;
         if (newTarget) {
             onTargetChanged(target);
         }
-        if (!newTarget && lastTick == mc.player.age) return;
-        lastTick = mc.player.age;
+        if (!newTarget && lastTick == mc.player.tickCount) return;
+        lastTick = mc.player.tickCount;
 
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
         // ТЗ: аим-поинт — ближайшая ВИДИМАЯ точка хитбокса.
-        Vec3d aimPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
+        Vec3 aimPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
         if (aimPoint == null) aimPoint = target.getBoundingBox().getCenter();
         Rotation aim = toRotation(aimPoint.subtract(eye));
 
-        float t = mc.player.age + phaseOffset;
+        float t = mc.player.tickCount + phaseOffset;
         float jump = boosting ? BOOST_YAW : 1.0F;
         float jumpPitch = boosting ? BOOST_PITCH : 1.0F;
         if (mc.player.isSneaking()) jump /= 2.0F;
@@ -117,7 +117,7 @@ public class UEnergyAresFTRotation {
             pitchDrift = 0.0F;
         }
         float targetYaw = aim.yaw + yawDrift;
-        float targetPitch = MathHelper.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
+        float targetPitch = Mth.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
 
         float outYaw;
         if (mc.player.isSneaking()) {
@@ -128,9 +128,9 @@ public class UEnergyAresFTRotation {
             outYaw = smoothedYaw;
         }
 
-        if (mc.player.isSneaking() && !isVisible(mc.player.getYaw(), targetPitch, target)) {
+        if (mc.player.isSneaking() && !isVisible(mc.player.getYRot(), targetPitch, target)) {
             lastPitchBase = lerpAngle(lastPitchBase, aim.pitch, BOOST_LERP_P);
-            targetPitch = MathHelper.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
+            targetPitch = Mth.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
         }
         smoothedPitch = targetPitch;
 
@@ -162,25 +162,25 @@ public class UEnergyAresFTRotation {
     private static void onTargetChanged(LivingEntity target) {
         lastTargetId = target.getId();
         phaseOffset = target.getId() * TARGET_ID_SCALE;
-        smoothedYaw = mc.player.getYaw();
-        smoothedPitch = mc.player.getPitch();
-        lastPitchBase = mc.player.getPitch();
+        smoothedYaw = mc.player.getYRot();
+        smoothedPitch = mc.player.getXRot();
+        lastPitchBase = mc.player.getXRot();
         lastTick = AIM_SLOT;
     }
 
     private static float lerpAngle(float from, float to, float amount) {
-        return from + MathHelper.wrapDegrees(to - from) * amount;
+        return from + Mth.wrapDegrees(to - from) * amount;
     }
 
     private static boolean isVisible(float yaw, float pitch, LivingEntity target) {
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d end = eye.add(Vec3d.fromPolar(pitch, yaw).multiply(24.0));
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 end = eye.add(Vec3.fromPolar(pitch, yaw).multiply(24.0));
         return target.getBoundingBox().raycast(eye, end).isPresent();
     }
 
-    private static Rotation toRotation(Vec3d v) {
+    private static Rotation toRotation(Vec3 v) {
         float yaw = (float) Math.toDegrees(Math.atan2(-v.x, v.z));
-        float pitch = (float) MathHelper.clamp(
+        float pitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(v.y, Math.hypot(v.x, v.z))), -90.0F, 90.0F);
         return new Rotation(yaw, pitch);
     }

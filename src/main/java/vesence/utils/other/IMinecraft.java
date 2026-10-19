@@ -1,7 +1,7 @@
 package vesence.utils.other;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 public interface IMinecraft {
-   MinecraftClient mc = MinecraftClient.getInstance();
+   Minecraft mc = Minecraft.getInstance();
 }

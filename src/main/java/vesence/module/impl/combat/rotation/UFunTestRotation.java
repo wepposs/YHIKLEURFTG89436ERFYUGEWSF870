@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.RayTraceUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
@@ -50,7 +50,7 @@ public class UFunTestRotation {
     private static float basePitch = 0.0f;
 
     // === Humanization fields ===
-    private static Vec3d aimOffset = Vec3d.ZERO;
+    private static Vec3 aimOffset = Vec3.ZERO;
     private static float speedNoiseYaw = 1.0f;
     private static float speedNoisePitch = 1.0f;
     private static int noiseTick = 0;
@@ -75,14 +75,14 @@ public class UFunTestRotation {
     private static final int POST_HIT_FLICK_TICKS = 3;       // держим отворот столько тиков
 
     public static void rotation(LivingEntity target, float attackDist, float rotateDist) {
-        rotation(target, attackDist, rotateDist, target != null ? target.getEyePos() : null);
+        rotation(target, attackDist, rotateDist, target != null ? target.getEyePosition() : null);
     }
 
-    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3d point) {
+    public static void rotation(LivingEntity target, float attackDist, float rotateDist, Vec3 point) {
         if (mc.player == null || target == null) return;
 
         // ТЗ: аим-поинт — ближайшая ВИДИМАЯ точка хитбокса, не центр коробки.
-        Vec3d resolvedPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
+        Vec3 resolvedPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
         if (resolvedPoint == null) {
             resolvedPoint = point != null ? point : target.getBoundingBox().getCenter();
         }
@@ -98,15 +98,15 @@ public class UFunTestRotation {
             speedNoisePitch = 1.0f + Mathf.randomValue(-SPEED_NOISE_RANGE, SPEED_NOISE_RANGE);
         }
 
-        Vec3d directionVec = point.subtract(mc.player.getEyePos());
+        Vec3 directionVec = point.subtract(mc.player.getEyePosition());
         float targetYaw = (float) Math.toDegrees(Math.atan2(-directionVec.x, directionVec.z));
-        float targetPitch = (float) MathHelper.clamp(
+        float targetPitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(directionVec.y, Math.hypot(directionVec.x, directionVec.z))),
                 -90.0, 90.0
         );
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
 
         boolean isNewRotation = false;
         if (trackedTarget != target) {
@@ -114,7 +114,7 @@ public class UFunTestRotation {
         } else if (!hasRotationStart) {
             isNewRotation = true;
         } else {
-            float yawShift = Math.abs(MathHelper.wrapDegrees(targetYaw - targetStartYaw));
+            float yawShift = Math.abs(Mth.wrapDegrees(targetYaw - targetStartYaw));
             float pitchShift = Math.abs(targetPitch - targetStartPitch);
             if (yawShift > 8f || pitchShift > 5f) {
                 isNewRotation = true;
@@ -129,24 +129,24 @@ public class UFunTestRotation {
             targetStartPitch = targetPitch;
             hasRotationStart = true;
 
-            float startDeltaYaw = MathHelper.wrapDegrees(targetYaw - startYaw);
+            float startDeltaYaw = Mth.wrapDegrees(targetYaw - startYaw);
             float startDeltaPitch = targetPitch - startPitch;
             initialRotationDistance = (float) Math.max(
                     Math.hypot(Math.abs(startDeltaYaw), Math.abs(startDeltaPitch)), 1e-4
             );
 
-            aimOffset = new Vec3d(
+            aimOffset = new Vec3(
                     Mathf.randomValue(-AIM_OFFSET_RANGE, AIM_OFFSET_RANGE),
                     Mathf.randomValue(-AIM_OFFSET_RANGE * 0.5f, AIM_OFFSET_RANGE * 0.5f),
                     Mathf.randomValue(-AIM_OFFSET_RANGE, AIM_OFFSET_RANGE)
             );
         }
 
-        Vec3d adjustedPoint = point.add(aimOffset);
+        Vec3 adjustedPoint = point.add(aimOffset);
 
-        Vec3d adjDirectionVec = adjustedPoint.subtract(mc.player.getEyePos());
+        Vec3 adjDirectionVec = adjustedPoint.subtract(mc.player.getEyePosition());
         float adjTargetYaw = (float) Math.toDegrees(Math.atan2(-adjDirectionVec.x, adjDirectionVec.z));
-        float adjTargetPitch = (float) MathHelper.clamp(
+        float adjTargetPitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(adjDirectionVec.y, Math.hypot(adjDirectionVec.x, adjDirectionVec.z))),
                 -90.0, 90.0
         );
@@ -154,36 +154,36 @@ public class UFunTestRotation {
         // FunTest: пост-хит отворот — целимся мимо цели на ~20° по yaw несколько тиков,
         // чтобы сбить корреляцию «бьёт ровно в цель» (статистика ударов анти-чита).
         if (flickTicks > 0) {
-            adjTargetYaw = MathHelper.wrapDegrees(adjTargetYaw + flickYawOffset);
+            adjTargetYaw = Mth.wrapDegrees(adjTargetYaw + flickYawOffset);
             flickTicks--;
         }
 
-        float currentDeltaYaw = MathHelper.wrapDegrees(adjTargetYaw - currentYaw);
+        float currentDeltaYaw = Mth.wrapDegrees(adjTargetYaw - currentYaw);
         float currentDeltaPitch = adjTargetPitch - currentPitch;
         float currentDistance = (float) Math.max(
                 Math.hypot(Math.abs(currentDeltaYaw), Math.abs(currentDeltaPitch)), 1e-4
         );
 
         float rotationProgress = (initialRotationDistance > 1e-4)
-                ? MathHelper.clamp(1f - (currentDistance / initialRotationDistance), 0f, 1f)
+                ? Mth.clamp(1f - (currentDistance / initialRotationDistance), 0f, 1f)
                 : 1f;
 
-        float distanceToTarget = (float) mc.player.getEyePos().distanceTo(point);
+        float distanceToTarget = (float) mc.player.getEyePosition().distanceTo(point);
         float maxDist = attackDist + rotateDist + 2f;
-        float distanceFactor = 1f - MathHelper.clamp(distanceToTarget / maxDist, 0f, 1f);
+        float distanceFactor = 1f - Mth.clamp(distanceToTarget / maxDist, 0f, 1f);
 
         float combinedProgress = rotationProgress * 0.65f + distanceFactor * 0.35f;
-        combinedProgress = MathHelper.clamp(combinedProgress, 0f, 1f);
+        combinedProgress = Mth.clamp(combinedProgress, 0f, 1f);
 
         float easedProgress = combinedProgress * combinedProgress * (3.0f - 2.0f * combinedProgress);
 
-        float deltaYaw = MathHelper.wrapDegrees(adjTargetYaw - currentYaw);
+        float deltaYaw = Mth.wrapDegrees(adjTargetYaw - currentYaw);
         float deltaPitch = adjTargetPitch - currentPitch;
 
         float hypot = (float) Math.max(Math.hypot(Math.abs(deltaYaw), Math.abs(deltaPitch)), 1e-4);
 
         boolean onRay = RayTraceUtil.rayTraceSingleEntity(currentYaw, currentPitch, attackDist + rotateDist + 0.1f, target);
-        boolean inAir = !mc.player.isOnGround();
+        boolean inAir = !mc.player.onGround();
 
         float baseYawSpeed;
         float basePitchSpeed;
@@ -235,9 +235,9 @@ public class UFunTestRotation {
         float tremorYaw = (float) Math.sin(tremorPhase) * tremAmpYaw;
         float tremorPitch = (float) Math.cos(tremorPhase * 1.37f) * tremAmpPitch;
 
-        float newYaw = currentYaw + MathHelper.clamp(deltaYaw, -maxYaw, maxYaw) + tremorYaw;
-        basePitch = MathHelper.clamp(
-                currentPitch + MathHelper.clamp(deltaPitch, -maxPitch, maxPitch) + tremorPitch,
+        float newYaw = currentYaw + Mth.clamp(deltaYaw, -maxYaw, maxYaw) + tremorYaw;
+        basePitch = Mth.clamp(
+                currentPitch + Mth.clamp(deltaPitch, -maxPitch, maxPitch) + tremorPitch,
                 -90f, 90f
         );
 
@@ -261,8 +261,8 @@ public class UFunTestRotation {
     public static boolean smoothBack() {
         if (mc.player == null) return true;
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
 
         if (smoothbackShakeStartMs < 0L) {
             smoothbackShakeStartMs = System.currentTimeMillis();
@@ -281,37 +281,37 @@ public class UFunTestRotation {
         float toPitch = hasReleaseTo ? releaseToPitch : FreeLookUtil.freePitch;
 
         float t = smoothbackShakeStartMs >= 0L
-                ? MathHelper.clamp((float)(System.currentTimeMillis() - smoothbackShakeStartMs) / SMOOTHBACK_DURATION_MS, 0f, 1f)
+                ? Mth.clamp((float)(System.currentTimeMillis() - smoothbackShakeStartMs) / SMOOTHBACK_DURATION_MS, 0f, 1f)
                 : 1.0f;
 
         float tEased = 1.0f - (float) Math.pow(1.0f - t, 3.0);
 
-        float deltaYaw   = MathHelper.wrapDegrees(toYaw   - currentYaw);
+        float deltaYaw   = Mth.wrapDegrees(toYaw   - currentYaw);
         float deltaPitch = toPitch - currentPitch;
         float hypot = (float) Math.max(Math.hypot(Math.abs(deltaYaw), Math.abs(deltaPitch)), 1e-4);
 
-        float yawSpeed   = MathHelper.lerp(tEased, 18.0f, 35.0f);
-        float pitchSpeed = MathHelper.lerp(tEased, 16.0f, 28.0f);
+        float yawSpeed   = Mth.lerp(tEased, 18.0f, 35.0f);
+        float pitchSpeed = Mth.lerp(tEased, 16.0f, 28.0f);
 
         float maxYaw   = Math.abs(deltaYaw   / hypot) * yawSpeed;
         float maxPitch = Math.abs(deltaPitch / hypot) * pitchSpeed;
 
-        float lerpK = MathHelper.lerp(tEased, 0.28f, 0.35f);
+        float lerpK = Mth.lerp(tEased, 0.28f, 0.35f);
 
-        float newYaw = MathHelper.lerp(lerpK,
+        float newYaw = Mth.lerp(lerpK,
                 currentYaw,
-                currentYaw + MathHelper.clamp(deltaYaw, -maxYaw, maxYaw)
+                currentYaw + Mth.clamp(deltaYaw, -maxYaw, maxYaw)
         );
-        float newPitch = MathHelper.clamp(
-                MathHelper.lerp(lerpK,
+        float newPitch = Mth.clamp(
+                Mth.lerp(lerpK,
                         currentPitch,
-                        currentPitch + MathHelper.clamp(deltaPitch, -maxPitch, maxPitch)
+                        currentPitch + Mth.clamp(deltaPitch, -maxPitch, maxPitch)
                 ), -90f, 90f
         );
 
         if (smoothbackShakeStartMs >= 0L && hasReleaseFrom) {
-            newYaw   = MathHelper.lerpAngleDegrees(tEased, releaseFromYaw,   newYaw);
-            newPitch = MathHelper.lerp(tEased, releaseFromPitch, newPitch);
+            newYaw   = Mth.lerpAngleDegrees(tEased, releaseFromYaw,   newYaw);
+            newPitch = Mth.lerp(tEased, releaseFromPitch, newPitch);
 
             if (t >= 1.0f) {
                 hasReleaseFrom = false;
@@ -322,7 +322,7 @@ public class UFunTestRotation {
         boolean done = t >= 1.0f && Math.abs(deltaYaw) < 1.0f && Math.abs(deltaPitch) < 1.0f;
 
         if (!done) {
-            Rotation rot = new Rotation(newYaw, MathHelper.clamp(newPitch, -90f, 90f));
+            Rotation rot = new Rotation(newYaw, Mth.clamp(newPitch, -90f, 90f));
             URotations.update(rot, maxYaw, maxPitch, 25, 28.0f, 0, 15, false);
         } else {
             // Уход с цели завершён — чистим трекинг и пост-хит эффекты, чтобы следующее
@@ -337,13 +337,13 @@ public class UFunTestRotation {
     }
 
     public static void state() {
-        basePitch = mc.player.getPitch();
+        basePitch = mc.player.getXRot();
         smoothbackShakeStartMs = -1L;
         hasReleaseFrom = false;
         hasReleaseTo   = false;
         hasRotationStart = false;
         trackedTarget = null;
-        aimOffset = Vec3d.ZERO;
+        aimOffset = Vec3.ZERO;
         speedNoiseYaw = 1.0f;
         speedNoisePitch = 1.0f;
         noiseTick = 0;

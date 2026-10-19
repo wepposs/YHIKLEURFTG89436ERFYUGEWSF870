@@ -15,13 +15,13 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -44,14 +44,14 @@ import java.util.OptionalInt;
  * </ol>
  */
 public class FogBlurPipeline {
-    private static final Identifier GAUSS_ID = Identifier.of("vesence", "pipeline/fogblur_gaussian");
-    private static final Identifier GAUSS_ID2 = Identifier.of("vesence", "pipeline/fogblur_gaussian2");
-    private static final Identifier COMPOSITE_ID = Identifier.of("vesence", "pipeline/fogblur_composite");
-    private static final Identifier TINT_ID = Identifier.of("vesence", "pipeline/fogblur_tint");
-    private static final Identifier VSH = Identifier.of("vesence", "core/fogblur");
-    private static final Identifier GAUSS_FSH = Identifier.of("vesence", "core/fogblur_gaussian");
-    private static final Identifier COMPOSITE_FSH = Identifier.of("vesence", "core/fogblur_composite");
-    private static final Identifier TINT_FSH = Identifier.of("vesence", "core/fogblur_tint");
+    private static final ResourceLocation GAUSS_ID = ResourceLocation.of("vesence", "pipeline/fogblur_gaussian");
+    private static final ResourceLocation GAUSS_ID2 = ResourceLocation.of("vesence", "pipeline/fogblur_gaussian2");
+    private static final ResourceLocation COMPOSITE_ID = ResourceLocation.of("vesence", "pipeline/fogblur_composite");
+    private static final ResourceLocation TINT_ID = ResourceLocation.of("vesence", "pipeline/fogblur_tint");
+    private static final ResourceLocation VSH = ResourceLocation.of("vesence", "core/fogblur");
+    private static final ResourceLocation GAUSS_FSH = ResourceLocation.of("vesence", "core/fogblur_gaussian");
+    private static final ResourceLocation COMPOSITE_FSH = ResourceLocation.of("vesence", "core/fogblur_composite");
+    private static final ResourceLocation TINT_FSH = ResourceLocation.of("vesence", "core/fogblur_tint");
 
     private static final BlendFunction REPLACE_BLEND =
             new BlendFunction(SourceFactor.ONE, DestFactor.ZERO, SourceFactor.ONE, DestFactor.ZERO);
@@ -62,7 +62,7 @@ public class FogBlurPipeline {
                     .withLocation(GAUSS_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(GAUSS_FSH)
-                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
                     .withSampler("SceneSampler")
                     .withBlend(REPLACE_BLEND)
@@ -79,7 +79,7 @@ public class FogBlurPipeline {
                     .withLocation(GAUSS_ID2)
                     .withVertexShader(VSH)
                     .withFragmentShader(GAUSS_FSH)
-                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
                     .withSampler("SceneSampler")
                     .withBlend(REPLACE_BLEND)
@@ -95,7 +95,7 @@ public class FogBlurPipeline {
                     .withLocation(COMPOSITE_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(COMPOSITE_FSH)
-                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("DepthData", UniformType.UNIFORM_BUFFER)
                     .withSampler("BlurSampler")
                     .withSampler("DepthSampler")
@@ -112,7 +112,7 @@ public class FogBlurPipeline {
                     .withLocation(TINT_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(TINT_FSH)
-                    .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                     .withUniform("TintData", UniformType.UNIFORM_BUFFER)
                     .withSampler("SceneSampler")
                     .withBlend(REPLACE_BLEND)
@@ -199,9 +199,9 @@ public class FogBlurPipeline {
      * @param distance  дистанция тумана 0..200 (порог глубины)
      * @param linear    линейная выборка (быстрее, чуть менее точно)
      */
-    public void apply(MinecraftClient mc, float strength, float distance, boolean linear,
+    public void apply(Minecraft mc, float strength, float distance, boolean linear,
                       boolean usePuke, float pukeOpacity, float pukeSaturation, float pukeBrightness) {
-        Framebuffer mainFb = mc.getFramebuffer();
+        RenderTarget mainFb = mc.getMainRenderTarget();
         if (mainFb == null || mainFb.getColorAttachment() == null || mainFb.getDepthAttachment() == null) return;
         int w = mainFb.textureWidth;
         int h = mainFb.textureHeight;
@@ -236,8 +236,8 @@ public class FogBlurPipeline {
         GpuTextureView blurSource = sceneCopyView;
         if (usePuke) {
             float time = (System.nanoTime() - startTime * 1_000_000L) / 1_000_000_000.0f;
-            float yaw = mc.player != null ? mc.player.getYaw() : 0f;
-            float pitch = mc.player != null ? mc.player.getPitch() : 0f;
+            float yaw = mc.player != null ? mc.player.getYRot() : 0f;
+            float pitch = mc.player != null ? mc.player.getXRot() : 0f;
             scratch.clear();
             scratch.putFloat(pukeSaturation).putFloat(pukeBrightness).putFloat(pukeOpacity).putFloat(time);
             scratch.putFloat(yaw).putFloat(pitch).putFloat(0f).putFloat(0f);

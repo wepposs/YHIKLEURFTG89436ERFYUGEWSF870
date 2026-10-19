@@ -2,13 +2,13 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.RenderPipelines;
 import org.joml.Matrix3x2fStack;
 import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.HudElement;
@@ -55,11 +55,11 @@ public class PotionsElement extends HudElement {
         widthAnim.set(125.0 + PADDING_H * 2.0);
     }
 
-    private String effectName(StatusEffectInstance inst) {
+    private String effectName(MobEffectInstance inst) {
         return inst.getEffectType().value().getName().getString();
     }
 
-    private String formatDuration(StatusEffectInstance inst) {
+    private String formatDuration(MobEffectInstance inst) {
         if (inst.isInfinite()) return "\u221E";
         int totalSec = inst.getDuration() / 20;
         int min = totalSec / 60;
@@ -68,7 +68,7 @@ public class PotionsElement extends HudElement {
         return sec + "\u0441";
     }
 
-    private String amplifier(StatusEffectInstance inst) {
+    private String amplifier(MobEffectInstance inst) {
         int amp = inst.getAmplifier();
         if (amp <= 0) return "";
         return switch (amp) {
@@ -80,20 +80,20 @@ public class PotionsElement extends HudElement {
         };
     }
 
-    private List<StatusEffectInstance> sortedEffects(MinecraftClient mc) {
+    private List<MobEffectInstance> sortedEffects(Minecraft mc) {
         if (mc.player == null) return List.of();
-        Collection<StatusEffectInstance> raw = mc.player.getStatusEffects();
-        List<StatusEffectInstance> beneficial = new ArrayList<>();
-        List<StatusEffectInstance> neutral = new ArrayList<>();
-        List<StatusEffectInstance> harmful = new ArrayList<>();
-        for (StatusEffectInstance e : raw) {
+        Collection<MobEffectInstance> raw = mc.player.getStatusEffects();
+        List<MobEffectInstance> beneficial = new ArrayList<>();
+        List<MobEffectInstance> neutral = new ArrayList<>();
+        List<MobEffectInstance> harmful = new ArrayList<>();
+        for (MobEffectInstance e : raw) {
             switch (e.getEffectType().value().getCategory()) {
                 case BENEFICIAL -> beneficial.add(e);
                 case HARMFUL    -> harmful.add(e);
                 default         -> neutral.add(e);
             }
         }
-        List<StatusEffectInstance> result = new ArrayList<>();
+        List<MobEffectInstance> result = new ArrayList<>();
         result.addAll(beneficial);
         result.addAll(neutral);
         result.addAll(harmful);
@@ -101,14 +101,14 @@ public class PotionsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        boolean isChatOpen = mc.screen instanceof ChatScreen;
 
-        List<StatusEffectInstance> effects = sortedEffects(mc);
+        List<MobEffectInstance> effects = sortedEffects(mc);
 
         float totalSlotHeight = 0f;
-        for (StatusEffectInstance inst : effects) {
+        for (MobEffectInstance inst : effects) {
             String key = effectName(inst);
             Animation2 anim = effectAnims.computeIfAbsent(key, k -> {
                 Animation2 a = new Animation2();
@@ -158,7 +158,7 @@ public class PotionsElement extends HudElement {
         float maxLineW = 0f;
         float maxDurW = 0f;
         boolean hasLongDuration = false;
-        for (StatusEffectInstance inst : effects) {
+        for (MobEffectInstance inst : effects) {
             String label = effectName(inst) + amplifier(inst);
             String dur = formatDuration(inst);
             float nameW = renderer.measureText(font, label, FONT_SIZE).width;
@@ -190,7 +190,7 @@ public class PotionsElement extends HudElement {
         curY += HEADER_HEIGHT;
         float visibleSlotHeight = 0f;
 
-        for (StatusEffectInstance inst : effects) {
+        for (MobEffectInstance inst : effects) {
             String key = effectName(inst);
             Animation2 anim = effectAnims.get(key);
             Animation2 slot = slotAnims.get(key);
@@ -244,14 +244,14 @@ public class PotionsElement extends HudElement {
         boundsH = visibleSlotHeight < 0.5f ? HEADER_BOX_HEIGHT : (y + PADDING_V + 9 + HEADER_HEIGHT + visibleSlotHeight + (ROW_BOX_HEIGHT - LINE_HEIGHT)) - y;
     }
 
-    private void drawEffectSprite(DrawContext ctx, StatusEffectInstance inst, float px, float py, float size, float alpha) {
+    private void drawEffectSprite(GuiGraphics ctx, MobEffectInstance inst, float px, float py, float size, float alpha) {
         if (inst == null) return;
         try {
-            Identifier effId = Registries.STATUS_EFFECT.getId(inst.getEffectType().value());
+            ResourceLocation effId = BuiltInRegistries.STATUS_EFFECT.getId(inst.getEffectType().value());
             if (effId == null) return;
-            Identifier spriteId = Identifier.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
+            ResourceLocation spriteId = ResourceLocation.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
             float elemScale = getScale();
-            float guiScale = (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+            float guiScale = (float) Minecraft.getInstance().getWindow().getScaleFactor();
             float sx = this.x + (px - this.x) * elemScale;
             float sy = this.y + (py - this.y) * elemScale;
             float drawSize = size * elemScale;

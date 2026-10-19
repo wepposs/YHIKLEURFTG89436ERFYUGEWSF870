@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resource.ResourceType;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -25,7 +25,7 @@ public class LuaTestHMI {
     public static final String MOD_ID = "holdmyitems";
     public static int swingSpeed = 9;
     public static final Logger LOGGER = LoggerFactory.getLogger("holdmyitems");
-    public static MinecraftClient client = MinecraftClient.getInstance();
+    public static Minecraft client = Minecraft.getInstance();
     public static int age = 0;
     public static int prevAge = 0;
     private static float prevTime = 0.0f;
@@ -67,6 +67,6 @@ public class LuaTestHMI {
         float currentTime = (float) GLFW.glfwGetTime();
         deltaTime = currentTime - prevTime;
         prevTime = currentTime;
-        deltaTime = MinecraftClient.getInstance().isPaused() ? 0.0f : (float) Math.min(0.05, (double) deltaTime);
+        deltaTime = Minecraft.getInstance().isPaused() ? 0.0f : (float) Math.min(0.05, (double) deltaTime);
     }
 }

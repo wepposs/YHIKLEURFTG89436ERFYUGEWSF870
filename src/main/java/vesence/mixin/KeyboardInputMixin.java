@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.PlayerInput;
-import net.minecraft.client.input.KeyboardInput;
+import net.minecraft.client.player.KeyboardInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

@@ -2,8 +2,8 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Hand;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.util.math.RotationAxis;
 import vesence.event.EventInit;
 import vesence.event.render.HandOffsetEvent;
@@ -67,11 +67,11 @@ public class ViewModel extends Module {
       if (!this.enable || !this.shouldApply()) {
          return;
       }
-      if (this.onlyItems.get() && e.getStack().isEmpty()) {
+      if (this.onlyItems.get() && e.getItem().isEmpty()) {
          return;
       }
-      boolean main = e.getHand().equals(Hand.MAIN_HAND);
-      MatrixStack matrix = e.getMatrices();
+      boolean main = e.getHand().equals(InteractionHand.MAIN_HAND);
+      PoseStack matrix = e.getMatrices();
 
       if (main) {
          matrix.translate(this.mainHandX.get(), this.mainHandY.get(), this.mainHandZ.get());
@@ -85,11 +85,11 @@ public class ViewModel extends Module {
       if (!this.enable || !this.shouldApply()) {
          return;
       }
-      if (this.onlyItems.get() && e.getStack().isEmpty()) {
+      if (this.onlyItems.get() && e.getItem().isEmpty()) {
          return;
       }
-      boolean main = e.getHand().equals(Hand.MAIN_HAND);
-      MatrixStack matrix = e.getMatrices();
+      boolean main = e.getHand().equals(InteractionHand.MAIN_HAND);
+      PoseStack matrix = e.getMatrices();
 
       float rx = (float) (main ? this.mainHandRotX.get() : this.offHandRotX.get()).doubleValue();
       float ry = (float) (main ? this.mainHandRotY.get() : this.offHandRotY.get()).doubleValue();

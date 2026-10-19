@@ -3,12 +3,12 @@ package vesence.module.impl.visuals.particular.leaves;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.math.random.Random;
 import vesence.module.impl.visuals.particular.ParticularEffects;
 import vesence.module.impl.visuals.particular.ParticularParticles;
@@ -23,7 +23,7 @@ public class LeafParticle extends BillboardParticle {
     protected final int flippedDirection;
     protected boolean expiring;
 
-    protected LeafParticle(ClientWorld world, double x, double y, double z, double red, double green, double blue, SpriteProvider provider) {
+    protected LeafParticle(ClientLevel world, double x, double y, double z, double red, double green, double blue, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.setSprite(provider.getSprite(this.random));
         this.collidesWithWorld = true;
@@ -43,7 +43,7 @@ public class LeafParticle extends BillboardParticle {
     }
 
     protected float getAngle() {
-        int time = this.age - FADE_IN_DURATION;
+        int time = this.tickCount - FADE_IN_DURATION;
         float amplitude = Math.max(0.0F, Math.min(30.0F, time)) / 30.0F;
         return (float) Math.sin(time / this.rotateFactor) * amplitude * 0.5F * this.flippedDirection;
     }
@@ -54,16 +54,16 @@ public class LeafParticle extends BillboardParticle {
         this.lastY = this.y;
         this.lastZ = this.z;
         this.lastZRotation = this.zRotation;
-        if (this.age++ >= this.maxAge) {
+        if (this.tickCount++ >= this.maxAge) {
             this.markDead();
             return;
         }
 
-        if (this.age <= FADE_IN_DURATION) {
+        if (this.tickCount <= FADE_IN_DURATION) {
             this.velocityY = 0.0D;
         } else if (!this.expiring && (this.onGround || Math.abs(this.velocityY) < 1.0E-5D)) {
             this.expiring = true;
-            this.age = this.maxAge - FADE_OUT_DURATION;
+            this.tickCount = this.maxAge - FADE_OUT_DURATION;
             this.y += 0.01D;
             if (ParticularEffects.isLeafLayFlatEnabled()) {
                 if (ParticularEffects.isLeafRightAngleSnapEnabled()) {
@@ -89,7 +89,7 @@ public class LeafParticle extends BillboardParticle {
 
             this.velocityY = 0.0D;
             this.gravityStrength = 0.0F;
-        } else if (this.age >= FADE_IN_DURATION) {
+        } else if (this.tickCount >= FADE_IN_DURATION) {
             this.gravityStrength = this.gravityFactor;
             this.velocityY -= 0.003D * this.gravityStrength;
             if (!this.onGround && !this.expiring) {
@@ -97,10 +97,10 @@ public class LeafParticle extends BillboardParticle {
             }
         }
 
-        if (this.age <= FADE_IN_DURATION) {
-            this.alpha = (float) this.age / FADE_IN_DURATION;
-        } else if (this.age > this.maxAge - FADE_OUT_DURATION) {
-            this.alpha = (float) (this.maxAge - this.age) / FADE_OUT_DURATION;
+        if (this.tickCount <= FADE_IN_DURATION) {
+            this.alpha = (float) this.tickCount / FADE_IN_DURATION;
+        } else if (this.tickCount > this.maxAge - FADE_OUT_DURATION) {
+            this.alpha = (float) (this.maxAge - this.tickCount) / FADE_OUT_DURATION;
         } else {
             this.alpha = 1.0F;
         }
@@ -122,14 +122,14 @@ public class LeafParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new LeafParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.provider);
         }
     }

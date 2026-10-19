@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.widget.ScrollableWidget;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,7 +34,7 @@ public abstract class ScrollableWidgetMixin {
    private void vesence$smoothScroll(double mouseX, double mouseY, double horizontalAmount, double verticalAmount,
                                      CallbackInfoReturnable<Boolean> cir) {
       if (!BetterMinecraft.smoothScrollEnabled() || !overflows()
-              || !((ClickableWidget) (Object) this).isMouseOver(mouseX, mouseY)) {
+              || !((AbstractWidget) (Object) this).isMouseOver(mouseX, mouseY)) {
          return;
       }
       double delta = -verticalAmount * getDeltaYPerScroll();

@@ -2,8 +2,8 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -41,16 +41,16 @@ public class ChunksAnimation extends Module {
     @Override
     public void onEnable() {
         this.birthTimestamp = System.currentTimeMillis();
-        MinecraftClient mc = MinecraftClient.getInstance();
-        this.lastWorldRef = mc != null ? mc.world : null;
+        Minecraft mc = Minecraft.getInstance();
+        this.lastWorldRef = mc != null ? mc.level : null;
         super.onEnable();
     }
 
     @EventInit
     public void onUpdate(EventUpdate event) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        Object currentWorld = mc.world;
+        Object currentWorld = mc.level;
         if (currentWorld != null && currentWorld != this.lastWorldRef) {
             this.birthTimestamp = System.currentTimeMillis();
             this.lastWorldRef = currentWorld;
@@ -85,7 +85,7 @@ public class ChunksAnimation extends Module {
     }
 
     private float applyEasing(float t) {
-        t = MathHelper.clamp(t, 0.0F, 1.0F);
+        t = Mth.clamp(t, 0.0F, 1.0F);
         if (this.easing.is("Linear")) return t;
         if (this.easing.is("OutQuint")) return 1.0F - (float) Math.pow(1.0F - t, 5.0);
         if (this.easing.is("OutBack")) {

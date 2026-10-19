@@ -5,11 +5,11 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Пайплайны/слои рендера питомцев под 1.21.11.
@@ -28,8 +28,8 @@ public final class PetRender {
 
    private static final RenderPipeline MESH_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "pipeline/world/pet_mesh"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.TRIANGLES)
+         .withLocation(ResourceLocation.of("vesence", "pipeline/world/pet_mesh"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.TRIANGLES)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(true)
@@ -38,21 +38,21 @@ public final class PetRender {
 
    private static final RenderPipeline BOX_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "pipeline/world/pet_box"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "pipeline/world/pet_box"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(true)
          .withBlend(BlendFunction.TRANSLUCENT)
          .build());
 
-   public static RenderLayer meshLayer(String name, Identifier texture) {
-      return RenderLayer.of(name, RenderSetup.builder(MESH_PIPELINE)
+   public static RenderType meshLayer(String name, ResourceLocation texture) {
+      return RenderType.of(name, RenderSetup.builder(MESH_PIPELINE)
          .expectedBufferSize(262144).texture("Sampler0", texture).build());
    }
 
-   public static RenderLayer boxLayer(String name, Identifier texture) {
-      return RenderLayer.of(name, RenderSetup.builder(BOX_PIPELINE)
+   public static RenderType boxLayer(String name, ResourceLocation texture) {
+      return RenderType.of(name, RenderSetup.builder(BOX_PIPELINE)
          .expectedBufferSize(65536).texture("Sampler0", texture).build());
    }
 }

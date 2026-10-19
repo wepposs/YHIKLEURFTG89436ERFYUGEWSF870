@@ -1,7 +1,7 @@
 package vesence.utils.network;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.network.packet.Packet;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.protocol.Packet;
 
 public class NetworkUtils {
     private static final ThreadLocal<Boolean> SENDING = ThreadLocal.withInitial(() -> false);
@@ -10,7 +10,7 @@ public class NetworkUtils {
         boolean prev = SENDING.get();
         SENDING.set(true);
         try {
-            MinecraftClient.getInstance().getNetworkHandler().sendPacket(packet);
+            Minecraft.getInstance().getConnection().sendPacket(packet);
         } finally {
             SENDING.set(prev);
         }

@@ -2,13 +2,13 @@ package vesence.module.impl.combat.neuro;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.io.File;
 import java.nio.file.Files;
 
 public class NeuroProfileStorage {
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
     private static String PROFILE_PATH;
     private static File profileFile;
     private static Gson gson;

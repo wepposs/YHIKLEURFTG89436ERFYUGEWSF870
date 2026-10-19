@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreen;
 import vesence.module.api.Category;
@@ -47,7 +47,7 @@ public class Crosshair extends Module {
 
     @EventInit
     public void onRender2D(EventScreen event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (!mc.options.getPerspective().isFirstPerson()) return;
 
         Renderer2D r = event.renderer();
@@ -81,8 +81,8 @@ public class Crosshair extends Module {
      * Накопленное смещение затухает к нулю — прицел «догоняет» центр.
      */
     private void updateSmoothOffset(int viewportWidth, int viewportHeight) {
-        float yaw = mc.player.getYaw();
-        float pitch = mc.player.getPitch();
+        float yaw = mc.player.getYRot();
+        float pitch = mc.player.getXRot();
 
         if (!hasPrevRotation) {
             prevYaw = yaw;
@@ -90,7 +90,7 @@ public class Crosshair extends Module {
             hasPrevRotation = true;
         }
 
-        float dYaw = MathHelper.wrapDegrees(yaw - prevYaw);
+        float dYaw = Mth.wrapDegrees(yaw - prevYaw);
         float dPitch = pitch - prevPitch;
         prevYaw = yaw;
         prevPitch = pitch;
@@ -113,8 +113,8 @@ public class Crosshair extends Module {
 
         // Ограничение, чтобы прицел не улетал за пределы экрана.
         float maxOff = Math.min(viewportWidth, viewportHeight) * 0.10f;
-        smoothOffX = MathHelper.clamp(smoothOffX, -maxOff, maxOff);
-        smoothOffY = MathHelper.clamp(smoothOffY, -maxOff, maxOff);
+        smoothOffX = Mth.clamp(smoothOffX, -maxOff, maxOff);
+        smoothOffY = Mth.clamp(smoothOffY, -maxOff, maxOff);
     }
 
     /**
@@ -130,7 +130,7 @@ public class Crosshair extends Module {
         // Лёгкий «дышащий» отклик на кулдаун атаки (если не статический).
         if (!staticCrosshair.get()) {
             float cooldown = 1.0f - mc.player.getAttackCooldownProgress(0.0f);
-            animationSize = MathHelper.lerp(0.18f, animationSize, cooldown);
+            animationSize = Mth.lerp(0.18f, animationSize, cooldown);
             float pulse = 1.0f + animationSize * 0.25f;
             core *= pulse;
             glow *= pulse;
@@ -170,8 +170,8 @@ public class Crosshair extends Module {
      */
     private void renderRing(Renderer2D r, float x, float y, int color) {
         float swing = mc.player.handSwingProgress;
-        float sin = MathHelper.sin(swing * swing * (float) Math.PI);
-        circleSwingAnim = MathHelper.lerp(0.05f, circleSwingAnim, sin);
+        float sin = Mth.sin(swing * swing * (float) Math.PI);
+        circleSwingAnim = Mth.lerp(0.05f, circleSwingAnim, sin);
 
         float radius = 4.0f + (staticCrosshair.get() ? 0.0f : circleSwingAnim * 4.0f);
         float thickness = 2.0f;

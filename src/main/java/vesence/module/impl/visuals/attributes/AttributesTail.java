@@ -5,23 +5,23 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import vesence.event.render.EventRender3D;
@@ -32,26 +32,26 @@ import vesence.module.impl.visuals.Attributes;
  * игрока через {@code bodyYaw}, следует за позой (стоя/sneaking) и движением.
  *
  * <p>Порт косметики «Лисий хвост» из клиента RelevantPremium, адаптированный
- * под render-API MC 1.21.11 (RenderPipeline + RenderLayer + VertexConsumer,
+ * под render-API MC 1.21.11 (RenderPipeline + RenderType + VertexConsumer,
  * как в TargetESP). Мировые координаты каждой точки хвоста считаются через
  * свежую {@link Matrix4f}, построенную с нуля от позиции игрока.
  */
 public final class AttributesTail {
 
-    static final Identifier BLOOM = Identifier.of("vesence", "textures/targetesp/bloom.png");
+    static final ResourceLocation BLOOM = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
 
     /** Аддитивный (LIGHTNING) текстурный пайплайн с depth-test, как у bloom в TargetESP. */
     static final RenderPipeline BLOOM_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/attributes_bloom"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_bloom"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.LIGHTNING)
                     .build());
 
-    static final RenderLayer BLOOM_LAYER = RenderLayer.of(
+    static final RenderType BLOOM_LAYER = RenderType.of(
             "vesence_attributes_bloom",
             RenderSetup.builder(BLOOM_PIPELINE)
                     .expectedBufferSize(262144)
@@ -74,10 +74,10 @@ public final class AttributesTail {
     private static final float MOTION_LERP = 0.10f;
 
     private final Attributes parent;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
 
     private final java.util.Map<java.util.UUID, Float> motionState = new java.util.WeakHashMap<>();
-    private BufferAllocator allocator;
+    private ByteBufferBuilder allocator;
 
     public AttributesTail(Attributes parent) {
         this.parent = parent;
@@ -88,17 +88,17 @@ public final class AttributesTail {
     }
 
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         float tickDelta = event.getTickDelta();
-        Vec3d cameraPos = event.getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
+        Vec3 cameraPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
 
-        if (this.allocator == null) this.allocator = new BufferAllocator(262144);
-        Immediate immediate = VertexConsumerProvider.immediate(this.allocator);
+        if (this.allocator == null) this.allocator = new ByteBufferBuilder(262144);
+        Immediate immediate = MultiBufferSource.immediate(this.allocator);
         VertexConsumer buffer = immediate.getBuffer(BLOOM_LAYER);
 
         boolean any = false;
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (!shouldRenderForPlayer(player)) continue;
             if (player == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
             renderTail(player, tickDelta, matrices, cameraPos, buffer);
@@ -108,23 +108,23 @@ public final class AttributesTail {
         if (any) immediate.draw();
     }
 
-    private boolean shouldRenderForPlayer(PlayerEntity player) {
+    private boolean shouldRenderForPlayer(Player player) {
         if (mc.player == null) return false;
         return player == mc.player;
     }
 
-    private void renderTail(PlayerEntity player, float tickDelta, MatrixStack matrices, Vec3d cameraPos,
+    private void renderTail(Player player, float tickDelta, PoseStack matrices, Vec3 cameraPos,
                             VertexConsumer buffer) {
         if (!player.isAlive() || player.isInvisible()) return;
         EntityPose pose = player.getPose();
         if (pose == EntityPose.SWIMMING || player.isInSwimmingPose() || player.isGliding()) return;
 
         // Интерполированная позиция игрока в мире.
-        Vec3d lerpPos = player.getLerpedPos(tickDelta);
+        Vec3 lerpPos = player.getLerpedPos(tickDelta);
         double playerX = lerpPos.x;
         double playerY = lerpPos.y;
         double playerZ = lerpPos.z;
-        float bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
+        float bodyYaw = Mth.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
 
         int theme = parent.resolveThemeColor();
         int rT = (theme >> 16) & 0xFF;
@@ -146,7 +146,7 @@ public final class AttributesTail {
         double horizontalSpeed = Math.sqrt(dx * dx + dz * dz);
         float motionTarget = (float) Math.min(1.0, horizontalSpeed / 0.18);
         float motion = motionState.getOrDefault(uuid, 0.0f);
-        motion = MathHelper.lerp(MOTION_LERP, motion, motionTarget);
+        motion = Mth.lerp(MOTION_LERP, motion, motionTarget);
         motionState.put(uuid, motion);
 
         float t = (System.currentTimeMillis() % 100000L) / 1000.0f;
@@ -164,8 +164,8 @@ public final class AttributesTail {
         // Положительный pitch = хвост свисает вниз (локальный +Z → -Y).
         m.rotateX((float) Math.toRadians(baseDownPitch));
 
-        float camYaw = mc.gameRenderer.getCamera().getYaw();
-        float camPitch = mc.gameRenderer.getCamera().getPitch();
+        float camYaw = mc.gameRenderer.getCamera().getYRot();
+        float camPitch = mc.gameRenderer.getCamera().getXRot();
 
         Vector4f localPoint = new Vector4f();
 
@@ -176,8 +176,8 @@ public final class AttributesTail {
             // вытягивается вдоль локального +Z.
             float segZ = p * TAIL_LENGTH * poseScale;
             float wavePhase = t * WAVE_SPEED - p * 2.4f;
-            float segX = MathHelper.sin(wavePhase) * WAVE_AMPL * motion * (0.4f + p);
-            float segY = MathHelper.sin(wavePhase * 0.55f + p * 1.3f) * 0.04f * (0.3f + p);
+            float segX = Mth.sin(wavePhase) * WAVE_AMPL * motion * (0.4f + p);
+            float segY = Mth.sin(wavePhase * 0.55f + p * 1.3f) * 0.04f * (0.3f + p);
 
             // Преобразуем в мировые координаты через нашу свежую матрицу.
             localPoint.set(segX, segY, segZ, 1.0f);
@@ -186,19 +186,19 @@ public final class AttributesTail {
             double worldY = localPoint.y;
             double worldZ = localPoint.z;
 
-            float whiteMix = MathHelper.clamp((p - 0.75f) * 4.0f, 0.0f, 1.0f);
-            int r = MathHelper.lerp(whiteMix, rT, rW);
-            int g = MathHelper.lerp(whiteMix, gT, gW);
-            int b = MathHelper.lerp(whiteMix, bT, bW);
+            float whiteMix = Mth.clamp((p - 0.75f) * 4.0f, 0.0f, 1.0f);
+            int r = Mth.lerp(whiteMix, rT, rW);
+            int g = Mth.lerp(whiteMix, gT, gW);
+            int b = Mth.lerp(whiteMix, bT, bW);
 
             // Размер: компактный у основания → расширяется к концу.
             float size;
             if (p < 0.6f) {
-                size = MathHelper.lerp(p / 0.6f, SIZE_BASE, SIZE_MID);
+                size = Mth.lerp(p / 0.6f, SIZE_BASE, SIZE_MID);
             } else {
                 float tipT = (p - 0.6f) / 0.4f;             // 0..1
                 tipT = 1.0f - (1.0f - tipT) * (1.0f - tipT); // easeOutQuad
-                size = MathHelper.lerp(tipT, SIZE_MID, SIZE_TIP);
+                size = Mth.lerp(tipT, SIZE_MID, SIZE_TIP);
             }
             size *= poseScale;
             int alpha = (int)(BASE_ALPHA * (0.95f + 0.10f * p));
@@ -217,24 +217,24 @@ public final class AttributesTail {
      * Рисует один billboard-quad повёрнутый к камере. Принимает мировые
      * координаты {@code worldX/Y/Z} (абсолютные) и сам вычитает {@code cameraPos}
      * для получения relative-to-camera координат. Вершины пишутся в общий
-     * {@link VertexConsumer} (RenderLayer сам биндит текстуру и blend).
+     * {@link VertexConsumer} (RenderType сам биндит текстуру и blend).
      */
-    public static void drawBloomBillboard(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+    public static void drawBloomBillboard(VertexConsumer buffer, PoseStack matrices, Vec3 cameraPos,
                                           double worldX, double worldY, double worldZ,
                                           float size, float camYaw, float camPitch,
                                           int r, int g, int b, int a) {
         if (a <= 0 || size <= 0f) return;
         float half = size * 0.5f;
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f mat = matrices.peek().getPositionMatrix();
+        Matrix4f mat = matrices.last().getPositionMatrix();
         texVertex(buffer, mat, -half, -half, 0f, 1f, r, g, b, a);
         texVertex(buffer, mat, -half,  half, 0f, 0f, r, g, b, a);
         texVertex(buffer, mat,  half,  half, 1f, 0f, r, g, b, a);
         texVertex(buffer, mat,  half, -half, 1f, 1f, r, g, b, a);
-        matrices.pop();
+        matrices.popPose();
     }
 
     private static void texVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y,

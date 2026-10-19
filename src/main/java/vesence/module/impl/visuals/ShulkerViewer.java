@@ -6,22 +6,22 @@ import java.util.List;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
-import net.minecraft.block.ShulkerBoxBlock;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ContainerComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.component.ContainerComponent;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3x2fStack;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -48,14 +48,14 @@ public class ShulkerViewer extends Module {
     private final BooleanSetting world = new BooleanSetting("Отображать в мире", true);
     private final BindSettings previewBind = new BindSettings("Preview Bind", GLFW.GLFW_KEY_LEFT_ALT);
 
-    private static final Identifier particleTexture = Identifier.of("vesence", "textures/shulkerviewer/shulker_box_tooltip.png");
+    private static final ResourceLocation particleTexture = ResourceLocation.of("vesence", "textures/shulkerviewer/shulker_box_tooltip.png");
 
     private static final Vector2f OFFSCREEN = new Vector2f(Float.MAX_VALUE, Float.MAX_VALUE);
 
     // Снимок камеры из фазы 3D-рендера — нужен project2D в фазе 2D (эквивалент ProjectUtil).
     private final Matrix4f projMatrix = new Matrix4f();
     private final Quaternionf camRot = new Quaternionf();
-    private Vec3d camPos = Vec3d.ZERO;
+    private Vec3 camPos = Vec3.ZERO;
     private float partialTicks = 0.0f;
     private boolean hasProjection = false;
 
@@ -77,7 +77,7 @@ public class ShulkerViewer extends Module {
     /** Снимок матриц камеры для project2D (эквивалент ProjectUtil в фазе 2D). */
     @EventInit
     public void onRender3D(EventRender3D e) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
         this.hasProjection = true;
         this.projMatrix.set(e.getProjectionMatrix());
         this.camRot.set(e.getCameraRotation());
@@ -87,15 +87,15 @@ public class ShulkerViewer extends Module {
 
     @EventInit
     public void onRender(EventScreen e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (world.get()) {
-            DrawContext ctx = e.drawContext();
+            GuiGraphics ctx = e.drawContext();
             if (ctx == null) return;
 
             List<ItemEntity> shulkerDrops = new ArrayList<>();
-            for (Entity ent : mc.world.getEntities()) {
+            for (Entity ent : mc.level.getEntities()) {
                 if (ent instanceof ItemEntity itemEnt) {
-                    ItemStack drop = itemEnt.getStack();
+                    ItemStack drop = itemEnt.getItem();
                     if (drop.getItem() instanceof BlockItem
                             && ((BlockItem) drop.getItem()).getBlock() instanceof ShulkerBoxBlock) {
                         shulkerDrops.add(itemEnt);
@@ -106,7 +106,7 @@ public class ShulkerViewer extends Module {
             shulkerDrops.sort(Comparator.comparingDouble((ItemEntity ie) -> ie.squaredDistanceTo(mc.player.getEntityPos())).reversed());
             
             for (ItemEntity itemEnt : shulkerDrops) {
-                ItemStack drop = itemEnt.getStack();
+                ItemStack drop = itemEnt.getItem();
                 DefaultedList<ItemStack> items = loadShulkerItems(drop);
                 if (items == null) continue;
                 if (!hasAnyNonEmpty(items)) {
@@ -142,7 +142,7 @@ public class ShulkerViewer extends Module {
         }
     }
 
-    public static boolean onTooltip(DrawContext ctx, int mouseX, int mouseY, ItemStack stack) {
+    public static boolean onTooltip(GuiGraphics ctx, int mouseX, int mouseY, ItemStack stack) {
         if (INSTANCE == null || !INSTANCE.enable) return false;
         if (mc.getWindow() == null) return false;
         int key = INSTANCE.previewBind.get();
@@ -158,7 +158,7 @@ public class ShulkerViewer extends Module {
         return false;
     }
 
-    public static void showPreview(DrawContext ctx, ItemStack stack, int mouseX, int mouseY) {
+    public static void showPreview(GuiGraphics ctx, ItemStack stack, int mouseX, int mouseY) {
         if (!(Block.getBlockFromItem(stack.getItem()) instanceof ShulkerBoxBlock)) {
             return;
         }
@@ -168,14 +168,14 @@ public class ShulkerViewer extends Module {
         }
 
         // Создаем список текста с названием предмета (как в оригинале)
-        List<Text> texts = new ArrayList<>();
-        texts.add(stack.getName().copy().formatted(Formatting.WHITE));
+        List<Component> texts = new ArrayList<>();
+        texts.add(stack.getName().copy().formatted(ChatFormatting.WHITE));
         
         // Рисуем тултип с названием
-        ctx.drawTooltip(mc.textRenderer, texts, mouseX, mouseY);
+        ctx.drawTooltip(mc.font, texts, mouseX, mouseY);
         
         // Вычисляем размеры и позицию (как в оригинале)
-        int maxWidth = texts.stream().mapToInt(t -> mc.textRenderer.getWidth(t)).max().orElse(0);
+        int maxWidth = texts.stream().mapToInt(t -> mc.font.getWidth(t)).max().orElse(0);
         int x = mouseX + 12;
         int y = mouseY - 12;
         int k = 8;
@@ -183,12 +183,12 @@ public class ShulkerViewer extends Module {
             k += 2 + (texts.size() - 1) * 10;
         }
         
-        if (mc.currentScreen != null) {
-            if (x + maxWidth > mc.currentScreen.width) {
+        if (mc.screen != null) {
+            if (x + maxWidth > mc.screen.width) {
                 x -= 28 + maxWidth;
             }
-            if (y + k + 6 > mc.currentScreen.height) {
-                y = mc.currentScreen.height - k - 6;
+            if (y + k + 6 > mc.screen.height) {
+                y = mc.screen.height - k - 6;
             }
         }
         
@@ -271,15 +271,15 @@ public class ShulkerViewer extends Module {
     }
 
     /** Эквивалент RenderUtils.interpolate2(entity, partialTicks). */
-    private static Vec3d interpolate(Entity entity, float partialTicks) {
-        double posX = MathHelper.lerp((double) partialTicks, entity.lastRenderX, entity.getX());
-        double posY = MathHelper.lerp((double) partialTicks, entity.lastRenderY, entity.getY());
-        double posZ = MathHelper.lerp((double) partialTicks, entity.lastRenderZ, entity.getZ());
-        return new Vec3d(posX, posY, posZ);
+    private static Vec3 interpolate(Entity entity, float partialTicks) {
+        double posX = Mth.lerp((double) partialTicks, entity.lastRenderX, entity.getX());
+        double posY = Mth.lerp((double) partialTicks, entity.lastRenderY, entity.getY());
+        double posZ = Mth.lerp((double) partialTicks, entity.lastRenderZ, entity.getZ());
+        return new Vec3(posX, posY, posZ);
     }
 
     /** Эквивалент ProjectUtil.project2D(vec) — мир→экран в scaled-координатах. */
-    private Vector2f project2D(Vec3d world) {
+    private Vector2f project2D(Vec3 world) {
         if (!this.hasProjection || mc.getWindow() == null) return OFFSCREEN;
         Vector3f rel = new Vector3f(
                 (float) (world.x - this.camPos.x),
@@ -300,8 +300,8 @@ public class ShulkerViewer extends Module {
         return new Vector2f(screenX, screenY);
     }
 
-    /** Эквивалент RenderUtils.drawImage2(tex, x, y, w, h, color) — тинт-текстура через DrawContext. */
-    private static void drawImage2D(DrawContext ctx, Identifier image, float x, float y, float width, float height, int color) {
+    /** Эквивалент RenderUtils.drawImage2(tex, x, y, w, h, color) — тинт-текстура через GuiGraphics. */
+    private static void drawImage2D(GuiGraphics ctx, ResourceLocation image, float x, float y, float width, float height, int color) {
         Matrix3x2fStack matrices = ctx.getMatrices();
         matrices.pushMatrix();
         matrices.translate(x, y);
@@ -309,15 +309,15 @@ public class ShulkerViewer extends Module {
         matrices.popMatrix();
     }
 
-    /** Эквивалент RenderUtils.drawStack(stack, x, y, size) — предмет + оверлей через DrawContext. */
-    private static void drawStack(DrawContext ctx, ItemStack itemStack, float x, float y, float size) {
+    /** Эквивалент RenderUtils.drawStack(stack, x, y, size) — предмет + оверлей через GuiGraphics. */
+    private static void drawStack(GuiGraphics ctx, ItemStack itemStack, float x, float y, float size) {
         if (itemStack == null || itemStack.isEmpty()) return;
         Matrix3x2fStack matrices = ctx.getMatrices();
         matrices.pushMatrix();
         matrices.translate(x, y);
         matrices.scale(size, size);
         ctx.drawItem(itemStack, 0, 0);
-        ctx.drawStackOverlay(mc.textRenderer, itemStack, 0, 0);
+        ctx.drawStackOverlay(mc.font, itemStack, 0, 0);
         matrices.popMatrix();
     }
 }

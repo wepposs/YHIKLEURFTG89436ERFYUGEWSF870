@@ -9,40 +9,40 @@ import vesence.hmi.resource_controller.LuaScriptCache;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import net.minecraft.util.Hand;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.util.Arm;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.item.consume.UseAction;
 import net.minecraft.item.ItemConvertible;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.Block;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.block.enums.BlockFace;
 import net.minecraft.state.property.Properties;
-import net.minecraft.block.enums.DoubleBlockHalf;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.Identifier;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.Minecraft;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.util.Mth;
 import net.minecraft.block.enums.Attachment;
-import net.minecraft.client.util.math.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
@@ -60,7 +60,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Порт HMI HeldItemRendererMixin под 1.21.11.
  *
- * В 1.21.6 HMI рендерил первое лицо через VertexConsumerProvider. В 1.21.11
+ * В 1.21.6 HMI рендерил первое лицо через MultiBufferSource. В 1.21.11
  * рендер первого лица идёт через OrderedRenderCommandQueue (submitBlock / submitItem
  * / submitCustom). Логика поз/анимаций (вызовы Lua-скриптов hand/handRelative/item)
  * сохранена идентично оригиналу; изменён только способ отправки геометрии в рендер.
@@ -81,7 +81,7 @@ public abstract class HeldItemRendererMixin {
     Item hmi$prevOffHand = Items.AIR;
     @Shadow
     @Final
-    private MinecraftClient client;
+    private Minecraft client;
     @Unique
     private float hmi$mainHandSwingProgress = 0.0f;
     @Unique
@@ -92,19 +92,19 @@ public abstract class HeldItemRendererMixin {
     private boolean hmi$swingOHand = false;
 
     @Shadow
-    protected abstract void renderArmHoldingItem(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, float equipProgress, float swingProgress, Arm arm);
+    protected abstract void renderArmHoldingItem(PoseStack matrices, OrderedRenderCommandQueue queue, int light, float equipProgress, float swingProgress, Arm arm);
 
     @Shadow
-    protected abstract void renderFirstPersonItem(AbstractClientPlayerEntity player, float tickProgress, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light);
+    protected abstract void renderFirstPersonItem(AbstractClientPlayer player, float tickProgress, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, OrderedRenderCommandQueue queue, int light);
 
     @Shadow
-    public abstract void renderItem(LivingEntity entity, ItemStack stack, ItemDisplayContext renderMode, MatrixStack matrices, OrderedRenderCommandQueue queue, int light);
+    public abstract void renderItem(LivingEntity entity, ItemStack stack, ItemDisplayContext renderMode, PoseStack matrices, OrderedRenderCommandQueue queue, int light);
 
     @Inject(
-            method = {"renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V"},
+            method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
             at = {@At("HEAD")}
     )
-    private void hmi$updateDeltaTime(float tickProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, ClientPlayerEntity player, int light, CallbackInfo ci) {
+    private void hmi$updateDeltaTime(float tickProgress, PoseStack matrices, OrderedRenderCommandQueue queue, LocalPlayer player, int light, CallbackInfo ci) {
         LuaTestHMI.updateDeltaTime();
     }
 
@@ -114,7 +114,7 @@ public abstract class HeldItemRendererMixin {
             target.set(DataComponentTypes.ENCHANTMENTS, (ItemEnchantmentsComponent) source.get(DataComponentTypes.ENCHANTMENTS));
         }
         if (source.contains(DataComponentTypes.ITEM_MODEL)) {
-            target.set(DataComponentTypes.ITEM_MODEL, (Identifier) source.get(DataComponentTypes.ITEM_MODEL));
+            target.set(DataComponentTypes.ITEM_MODEL, (ResourceLocation) source.get(DataComponentTypes.ITEM_MODEL));
         }
         if (source.contains(DataComponentTypes.CUSTOM_MODEL_DATA)) {
             target.set(DataComponentTypes.CUSTOM_MODEL_DATA, (CustomModelDataComponent) source.get(DataComponentTypes.CUSTOM_MODEL_DATA));
@@ -125,17 +125,17 @@ public abstract class HeldItemRendererMixin {
     }
 
     @Unique
-    private void hmi$applyArmMatrices(MatrixStack matrices, int light, float equipProgress, float swingProgress, Arm arm) {
+    private void hmi$applyArmMatrices(PoseStack matrices, int light, float equipProgress, float swingProgress, Arm arm) {
         boolean bl = arm != Arm.LEFT;
         float f = bl ? 1.0f : -1.0f;
-        float g = MathHelper.sqrt(swingProgress);
-        float h = -0.3f * MathHelper.sin(g * (float) Math.PI);
-        float i = 0.4f * MathHelper.sin(g * ((float) Math.PI * 2));
-        float j = -0.4f * MathHelper.sin(swingProgress * (float) Math.PI);
+        float g = Mth.sqrt(swingProgress);
+        float h = -0.3f * Mth.sin(g * (float) Math.PI);
+        float i = 0.4f * Mth.sin(g * ((float) Math.PI * 2));
+        float j = -0.4f * Mth.sin(swingProgress * (float) Math.PI);
         matrices.translate(f * (h + 0.64000005f), i + -0.6f + equipProgress * -0.6f, j + -0.71999997f);
         matrices.multiply((Quaternionfc) RotationAxis.POSITIVE_Y.rotationDegrees(f * 45.0f));
-        float k = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
-        float l = MathHelper.sin(g * (float) Math.PI);
+        float k = Mth.sin(swingProgress * swingProgress * (float) Math.PI);
+        float l = Mth.sin(g * (float) Math.PI);
         matrices.multiply((Quaternionfc) RotationAxis.POSITIVE_Y.rotationDegrees(f * l * 70.0f));
         matrices.multiply((Quaternionfc) RotationAxis.POSITIVE_Z.rotationDegrees(f * k * -20.0f));
         matrices.translate(f * -1.0f, 3.6f, 3.5f);
@@ -146,7 +146,7 @@ public abstract class HeldItemRendererMixin {
     }
 
     @Unique
-    private void hmi$itemPose(MatrixStack matrices, ItemStack item, boolean bl, float swingProgress, AbstractClientPlayerEntity player, boolean mainHand, Hand hand, float equipProgress, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
+    private void hmi$itemPose(PoseStack matrices, ItemStack item, boolean bl, float swingProgress, AbstractClientPlayer player, boolean mainHand, InteractionHand hand, float equipProgress, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
         matrices.translate(0.5 * (bl ? 1 : -1), -0.15, -0.85);
         matrices.multiply((Quaternionfc) RotationAxis.POSITIVE_X.rotationDegrees(15.0f), 0.5f, 0.5f, 0.5f);
         matrices.scale(0.9f, 0.9f, 0.9f);
@@ -157,7 +157,7 @@ public abstract class HeldItemRendererMixin {
     }
 
     @Unique
-    private void hmi$mainHandPose(MatrixStack matrices, ItemStack item, boolean bl, float swingProgress, float equipProgress, AbstractClientPlayerEntity player, boolean mainHand, Hand hand, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
+    private void hmi$mainHandPose(PoseStack matrices, ItemStack item, boolean bl, float swingProgress, float equipProgress, AbstractClientPlayer player, boolean mainHand, InteractionHand hand, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
         int l = bl ? 1 : -1;
         LuaTestHMI.handRelativeScriptCache.execute(matrices, bl, this.hmi$registry, swingProgress, item, player, hand, mainHand, LuaTestHMI.deltaTime, equipProgress, mainHandSwingProgress, offHandSwingProgress, mainHandSwitchEvent, offHandSwitchEvent, swingMHand, swingOHand, interact, blockBreaking, particles);
         for (LuaScriptCache scriptCache : LuaTestHMI.handRelativeAddonsCache) {
@@ -173,7 +173,7 @@ public abstract class HeldItemRendererMixin {
     }
 
     @Unique
-    private void hmi$scenePoseMain(MatrixStack matrices, ItemStack item, boolean bl, float swingProgress, float equipProgress, AbstractClientPlayerEntity player, boolean mainHand, Hand hand, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
+    private void hmi$scenePoseMain(PoseStack matrices, ItemStack item, boolean bl, float swingProgress, float equipProgress, AbstractClientPlayer player, boolean mainHand, InteractionHand hand, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
         LuaTestHMI.handScriptCache.execute(matrices, bl, this.hmi$registry, swingProgress, item, player, hand, mainHand, LuaTestHMI.deltaTime, equipProgress, mainHandSwingProgress, offHandSwingProgress, mainHandSwitchEvent, offHandSwitchEvent, swingMHand, swingOHand, interact, blockBreaking, particles);
         for (LuaScriptCache scriptCache : LuaTestHMI.handAddonsCache) {
             scriptCache.execute(matrices, bl, this.hmi$registry, swingProgress, item, player, hand, mainHand, LuaTestHMI.deltaTime, equipProgress, mainHandSwingProgress, offHandSwingProgress, mainHandSwitchEvent, offHandSwitchEvent, swingMHand, swingOHand, interact, blockBreaking, particles);
@@ -184,11 +184,11 @@ public abstract class HeldItemRendererMixin {
     }
 
     @Redirect(
-            method = {"renderItem(FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/ClientPlayerEntity;I)V"},
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderFirstPersonItem(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/util/Hand;FLnet/minecraft/item/ItemStack;FLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V")
+            method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderFirstPersonItem(Lnet/minecraft/client/network/AbstractClientPlayer;FFLnet/minecraft/util/InteractionHand;FLnet/minecraft/item/ItemStack;FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V")
     )
     @SuppressWarnings("StringEquality")
-    private void hmi$renderOverhaul(HeldItemRenderer instance, AbstractClientPlayerEntity player, float tickProgress, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, OrderedRenderCommandQueue queue, int light) {
+    private void hmi$renderOverhaul(HeldItemRenderer instance, AbstractClientPlayer player, float tickProgress, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, OrderedRenderCommandQueue queue, int light) {
         // Если модуль "Living Hands" выключен — обычный ванильный рендер руки.
         if (!vesence.module.impl.visuals.LivingHands.isEnabled()) {
             this.renderFirstPersonItem(player, tickProgress, pitch, hand, swingProgress, item, equipProgress, matrices, queue, light);
@@ -198,13 +198,13 @@ public abstract class HeldItemRendererMixin {
             return;
         }
         ((ItemStackAccessor) (Object) item).hMI5_0$setTransform(-1);
-        boolean bl = hand == Hand.MAIN_HAND;
+        boolean bl = hand == InteractionHand.MAIN_HAND;
         boolean interact = false;
         boolean blockBreaking = false;
-        if (bl && player.isUsingItem() && player.getActiveHand() != hand && (player.getOffHandStack().getUseAction() == UseAction.BOW || player.getOffHandStack().getUseAction() == UseAction.CROSSBOW && !CrossbowItem.isCharged(player.getOffHandStack()))) {
+        if (bl && player.isUsingItem() && player.getActiveHand() != hand && (player.getOffhandItem().getUseAction() == UseAction.BOW || player.getOffhandItem().getUseAction() == UseAction.CROSSBOW && !CrossbowItem.isCharged(player.getOffhandItem()))) {
             item = Items.AIR.getDefaultStack();
         }
-        if (!bl && player.isUsingItem() && player.getActiveHand() != hand && (player.getMainHandStack().getUseAction() == UseAction.BOW || player.getMainHandStack().getUseAction() == UseAction.CROSSBOW && !CrossbowItem.isCharged(player.getMainHandStack()))) {
+        if (!bl && player.isUsingItem() && player.getActiveHand() != hand && (player.getMainHandItem().getUseAction() == UseAction.BOW || player.getMainHandItem().getUseAction() == UseAction.CROSSBOW && !CrossbowItem.isCharged(player.getMainHandItem()))) {
             item = Items.AIR.getDefaultStack();
         }
         if (bl) {
@@ -212,7 +212,7 @@ public abstract class HeldItemRendererMixin {
         } else {
             this.hmi$offHandSwitchEvent = item.getItem() != this.hmi$prevOffHand;
         }
-        matrices.push();
+        matrices.pushPose();
         if (player instanceof LivingEntityAccessor) {
             LivingEntityAccessor accessor = (LivingEntityAccessor) player;
             this.hmi$mainHandSwingProgress = accessor.hMI5_0$getMainHandSwingProgress(tickProgress);
@@ -227,7 +227,7 @@ public abstract class HeldItemRendererMixin {
         boolean bl2 = arm == Arm.RIGHT;
         int l = bl2 ? 1 : -1;
         this.hmi$scenePoseMain(matrices, item, bl2, swingProgress, equipProgress, player, bl, hand, this.hmi$mainHandSwingProgress, this.hmi$offHandSwingProgress, this.hmi$mainHandSwitchEvent, this.hmi$offHandSwitchEvent, this.hmi$swingMHand, this.hmi$swingOHand, interact, blockBreaking, this.hmi$particles);
-        matrices.push();
+        matrices.pushPose();
         this.hmi$mainHandPose(matrices, item, bl2, swingProgress, equipProgress, player, bl, hand, this.hmi$mainHandSwingProgress, this.hmi$offHandSwingProgress, this.hmi$mainHandSwitchEvent, this.hmi$offHandSwitchEvent, this.hmi$swingMHand, this.hmi$swingOHand, interact, blockBreaking, this.hmi$particles);
         int combinedLight = LightmapTextureManager.applyEmission(light, Block.getBlockFromItem(item.getItem()).getDefaultState().getLuminance());
         if (player.isInvisible()) {
@@ -235,8 +235,8 @@ public abstract class HeldItemRendererMixin {
         } else {
             this.renderArmHoldingItem(matrices, queue, combinedLight, 0.0f, 0.0f, arm);
         }
-        matrices.pop();
-        matrices.push();
+        matrices.popPose();
+        matrices.pushPose();
         boolean renderAsBlock = !(Block.getBlockFromItem(item.getItem()) == Blocks.AIR
                 || Block.getBlockFromItem(item.getItem()).getDefaultState().isIn(BlockTags.INSIDE_STEP_SOUND_BLOCKS)
                 || Block.getBlockFromItem(item.getItem()).getDefaultState().isIn(BlockTags.CROPS)
@@ -259,10 +259,10 @@ public abstract class HeldItemRendererMixin {
             } else {
                 matrices.translate(-0.25 * l, -0.05, 0.0);
             }
-            matrices.push();
+            matrices.pushPose();
             matrices.scale(0.3f, 0.3f, 0.3f);
             matrices.translate(-0.9 * l, -0.45, -0.7);
-            matrices.pop();
+            matrices.popPose();
             if (!bl2) {
                 matrices.translate(-0.3f, 0.0f, 0.0f);
             }
@@ -274,19 +274,19 @@ public abstract class HeldItemRendererMixin {
                 queue.submitBlock(matrices, Blocks.BELL.getDefaultState().with(Properties.ATTACHMENT, Attachment.CEILING), light, OverlayTexture.DEFAULT_UV, 0);
             } else {
                 if (blockState.contains(Properties.DOUBLE_BLOCK_HALF)) {
-                    matrices.push();
+                    matrices.pushPose();
                     matrices.translate(0.0f, 1.0f, 0.0f);
                     queue.submitBlock(matrices, blockState.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER), light, OverlayTexture.DEFAULT_UV, 0);
-                    matrices.pop();
+                    matrices.popPose();
                 }
                 queue.submitBlock(matrices, blockState, light, OverlayTexture.DEFAULT_UV, 0);
             }
-            matrices.push();
+            matrices.pushPose();
             if (!bl2) {
                 matrices.translate(1.0f, 0.0f, 0.0f);
             }
             ParticleRenderManager.draw(this.hmi$particles, matrices, queue, "ITEM", hand, light, player);
-            matrices.pop();
+            matrices.popPose();
         } else {
             this.hmi$itemPose(matrices, item, bl2, swingProgress, player, bl, hand, equipProgress, this.hmi$mainHandSwingProgress, this.hmi$offHandSwingProgress, this.hmi$mainHandSwitchEvent, this.hmi$offHandSwitchEvent, this.hmi$swingMHand, this.hmi$swingOHand, interact, blockBreaking, this.hmi$particles);
             if (item.getUseAction() == UseAction.BLOCK || item.getUseAction() == UseAction.BRUSH) {
@@ -296,12 +296,12 @@ public abstract class HeldItemRendererMixin {
             } else {
                 this.renderItem((LivingEntity) player, item, bl2 ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND : ItemDisplayContext.THIRD_PERSON_LEFT_HAND, matrices, queue, light);
             }
-            matrices.push();
+            matrices.pushPose();
             ParticleRenderManager.draw(this.hmi$particles, matrices, queue, "ITEM", hand, light, player);
-            matrices.pop();
+            matrices.popPose();
         }
-        matrices.pop();
-        matrices.pop();
+        matrices.popPose();
+        matrices.popPose();
         if (bl) {
             this.hmi$prevMainHand = item.getItem();
         } else {

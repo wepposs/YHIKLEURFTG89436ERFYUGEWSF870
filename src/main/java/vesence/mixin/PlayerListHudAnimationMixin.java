@@ -2,8 +2,8 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.hud.PlayerListHud;
 import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,10 +26,10 @@ public abstract class PlayerListHudAnimationMixin {
     private boolean vesence$pushed;
 
     @Inject(
-            method = "render(Lnet/minecraft/client/gui/DrawContext;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+            method = "render(Lnet/minecraft/client/gui/GuiGraphics;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
             at = @At("HEAD")
     )
-    private void vesence$onRenderHead(DrawContext context, int scaledWindowWidth,
+    private void vesence$onRenderHead(GuiGraphics context, int scaledWindowWidth,
                                       net.minecraft.scoreboard.Scoreboard scoreboard,
                                       net.minecraft.scoreboard.ScoreboardObjective objective,
                                       CallbackInfo ci) {
@@ -48,7 +48,7 @@ public abstract class PlayerListHudAnimationMixin {
             return;
         }
 
-        float slideDistance = MinecraftClient.getInstance().getWindow().getScaledHeight();
+        float slideDistance = Minecraft.getInstance().getWindow().getScaledHeight();
 
         Matrix3x2fStack matrices = context.getMatrices();
         matrices.pushMatrix();
@@ -57,10 +57,10 @@ public abstract class PlayerListHudAnimationMixin {
     }
 
     @Inject(
-            method = "render(Lnet/minecraft/client/gui/DrawContext;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+            method = "render(Lnet/minecraft/client/gui/GuiGraphics;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
             at = @At("RETURN")
     )
-    private void vesence$onRenderTail(DrawContext context, int scaledWindowWidth,
+    private void vesence$onRenderTail(GuiGraphics context, int scaledWindowWidth,
                                       net.minecraft.scoreboard.Scoreboard scoreboard,
                                       net.minecraft.scoreboard.ScoreboardObjective objective,
                                       CallbackInfo ci) {

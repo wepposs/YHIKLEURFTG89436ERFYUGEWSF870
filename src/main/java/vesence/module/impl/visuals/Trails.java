@@ -16,22 +16,22 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -70,30 +70,30 @@ public class Trails extends Module {
 
     private final DashTrail dash = new DashTrail();
     private final FizzTrail fizz = new FizzTrail();
-    private BufferAllocator trailAllocClassic = null;
+    private ByteBufferBuilder trailAllocClassic = null;
 
     // ── Classic pipeline ──
     private static final RenderPipeline STRIP_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/trails_strip"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLE_STRIP)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/trails_strip"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLE_STRIP)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
-    private static final RenderLayer STRIP_LAYER = RenderLayer.of("vesence_trails_strip",
+    private static final RenderType STRIP_LAYER = RenderType.of("vesence_trails_strip",
             RenderSetup.builder(STRIP_PIPELINE).expectedBufferSize(262144).translucent().build());
     private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("minecraft", "rendertype_lines"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINE_STRIP)
+                    .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINE_STRIP)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
-    private static final RenderLayer LINE_LAYER = RenderLayer.of("vesence_trails_line",
+    private static final RenderType LINE_LAYER = RenderType.of("vesence_trails_line",
             RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(131072).translucent().build());
 
     public Trails() {
@@ -120,14 +120,14 @@ public class Trails extends Module {
 
     @EventInit
     public void onTick(EventUpdate event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (this.mode.is(MODE_DASH)) this.dash.onTick();
         else if (this.mode.is(MODE_FIZZ)) this.fizz.onTick();
     }
 
     @EventInit
     public void onRender(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (this.mode.is(MODE_DASH)) { this.dash.onRender(event); return; }
         if (this.mode.is(MODE_FIZZ)) { this.fizz.onRender(event); return; }
 
@@ -165,9 +165,9 @@ public class Trails extends Module {
             this.pointHead = (this.pointHead + 1) % MAX_POINTS;
         }
         Point p = this.pointBuffer[writeIdx];
-        p.x = MathHelper.lerp(partialTicks, mc.player.lastRenderX, mc.player.getX());
-        p.y = MathHelper.lerp(partialTicks, mc.player.lastRenderY, mc.player.getY());
-        p.z = MathHelper.lerp(partialTicks, mc.player.lastRenderZ, mc.player.getZ());
+        p.x = Mth.lerp(partialTicks, mc.player.lastRenderX, mc.player.getX());
+        p.y = Mth.lerp(partialTicks, mc.player.lastRenderY, mc.player.getY());
+        p.z = Mth.lerp(partialTicks, mc.player.lastRenderZ, mc.player.getZ());
         p.time = now;
     }
 
@@ -176,14 +176,14 @@ public class Trails extends Module {
         for (int i = 0; i < this.pointSize; i++) this.pointsView.add(this.pointBuffer[logicalIndex(i)]);
     }
 
-    private void render3DPoints(MatrixStack matrixStack) {
+    private void render3DPoints(PoseStack matrixStack) {
         if (this.pointSize < 2) return;
         buildPointsView();
 
-        Vec3d view = mc.gameRenderer.getCamera().getCameraPos();
-        matrixStack.push();
+        Vec3 view = mc.gameRenderer.getCamera().getCameraPos();
+        matrixStack.pushPose();
         matrixStack.translate(-view.x, -view.y, -view.z);
-        Matrix4f matrix = matrixStack.peek().getPositionMatrix();
+        Matrix4f matrix = matrixStack.last().getPositionMatrix();
 
         int themeColor = ColorUtil.fade();
         int r = (themeColor >> 16) & 0xFF;
@@ -191,8 +191,8 @@ public class Trails extends Module {
         int b = themeColor & 0xFF;
         float height = mc.player.getHeight();
 
-        if (trailAllocClassic == null) { trailAllocClassic = new BufferAllocator(262144); }
-        Immediate immediate = VertexConsumerProvider.immediate(trailAllocClassic);
+        if (trailAllocClassic == null) { trailAllocClassic = new ByteBufferBuilder(262144); }
+        Immediate immediate = MultiBufferSource.immediate(trailAllocClassic);
         try {
             VertexConsumer strip = immediate.getBuffer(STRIP_LAYER);
             int total = this.pointsView.size();
@@ -214,7 +214,7 @@ public class Trails extends Module {
             immediate.draw();
 
             // Нижняя линия — отдельный immediate (DEBUG_LINE_STRIP нельзя дважды в одном буфере без разрыва)
-            Immediate imm2 = VertexConsumerProvider.immediate(trailAllocClassic);
+            Immediate imm2 = MultiBufferSource.immediate(trailAllocClassic);
             VertexConsumer lineBot = imm2.getBuffer(LINE_LAYER);
             index = 0;
             for (Point p : this.pointsView) {
@@ -226,7 +226,7 @@ public class Trails extends Module {
         } finally {
             // reused across frames
         }
-        matrixStack.pop();
+        matrixStack.popPose();
     }
 
     private static class Point {
@@ -234,7 +234,7 @@ public class Trails extends Module {
         long time;
     }
 
-    private static boolean shouldTrail(PlayerEntity player, float range) {
+    private static boolean shouldTrail(Player player, float range) {
         if (mc.player == null) return false;
         if (player == mc.player) return true;
         if (mc.player.distanceTo(player) > range) return false;
@@ -255,11 +255,11 @@ public class Trails extends Module {
     // DASH TRAIL
     // ═══════════════════════════════════════════════════════════════════════
     private static final class DashTrail {
-        private static final Identifier BLOOM_TEX = Identifier.of("vesence", "textures/dashtrail/dashbloomsample.png");
+        private static final ResourceLocation BLOOM_TEX = ResourceLocation.of("vesence", "textures/dashtrail/dashbloomsample.png");
         private static final RenderPipeline TEX_PIPELINE = RenderPipelines.register(
                 RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                        .withLocation(Identifier.of("vesence", "pipeline/world/dashtrail_tex"))
-                        .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                        .withLocation(ResourceLocation.of("vesence", "pipeline/world/dashtrail_tex"))
+                        .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                         .withCull(false)
                         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                         .withDepthWrite(false)
@@ -267,40 +267,40 @@ public class Trails extends Module {
                         .build());
         private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
                 RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                        .withLocation(Identifier.of("minecraft", "rendertype_lines"))
-                        .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+                        .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
+                        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
                         .withCull(false)
                         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                         .withDepthWrite(false)
                         .withBlend(BlendFunction.TRANSLUCENT)
                         .build());
-        private static final RenderLayer BLOOM_LAYER = RenderLayer.of("vesence_dashtrail_bloom",
+        private static final RenderType BLOOM_LAYER = RenderType.of("vesence_dashtrail_bloom",
                 RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(262144).translucent().texture("Sampler0", BLOOM_TEX).build());
-        private static final RenderLayer LINE_LAYER = RenderLayer.of("vesence_dashtrail_line",
+        private static final RenderType LINE_LAYER = RenderType.of("vesence_dashtrail_line",
                 RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(131072).translucent().build());
 
-        /** Кэш RenderLayer'ов по текстуре кубика (main-слой, additive). */
-        private static final Map<Identifier, RenderLayer> CUBIC_LAYERS = new HashMap<>();
+        /** Кэш RenderType'ов по текстуре кубика (main-слой, additive). */
+        private static final Map<ResourceLocation, RenderType> CUBIC_LAYERS = new HashMap<>();
 
-        private static RenderLayer cubicLayer(Identifier tex) {
-            return CUBIC_LAYERS.computeIfAbsent(tex, t -> RenderLayer.of(
+        private static RenderType cubicLayer(ResourceLocation tex) {
+            return CUBIC_LAYERS.computeIfAbsent(tex, t -> RenderType.of(
                     "vesence_dashtrail_cubic_" + t.getPath().replace('/', '_').replace('.', '_'),
                     RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(16384).translucent().texture("Sampler0", t).build()));
         }
 
-        static Identifier staticTex(int n) {
-            return Identifier.of("vesence", "textures/dashtrail/dashcubics/dashcubic" + n + ".png");
+        static ResourceLocation staticTex(int n) {
+            return ResourceLocation.of("vesence", "textures/dashtrail/dashcubics/dashcubic" + n + ".png");
         }
 
-        static Identifier groupTex(int group, int frame) {
-            return Identifier.of("vesence", "textures/dashtrail/dashcubics/group_dashs/group" + group + "/dashcubic" + frame + ".png");
+        static ResourceLocation groupTex(int group, int frame) {
+            return ResourceLocation.of("vesence", "textures/dashtrail/dashcubics/group_dashs/group" + group + "/dashcubic" + frame + ".png");
         }
 
         private final Random random = new Random(1234567891L);
         private final List<DashCubic> cubics = new ArrayList<>();
-        private final Map<UUID, Vec3d> lastPositions = new HashMap<>();
+        private final Map<UUID, Vec3> lastPositions = new HashMap<>();
         private float stateAnim = 0f;
-        private BufferAllocator trailAlloc = null;
+        private ByteBufferBuilder trailAlloc = null;
 
         void reset() {
             this.cubics.clear();
@@ -310,26 +310,26 @@ public class Trails extends Module {
         }
 
         void onTick() {
-            if (mc.player == null || mc.world == null) return;
-            for (PlayerEntity player : mc.world.getPlayers()) {
+            if (mc.player == null || mc.level == null) return;
+            for (Player player : mc.level.getPlayers()) {
                 if (player == null) continue;
                 UUID id = player.getUuid();
-                Vec3d cur = player.getEntityPos();
-                Vec3d prev = this.lastPositions.get(id);
+                Vec3 cur = player.getEntityPos();
+                Vec3 prev = this.lastPositions.get(id);
                 this.lastPositions.put(id, cur);
                 if (prev == null || !shouldTrail(player, 25.0F)) continue;
                 spawnForMovement(player, prev, cur);
             }
-            this.lastPositions.keySet().removeIf(uuid -> mc.world.getPlayerByUuid(uuid) == null);
+            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUuid(uuid) == null);
             updateCubics();
         }
 
-        private void spawnForMovement(PlayerEntity entity, Vec3d prev, Vec3d cur) {
+        private void spawnForMovement(Player entity, Vec3 prev, Vec3 cur) {
             double dx = cur.x - prev.x, dy = cur.y - prev.y, dz = cur.z - prev.z;
             double speed = Math.sqrt(dx * dx + dy * dy + dz * dz);
             double speedXZ = Math.sqrt(dx * dx + dz * dz);
             if (speedXZ < 0.08) return;
-            int countMax = MathHelper.clamp((int) (speed / 0.08), 1, 16);
+            int countMax = Mth.clamp((int) (speed / 0.08), 1, 16);
             int color = Color.getHSBColor(this.random.nextInt(361) / 360.0f, 1.0f, 1.0f).getRGB();
             for (int c = 0; c < countMax; c++) {
                 this.cubics.add(new DashCubic(entity, prev, c / (float) countMax, color, this.random, new DashTexture(true, this.random)));
@@ -352,10 +352,10 @@ public class Trails extends Module {
             if (mc.player == null) return;
             if (this.stateAnim < 0.05f) return;
 
-            MatrixStack matrices = event.getMatrixStack();
+            PoseStack matrices = event.getMatrixStack();
             float tickDelta = event.getTickDelta();
             Camera camera = mc.gameRenderer.getCamera();
-            Vec3d camPos = camera.getCameraPos();
+            Vec3 camPos = camera.getCameraPos();
 
             List<DashCubic> filtered = new ArrayList<>();
             for (DashCubic c : this.cubics) if (c.alpha > 0.05f) filtered.add(c);
@@ -363,12 +363,12 @@ public class Trails extends Module {
 
             float alphaPC = this.stateAnim;
 
-            if (this.trailAlloc == null) { this.trailAlloc = new BufferAllocator(524288); }
-            Immediate immediate = VertexConsumerProvider.immediate(this.trailAlloc);
+            if (this.trailAlloc == null) { this.trailAlloc = new ByteBufferBuilder(524288); }
+            Immediate immediate = MultiBufferSource.immediate(this.trailAlloc);
             try {
                 // Искры
                 VertexConsumer lines = immediate.getBuffer(LINE_LAYER);
-                Matrix4f baseMatrix = matrices.peek().getPositionMatrix();
+                Matrix4f baseMatrix = matrices.last().getPositionMatrix();
                 for (DashCubic c : filtered) {
                     double rx = c.getRenderPosX(tickDelta) - camPos.x;
                     double ry = c.getRenderPosY(tickDelta) - camPos.y;
@@ -381,9 +381,9 @@ public class Trails extends Module {
                         float wave = (float) easeInOutQuadWave(aPC);
                         int base = overlay(c.color, 0xFFFFFF, wave);
                         int srcAlpha = (c.color >>> 24) == 0 ? 255 : (c.color >>> 24);
-                        int alpha = MathHelper.clamp((int) (srcAlpha * wave / 1.33333f), 0, 255);
+                        int alpha = Mth.clamp((int) (srcAlpha * wave / 1.33333f), 0, 255);
                         float fa = Math.min(1.0f, alpha / 255.0f * alphaPC);
-                        int aa = MathHelper.clamp((int) (fa * 255.0f), 0, 255);
+                        int aa = Mth.clamp((int) (fa * 255.0f), 0, 255);
                         if (aa <= 1) continue;
                         int rr = (base >> 16) & 0xFF, gg = (base >> 8) & 0xFF, bb = base & 0xFF;
                         lines.vertex(baseMatrix, (float) (sx + rx), (float) (sy + ry), (float) (sz + rz)).color(rr, gg, bb, aa).normal(0, 1, 0);
@@ -392,13 +392,13 @@ public class Trails extends Module {
                 }
 
                 // Main-кубики (текстуры) — группируем по resolved-текстуре,
-                // каждая текстура = свой RenderLayer (additive).
-                Map<Identifier, List<DashCubic>> byTex = new HashMap<>();
+                // каждая текстура = свой RenderType (additive).
+                Map<ResourceLocation, List<DashCubic>> byTex = new HashMap<>();
                 for (DashCubic c : filtered) {
-                    Identifier tex = c.texture.resolve();
+                    ResourceLocation tex = c.texture.resolve();
                     byTex.computeIfAbsent(tex, k -> new ArrayList<>()).add(c);
                 }
-                for (Map.Entry<Identifier, List<DashCubic>> e : byTex.entrySet()) {
+                for (Map.Entry<ResourceLocation, List<DashCubic>> e : byTex.entrySet()) {
                     VertexConsumer buf = immediate.getBuffer(cubicLayer(e.getKey()));
                     for (DashCubic c : e.getValue()) {
                         c.drawMain(buf, matrices, camera, camPos, tickDelta, alphaPC);
@@ -418,7 +418,7 @@ public class Trails extends Module {
     }
 
     private static final class DashCubic {
-        final PlayerEntity entity;
+        final Player entity;
         double motionX, motionY, motionZ;
         double posX, posY, posZ;
         double prevPosX, prevPosY, prevPosZ;
@@ -431,7 +431,7 @@ public class Trails extends Module {
         final float[] rotate = new float[]{0f, 0f};
         final List<DashSpark> sparks = new ArrayList<>();
 
-        DashCubic(PlayerEntity entity, Vec3d prevTickPos, float offsetTickPC, int color, Random random, DashTexture texture) {
+        DashCubic(Player entity, Vec3 prevTickPos, float offsetTickPC, int color, Random random, DashTexture texture) {
             this.entity = entity;
             this.color = color;
             this.texture = texture;
@@ -455,14 +455,14 @@ public class Trails extends Module {
         }
 
         private void updateRotation() {
-            float viewX = mc.gameRenderer != null && mc.gameRenderer.getCamera() != null ? mc.gameRenderer.getCamera().getPitch() : 0f;
+            float viewX = mc.gameRenderer != null && mc.gameRenderer.getCamera() != null ? mc.gameRenderer.getCamera().getXRot() : 0f;
             if (Math.sqrt(motionX * motionX + motionZ * motionZ) < 5.0E-4) {
                 rotate[0] = (float) (360.0 * Math.random());
                 rotate[1] = viewX;
             } else {
                 float motionYaw = getMotionYaw();
                 rotate[0] = motionYaw - 45.0f - 15.0f;
-                float yawDiff = Math.abs(MathHelper.wrapDegrees(this.entity.getYaw() - (motionYaw + 26.3f)));
+                float yawDiff = Math.abs(Mth.wrapDegrees(this.entity.getYRot() - (motionYaw + 26.3f)));
                 rotate[1] = (yawDiff < 10.0f || yawDiff > 160.0f) ? -90.0f : viewX;
             }
         }
@@ -485,7 +485,7 @@ public class Trails extends Module {
             if (!sparks.isEmpty()) sparks.removeIf(DashSpark::toRemove);
         }
 
-        void drawMain(VertexConsumer buffer, MatrixStack matrices, Camera camera, Vec3d camPos, float partialTicks, float alphaPC) {
+        void drawMain(VertexConsumer buffer, PoseStack matrices, Camera camera, Vec3 camPos, float partialTicks, float alphaPC) {
             float aPC = this.alpha * alphaPC;
             float scale = 0.033f * aPC * 16.0f;
             double rx = getRenderPosX(partialTicks);
@@ -497,26 +497,26 @@ public class Trails extends Module {
             if (a <= 1) return;
             int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
             float half = scale * 0.5f;
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(rx - camPos.x, ry - camPos.y, rz - camPos.z);
             matrices.multiply(camera.getRotation());
             if (this.rotate[0] != 0.0f) {
                 matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(this.rotate[0]));
             }
-            Matrix4f m = matrices.peek().getPositionMatrix();
+            Matrix4f m = matrices.last().getPositionMatrix();
             buffer.vertex(m, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
             buffer.vertex(m, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
             buffer.vertex(m, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
             buffer.vertex(m, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
-            matrices.pop();
+            matrices.popPose();
         }
 
         private int opaque(int color, float alpha) {
-            int a = MathHelper.clamp((int) (255 * MathHelper.clamp(alpha, 0.0f, 1.0f)), 0, 255);
+            int a = Mth.clamp((int) (255 * Mth.clamp(alpha, 0.0f, 1.0f)), 0, 255);
             return (a << 24) | (color & 0xFFFFFF);
         }
 
-        void appendBloom(VertexConsumer buffer, MatrixStack matrices, Camera camera, Vec3d camPos, float partialTicks, float alphaPC) {
+        void appendBloom(VertexConsumer buffer, PoseStack matrices, Camera camera, Vec3 camPos, float partialTicks, float alphaPC) {
             float aPC = this.alpha * alphaPC;
             float scale = 0.033f * aPC * 16.0f;
             double rx = getRenderPosX(partialTicks);
@@ -555,7 +555,7 @@ public class Trails extends Module {
             }
         }
 
-        Identifier resolve() {
+        ResourceLocation resolve() {
             if (this.animated) {
                 int frames = switch (this.group) {
                     case 0 -> 11;
@@ -566,7 +566,7 @@ public class Trails extends Module {
                 };
                 int elapsed = (int) (System.currentTimeMillis() - this.spawnTime);
                 float timePC = (elapsed % this.animPerTime) / (float) this.animPerTime;
-                int frame = (int) MathHelper.clamp(timePC * frames, 0, frames - 1) + 1;
+                int frame = (int) Mth.clamp(timePC * frames, 0, frames - 1) + 1;
                 return DashTrail.groupTex(this.group + 1, frame);
             }
             return DashTrail.staticTex(this.staticNum);
@@ -585,7 +585,7 @@ public class Trails extends Module {
             this.startTime = System.currentTimeMillis();
         }
 
-        double timePC() { return MathHelper.clamp((System.currentTimeMillis() - startTime) / 1000.0f, 0.0f, 1.0f); }
+        double timePC() { return Mth.clamp((System.currentTimeMillis() - startTime) / 1000.0f, 0.0f, 1.0f); }
         double alphaPC() { return 1.0 - timePC(); }
         boolean toRemove() { return timePC() >= 1.0; }
 
@@ -606,27 +606,27 @@ public class Trails extends Module {
     // FIZZ TRAIL (Шипучка)
     // ═══════════════════════════════════════════════════════════════════════
     private static final class FizzTrail {
-        private static final Identifier BLOOM_TEX = Identifier.of("vesence", "textures/targetesp/bloom.png");
+        private static final ResourceLocation BLOOM_TEX = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
         private static final long LIFETIME_MS = 3000L;
         private static final double WALK_THRESHOLD = 0.045;
         private static final float FRIEND_RANGE = 25.0F;
 
         private static final RenderPipeline TEX_PIPELINE = RenderPipelines.register(
                 RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                        .withLocation(Identifier.of("vesence", "pipeline/world/fizztrail_tex"))
-                        .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                        .withLocation(ResourceLocation.of("vesence", "pipeline/world/fizztrail_tex"))
+                        .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                         .withCull(false)
                         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                         .withDepthWrite(false)
                         .withBlend(BlendFunction.LIGHTNING)
                         .build());
-        private static final RenderLayer BLOOM_LAYER = RenderLayer.of("vesence_fizztrail_bloom",
+        private static final RenderType BLOOM_LAYER = RenderType.of("vesence_fizztrail_bloom",
                 RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(262144).translucent().texture("Sampler0", BLOOM_TEX).build());
 
         private final Random random = new Random();
         private final List<FizzParticle> particles = new ArrayList<>();
-        private final Map<UUID, Vec3d> lastPositions = new HashMap<>();
-        private BufferAllocator trailAlloc = null;
+        private final Map<UUID, Vec3> lastPositions = new HashMap<>();
+        private ByteBufferBuilder trailAlloc = null;
 
         void reset() {
             this.particles.clear();
@@ -635,20 +635,20 @@ public class Trails extends Module {
         }
 
         void onTick() {
-            if (mc.player == null || mc.world == null) return;
-            for (PlayerEntity player : mc.world.getPlayers()) {
+            if (mc.player == null || mc.level == null) return;
+            for (Player player : mc.level.getPlayers()) {
                 if (player == null) continue;
                 UUID id = player.getUuid();
-                Vec3d cur = player.getEntityPos();
-                Vec3d prev = this.lastPositions.get(id);
+                Vec3 cur = player.getEntityPos();
+                Vec3 prev = this.lastPositions.get(id);
                 this.lastPositions.put(id, cur);
                 if (prev == null || !shouldTrail(player, FRIEND_RANGE)) continue;
                 double dx = cur.x - prev.x, dz = cur.z - prev.z;
                 double speedXZ = Math.sqrt(dx * dx + dz * dz);
-                if (speedXZ < WALK_THRESHOLD || !player.isOnGround()) continue;
+                if (speedXZ < WALK_THRESHOLD || !player.onGround()) continue;
                 spawnFromFeet(player, dx, dz, speedXZ);
             }
-            this.lastPositions.keySet().removeIf(uuid -> mc.world.getPlayerByUuid(uuid) == null);
+            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUuid(uuid) == null);
 
             long now = System.currentTimeMillis();
             Iterator<FizzParticle> it = this.particles.iterator();
@@ -659,10 +659,10 @@ public class Trails extends Module {
             }
         }
 
-        private void spawnFromFeet(PlayerEntity player, double dx, double dz, double speedXZ) {
+        private void spawnFromFeet(Player player, double dx, double dz, double speedXZ) {
             double invLen = 1.0 / speedXZ;
             double backX = -dx * invLen, backZ = -dz * invLen;
-            int count = MathHelper.clamp((int) (speedXZ / WALK_THRESHOLD), 1, 5);
+            int count = Mth.clamp((int) (speedXZ / WALK_THRESHOLD), 1, 5);
             double feetX = player.getX(), feetY = player.getY() + 0.05, feetZ = player.getZ();
             float width = player.getWidth();
             for (int i = 0; i < count; i++) {
@@ -684,16 +684,16 @@ public class Trails extends Module {
             if (mc.player == null || this.particles.isEmpty()) return;
             float tickDelta = event.getTickDelta();
             Camera camera = mc.gameRenderer.getCamera();
-            Vec3d camPos = camera.getCameraPos();
-            float camYaw = camera.getYaw(), camPitch = camera.getPitch();
-            MatrixStack matrices = event.getMatrixStack();
+            Vec3 camPos = camera.getCameraPos();
+            float camYaw = camera.getYRot(), camPitch = camera.getXRot();
+            PoseStack matrices = event.getMatrixStack();
 
             int theme = themeColor();
             int tr = (theme >> 16) & 0xFF, tg = (theme >> 8) & 0xFF, tb = theme & 0xFF;
             long now = System.currentTimeMillis();
 
-            if (this.trailAlloc == null) { this.trailAlloc = new BufferAllocator(524288); }
-            Immediate immediate = VertexConsumerProvider.immediate(this.trailAlloc);
+            if (this.trailAlloc == null) { this.trailAlloc = new ByteBufferBuilder(524288); }
+            Immediate immediate = MultiBufferSource.immediate(this.trailAlloc);
             try {
                 VertexConsumer buffer = immediate.getBuffer(BLOOM_LAYER);
                 // Проход 1: внешний glow
@@ -743,17 +743,17 @@ public class Trails extends Module {
             this.prevX = x; this.prevY = y; this.prevZ = z;
             this.vy -= GRAVITY; this.vx *= DRAG; this.vz *= DRAG;
             double nextX = x + vx, nextY = y + vy, nextZ = z + vz;
-            if (mc.world != null) {
-                if (vy < 0.0 && !mc.world.getBlockState(BlockPos.ofFloored(x, nextY - 0.02, z)).isAir()) {
+            if (mc.level != null) {
+                if (vy < 0.0 && !mc.level.getBlockState(BlockPos.ofFloored(x, nextY - 0.02, z)).isAir()) {
                     vy = -vy * BOUNCE; vx *= 0.7; vz *= 0.7; nextY = y;
                 }
-                if (!mc.world.getBlockState(BlockPos.ofFloored(nextX, y, z)).isAir()) { vx = -vx * 0.3; nextX = x; }
-                if (!mc.world.getBlockState(BlockPos.ofFloored(x, y, nextZ)).isAir()) { vz = -vz * 0.3; nextZ = z; }
+                if (!mc.level.getBlockState(BlockPos.ofFloored(nextX, y, z)).isAir()) { vx = -vx * 0.3; nextX = x; }
+                if (!mc.level.getBlockState(BlockPos.ofFloored(x, y, nextZ)).isAir()) { vz = -vz * 0.3; nextZ = z; }
             }
             this.x = nextX; this.y = nextY; this.z = nextZ;
         }
 
-        float lifePC(long now) { return MathHelper.clamp((now - startTime) / (float) LIFETIME_MS, 0.0F, 1.0F); }
+        float lifePC(long now) { return Mth.clamp((now - startTime) / (float) LIFETIME_MS, 0.0F, 1.0F); }
         double lerpX(float pt) { return prevX + (x - prevX) * pt; }
         double lerpY(float pt) { return prevY + (y - prevY) * pt; }
         double lerpZ(float pt) { return prevZ + (z - prevZ) * pt; }
@@ -762,40 +762,40 @@ public class Trails extends Module {
     }
 
     // ═══ Shared helpers ══════════════════════════════════════════════════════
-    private static void appendFacingQuad(VertexConsumer buffer, MatrixStack matrices, Camera camera, Vec3d camPos,
+    private static void appendFacingQuad(VertexConsumer buffer, PoseStack matrices, Camera camera, Vec3 camPos,
                                          double x, double y, double z, float halfW, float halfH, int argb) {
         int a = (argb >>> 24);
         if (a <= 1) return;
         int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(x - camPos.x, y - camPos.y, z - camPos.z);
         matrices.multiply(camera.getRotation());
-        Matrix4f m = matrices.peek().getPositionMatrix();
+        Matrix4f m = matrices.last().getPositionMatrix();
         buffer.vertex(m, -halfW, -halfH, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
         buffer.vertex(m, -halfW, halfH, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
         buffer.vertex(m, halfW, halfH, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
         buffer.vertex(m, halfW, -halfH, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
-        matrices.pop();
+        matrices.popPose();
     }
 
-    private static void appendBillboard(VertexConsumer buffer, MatrixStack matrices, float camYaw, float camPitch,
+    private static void appendBillboard(VertexConsumer buffer, PoseStack matrices, float camYaw, float camPitch,
                                         double x, double y, double z, float size, int r, int g, int b, int a) {
         if (a <= 1) return;
         float half = size * 0.5F;
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(x, y, z);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f m = matrices.peek().getPositionMatrix();
+        Matrix4f m = matrices.last().getPositionMatrix();
         buffer.vertex(m, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
         buffer.vertex(m, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
         buffer.vertex(m, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
         buffer.vertex(m, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
-        matrices.pop();
+        matrices.popPose();
     }
 
     private static int overlay(int color, int over, float pc) {
-        pc = MathHelper.clamp(pc, 0.0f, 1.0f);
+        pc = Mth.clamp(pc, 0.0f, 1.0f);
         int r = (int) (((color >> 16) & 0xFF) + (((over >> 16) & 0xFF) - ((color >> 16) & 0xFF)) * pc);
         int g = (int) (((color >> 8) & 0xFF) + (((over >> 8) & 0xFF) - ((color >> 8) & 0xFF)) * pc);
         int b = (int) ((color & 0xFF) + ((over & 0xFF) - (color & 0xFF)) * pc);
@@ -803,12 +803,12 @@ public class Trails extends Module {
     }
 
     private static int withAlpha(int color, float alpha) {
-        int a = MathHelper.clamp((int) alpha, 0, 255);
+        int a = Mth.clamp((int) alpha, 0, 255);
         return (a << 24) | (color & 0xFFFFFF);
     }
 
     private static int toDark(int color, float factor) {
-        factor = MathHelper.clamp(factor, 0.0f, 1.0f);
+        factor = Mth.clamp(factor, 0.0f, 1.0f);
         int a = (color >>> 24);
         int r = (int) (((color >> 16) & 0xFF) * factor);
         int g = (int) (((color >> 8) & 0xFF) * factor);

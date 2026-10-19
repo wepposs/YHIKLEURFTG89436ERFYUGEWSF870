@@ -2,10 +2,10 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.math.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.util.Arm;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
 import vesence.Vesence;
 import vesence.event.EventInit;
@@ -26,7 +26,7 @@ import vesence.renderengine.postfx.GlassHandsRenderer;
 import vesence.renderengine.postfx.HandShadowTrailRenderer;
 import vesence.renderengine.render.Renderer2D;
 
-@IModule(name = "Custom Hand", description = "Кастомная рука: анимация взмаха, стекло и огонь", category = Category.VISUALS, bind = -1)
+@IModule(name = "Custom InteractionHand", description = "Кастомная рука: анимация взмаха, стекло и огонь", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class CustomHand extends Module {
 
@@ -103,11 +103,11 @@ public class CustomHand extends Module {
     * флагу пропускает ванильный applyEquipOffset, чтобы base-offset не удваивался —
     * тогда предмет имеет ванильный размер/положение, а сама анимация не меняется.
     */
-   public boolean willHandleSwing(Hand hand) {
+   public boolean willHandleSwing(InteractionHand hand) {
       if (!this.enable || !this.swingEnabled.get() || this.swingType.is("Выкл")) {
          return false;
       }
-      if (!Hand.MAIN_HAND.equals(hand)) {
+      if (!InteractionHand.MAIN_HAND.equals(hand)) {
          return false;
       }
       if (this.hideVanilla.get()) {
@@ -268,7 +268,7 @@ public class CustomHand extends Module {
       if (!this.enable || !this.swingEnabled.get() || this.swingType.is("Выкл")) {
          return;
       }
-      if (!e.getHand().equals(Hand.MAIN_HAND)) {
+      if (!e.getHand().equals(InteractionHand.MAIN_HAND)) {
          return;
       }
 
@@ -292,11 +292,11 @@ public class CustomHand extends Module {
    }
 
    private void applyCustomAnimation(HandAnimationEvent e) {
-      MatrixStack matrix = e.getMatrices();
+      PoseStack matrix = e.getMatrices();
       float swingProgress = e.getSwingProgress();
       int i = mc.player.getMainArm().equals(Arm.RIGHT) ? 1 : -1;
-      float sin1 = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
-      float sin2 = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
+      float sin1 = Mth.sin(swingProgress * swingProgress * (float) Math.PI);
+      float sin2 = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
       float sinSmooth = (float) (Math.sin(swingProgress * Math.PI) * 0.5F);
       float strength = this.hitStrength.get().floatValue();
 
@@ -305,7 +305,7 @@ public class CustomHand extends Module {
             matrix.translate(0.56F * i, -0.44F, -0.72F);
             matrix.translate(0.0F, 0.33F * -0.6F, 0.0F);
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F * i));
-            float f2 = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
+            float f2 = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f2 * -20.0F * i * strength));
             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(f2 * -80.0F * strength));
             matrix.translate(0.4F, 0.2F, 0.2F);
@@ -378,7 +378,7 @@ public class CustomHand extends Module {
          case "Spin" -> {
             float smoothAnim = sin1;
             float fastAnim = sinSmooth;
-            float anim = MathHelper.sin(swingProgress * (float) Math.PI);
+            float anim = Mth.sin(swingProgress * (float) Math.PI);
             matrix.translate(i * 0.18F, 0.12F - 0.08F * smoothAnim, -0.42F + 0.08F * anim);
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(55.0F + strength * 8.0F * fastAnim));
             matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-28.0F - strength * 7.0F * smoothAnim));
@@ -411,7 +411,7 @@ public class CustomHand extends Module {
             matrix.translate(sin2 * 0.18F * strength, sin2 * 0.59F * strength, 0.0F);
          }
          case "Block" -> {
-            float gx = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
+            float gx = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             matrix.translate(0.56F * i, -0.5F, -0.7F);
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45 * i));
             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(gx * -85.0F * strength));
@@ -419,7 +419,7 @@ public class CustomHand extends Module {
             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-85.0F));
          }
          case "ToBack" -> {
-            float g = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
+            float g = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             matrix.translate(0.65F * i, -0.45F, -0.9F);
             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(50.0F));
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((-30.0F * (1.0F - g * strength) - 30.0F) * i));
@@ -450,7 +450,7 @@ public class CustomHand extends Module {
             matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-this.dropDownSlant.get().floatValue() * anim * strength));
          }
          case "Pander" -> {
-            float panderAnim = MathHelper.sin(swingProgress * (float) Math.PI);
+            float panderAnim = Mth.sin(swingProgress * (float) Math.PI);
             matrix.translate(i * 0.56F, -0.52F, -0.72F);
             matrix.translate((0.3F - panderAnim * 0.15F) * i, 0.2F, -0.15F - panderAnim * 0.13F);
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((76.0F - 10.0F * panderAnim) * i));
@@ -489,10 +489,10 @@ public class CustomHand extends Module {
             float thrust;
             if (swingProgress < thrustEnd) {
                float p = swingProgress / thrustEnd;
-               thrust = MathHelper.sin(p * (float) Math.PI * 0.5F);
+               thrust = Mth.sin(p * (float) Math.PI * 0.5F);
             } else {
                float p = (swingProgress - thrustEnd) / (1.0F - thrustEnd);
-               thrust = MathHelper.cos(p * (float) Math.PI * 0.5F);
+               thrust = Mth.cos(p * (float) Math.PI * 0.5F);
             }
             matrix.translate(i * 0.50F, -0.40F, -0.72F);
             matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(50.0F * i));

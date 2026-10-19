@@ -4,9 +4,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.item.Item;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.screen.slot.ClickType;
 import org.lwjgl.glfw.GLFW;
 import vesence.event.EventInit;
 import vesence.event.impl.ClickSlotEvent;
@@ -31,14 +31,14 @@ public final class ItemScroller extends Module {
 
     @EventInit
     public void onHandledScreen(HandledScreenEvent event) {
-        if (mc.player == null || mc.interactionManager == null) {
+        if (mc.player == null || mc.gameMode == null) {
             return;
         }
 
         Slot hoverSlot = event.getSlotHover();
-        SlotActionType actionType = isKeyDown(mc.options.dropKey)
-                ? SlotActionType.THROW
-                : isKeyDown(mc.options.attackKey) ? SlotActionType.QUICK_MOVE : null;
+        ClickType actionType = isKeyDown(mc.options.dropKey)
+                ? ClickType.THROW
+                : isKeyDown(mc.options.attackKey) ? ClickType.QUICK_MOVE : null;
 
         if (isKeyDown(mc.options.sneakKey)
                 && !isKeyDown(mc.options.sprintKey)
@@ -48,10 +48,10 @@ public final class ItemScroller extends Module {
                 && stopWatch.every(scrollDelay.get())) {
             int slotId = menuSlotId(hoverSlot);
             if (slotId != -1) {
-                mc.interactionManager.clickSlot(
-                        mc.player.currentScreenHandler.syncId,
+                mc.gameMode.clickSlot(
+                        mc.player.containerMenu.syncId,
                         slotId,
-                        actionType == SlotActionType.THROW ? 1 : 0,
+                        actionType == ClickType.THROW ? 1 : 0,
                         actionType,
                         mc.player
                 );
@@ -61,33 +61,33 @@ public final class ItemScroller extends Module {
 
     @EventInit
     public void onClickSlot(ClickSlotEvent event) {
-        if (mc.player == null || mc.interactionManager == null) {
+        if (mc.player == null || mc.gameMode == null) {
             return;
         }
 
         int slotId = event.getSlotId();
-        if (slotId < 0 || slotId >= mc.player.currentScreenHandler.slots.size()) {
+        if (slotId < 0 || slotId >= mc.player.containerMenu.slots.size()) {
             return;
         }
 
-        Slot slot = mc.player.currentScreenHandler.getSlot(slotId);
+        Slot slot = mc.player.containerMenu.getSlot(slotId);
         if (!slot.hasStack()) {
             return;
         }
 
-        Item item = slot.getStack().getItem();
+        Item item = slot.getItem().getItem();
         if (isKeyDown(mc.options.sneakKey)
                 && isKeyDown(mc.options.sprintKey)
                 && stopWatch.every(50.0)) {
-            mc.player.currentScreenHandler.slots.stream()
+            mc.player.containerMenu.slots.stream()
                     .filter(scrolledSlot -> scrolledSlot.hasStack()
-                            && scrolledSlot.getStack().getItem().equals(item)
+                            && scrolledSlot.getItem().getItem().equals(item)
                             && scrolledSlot.inventory.equals(slot.inventory))
                     .forEach(scrolledSlot -> {
                         int scrolledSlotId = menuSlotId(scrolledSlot);
                         if (scrolledSlotId != -1) {
-                            mc.interactionManager.clickSlot(
-                                    mc.player.currentScreenHandler.syncId,
+                            mc.gameMode.clickSlot(
+                                    mc.player.containerMenu.syncId,
                                     scrolledSlotId,
                                     1,
                                     event.getActionType(),
@@ -116,10 +116,10 @@ public final class ItemScroller extends Module {
     }
 
     private int menuSlotId(Slot slot) {
-        if (slot == null || mc.player == null || mc.player.currentScreenHandler == null) {
+        if (slot == null || mc.player == null || mc.player.containerMenu == null) {
             return -1;
         }
-        var slots = mc.player.currentScreenHandler.slots;
+        var slots = mc.player.containerMenu.slots;
         for (int i = 0; i < slots.size(); i++) {
             if (slots.get(i) == slot) {
                 return i;

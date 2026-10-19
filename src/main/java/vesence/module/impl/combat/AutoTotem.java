@@ -3,18 +3,18 @@ package vesence.module.impl.combat;
 import java.util.Locale;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.TntEntity;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.entity.projectile.TridentEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.event.player.EventInput;
@@ -128,7 +128,7 @@ public class AutoTotem extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate e) {
-      if (mc.player != null && mc.world != null) {
+      if (mc.player != null && mc.level != null) {
          // === ДЕТЕКТ ПОПА ТОТЕМА ===
          boolean ownsTotemInOffhandNow = this.totemTakenByUs && this.hasTotemInOffhand();
          if (this.prevTickOwnedTotemInOffhand && !ownsTotemInOffhandNow) {
@@ -173,7 +173,7 @@ public class AutoTotem extends Module {
                }
 
                if (this.originalOffhandItem.isEmpty() && !this.totemTakenByUs) {
-                  this.originalOffhandItem = mc.player.getOffHandStack().copy();
+                  this.originalOffhandItem = mc.player.getOffhandItem().copy();
                   this.originalOffhandHeadName = computeStableHeadName(this.originalOffhandItem);
                }
 
@@ -237,22 +237,22 @@ public class AutoTotem extends Module {
    }
 
    private boolean isCrystalDanger() {
-      if (mc.player == null || mc.world == null) return false;
+      if (mc.player == null || mc.level == null) return false;
       float radius = this.crystalRadius.get().floatValue();
       double radiusSq = radius * radius;
       if (this.triggers.get("Кристалл рядом")) {
-         for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof EndCrystalEntity && mc.player.squaredDistanceTo(entity) <= radiusSq) {
+         for (Entity entity : mc.level.getEntities()) {
+            if (entity instanceof EndCrystal && mc.player.squaredDistanceTo(entity) <= radiusSq) {
                return true;
             }
          }
       }
 
       if (this.triggers.get("Кристалл в руке")) {
-         for (PlayerEntity player : mc.world.getPlayers()) {
+         for (Player player : mc.level.getPlayers()) {
             if (player != mc.player
                && mc.player.squaredDistanceTo(player) <= radiusSq
-               && (player.getMainHandStack().isOf(Items.END_CRYSTAL) || player.getOffHandStack().isOf(Items.END_CRYSTAL))) {
+               && (player.getMainHandItem().isOf(Items.END_CRYSTAL) || player.getOffhandItem().isOf(Items.END_CRYSTAL))) {
                return true;
             }
          }
@@ -266,21 +266,21 @@ public class AutoTotem extends Module {
     * (скорость ненулевая), не свой, в радиусе и ПРИБЛИЖАЕТСЯ.
     */
    private boolean isTridentDanger() {
-      if (mc.player == null || mc.world == null) return false;
+      if (mc.player == null || mc.level == null) return false;
       if (!this.triggers.get("Тризубец летит")) return false;
       float radius = this.tridentRadius.get().floatValue();
       double radiusSq = radius * radius;
-      Vec3d playerPos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+      Vec3 playerPos = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ());
 
-      for (Entity entity : mc.world.getEntities()) {
+      for (Entity entity : mc.level.getEntities()) {
          if (!(entity instanceof TridentEntity trident)) continue;
          if (trident.getOwner() == mc.player) continue;
          if (mc.player.squaredDistanceTo(trident) > radiusSq) continue;
 
-         Vec3d vel = trident.getVelocity();
-         if (vel.lengthSquared() < 0.05) continue;
+         Vec3 vel = trident.getDeltaMovement();
+         if (vel.lengthSqr() < 0.05) continue;
 
-         Vec3d tridentPos = new Vec3d(trident.getX(), trident.getY(), trident.getZ());
+         Vec3 tridentPos = new Vec3(trident.getX(), trident.getY(), trident.getZ());
          double distNow = tridentPos.squaredDistanceTo(playerPos);
          double distNext = tridentPos.add(vel).squaredDistanceTo(playerPos);
          if (distNext <= distNow) {
@@ -292,13 +292,13 @@ public class AutoTotem extends Module {
 
    /** Опасность от праймнутого ТНТ в радиусе. */
    private boolean isTntDanger() {
-      if (mc.player == null || mc.world == null) return false;
+      if (mc.player == null || mc.level == null) return false;
       if (!this.triggers.get("ТНТ рядом")) return false;
       float radius = this.tntRadius.get().floatValue();
       double radiusSq = radius * radius;
 
-      for (Entity entity : mc.world.getEntities()) {
-         if (entity instanceof TntEntity && mc.player.squaredDistanceTo(entity) <= radiusSq) {
+      for (Entity entity : mc.level.getEntities()) {
+         if (entity instanceof PrimedTnt && mc.player.squaredDistanceTo(entity) <= radiusSq) {
             return true;
          }
       }
@@ -306,10 +306,10 @@ public class AutoTotem extends Module {
    }
 
    private boolean shouldTakeTotem(boolean instantDanger) {
-      if (mc.player == null || mc.world == null) return false;
+      if (mc.player == null || mc.level == null) return false;
       if (this.skipIfHead.get()) {
          boolean blockingHead = this.takeSphere.get()
-            ? mc.player.getMainHandStack().isOf(Items.PLAYER_HEAD)
+            ? mc.player.getMainHandItem().isOf(Items.PLAYER_HEAD)
             : this.isHoldingHead();
          if (blockingHead) return false;
       }
@@ -324,10 +324,10 @@ public class AutoTotem extends Module {
          float radius = this.crystalRadius.get().floatValue();
          double radiusSq = radius * radius;
          if (this.triggers.get("Обсидиан в руке")) {
-            for (PlayerEntity player : mc.world.getPlayers()) {
+            for (Player player : mc.level.getPlayers()) {
                if (player != mc.player
                   && mc.player.squaredDistanceTo(player) <= radiusSq
-                  && (player.getMainHandStack().isOf(Items.OBSIDIAN) || player.getOffHandStack().isOf(Items.OBSIDIAN))) {
+                  && (player.getMainHandItem().isOf(Items.OBSIDIAN) || player.getOffhandItem().isOf(Items.OBSIDIAN))) {
                   return true;
                }
             }
@@ -340,13 +340,13 @@ public class AutoTotem extends Module {
    /** В руке (главной или офф) — голова/шар. */
    private boolean isHoldingHead() {
       if (mc.player == null) return false;
-      ItemStack main = mc.player.getMainHandStack();
-      ItemStack off = mc.player.getOffHandStack();
+      ItemStack main = mc.player.getMainHandItem();
+      ItemStack off = mc.player.getOffhandItem();
       return main.isOf(Items.PLAYER_HEAD) || off.isOf(Items.PLAYER_HEAD);
    }
 
    private boolean hasTotemInOffhand() {
-      return mc.player != null && mc.player.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING);
+      return mc.player != null && mc.player.getOffhandItem().isOf(Items.TOTEM_OF_UNDYING);
    }
 
    private int findTotemSlot() {
@@ -355,7 +355,7 @@ public class AutoTotem extends Module {
       int enchantedTotem = -1;
 
       for (int i = 9; i < 45; i++) {
-         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getStack();
+         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
          if (stack.isOf(Items.TOTEM_OF_UNDYING)) {
             boolean isEnchanted = stack.hasGlint();
             if (isEnchanted) {
@@ -386,7 +386,7 @@ public class AutoTotem extends Module {
          this.savedTotemSlot = totemSlot;
          this.doSwap(totemSlot);
          this.totemTakenByUs = true;
-         mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+         mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
       }
    }
 
@@ -433,7 +433,7 @@ public class AutoTotem extends Module {
 
       this.totemTakenByUs = false;
       this.clearOriginalOffhand();
-      mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+      mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
    }
 
    /** Единая точка сброса «памяти» оригинального офф-хенда. */
@@ -448,7 +448,7 @@ public class AutoTotem extends Module {
          return -1;
       } else {
          for (int i = 9; i < 45; i++) {
-            ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getStack();
+            ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
             if (ItemStack.areItemsEqual(stack, item) && ItemStack.areEqual(stack, item)) {
                return i;
             }
@@ -472,7 +472,7 @@ public class AutoTotem extends Module {
       int byNormName = -1;
 
       for (int i = 9; i < 45; i++) {
-         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getStack();
+         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
          if (!stack.isOf(Items.PLAYER_HEAD)) continue;
 
          if (ItemStack.areItemsEqual(stack, reference) && ItemStack.areEqual(stack, reference)) {
@@ -505,7 +505,7 @@ public class AutoTotem extends Module {
    private static String computeStableHeadName(ItemStack stack) {
       if (stack == null || stack.isEmpty()) return "";
       try {
-         Text name = stack.getName();
+         Component name = stack.getName();
          if (name == null) return "";
          String s = name.getString();
          return s == null ? "" : s;
@@ -533,16 +533,16 @@ public class AutoTotem extends Module {
    private void doSwap1214(int slot) {
       if (slot >= 36 && slot <= 44) {
          int hotbarSlot = slot - 36;
-         mc.interactionManager.clickSlot(0, 45, hotbarSlot, SlotActionType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, 45, hotbarSlot, ClickType.SWAP, mc.player);
       } else {
-         mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
-         mc.interactionManager.clickSlot(0, 45, 0, SlotActionType.SWAP, mc.player);
-         mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, 45, 0, ClickType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
       }
    }
 
    private void doSwap1165(int slot) {
-      mc.interactionManager.clickSlot(0, slot, 40, SlotActionType.SWAP, mc.player);
+      mc.gameMode.clickSlot(0, slot, 40, ClickType.SWAP, mc.player);
    }
 
    private void disableSprint() {

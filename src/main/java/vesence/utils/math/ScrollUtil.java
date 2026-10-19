@@ -1,6 +1,6 @@
 package vesence.utils.math;
 import vesence.renderengine.render.Renderer2D;
-import vesence.renderengine.utils.MathHelper;
+import vesence.renderengine.utils.Mth;
 public class ScrollUtil {
     private float target;
     private float scroll;
@@ -58,15 +58,15 @@ public class ScrollUtil {
         if (!(this.max >= 0.0F) && fadeAlpha > 0.01F) {
            float percentage = this.max != 0.0F ? this.scroll / this.max : 0.0F;
            float targetBarHeight = height - this.max / (this.max - height) * height;
-           this.barHeight = MathHelper.interpolate(targetBarHeight, this.barHeight, 0.9F);
+           this.barHeight = Mth.interpolate(targetBarHeight, this.barHeight, 0.9F);
            boolean allowed = this.barHeight < height && this.barHeight > 0.0F;
            if (allowed) {
               float scrollY = y + height * percentage - this.barHeight * percentage;
               float combinedAlpha = alpha * fadeAlpha;
               int mainColor = Renderer2D.ColorUtil.replAlpha(Renderer2D.ColorUtil.getMainColor(1, 1),
-                    (int) MathHelper.clamp(255.0F * combinedAlpha, 0.0F, 255.0F));
+                    (int) Mth.clamp(255.0F * combinedAlpha, 0.0F, 255.0F));
               int mainColor20 = Renderer2D.ColorUtil.replAlpha(Renderer2D.ColorUtil.getMainColor(1, 1),
-                    (int) MathHelper.clamp(20.0F * combinedAlpha, 0.0F, 20.0F));
+                    (int) Mth.clamp(20.0F * combinedAlpha, 0.0F, 20.0F));
               renderer2D.rect(x, y, width, height, mainColor20);
               renderer2D.rect(x, scrollY, width, this.barHeight, 1.0F, mainColor);
            }

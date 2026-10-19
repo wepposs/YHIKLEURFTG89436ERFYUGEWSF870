@@ -2,7 +2,7 @@ package vesence.utils.config.friend;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.Vesence;
 import vesence.utils.friends.FriendStorage;
 
@@ -11,7 +11,7 @@ import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class FriendManager {
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+   public static Minecraft mc = Minecraft.getInstance();
 
    public static void init() {
 
@@ -55,7 +55,7 @@ public class FriendManager {
    }
 
    public static boolean getNearFriends(String name) {
-      if (mc.world == null) return false;
-      return mc.world.getPlayers().stream().anyMatch(player -> player.getName().getString().equals(name));
+      if (mc.level == null) return false;
+      return mc.level.getPlayers().stream().anyMatch(player -> player.getName().getString().equals(name));
    }
 }

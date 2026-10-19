@@ -2,17 +2,17 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -74,7 +74,7 @@ public class ClickAction extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate e) {
-      if (!this.enable || mc.player == null || mc.world == null) {
+      if (!this.enable || mc.player == null || mc.level == null) {
          return;
       }
 
@@ -96,20 +96,20 @@ public class ClickAction extends Module {
 
    private void handleFriend() {
       float tickDelta = mc.getRenderTickCounter().getTickProgress(true);
-      Vec3d eyePos = mc.player.getCameraPosVec(tickDelta);
-      Vec3d lookVec = mc.player.getRotationVec(tickDelta);
+      Vec3 eyePos = mc.player.getCameraPosVec(tickDelta);
+      Vec3 lookVec = mc.player.getRotationVec(tickDelta);
       double maxDist = this.friendDistance.get();
-      Vec3d endVec = eyePos.add(lookVec.multiply(maxDist));
-      Box searchBox = mc.player.getBoundingBox().stretch(lookVec.multiply(maxDist)).expand(1.0);
+      Vec3 endVec = eyePos.add(lookVec.multiply(maxDist));
+      AABB searchBox = mc.player.getBoundingBox().stretch(lookVec.multiply(maxDist)).expand(1.0);
 
       EntityHitResult hitResult = ProjectileUtil.raycast(
          mc.player, eyePos, endVec, searchBox,
-         entity -> entity instanceof PlayerEntity && !entity.isSpectator() && entity.isAlive() && entity.canHit(),
+         entity -> entity instanceof Player && !entity.isSpectator() && entity.isAlive() && entity.canHit(),
          maxDist * maxDist
       );
 
       if (hitResult != null) {
-         PlayerEntity target = (PlayerEntity) hitResult.getEntity();
+         Player target = (Player) hitResult.getEntity();
          if (mc.player.distanceTo(target) <= maxDist) {
             String name = target.getName().getString();
 
@@ -142,8 +142,8 @@ public class ClickAction extends Module {
          return;
       }
 
-      ItemStack main = mc.player.getMainHandStack();
-      ItemStack off = mc.player.getOffHandStack();
+      ItemStack main = mc.player.getMainHandItem();
+      ItemStack off = mc.player.getOffhandItem();
 
       boolean mainCharged = main.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(main);
       boolean offCharged = off.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(off);
@@ -174,7 +174,7 @@ public class ClickAction extends Module {
 
    private int findChargedCrossbowSlot() {
       for (int i = 0; i < 9; i++) {
-         ItemStack stack = mc.player.getInventory().getStack(i);
+         ItemStack stack = mc.player.getInventory().getItem(i);
          if (stack.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(stack)) {
             return i;
          }
@@ -183,22 +183,22 @@ public class ClickAction extends Module {
    }
 
    private void shootCrossbow() {
-      if (mc.interactionManager == null) {
+      if (mc.gameMode == null) {
          return;
       }
-      ItemStack main = mc.player.getMainHandStack();
-      ItemStack off = mc.player.getOffHandStack();
+      ItemStack main = mc.player.getMainHandItem();
+      ItemStack off = mc.player.getOffhandItem();
 
       if (main.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(main)) {
-         InventoryActionUtil.useHand(Hand.MAIN_HAND);
+         InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
       } else if (off.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(off)) {
-         InventoryActionUtil.useHand(Hand.OFF_HAND);
+         InventoryActionUtil.useHand(InteractionHand.OFF_HAND);
       } else {
          int currentSlot = mc.player.getInventory().getSelectedSlot();
          int chargedSlot = this.findChargedCrossbowSlot();
          if (chargedSlot != -1) {
             InventoryActionUtil.selectSlot(chargedSlot);
-            InventoryActionUtil.useHand(Hand.MAIN_HAND);
+            InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
             if (currentSlot >= 0 && currentSlot <= 8 && currentSlot != chargedSlot) {
                InventoryActionUtil.selectSlot(currentSlot);
             }
@@ -207,10 +207,10 @@ public class ClickAction extends Module {
    }
 
    private void handlePearl() {
-      if (mc.interactionManager == null || mc.getNetworkHandler() == null) {
+      if (mc.gameMode == null || mc.getConnection() == null) {
          return;
       }
-      if (mc.currentScreen != null) {
+      if (mc.screen != null) {
          return;
       }
 
@@ -218,7 +218,7 @@ public class ClickAction extends Module {
          long elapsed = System.currentTimeMillis() - this.legitStateTime;
          if (this.legitState == LegitState.SWITCHING) {
             if (elapsed >= 100) {
-               InventoryActionUtil.useHand(Hand.MAIN_HAND);
+               InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
                this.legitState = LegitState.THROWING;
                this.legitStateTime = System.currentTimeMillis();
             }
@@ -229,7 +229,7 @@ public class ClickAction extends Module {
 
                if (this.state == 0) {
                   mc.player.getInventory().setSelectedSlot(this.legitOldSlot);
-                  mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(this.legitOldSlot));
+                  mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
                   this.resetState();
                }
             }
@@ -238,9 +238,9 @@ public class ClickAction extends Module {
 
       switch (this.state) {
          case 1: {
-            mc.interactionManager.clickSlot(
-               mc.player.currentScreenHandler.syncId,
-               this.savedInvSlot, this.swapSlot, SlotActionType.SWAP, mc.player
+            mc.gameMode.clickSlot(
+               mc.player.containerMenu.syncId,
+               this.savedInvSlot, this.swapSlot, ClickType.SWAP, mc.player
             );
             InventoryActionUtil.closeHandledScreenIfNeeded();
             this.wasFull = true;
@@ -261,7 +261,7 @@ public class ClickAction extends Module {
             if (this.pearlMode.is("Легитный")) {
                if (this.legitState == LegitState.RETURNING && System.currentTimeMillis() - this.legitStateTime >= 400) {
                   mc.player.getInventory().setSelectedSlot(this.legitOldSlot);
-                  mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(this.legitOldSlot));
+                  mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
                   this.restoreInventorySlot();
                   this.resetState();
                }
@@ -296,8 +296,8 @@ public class ClickAction extends Module {
    }
 
    private void throwPearl() {
-      if (mc.player.getOffHandStack().isOf(Items.ENDER_PEARL)) {
-         InventoryActionUtil.useHand(Hand.OFF_HAND);
+      if (mc.player.getOffhandItem().isOf(Items.ENDER_PEARL)) {
+         InventoryActionUtil.useHand(InteractionHand.OFF_HAND);
          return;
       }
 
@@ -313,7 +313,7 @@ public class ClickAction extends Module {
 
       int invSlot = -1;
       for (int i = 9; i < 36; i++) {
-         if (mc.player.getInventory().getStack(i).getItem() == Items.ENDER_PEARL) {
+         if (mc.player.getInventory().getItem(i).getItem() == Items.ENDER_PEARL) {
             invSlot = i;
             break;
          }
@@ -353,17 +353,17 @@ public class ClickAction extends Module {
    private void restoreInventorySlot() {
       if (this.wasFull) {
          if (this.savedInvSlot != -1) {
-            mc.interactionManager.clickSlot(
-               mc.player.currentScreenHandler.syncId,
-               this.savedInvSlot, this.swapSlot, SlotActionType.SWAP, mc.player
+            mc.gameMode.clickSlot(
+               mc.player.containerMenu.syncId,
+               this.savedInvSlot, this.swapSlot, ClickType.SWAP, mc.player
             );
             InventoryActionUtil.closeHandledScreenIfNeeded();
          }
          this.wasFull = false;
       } else {
-         mc.interactionManager.clickSlot(
-            mc.player.currentScreenHandler.syncId,
-            this.swapSlot + 36, 0, SlotActionType.QUICK_MOVE, mc.player
+         mc.gameMode.clickSlot(
+            mc.player.containerMenu.syncId,
+            this.swapSlot + 36, 0, ClickType.QUICK_MOVE, mc.player
          );
          InventoryActionUtil.closeHandledScreenIfNeeded();
       }
@@ -371,7 +371,7 @@ public class ClickAction extends Module {
 
    private int findInHotbar() {
       for (int i = 0; i < 9; i++) {
-         if (mc.player.getInventory().getStack(i).getItem() == Items.ENDER_PEARL) {
+         if (mc.player.getInventory().getItem(i).getItem() == Items.ENDER_PEARL) {
             return i;
          }
       }

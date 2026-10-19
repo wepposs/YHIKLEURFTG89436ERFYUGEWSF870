@@ -1,15 +1,15 @@
 package vesence.module.impl.visuals.attributes;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import vesence.event.render.EventRender3D;
@@ -21,7 +21,7 @@ import vesence.module.impl.visuals.Attributes;
  *
  * <p>Порт косметики «Ушки» из клиента RelevantPremium, адаптированный под
  * render-API MC 1.21.11. Уши поворачиваются ВМЕСТЕ С ГОЛОВОЙ — вокруг шеи, а
- * не вокруг макушки. Использует общий bloom-RenderLayer из {@link AttributesTail}.
+ * не вокруг макушки. Использует общий bloom-RenderType из {@link AttributesTail}.
  */
 public final class AttributesEars {
 
@@ -44,9 +44,9 @@ public final class AttributesEars {
     private static final float NECK_Y_SNEAKING = 1.02f;
 
     private final Attributes parent;
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
 
-    private BufferAllocator allocator;
+    private ByteBufferBuilder allocator;
 
     public AttributesEars(Attributes parent) {
         this.parent = parent;
@@ -55,17 +55,17 @@ public final class AttributesEars {
     public void deactivate() {}
 
     public void onRender3D(EventRender3D event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         float tickDelta = event.getTickDelta();
-        Vec3d cameraPos = event.getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
+        Vec3 cameraPos = event.getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
 
-        if (this.allocator == null) this.allocator = new BufferAllocator(262144);
-        Immediate immediate = VertexConsumerProvider.immediate(this.allocator);
+        if (this.allocator == null) this.allocator = new ByteBufferBuilder(262144);
+        Immediate immediate = MultiBufferSource.immediate(this.allocator);
         VertexConsumer buffer = immediate.getBuffer(AttributesTail.BLOOM_LAYER);
 
         boolean any = false;
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (!shouldRenderForPlayer(player)) continue;
             if (player == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
             renderEars(player, tickDelta, matrices, cameraPos, buffer);
@@ -75,22 +75,22 @@ public final class AttributesEars {
         if (any) immediate.draw();
     }
 
-    private boolean shouldRenderForPlayer(PlayerEntity player) {
+    private boolean shouldRenderForPlayer(Player player) {
         if (mc.player == null) return false;
         return player == mc.player;
     }
 
-    private void renderEars(PlayerEntity player, float tickDelta, MatrixStack matrices, Vec3d cameraPos,
+    private void renderEars(Player player, float tickDelta, PoseStack matrices, Vec3 cameraPos,
                             VertexConsumer buffer) {
         if (!player.isAlive() || player.isInvisible()) return;
         EntityPose pose = player.getPose();
         if (pose == EntityPose.SWIMMING || player.isInSwimmingPose() || player.isGliding()) return;
 
-        Vec3d lerpPos = player.getLerpedPos(tickDelta);
+        Vec3 lerpPos = player.getLerpedPos(tickDelta);
         double playerX = lerpPos.x;
         double playerY = lerpPos.y;
         double playerZ = lerpPos.z;
-        float headYaw = MathHelper.lerpAngleDegrees(tickDelta, player.lastHeadYaw, player.headYaw);
+        float headYaw = Mth.lerpAngleDegrees(tickDelta, player.lastHeadYaw, player.headYaw);
         float pitch   = player.getPitch(tickDelta);
 
         float neckY = player.isSneaking() ? NECK_Y_SNEAKING : NECK_Y_STANDING;
@@ -106,13 +106,13 @@ public final class AttributesEars {
         // Twitch анимация (редкие подёргивания).
         float t = (System.currentTimeMillis() % 100000L) / 1000.0f;
         int eid = player.getId();
-        float twitchL = MathHelper.sin(t * 1.7f + eid * 0.31f);
-        float twitchR = MathHelper.sin(t * 1.5f + eid * 0.71f);
+        float twitchL = Mth.sin(t * 1.7f + eid * 0.31f);
+        float twitchR = Mth.sin(t * 1.5f + eid * 0.71f);
         float earTiltL = (twitchL > 0.92f) ? (twitchL - 0.92f) * 15.0f : 0.0f;
         float earTiltR = (twitchR > 0.92f) ? (twitchR - 0.92f) * 15.0f : 0.0f;
 
-        float camYaw = mc.gameRenderer.getCamera().getYaw();
-        float camPitch = mc.gameRenderer.getCamera().getPitch();
+        float camYaw = mc.gameRenderer.getCamera().getYRot();
+        float camPitch = mc.gameRenderer.getCamera().getXRot();
 
         // Левое ухо.
         renderEar(buffer, matrices, cameraPos, playerX, playerY, playerZ,
@@ -126,7 +126,7 @@ public final class AttributesEars {
                 rT, gT, bT, rW, gW, bW, camYaw, camPitch);
     }
 
-    private void renderEar(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+    private void renderEar(VertexConsumer buffer, PoseStack matrices, Vec3 cameraPos,
                            double playerX, double playerY, double playerZ,
                            float headYaw, float pitch, float neckY,
                            float earX, float outwardSign, float twitchTilt,
@@ -171,12 +171,12 @@ public final class AttributesEars {
                 localPoint.set(localX, localY, 0f, 1f);
                 localPoint.mul(m);
 
-                float whiteMix = MathHelper.clamp((p - 0.65f) * 3.0f, 0.0f, 1.0f);
-                int r = MathHelper.lerp(whiteMix, rT, rW);
-                int g = MathHelper.lerp(whiteMix, gT, gW);
-                int b = MathHelper.lerp(whiteMix, bT, bW);
+                float whiteMix = Mth.clamp((p - 0.65f) * 3.0f, 0.0f, 1.0f);
+                int r = Mth.lerp(whiteMix, rT, rW);
+                int g = Mth.lerp(whiteMix, gT, gW);
+                int b = Mth.lerp(whiteMix, bT, bW);
 
-                float size = MathHelper.lerp(p, SIZE_BASE, SIZE_TIP);
+                float size = Mth.lerp(p, SIZE_BASE, SIZE_TIP);
                 int alpha = (int)(BASE_ALPHA * (1.0f - 0.30f * p));
 
                 AttributesTail.drawBloomBillboard(buffer, matrices, cameraPos,

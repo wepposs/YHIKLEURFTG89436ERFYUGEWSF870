@@ -10,20 +10,20 @@ import java.util.Iterator;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.util.math.MatrixStack.Entry;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.util.math.PoseStack.Entry;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -53,15 +53,15 @@ public class JumpCircle extends Module {
    private final SliderSetting fadeSpeed = new SliderSetting("Скорость исчезновения", 1.5, 1.0, 5.0, 0.5);
 
    private final List<CircleData> circles = new ArrayList<>();
-   private BufferAllocator circleAllocator = null;
-   private final Identifier circleTexture = Identifier.of("vesence", "textures/world/jumpcircle.png");
-   private final Identifier circleTextureSecond = Identifier.of("vesence", "textures/world/jumpcircle2.png");
+   private ByteBufferBuilder circleAllocator = null;
+   private final ResourceLocation circleTexture = ResourceLocation.of("vesence", "textures/world/jumpcircle.png");
+   private final ResourceLocation circleTextureSecond = ResourceLocation.of("vesence", "textures/world/jumpcircle2.png");
    private boolean wasOnGround = true;
 
    private static final RenderPipeline JUMP_CIRCLE_PIPELINE = RenderPipelines.register(
          RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-               .withLocation(Identifier.of("vesence", "pipeline/world/jump_circle"))
-               .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+               .withLocation(ResourceLocation.of("vesence", "pipeline/world/jump_circle"))
+               .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                .withCull(false)
                .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                .withDepthWrite(false)
@@ -75,7 +75,7 @@ public class JumpCircle extends Module {
    @Override
    public void onEnable() {
       if (mc.player != null) {
-         this.wasOnGround = mc.player.isOnGround();
+         this.wasOnGround = mc.player.onGround();
       }
       super.onEnable();
    }
@@ -89,12 +89,12 @@ public class JumpCircle extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
-      boolean isOnGround = mc.player.isOnGround();
+      boolean isOnGround = mc.player.onGround();
       if (this.wasOnGround && !isOnGround) {
-         Vec3d pos = new Vec3d(mc.player.getX(), Math.floor(mc.player.getY()) + 0.001, mc.player.getZ());
+         Vec3 pos = new Vec3(mc.player.getX(), Math.floor(mc.player.getY()) + 0.001, mc.player.getZ());
          this.circles.add(new CircleData(pos, System.currentTimeMillis()));
          while (this.circles.size() > MAX_CIRCLES) {
             this.circles.remove(0);
@@ -119,16 +119,16 @@ public class JumpCircle extends Module {
          return;
       }
       long now = System.currentTimeMillis();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      MatrixStack matrices = e.getMatrixStack();
-      Identifier texture = this.type.is("Второй") ? this.circleTextureSecond : this.circleTexture;
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      PoseStack matrices = e.getMatrixStack();
+      ResourceLocation texture = this.type.is("Второй") ? this.circleTextureSecond : this.circleTexture;
 
       if (circleAllocator == null) {
-         circleAllocator = new BufferAllocator(262144);
+         circleAllocator = new ByteBufferBuilder(262144);
       }
-      Immediate immediate = VertexConsumerProvider.immediate(circleAllocator);
+      Immediate immediate = MultiBufferSource.immediate(circleAllocator);
       try {
-         RenderLayer renderLayer = RenderLayer.of(
+         RenderType renderLayer = RenderType.of(
                texture.toString(),
                RenderSetup.builder(JUMP_CIRCLE_PIPELINE)
                      .expectedBufferSize(2048)
@@ -164,11 +164,11 @@ public class JumpCircle extends Module {
    }
 
    private float getAlpha(float progress) {
-      float fade = MathHelper.clamp(progress * (float) this.fadeSpeed.get().doubleValue(), 0.0F, 1.0F);
+      float fade = Mth.clamp(progress * (float) this.fadeSpeed.get().doubleValue(), 0.0F, 1.0F);
       return 1.0F - fade;
    }
 
-   private void renderGlowCircle(MatrixStack matrices, VertexConsumer buffer, Vec3d cameraPos, CircleData circle, float progress, float alpha, long now) {
+   private void renderGlowCircle(PoseStack matrices, VertexConsumer buffer, Vec3 cameraPos, CircleData circle, float progress, float alpha, long now) {
       float spd = (float) this.speed.get().doubleValue();
       float rad = (float) this.radius.get().doubleValue();
       float lifeTimeSec = (float) (now - circle.startTimeMs) / 1000.0F;
@@ -178,29 +178,29 @@ public class JumpCircle extends Module {
       rotation += (float) Math.sin(progress * Math.PI * 2.0) * 30.0F;
       float pulse = (float) Math.sin(lifeTimeSec * PULSE_SPEED * spd);
       float pulseScale = 1.0F + pulse * PULSE_SCALE;
-      float pulseAlpha = MathHelper.clamp(alpha * (1.0F + pulse * PULSE_ALPHA), 0.0F, 1.0F);
-      float alphaBoost = MathHelper.clamp(pulseAlpha * 1.25F, 0.0F, 1.0F);
+      float pulseAlpha = Mth.clamp(alpha * (1.0F + pulse * PULSE_ALPHA), 0.0F, 1.0F);
+      float alphaBoost = Mth.clamp(pulseAlpha * 1.25F, 0.0F, 1.0F);
       float finalScale = scale * pulseScale;
 
       int baseTheme = Renderer2D.ColorUtil.getMainColor(1, 1);
       int secondaryTheme = Renderer2D.ColorUtil.getMainColor2(1, 1);
       int colorA = Renderer2D.ColorUtil.replAlpha(baseTheme, (int) (255.0F * alphaBoost));
       int colorB = Renderer2D.ColorUtil.replAlpha(secondaryTheme, (int) (255.0F * alphaBoost));
-      int darkAlpha = (int) (255.0F * MathHelper.clamp(alphaBoost * 0.9F, 0.0F, 1.0F));
+      int darkAlpha = (int) (255.0F * Mth.clamp(alphaBoost * 0.9F, 0.0F, 1.0F));
       int darkA = Renderer2D.ColorUtil.replAlpha(darken(baseTheme, 0.65F), darkAlpha);
       int darkB = Renderer2D.ColorUtil.replAlpha(darken(secondaryTheme, 0.65F), darkAlpha);
 
-      matrices.push();
+      matrices.pushPose();
       matrices.translate(circle.pos.x - cameraPos.x, circle.pos.y - cameraPos.y, circle.pos.z - cameraPos.z);
       matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
       matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      Matrix4f matrix = matrices.last().getPositionMatrix();
       float half = finalScale * 0.5F;
       float thickHalf = finalScale * 1.08F * 0.5F;
       // Затемнённый контур под основным слоем + основной слой сверху.
       this.addTexturedQuad(buffer, matrix, -thickHalf, -thickHalf, thickHalf, thickHalf, darkA, darkB);
       this.addTexturedQuad(buffer, matrix, -half, -half, half, half, colorA, colorB);
-      matrices.pop();
+      matrices.popPose();
    }
 
    private void addTexturedQuad(VertexConsumer buffer, Matrix4f matrix, float x1, float y1, float x2, float y2, int colorA, int colorB) {
@@ -233,10 +233,10 @@ public class JumpCircle extends Module {
 
    @Environment(EnvType.CLIENT)
    private static final class CircleData {
-      private final Vec3d pos;
+      private final Vec3 pos;
       private final long startTimeMs;
 
-      private CircleData(Vec3d pos, long startTimeMs) {
+      private CircleData(Vec3 pos, long startTimeMs) {
          this.pos = pos;
          this.startTimeMs = startTimeMs;
       }

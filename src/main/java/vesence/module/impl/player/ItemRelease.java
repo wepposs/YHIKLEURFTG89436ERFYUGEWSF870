@@ -2,9 +2,9 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.BowItem;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.TridentItem;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.TridentItem;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -35,23 +35,23 @@ public class ItemRelease extends Module {
         if (mc.player == null) return;
 
         if (bow.get()) {
-            if (mc.player.getMainHandStack().getItem() instanceof BowItem && mc.player.isUsingItem()
+            if (mc.player.getMainHandItem().getItem() instanceof BowItem && mc.player.isUsingItem()
                     && mc.player.getItemUseTime() >= delay.get().floatValue()) {
-                mc.interactionManager.stopUsingItem(mc.player);
+                mc.gameMode.stopUsingItem(mc.player);
             }
         }
 
         if (трезубец.get()) {
-            if (mc.player.getMainHandStack().getItem() instanceof TridentItem && mc.player.isUsingItem()
+            if (mc.player.getMainHandItem().getItem() instanceof TridentItem && mc.player.isUsingItem()
                     && mc.player.getItemUseTime() >= 10) {
-                mc.interactionManager.stopUsingItem(mc.player);
+                mc.gameMode.stopUsingItem(mc.player);
             }
         }
 
         if (арбалет.get()) {
-            if (mc.player.getMainHandStack().getItem() instanceof CrossbowItem && mc.player.isUsingItem()
+            if (mc.player.getMainHandItem().getItem() instanceof CrossbowItem && mc.player.isUsingItem()
                     && mc.player.getItemUseTime() >= 25) {
-                mc.interactionManager.stopUsingItem(mc.player);
+                mc.gameMode.stopUsingItem(mc.player);
             }
         }
     }

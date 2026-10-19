@@ -1,6 +1,6 @@
 package vesence.module.impl.combat.neuro;
 
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 
 public class InterpolationUtil {
     public int count;
@@ -51,33 +51,33 @@ public class InterpolationUtil {
             this.holdChance = DEFAULT_HOLD_CHANCE;
         }
 
-        this.yawResponse = MathHelper.clamp(this.yawResponse, MIN_RESPONSE, MAX_YAW_RESPONSE);
-        this.pitchResponse = MathHelper.clamp(this.pitchResponse, MIN_RESPONSE, MAX_PITCH_RESPONSE);
-        this.yawJitter = MathHelper.clamp(this.yawJitter, MIN_JITTER, MAX_YAW_JITTER);
-        this.pitchJitter = MathHelper.clamp(this.pitchJitter, MIN_JITTER, MAX_PITCH_JITTER);
-        this.smoothness = MathHelper.clamp(this.smoothness, MIN_SMOOTHNESS, MAX_SMOOTHNESS);
-        this.holdChance = MathHelper.clamp(this.holdChance, 0.0f, MAX_HOLD_CHANCE);
+        this.yawResponse = Mth.clamp(this.yawResponse, MIN_RESPONSE, MAX_YAW_RESPONSE);
+        this.pitchResponse = Mth.clamp(this.pitchResponse, MIN_RESPONSE, MAX_PITCH_RESPONSE);
+        this.yawJitter = Mth.clamp(this.yawJitter, MIN_JITTER, MAX_YAW_JITTER);
+        this.pitchJitter = Mth.clamp(this.pitchJitter, MIN_JITTER, MAX_PITCH_JITTER);
+        this.smoothness = Mth.clamp(this.smoothness, MIN_SMOOTHNESS, MAX_SMOOTHNESS);
+        this.holdChance = Mth.clamp(this.holdChance, 0.0f, MAX_HOLD_CHANCE);
     }
 
     public void addSample(float targetYawError, float targetPitchError, float actualYawStep, float actualPitchStep,
                          float prevYawStep, float prevPitchStep, float mouseSensitivity) {
         this.count++;
 
-        float yawGain = MathHelper.clamp(
+        float yawGain = Mth.clamp(
             Math.abs(actualYawStep) / Math.max(Math.abs(targetYawError), mouseSensitivity),
             0.02f, 1.25f
         );
-        float pitchGain = MathHelper.clamp(
+        float pitchGain = Mth.clamp(
             Math.abs(actualPitchStep) / Math.max(Math.abs(targetPitchError), mouseSensitivity),
             0.02f, 1.1f
         );
 
-        float yawJitterSample = MathHelper.clamp(Math.abs(actualYawStep - prevYawStep), 0.02f, 3.5f);
-        float pitchJitterSample = MathHelper.clamp(Math.abs(actualPitchStep - prevPitchStep), 0.01f, 2.4f);
+        float yawJitterSample = Mth.clamp(Math.abs(actualYawStep - prevYawStep), 0.02f, 3.5f);
+        float pitchJitterSample = Mth.clamp(Math.abs(actualPitchStep - prevPitchStep), 0.01f, 2.4f);
 
         float totalMovement = Math.abs(actualYawStep) + Math.abs(actualPitchStep) + 
                              Math.abs(prevYawStep) + Math.abs(prevPitchStep) + mouseSensitivity;
-        float smoothnessSample = 1.0f - MathHelper.clamp(
+        float smoothnessSample = 1.0f - Mth.clamp(
             (Math.abs(actualYawStep - prevYawStep) + Math.abs(actualPitchStep - prevPitchStep)) / totalMovement,
             0.0f, 1.0f
         );

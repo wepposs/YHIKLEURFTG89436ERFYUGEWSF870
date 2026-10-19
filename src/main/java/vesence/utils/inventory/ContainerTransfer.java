@@ -4,13 +4,13 @@ import java.util.Locale;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ShulkerBoxScreenHandler;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.screen.slot.ClickType;
 
 /**
  * Логика кнопок «Сложить / Взять / Выбросить всё» для сундуков и шалкеров.
@@ -18,7 +18,7 @@ import net.minecraft.screen.slot.SlotActionType;
  * <p>Порт из wave-клиента (1.16.5): там кнопки жили прямо в
  * {@code net.minecraft.client.gui.screen.inventory.ChestScreen}/{@code ShulkerBoxScreen}
  * и дёргали {@code mc.playerController.windowClick(...)}. Здесь под 1.21.11 (Yarn)
- * то же самое делается через {@code mc.interactionManager.clickSlot(...)}.
+ * то же самое делается через {@code mc.gameMode.clickSlot(...)}.
  *
  * <p>Разметка слотов у контейнерного {@link ScreenHandler}: сначала идут слоты
  * самого контейнера (0..containerSize-1), затем слоты инвентаря игрока. Поэтому
@@ -28,7 +28,7 @@ import net.minecraft.screen.slot.SlotActionType;
 @Environment(EnvType.CLIENT)
 public final class ContainerTransfer {
 
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
 
     private ContainerTransfer() {
     }
@@ -57,7 +57,7 @@ public final class ContainerTransfer {
         }
         for (int slot = count; slot < handler.slots.size(); slot++) {
             if (handler.getSlot(slot).hasStack()) {
-                click(handler, slot, 0, SlotActionType.QUICK_MOVE);
+                click(handler, slot, 0, ClickType.QUICK_MOVE);
             }
         }
     }
@@ -71,7 +71,7 @@ public final class ContainerTransfer {
         }
         for (int slot = 0; slot < count && slot < handler.slots.size(); slot++) {
             if (handler.getSlot(slot).hasStack()) {
-                click(handler, slot, 0, SlotActionType.QUICK_MOVE);
+                click(handler, slot, 0, ClickType.QUICK_MOVE);
             }
         }
     }
@@ -86,7 +86,7 @@ public final class ContainerTransfer {
         for (int slot = 0; slot < count && slot < handler.slots.size(); slot++) {
             if (handler.getSlot(slot).hasStack()) {
                 // button=1 => выбросить весь стак (THROW всей ячейки).
-                click(handler, slot, 1, SlotActionType.THROW);
+                click(handler, slot, 1, ClickType.THROW);
             }
         }
     }
@@ -127,10 +127,10 @@ public final class ContainerTransfer {
      * незер-звезда в 49 слоте) — как в {@code AuctionHelper}.
      */
     public static boolean isBlockedContainer() {
-        if (mc.currentScreen == null) {
+        if (mc.screen == null) {
             return false;
         }
-        String title = mc.currentScreen.getTitle() != null ? mc.currentScreen.getTitle().getString() : "";
+        String title = mc.screen.getTitle() != null ? mc.screen.getTitle().getString() : "";
         if (isBlockedTitle(title)) {
             return true;
         }
@@ -138,7 +138,7 @@ public final class ContainerTransfer {
         if (handler instanceof GenericContainerScreenHandler generic
                 && generic.getRows() >= 6
                 && handler.slots.size() > 49) {
-            ItemStack refresh = handler.getSlot(49).getStack();
+            ItemStack refresh = handler.getSlot(49).getItem();
             if (!refresh.isEmpty() && (refresh.isOf(Items.CLOCK) || refresh.isOf(Items.NETHER_STAR))) {
                 return true;
             }
@@ -161,14 +161,14 @@ public final class ContainerTransfer {
                 || title.contains("market");
     }
 
-    private static void click(ScreenHandler handler, int slot, int button, SlotActionType type) {
-        if (mc.interactionManager == null || mc.player == null || handler == null) {
+    private static void click(ScreenHandler handler, int slot, int button, ClickType type) {
+        if (mc.gameMode == null || mc.player == null || handler == null) {
             return;
         }
-        mc.interactionManager.clickSlot(handler.syncId, slot, button, type, mc.player);
+        mc.gameMode.clickSlot(handler.syncId, slot, button, type, mc.player);
     }
 
     private static ScreenHandler handler() {
-        return mc.player == null ? null : mc.player.currentScreenHandler;
+        return mc.player == null ? null : mc.player.containerMenu;
     }
 }

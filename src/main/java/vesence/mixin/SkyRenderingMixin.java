@@ -2,8 +2,8 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
 import net.minecraft.client.render.SkyRendering;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -35,7 +35,7 @@ public class SkyRenderingMixin {
     private void vesence$renderTopSky(int color, CallbackInfo ci) {
         if (!vesence$skyActive()) return;
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             Camera camera = mc.gameRenderer != null ? mc.gameRenderer.getCamera() : null;
             if (camera != null) {
                 Ambience amb = Ambience.getInstance();
@@ -59,7 +59,7 @@ public class SkyRenderingMixin {
     }
 
     @Inject(method = "renderGlowingSky", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderGlowingSky(net.minecraft.client.util.math.MatrixStack matrices, float tickDelta, int color, CallbackInfo ci) {
+    private void vesence$renderGlowingSky(net.minecraft.client.util.math.PoseStack matrices, float tickDelta, int color, CallbackInfo ci) {
         if (vesence$skyActive()) ci.cancel();
     }
 
@@ -78,12 +78,12 @@ public class SkyRenderingMixin {
 
     // «Убирать солнце и луну»: отменяем только диски солнца/луны, звёзды остаются
     @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderSun(float alpha, net.minecraft.client.util.math.MatrixStack matrices, CallbackInfo ci) {
+    private void vesence$renderSun(float alpha, net.minecraft.client.util.math.PoseStack matrices, CallbackInfo ci) {
         if (vesence$hideSunMoon()) ci.cancel();
     }
 
     @Inject(method = "renderMoon", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderMoon(net.minecraft.world.MoonPhase phase, float alpha, net.minecraft.client.util.math.MatrixStack matrices, CallbackInfo ci) {
+    private void vesence$renderMoon(net.minecraft.world.MoonPhase phase, float alpha, net.minecraft.client.util.math.PoseStack matrices, CallbackInfo ci) {
         if (vesence$hideSunMoon()) ci.cancel();
     }
 }

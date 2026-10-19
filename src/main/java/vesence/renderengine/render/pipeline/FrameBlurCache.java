@@ -1,9 +1,9 @@
 package vesence.renderengine.render.pipeline;
 
 import com.mojang.blaze3d.textures.GpuTextureView;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -125,8 +125,8 @@ public final class FrameBlurCache {
             return resultTex;
          }
 
-         MinecraftClient mc = MinecraftClient.getInstance();
-         Framebuffer mainFb = mc.getFramebuffer();
+         Minecraft mc = Minecraft.getInstance();
+         RenderTarget mainFb = mc.getMainRenderTarget();
          int srcTex = extractGlTexId(mainFb);
          if (srcTex == 0) return 0;
 
@@ -138,7 +138,7 @@ public final class FrameBlurCache {
          int halfW = Math.max(1, fullW / 2);
          int halfH = Math.max(1, fullH / 2);
 
-         GlState.Snapshot state = GlState.push();
+         GlState.Snapshot state = GlState.pushPose();
          try {
             ensureTargets(halfW, halfH);
             if (tex[0] == 0 || tex[1] == 0) {
@@ -256,7 +256,7 @@ public final class FrameBlurCache {
       invalidate();
    }
 
-   private static int extractGlTexId(Framebuffer framebuffer) {
+   private static int extractGlTexId(RenderTarget framebuffer) {
       if (framebuffer == null) {
          return 0;
       }

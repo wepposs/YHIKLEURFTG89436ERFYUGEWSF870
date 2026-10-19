@@ -1,11 +1,11 @@
 package vesence.module.impl.visuals.pet;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
 
 /**
@@ -16,10 +16,10 @@ import net.minecraft.util.math.RotationAxis;
  */
 public class DragonModel {
 
-   public static final RenderLayer LAYER = PetRender.boxLayer(
-      "vesence_pet_dragon", Identifier.of("vesence", "textures/pet/dragon.png"));
+   public static final RenderType LAYER = PetRender.boxLayer(
+      "vesence_pet_dragon", ResourceLocation.of("vesence", "textures/pet/dragon.png"));
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
 
    private final PetBox DRAGON;
    private final PetBox torso;
@@ -383,20 +383,20 @@ public class DragonModel {
       jaw.rotateAngleX = (float) Math.toRadians(2.5 + Math.sin(ageInTicks * 0.3F) * 2);
    }
 
-   public void render(MatrixStack matrixStack, VertexConsumerProvider vertexConsumers, float partialTicks, DragonBrain brain) {
+   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, DragonBrain brain) {
       if (mc.player == null) {
          return;
       }
       VertexConsumer buffer = vertexConsumers.getBuffer(LAYER);
-      float bobbing = (float) Math.sin((mc.player.age + partialTicks) * 0.2F) * 0.3F;
+      float bobbing = (float) Math.sin((mc.player.tickCount + partialTicks) * 0.2F) * 0.3F;
 
-      matrixStack.push();
+      matrixStack.pushPose();
       matrixStack.translate(0.0, 0.8F + bobbing, 0.0);
       matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
       matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(brain.getBody()));
       matrixStack.scale(0.5F, 0.5F, 0.5F);
 
       DRAGON.render(matrixStack, buffer);
-      matrixStack.pop();
+      matrixStack.popPose();
    }
 }

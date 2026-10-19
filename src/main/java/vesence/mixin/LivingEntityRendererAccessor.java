@@ -1,8 +1,8 @@
 package vesence.mixin;
 
-import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.state.LivingEntityRenderState;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import com.mojang.blaze3d.vertex.PoseStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import vesence.access.ILivingEntityRendererAccess;
@@ -11,18 +11,18 @@ import vesence.access.ILivingEntityRendererAccess;
 public abstract class LivingEntityRendererAccessor implements ILivingEntityRendererAccess {
 
     @Shadow
-    protected abstract void setupTransforms(LivingEntityRenderState state, MatrixStack matrices, float bodyYaw, float scale);
+    protected abstract void setupTransforms(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale);
 
     @Shadow
-    protected abstract void scale(LivingEntityRenderState state, MatrixStack matrices);
+    protected abstract void scale(LivingEntityRenderState state, PoseStack matrices);
 
     @Override
-    public void vesence$invokeSetupTransforms(LivingEntityRenderState state, MatrixStack matrices, float bodyYaw, float scale) {
+    public void vesence$invokeSetupTransforms(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale) {
         this.setupTransforms(state, matrices, bodyYaw, scale);
     }
 
     @Override
-    public void vesence$invokeScale(LivingEntityRenderState state, MatrixStack matrices) {
+    public void vesence$invokeScale(LivingEntityRenderState state, PoseStack matrices) {
         this.scale(state, matrices);
     }
 }

@@ -4,15 +4,15 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.PotionContentsComponent;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Hand;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.core.Holder;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -57,14 +57,14 @@ public class AutoPotion extends Module {
    }
 
    private enum PotionType {
-      STRENGTH(StatusEffects.STRENGTH, "Силу"),
-      SPEED(StatusEffects.SPEED, "Скорость"),
-      FIRE_RESISTANCE(StatusEffects.FIRE_RESISTANCE, "Огнестойкость");
+      STRENGTH(MobEffects.STRENGTH, "Силу"),
+      SPEED(MobEffects.SPEED, "Скорость"),
+      FIRE_RESISTANCE(MobEffects.FIRE_RESISTANCE, "Огнестойкость");
 
-      final RegistryEntry<StatusEffect> effect;
+      final Holder<MobEffect> effect;
       final String settingName;
 
-      PotionType(RegistryEntry<StatusEffect> effect, String settingName) {
+      PotionType(Holder<MobEffect> effect, String settingName) {
          this.effect = effect;
          this.settingName = settingName;
       }
@@ -78,12 +78,12 @@ public class AutoPotion extends Module {
       if (mc.player == null) return -1;
 
       for (int i = 0; i < 9; i++) {
-         ItemStack stack = mc.player.getInventory().getStack(i);
+         ItemStack stack = mc.player.getInventory().getItem(i);
 
          if (stack.isOf(Items.SPLASH_POTION)) {
             PotionContentsComponent potionComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
             if (potionComponent != null) {
-               for (StatusEffectInstance effect : potionComponent.getEffects()) {
+               for (MobEffectInstance effect : potionComponent.getEffects()) {
                   if (effect.getEffectType() == type.effect) {
                      return i;
                   }
@@ -94,7 +94,7 @@ public class AutoPotion extends Module {
       return -1;
    }
 
-   private boolean hasEffect(RegistryEntry<StatusEffect> effect) {
+   private boolean hasEffect(Holder<MobEffect> effect) {
       return mc.player != null && mc.player.hasStatusEffect(effect);
    }
 
@@ -104,16 +104,16 @@ public class AutoPotion extends Module {
    }
 
    private boolean shouldThrow() {
-      if (mc.player == null || mc.world == null) return false;
+      if (mc.player == null || mc.level == null) return false;
 
       return (canBuff(PotionType.STRENGTH) || canBuff(PotionType.SPEED) || canBuff(PotionType.FIRE_RESISTANCE))
-            && mc.player.isOnGround()
+            && mc.player.onGround()
             && timer.finished(500);
    }
 
    @EventInit
    public void onTick(EventUpdate event) {
-      if (mc.player == null || mc.world == null) return;
+      if (mc.player == null || mc.level == null) return;
 
       if (isActive) {
          throwTicks++;
@@ -135,7 +135,7 @@ public class AutoPotion extends Module {
             }
 
             if (selectedSlot != -1) {
-               mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
+               mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(selectedSlot));
             }
 
             timer.reset();
@@ -151,7 +151,7 @@ public class AutoPotion extends Module {
 
          if (throwTicks > 10) {
             if (selectedSlot != -1) {
-               mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(selectedSlot));
+               mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(selectedSlot));
             }
             isActive = false;
             throwTicks = 0;
@@ -169,14 +169,14 @@ public class AutoPotion extends Module {
 
    private void throwPotion(PotionType type) {
       if (!type.isEnabled(this) || hasEffect(type.effect)) return;
-      if (mc.player == null || mc.getNetworkHandler() == null) return;
+      if (mc.player == null || mc.getConnection() == null) return;
 
       int slot = findPotionSlot(type);
       if (slot == -1) return;
 
-      mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(slot));
+      mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(slot));
 
-      mc.getNetworkHandler().sendPacket(
-         new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0, mc.player.getYaw(), 90f));
+      mc.getConnection().sendPacket(
+         new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, mc.player.getYRot(), 90f));
    }
 }

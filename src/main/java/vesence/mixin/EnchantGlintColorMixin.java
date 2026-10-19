@@ -1,6 +1,6 @@
 package vesence.mixin;
 
-import net.minecraft.client.render.TextureTransform;
+import net.minecraft.client.renderer.rendertype.TextureTransform;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;

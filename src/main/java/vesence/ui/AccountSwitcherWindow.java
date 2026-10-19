@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.session.Session;
 import org.lwjgl.glfw.GLFW;
@@ -175,7 +175,7 @@ public class AccountSwitcherWindow {
                 t("Менеджер аккаунтов", "All your accounts\nare saved here."), headGrad, 6);
 
         r.textRight(FontRegistry.MONTSERRAT, cx + panelW - PAD - 30, headY + 23, 50,
-                t("Сейчас: ", "Current: ") + MinecraftClient.getInstance().getSession().getUsername(), accent(100), -1.5f);
+                t("Сейчас: ", "Current: ") + Minecraft.getInstance().getSession().getUsername(), accent(100), -1.5f);
 
         closeW = 100; closeH = 30;
         closeX = panelX + panelW - closeW - PAD;
@@ -288,7 +288,7 @@ public class AccountSwitcherWindow {
             r.popAlpha();
         }
 
-        r.getTransformStack().pop();
+        r.getTransformStack().popPose();
         r.popClipRect();
     }
 
@@ -489,7 +489,7 @@ public class AccountSwitcherWindow {
         if (!windowOpen || focusedField == 0) return false;
         StringBuilder buf = focusedField == 1 ? nickInput : serverInput;
         int maxLen = focusedField == 1 ? 24 : 40;
-        boolean ctrl = MinecraftClient.getInstance().isCtrlPressed();
+        boolean ctrl = Minecraft.getInstance().isCtrlPressed();
         if (ctrl && key == GLFW.GLFW_KEY_A) {
             selectAll = buf.length() > 0;
             return true;
@@ -709,7 +709,7 @@ public class AccountSwitcherWindow {
         String nick = getSelectedAccount();
         if (nick == null || nick.isEmpty()) return;
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             Session session = new Session(nick, UUID.randomUUID(), "", java.util.Optional.empty(), java.util.Optional.empty());
             ((MinecraftClientAccessor) mc).setSession(session);
         } catch (Exception ignored) {}

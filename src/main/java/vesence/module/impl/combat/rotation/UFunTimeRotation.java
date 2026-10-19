@@ -2,11 +2,11 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
 
 import static vesence.utils.other.IMinecraft.mc;
@@ -42,43 +42,43 @@ public class UFunTimeRotation {
         rotation(target, attack, 3.0F, 1.0F, null);
     }
 
-    public static void rotation(LivingEntity target, boolean attack, float attackDist, float rotateDist, Vec3d point) {
-        if (mc.player == null || mc.world == null || target == null) {
+    public static void rotation(LivingEntity target, boolean attack, float attackDist, float rotateDist, Vec3 point) {
+        if (mc.player == null || mc.level == null || target == null) {
             return;
         }
 
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
 
         // Аим-поинт: бокс цели, сдвинутый по вектору движения, ближайшая к глазу
         // точка с дотяжкой к центру, когда цель ближе радиуса удара.
-        Vec3d velocity = new Vec3d(target.getX() - target.lastRenderX,
+        Vec3 velocity = new Vec3(target.getX() - target.lastRenderX,
                 target.getY() - target.lastRenderY, target.getZ() - target.lastRenderZ);
-        Box box = target.getBoundingBox()
-                .offset(velocity.lengthSquared() > 0.36 ? velocity.normalize().multiply(0.6) : velocity)
+        AABB box = target.getBoundingBox()
+                .offset(velocity.lengthSqr() > 0.36 ? velocity.normalize().multiply(0.6) : velocity)
                 .contract(0.08);
-        Vec3d closest = new Vec3d(
-                MathHelper.clamp(eye.x, box.minX, box.maxX),
-                MathHelper.clamp(eye.y, box.minY + 0.15,
+        Vec3 closest = new Vec3(
+                Mth.clamp(eye.x, box.minX, box.maxX),
+                Mth.clamp(eye.y, box.minY + 0.15,
                         Math.max(box.minY + 0.15, box.minY + (box.maxY - box.minY) * 0.7)),
-                MathHelper.clamp(eye.z, box.minZ, box.maxZ));
-        Vec3d toCenter = new Vec3d(
+                Mth.clamp(eye.z, box.minZ, box.maxZ));
+        Vec3 toCenter = new Vec3(
                 (box.minX + box.maxX) * 0.5 - closest.x, 0.0,
                 (box.minZ + box.maxZ) * 0.5 - closest.z);
-        Vec3d aim = closest.add(toCenter.multiply(MathHelper.clamp(
+        Vec3 aim = closest.add(toCenter.multiply(Mth.clamp(
                 (attackDist - 0.15 - eye.distanceTo(closest)) / Math.max(0.05, toCenter.length()), 0.0, 0.8)));
-        Box inner = target.getBoundingBox().contract(0.1);
-        Vec3d dir = new Vec3d(
-                MathHelper.clamp(aim.x, inner.minX, inner.maxX),
-                MathHelper.clamp(aim.y, inner.minY, inner.maxY),
-                MathHelper.clamp(aim.z, inner.minZ, inner.maxZ))
+        AABB inner = target.getBoundingBox().contract(0.1);
+        Vec3 dir = new Vec3(
+                Mth.clamp(aim.x, inner.minX, inner.maxX),
+                Mth.clamp(aim.y, inner.minY, inner.maxY),
+                Mth.clamp(aim.z, inner.minZ, inner.maxZ))
                 .subtract(eye);
 
-        float goalYaw = (float) MathHelper.wrapDegrees(Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0);
-        float goalPitch = (float) MathHelper.clamp(
+        float goalYaw = (float) Mth.wrapDegrees(Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0);
+        float goalPitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(dir.y, Math.hypot(dir.x, dir.z))), -90.0, 90.0);
 
-        float curYaw = mc.player.getYaw();
-        float curPitch = mc.player.getPitch();
+        float curYaw = mc.player.getYRot();
+        float curPitch = mc.player.getXRot();
 
         long now = System.currentTimeMillis();
         if (attack) {
@@ -98,35 +98,35 @@ public class UFunTimeRotation {
         float sign = hitCounter % 2 == 0 ? 1.0F : -1.0F;
         if (!attack) {
             goalYaw += (float) Math.ceil(shake * (URotationMath.rand(5.0F, 15.0F)
-                    * MathHelper.cos(mc.player.age * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
+                    * Mth.cos(mc.player.tickCount * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
             goalPitch += (float) Math.ceil(shake * (URotationMath.rand(5.0F, 10.0F)
-                    * MathHelper.sin(mc.player.age * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
+                    * Mth.sin(mc.player.tickCount * 0.5F) + URotationMath.rand(310.0F, 530.0F) * sign));
         }
 
-        float yawDelta = MathHelper.wrapDegrees(goalYaw - curYaw);
+        float yawDelta = Mth.wrapDegrees(goalYaw - curYaw);
         float pitchDelta = goalPitch - curPitch;
         float total = (float) Math.hypot(yawDelta, pitchDelta);
 
-        float speedFactor = MathHelper.clamp(
-                MathHelper.sin((float) (cooldownSpeed() * Math.PI)), 0.15F, 0.9F);
+        float speedFactor = Mth.clamp(
+                Mth.sin((float) (cooldownSpeed() * Math.PI)), 0.15F, 0.9F);
         float accel = total * speedFactor;
         float accelCap = 6.0F + 26.0F * speedFactor;
 
-        springYaw += MathHelper.clamp(accel * (total < 0.001F ? 0.0F : yawDelta / total) - springYaw,
+        springYaw += Mth.clamp(accel * (total < 0.001F ? 0.0F : yawDelta / total) - springYaw,
                 -accelCap, accelCap);
-        springPitch += MathHelper.clamp(accel * (total < 0.001F ? 0.0F : pitchDelta / total) - springPitch,
+        springPitch += Mth.clamp(accel * (total < 0.001F ? 0.0F : pitchDelta / total) - springPitch,
                 -accelCap * 0.72F, accelCap * 0.72F);
-        springYaw = MathHelper.clamp(springYaw, -Math.abs(yawDelta), Math.abs(yawDelta));
-        springPitch = MathHelper.clamp(springPitch, -Math.abs(pitchDelta), Math.abs(pitchDelta));
+        springYaw = Mth.clamp(springYaw, -Math.abs(yawDelta), Math.abs(yawDelta));
+        springPitch = Mth.clamp(springPitch, -Math.abs(pitchDelta), Math.abs(pitchDelta));
 
         float newYaw = curYaw + springYaw + URotationMath.rand(-0.08F, 0.08F);
-        float newPitch = MathHelper.clamp(curPitch + springPitch + URotationMath.rand(-0.04F, 0.04F), -90.0F, 90.0F);
+        float newPitch = Mth.clamp(curPitch + springPitch + URotationMath.rand(-0.04F, 0.04F), -90.0F, 90.0F);
 
         if (attackEdge.update(attack)) {
             hitCounter++;
         }
 
-        float yawStep = Math.abs(MathHelper.wrapDegrees(newYaw - curYaw));
+        float yawStep = Math.abs(Mth.wrapDegrees(newYaw - curYaw));
         float pitchStep = Math.abs(newPitch - curPitch);
         URotationMath.submit(yawStep, pitchStep, 23.0F, 23.0F, 0, 15, newYaw, newPitch);
     }
@@ -160,8 +160,8 @@ public class UFunTimeRotation {
         }
         float toYaw = FreeLookUtil.freeYaw;
         float toPitch = FreeLookUtil.freePitch;
-        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYaw())) < 1.0F
-                && Math.abs(toPitch - mc.player.getPitch()) < 1.0F;
+        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYRot())) < 1.0F
+                && Math.abs(toPitch - mc.player.getXRot()) < 1.0F;
         if (!done) {
             URotationMath.submit(24.0F, 22.0F, 24.0F, 22.0F, 0, 15, toYaw, toPitch);
         }

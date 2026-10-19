@@ -2,16 +2,16 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.lifecycle.ClientTickEvent;
 import vesence.module.api.Category;
@@ -117,7 +117,7 @@ public class CrystalAura extends Module {
 
     @EventInit
     public void onTick(ClientTickEvent event) {
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             return;
         }
 
@@ -201,12 +201,12 @@ public class CrystalAura extends Module {
             return;
         }
 
-        EndCrystalEntity nearest = null;
+        EndCrystal nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
-        for (var entity : mc.world.getEntities()) {
-            if (!(entity instanceof EndCrystalEntity crystal)) continue;
-            double dist = mc.player.getEyePos().distanceTo(crystal.getEyePos());
+        for (var entity : mc.level.getEntities()) {
+            if (!(entity instanceof EndCrystal crystal)) continue;
+            double dist = mc.player.getEyePosition().distanceTo(crystal.getEyePosition());
             if (dist > range.get().doubleValue()) continue;
             if (dist < nearestDist) {
                 nearestDist = dist;
@@ -215,8 +215,8 @@ public class CrystalAura extends Module {
         }
 
         if (nearest != null) {
-            mc.interactionManager.attackEntity(mc.player, nearest);
-            mc.player.swingHand(Hand.MAIN_HAND);
+            mc.gameMode.attackEntity(mc.player, nearest);
+            mc.player.swingHand(InteractionHand.MAIN_HAND);
             breakTimer.reset();
         }
     }
@@ -232,17 +232,17 @@ public class CrystalAura extends Module {
                 for (int z = -r; z <= r; z++) {
                     BlockPos pos = playerPos.add(x, y, z);
 
-                    var block = mc.world.getBlockState(pos).getBlock();
+                    var block = mc.level.getBlockState(pos).getBlock();
                     boolean isObsidian = block == Blocks.OBSIDIAN;
                     boolean isBedrock = !obsidianOnly.get() && block == Blocks.BEDROCK;
                     if (!isObsidian && !isBedrock) continue;
 
-                    if (!mc.world.getBlockState(pos.up()).isAir()) continue;
-                    if (!mc.world.getBlockState(pos.up(2)).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.up()).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.up(2)).isAir()) continue;
 
                     if (onlyNearEnemy.get() && !hasEnemyNear(pos)) continue;
 
-                    double dist = mc.player.getEyePos().distanceTo(Vec3d.ofCenter(pos));
+                    double dist = mc.player.getEyePosition().distanceTo(Vec3.ofCenter(pos));
                     if (dist < nearestDist) {
                         nearestDist = dist;
                         nearest = pos;
@@ -254,18 +254,18 @@ public class CrystalAura extends Module {
     }
 
     private boolean hasEnemyNear(BlockPos pos) {
-        Vec3d center = Vec3d.ofCenter(pos);
+        Vec3 center = Vec3.ofCenter(pos);
         float maxDist = enemyRange.get().floatValue();
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (player == mc.player) continue;
-            if (player.getEyePos().distanceTo(center) <= maxDist) return true;
+            if (player.getEyePosition().distanceTo(center) <= maxDist) return true;
         }
         return false;
     }
 
     private int findCrystalSlot() {
         for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.getItem() == Items.END_CRYSTAL) return i;
         }
         return -1;
@@ -273,7 +273,7 @@ public class CrystalAura extends Module {
 
     private int findObsidianSlot() {
         for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.getItem() == Items.OBSIDIAN) return i;
         }
         return -1;
@@ -291,19 +291,19 @@ public class CrystalAura extends Module {
                     BlockPos pos = playerPos.add(x, y, z);
 
                     // Должен быть воздух
-                    if (!mc.world.getBlockState(pos).isAir()) continue;
+                    if (!mc.level.getBlockState(pos).isAir()) continue;
 
                     // Должна быть твердая поверхность снизу
-                    if (!mc.world.getBlockState(pos.down()).isSolidBlock(mc.world, pos.down())) continue;
+                    if (!mc.level.getBlockState(pos.down()).isSolidBlock(mc.level, pos.down())) continue;
 
                     // Должно быть 2 блока воздуха сверху для кристалла
-                    if (!mc.world.getBlockState(pos.up()).isAir()) continue;
-                    if (!mc.world.getBlockState(pos.up(2)).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.up()).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.up(2)).isAir()) continue;
 
                     // Проверка врагов
                     if (onlyNearEnemy.get() && !hasEnemyNear(pos)) continue;
 
-                    double dist = mc.player.getEyePos().distanceTo(Vec3d.ofCenter(pos));
+                    double dist = mc.player.getEyePosition().distanceTo(Vec3.ofCenter(pos));
                     if (dist < nearestDist) {
                         nearestDist = dist;
                         nearest = pos;
@@ -338,22 +338,22 @@ public class CrystalAura extends Module {
         float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float pitch = (float) (-Math.toDegrees(Math.atan2(dy, dxz)));
         
-        mc.player.setYaw(yaw);
-        mc.player.setPitch(pitch);
+        mc.player.setYRot(yaw);
+        mc.player.setXRot(pitch);
     }
 
     private void placeCrystal(BlockPos pos) {
-        Vec3d hitVec = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
+        Vec3 hitVec = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
         BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, pos, false);
-        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hitResult);
-        mc.player.swingHand(Hand.MAIN_HAND);
+        mc.gameMode.interactBlock(mc.player, InteractionHand.MAIN_HAND, hitResult);
+        mc.player.swingHand(InteractionHand.MAIN_HAND);
     }
 
     private void placeObsidian(BlockPos pos) {
-        Vec3d hitVec = new Vec3d(pos.getX() + 0.5, pos.getY() - 0.5, pos.getZ() + 0.5);
+        Vec3 hitVec = new Vec3(pos.getX() + 0.5, pos.getY() - 0.5, pos.getZ() + 0.5);
         BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, pos.down(), false);
-        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hitResult);
-        mc.player.swingHand(Hand.MAIN_HAND);
+        mc.gameMode.interactBlock(mc.player, InteractionHand.MAIN_HAND, hitResult);
+        mc.player.swingHand(InteractionHand.MAIN_HAND);
     }
 
     @Override

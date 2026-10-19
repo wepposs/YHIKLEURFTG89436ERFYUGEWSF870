@@ -2,11 +2,11 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.GCDUtil;
 import vesence.module.impl.combat.auraComponent.RayTraceUtil;
 import vesence.module.impl.combat.auraComponent.UBoxPoints;
@@ -63,7 +63,7 @@ public final class URotationMath {
     // ── Базовые углы ─────────────────────────────────────────────────────────
 
     public static float wrap(float delta) {
-        return MathHelper.wrapDegrees(delta);
+        return Mth.wrapDegrees(delta);
     }
 
     /** total = hypot(yawΔ, pitchΔ), никогда не 0. */
@@ -77,7 +77,7 @@ public final class URotationMath {
     }
 
     public static float clampDelta(float axisDelta, float cap) {
-        return MathHelper.clamp(axisDelta, -cap, cap);
+        return Mth.clamp(axisDelta, -cap, cap);
     }
 
     /** lerp(t, a, b) = a + t*(b-a). */
@@ -94,7 +94,7 @@ public final class URotationMath {
      * видимое дёрганье: камера пилит туда-сюда вокруг цели.
      */
     public static float lerpTowards(float current, float target, float t) {
-        float k = MathHelper.clamp(t, 0.0F, 1.0F);
+        float k = Mth.clamp(t, 0.0F, 1.0F);
         return current + (target - current) * k;
     }
 
@@ -175,7 +175,7 @@ public final class URotationMath {
         float snappedPitch = currentPitch + GCDUtil.getSensitivity(gcdDeltaPitch);
         return new float[]{
                 currentYaw + enforceMinStep(snappedYaw - currentYaw, gcdDeltaYaw),
-                MathHelper.clamp(currentPitch + enforceMinStep(snappedPitch - currentPitch, gcdDeltaPitch), -90.0F, 90.0F)
+                Mth.clamp(currentPitch + enforceMinStep(snappedPitch - currentPitch, gcdDeltaPitch), -90.0F, 90.0F)
         };
     }
 
@@ -194,7 +194,7 @@ public final class URotationMath {
         if (mc.player == null) {
             return;
         }
-        float[] snapped = apply(mc.player.getYaw(), mc.player.getPitch(), newYaw, newPitch);
+        float[] snapped = apply(mc.player.getYRot(), mc.player.getXRot(), newYaw, newPitch);
         vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations.update(
                 new Rotation(snapped[0], snapped[1]),
                 yawSpeed, pitchSpeed, returnYawSpeed, returnPitchSpeed, timeout, priority, false);
@@ -219,30 +219,30 @@ public final class URotationMath {
      * грудью каждый тик, и на `cap = 360` профилях камера мотается на 10–20°
      * туда-сюда — это выглядит как дёрганье, хотя интерполяция работает.
      */
-    public static Vec3d visibleAimPoint(LivingEntity target, double range, boolean ignoreWalls) {
+    public static Vec3 visibleAimPoint(LivingEntity target, double range, boolean ignoreWalls) {
         if (target == null || mc.player == null) {
             return null;
         }
         return stabilize(target, computeAimPoint(target, range, ignoreWalls), range, ignoreWalls);
     }
 
-    private static Vec3d computeAimPoint(LivingEntity target, double range, boolean ignoreWalls) {
+    private static Vec3 computeAimPoint(LivingEntity target, double range, boolean ignoreWalls) {
         if (ignoreWalls) {
             return UBoxPoints.getBestVector3dOnEntityBox(target);
         }
 
-        Box box = target.getBoundingBox();
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d center = box.getCenter();
+        AABB box = target.getBoundingBox();
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 center = box.getCenter();
         double halfX = box.getLengthX() * 0.5;
         double halfZ = box.getLengthZ() * 0.5;
         double height = box.getLengthY();
 
-        Vec3d best = null;
+        Vec3 best = null;
         double bestDist = Double.MAX_VALUE;
 
         for (double[] p : HITBOX_GRID) {
-            Vec3d point = new Vec3d(
+            Vec3 point = new Vec3(
                     center.x + halfX * p[0],
                     box.minY + height * p[1],
                     center.z + halfZ * p[2]);
@@ -259,7 +259,7 @@ public final class URotationMath {
         if (best != null) {
             return best;
         }
-        Vec3d fallback = UBoxPoints.getBestVector3dOnEntityBox(target);
+        Vec3 fallback = UBoxPoints.getBestVector3dOnEntityBox(target);
         return fallback != null && isVisible(fallback, eye.distanceTo(fallback)) ? fallback : null;
     }
 
@@ -271,7 +271,7 @@ public final class URotationMath {
     private static final double AIM_SWITCH_MARGIN = 0.35D;
 
     private static int aimTargetId = Integer.MIN_VALUE;
-    private static Vec3d aimPoint;
+    private static Vec3 aimPoint;
     private static int aimPointAge = Integer.MIN_VALUE;
 
     /**
@@ -279,7 +279,7 @@ public final class URotationMath {
      * держим её. Иначе каждый тик цель прыгает по сетке хитбокса и ротация
      * мотается между двумя углами.
      */
-    private static Vec3d stabilize(LivingEntity target, Vec3d computed, double range, boolean ignoreWalls) {
+    private static Vec3 stabilize(LivingEntity target, Vec3 computed, double range, boolean ignoreWalls) {
         return stabilizeAim(target.getId(), computed, range, ignoreWalls);
     }
 
@@ -287,13 +287,13 @@ public final class URotationMath {
      * Публичная версия гистерезиса — тем же правилом пользуется аура, когда
      * сама выбирает точку атаки по своему пресету.
      */
-    public static Vec3d stabilizeAim(int targetId, Vec3d computed, double range, boolean ignoreWalls) {
-        int age = mc.player != null ? mc.player.age : 0;
+    public static Vec3 stabilizeAim(int targetId, Vec3 computed, double range, boolean ignoreWalls) {
+        int age = mc.player != null ? mc.player.tickCount : 0;
         boolean sameTarget = aimTargetId == targetId;
 
         if (sameTarget && aimPoint != null && aimPointAge != Integer.MIN_VALUE
                 && age - aimPointAge < AIM_HOLD_TICKS) {
-            Vec3d eye = mc.player.getEyePos();
+            Vec3 eye = mc.player.getEyePosition();
             double heldDist = eye.distanceTo(aimPoint);
             boolean stillValid = heldDist <= range
                     && (ignoreWalls || isVisible(aimPoint, heldDist));
@@ -313,21 +313,21 @@ public final class URotationMath {
     }
 
     /** Есть ли линия от глаза к точке без блоков между ними. */
-    private static boolean isVisible(Vec3d point, double dist) {
+    private static boolean isVisible(Vec3 point, double dist) {
         if (dist <= 1.0E-4) {
             return true;
         }
-        Vec3d eye = mc.player.getEyePos();
-        return RayTraceUtil.traceBlock(eye, point, net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
-                net.minecraft.world.RaycastContext.FluidHandling.NONE)
+        Vec3 eye = mc.player.getEyePosition();
+        return RayTraceUtil.traceBlock(eye, point, net.minecraft.world.ClipContext.ShapeType.COLLIDER,
+                net.minecraft.world.ClipContext.FluidHandling.NONE)
                 .getPos().squaredDistanceTo(eye) >= dist * dist - 1.0E-4;
     }
 
     /** Ротация на точку из позиции глаз. */
-    public static Rotation lookAt(Vec3d point) {
-        Vec3d dir = point.subtract(mc.player.getEyePos());
+    public static Rotation lookAt(Vec3 point) {
+        Vec3 dir = point.subtract(mc.player.getEyePosition());
         float yaw = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
-        float pitch = (float) MathHelper.clamp(
+        float pitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(dir.y, Math.hypot(dir.x, dir.z))), -90.0F, 90.0F);
         return new Rotation(yaw, pitch);
     }

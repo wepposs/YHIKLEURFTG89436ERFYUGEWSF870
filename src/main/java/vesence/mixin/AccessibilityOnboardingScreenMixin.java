@@ -1,7 +1,7 @@
 package vesence.mixin;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.AccessibilityOnboardingScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,7 +19,7 @@ public class AccessibilityOnboardingScreenMixin {
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         ci.cancel();
         mc.setScreen(new MainScreen());
     }

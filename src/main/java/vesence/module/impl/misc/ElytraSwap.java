@@ -8,21 +8,21 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.hud.BossBarHud;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.entity.boss.BossBar;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket.Mode;
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.network.packet.c2s.play.ServerboundPlayerCommandPacket.Mode;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.Holder;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.util.PlayerInput;
 import vesence.Vesence;
 import vesence.event.EventInit;
@@ -120,7 +120,7 @@ public class ElytraSwap extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      if (mc.player == null || mc.world == null || mc.interactionManager == null || mc.getNetworkHandler() == null) {
+      if (mc.player == null || mc.level == null || mc.gameMode == null || mc.getConnection() == null) {
          return;
       }
 
@@ -181,13 +181,13 @@ public class ElytraSwap extends Module {
             if (chestStack.isOf(Items.ELYTRA)
                   && !mc.player.isTouchingWater()
                   && !mc.player.isInLava()
-                  && mc.player.isOnGround()
+                  && mc.player.onGround()
                   && !mc.options.jumpKey.isPressed()) {
                mc.player.jump();
             } else if (chestStack.isOf(Items.ELYTRA) && this.isElytraUsable(chestStack)
-                  && !mc.player.isGliding() && !mc.player.isOnGround()) {
+                  && !mc.player.isGliding() && !mc.player.onGround()) {
                mc.player.startGliding();
-               mc.player.networkHandler.sendPacket(new ClientCommandC2SPacket(mc.player, Mode.START_FALL_FLYING));
+               mc.player.connection.sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.START_FALL_FLYING));
             }
          }
       }
@@ -200,7 +200,7 @@ public class ElytraSwap extends Module {
       // где лежат ракеты, и жмёт бинд. Свап/использование идёт через
       // PlayerScreenHandler (syncId 0), который активен при открытом инвентаре.
       // Блокируем ТОЛЬКО чат, чтобы набор текста не триггерил бинды.
-      if (mc.currentScreen instanceof net.minecraft.client.gui.screen.ChatScreen) return;
+      if (mc.screen instanceof net.minecraft.client.gui.screen.ChatScreen) return;
 
       boolean elytraPressed = this.elytraBind.key != -1 && this.elytraBind.isPressed();
       if (elytraPressed && !this.wasElytraPressed) {
@@ -249,24 +249,24 @@ public class ElytraSwap extends Module {
          this.doSwap(slotElytra);
       }
 
-      mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+      mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
    }
 
    private void doSwap(int slot) {
       this.syncInventoryWalk();
       if (slot >= 0 && slot < 9) {
-         mc.interactionManager.clickSlot(0, 6, slot, SlotActionType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, 6, slot, ClickType.SWAP, mc.player);
       } else {
-         mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
-         mc.interactionManager.clickSlot(0, 6, 0, SlotActionType.SWAP, mc.player);
-         mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, 6, 0, ClickType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
       }
    }
 
    private boolean hasBossBar() {
       if (!this.checkBossBar.get()) return false;
       try {
-         BossBarHud bossBarHud = mc.inGameHud.getBossBarHud();
+         BossBarHud bossBarHud = mc.gui.getBossBarHud();
          Map<UUID, BossBar> bars = ((BossBarHudAccessor) (Object) bossBarHud).getBossBars();
          return bars != null && !bars.isEmpty();
       } catch (Exception ignored) {
@@ -287,10 +287,10 @@ public class ElytraSwap extends Module {
       if (mc.player == null) return;
       if (mc.player.isSprinting()) {
          try {
-            mc.player.networkHandler.sendPacket(
+            mc.player.connection.sendPacket(
                   new PlayerInputC2SPacket(new PlayerInput(false, false, false, false, false, false, false)));
             mc.player.setSprinting(false);
-            mc.player.networkHandler.sendPacket(new ClientCommandC2SPacket(mc.player, Mode.STOP_SPRINTING));
+            mc.player.connection.sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.STOP_SPRINTING));
             mc.options.sprintKey.setPressed(false);
          } catch (Throwable ignored) {}
       }
@@ -302,7 +302,7 @@ public class ElytraSwap extends Module {
       this.sprintStopped = false;
       if (mc.player == null) return;
       try {
-         mc.player.networkHandler.sendPacket(new PlayerInputC2SPacket(mc.player.input.playerInput));
+         mc.player.connection.sendPacket(new PlayerInputC2SPacket(mc.player.input.playerInput));
       } catch (Throwable ignored) {}
    }
 
@@ -321,7 +321,7 @@ public class ElytraSwap extends Module {
 
    private void sendError(String message) {
       if (mc.player != null) {
-         mc.player.sendMessage(Text.literal(message).formatted(Formatting.RED, Formatting.BOLD), false);
+         mc.player.sendMessage(Component.literal(message).formatted(ChatFormatting.RED, ChatFormatting.BOLD), false);
       }
    }
 
@@ -332,7 +332,7 @@ public class ElytraSwap extends Module {
       int bestSlot = -1;
       double bestScore = -1.0;
       for (int slot = 0; slot < 36; slot++) {
-         ItemStack stack = mc.player.getInventory().getStack(slot);
+         ItemStack stack = mc.player.getInventory().getItem(slot);
          if (stack.getItem() == Items.ELYTRA) {
             int protection = getEnchantmentLevel(stack, Enchantments.PROTECTION);
             int unbreaking = getEnchantmentLevel(stack, Enchantments.UNBREAKING);
@@ -355,7 +355,7 @@ public class ElytraSwap extends Module {
       int bestSlot = -1;
       double bestScore = -1.0;
       for (int slot = 0; slot < 36; slot++) {
-         ItemStack stack = mc.player.getInventory().getStack(slot);
+         ItemStack stack = mc.player.getInventory().getItem(slot);
          int priority = getChestplatePriority(stack.getItem());
          if (priority <= 0) continue;
          int protection = getEnchantmentLevel(stack, Enchantments.PROTECTION);
@@ -383,9 +383,9 @@ public class ElytraSwap extends Module {
       return 0;
    }
 
-   private static int getEnchantmentLevel(ItemStack stack, RegistryKey<Enchantment> enchantmentKey) {
+   private static int getEnchantmentLevel(ItemStack stack, ResourceKey<Enchantment> enchantmentKey) {
       ItemEnchantmentsComponent enchantments = stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
-      for (RegistryEntry<Enchantment> enchantment : enchantments.getEnchantments()) {
+      for (Holder<Enchantment> enchantment : enchantments.getEnchantments()) {
          if (enchantment.matchesKey(enchantmentKey)) {
             return enchantments.getLevel(enchantment);
          }

@@ -5,8 +5,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.sound.SoundCategory;
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundSource;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.cfg.ConfigManager;
 import vesence.utils.render.ColorUtil;
@@ -47,7 +47,7 @@ public class SettingsWindow {
     private static final String SETTINGS_FILE = "menu_settings.json";
     private static final String[] BG_SHADER_PATHS = {"orb_bg", "orb_bg2"};
 
-    private static final SoundCategory[] SOUND_CATS = SoundCategory.values();
+    private static final SoundSource[] SOUND_CATS = SoundSource.values();
     private static final String[] SOUND_LABELS_RU = {
             "Общая громкость", "Музыка", "Проигрыватель", "Погода",
             "Блоки", "Враждебные", "Дружественные", "Игроки", "Окружение", "Голос", "Интерфейс"
@@ -259,13 +259,13 @@ public class SettingsWindow {
             renderer.pushAlpha(p);
             renderer.getTransformStack().pushTranslation(0f, (1f - p) * 20f);
             renderTabContent(renderer, selectedTab, contentX, scrollY, contentW, scrollH, accentColor, lmx, lmy - scrollOffset);
-            renderer.getTransformStack().pop();
+            renderer.getTransformStack().popPose();
             renderer.popAlpha();
         } else {
             renderTabContent(renderer, selectedTab, contentX, scrollY, contentW, scrollH, accentColor, lmx, lmy - scrollOffset);
         }
 
-        renderer.getTransformStack().pop();
+        renderer.getTransformStack().popPose();
 
         renderer.popClipRect();
 
@@ -402,7 +402,7 @@ public class SettingsWindow {
                 float gsExpandH = GUI_SCALE_PRESETS.length * SETTING_OPTION_H * (float) guiScaleState.expandAnim.get();
                 if (SettingRenderer.clickSelector(lx, sly, gsSelX, gsSelY, gsSelW, gsSelBaseH, gsExpandH,
                         guiScaleState, GUI_SCALE_LABELS, () -> {
-                            MinecraftClient mc = MinecraftClient.getInstance();
+                            Minecraft mc = Minecraft.getInstance();
                             if (mc != null) {
                                 try { mc.options.getGuiScale().setValue(GUI_SCALE_PRESETS[guiScaleState.selectedIndex]); mc.onResolutionChanged(); } catch (Exception ignored) {}
                             }
@@ -473,7 +473,7 @@ public class SettingsWindow {
         draggingWindow = false;
         resizingEdge = 0;
         if (soundSliderState.dragIndex >= 0) {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
                 try { mc.options.write(); } catch (Exception ignored) {}
             }

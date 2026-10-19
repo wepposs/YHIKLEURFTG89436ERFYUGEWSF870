@@ -1,6 +1,6 @@
 package vesence.mixin;
 
-import net.minecraft.client.gl.Framebuffer;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.render.WorldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -9,5 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface WorldRendererAccessor {
 
     @Accessor("entityOutlineFramebuffer")
-    Framebuffer vesence$getEntityOutlineFramebufferRaw();
+    RenderTarget vesence$getEntityOutlineFramebufferRaw();
 }

@@ -3,18 +3,18 @@ package vesence.event.lifecycle;
 import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public final class ClientTickEvent extends Event {
-   private final MinecraftClient client;
+   private final Minecraft client;
 
-   public ClientTickEvent(MinecraftClient client) {
+   public ClientTickEvent(Minecraft client) {
       this.client = Objects.requireNonNull(client, "client");
    }
 
-   public MinecraftClient client() {
+   public Minecraft client() {
       return this.client;
    }
 }

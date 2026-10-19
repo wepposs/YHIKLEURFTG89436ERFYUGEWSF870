@@ -3,7 +3,7 @@ package vesence.module.api.setting.impl;
 import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 import vesence.module.api.setting.Setting;
@@ -34,7 +34,7 @@ public class BindSettings extends Setting<Integer> {
    }
 
    public boolean isKeyDown(int keyCode) {
-      return InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), keyCode);
+      return InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), keyCode);
    }
 
    public String label() {
@@ -50,9 +50,9 @@ public class BindSettings extends Setting<Integer> {
       if (k == -1) return false;
       if (k <= -100) {
          int button = -k - 100;
-         long handle = MinecraftClient.getInstance().getWindow().getHandle();
+         long handle = Minecraft.getInstance().getWindow().getHandle();
          return GLFW.glfwGetMouseButton(handle, button) == GLFW.GLFW_PRESS;
       }
-      return InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), k);
+      return InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), k);
    }
 }

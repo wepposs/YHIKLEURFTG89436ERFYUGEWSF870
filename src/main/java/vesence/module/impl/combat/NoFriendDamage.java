@@ -2,8 +2,8 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import vesence.event.EventInit;
 import vesence.event.player.AttackEvent;
 import vesence.module.api.Category;
@@ -35,7 +35,7 @@ public class NoFriendDamage extends Module {
 
         Entity target = event.getTarget();
 
-        if (target instanceof PlayerEntity player) {
+        if (target instanceof Player player) {
             if (shouldCancelAttack(player)) {
                 event.cancel();
             }
@@ -43,7 +43,7 @@ public class NoFriendDamage extends Module {
     }
 
     public boolean shouldBlockAttack(Entity entity) {
-        if (!this.enable || !(entity instanceof PlayerEntity player)) {
+        if (!this.enable || !(entity instanceof Player player)) {
             return false;
         }
 
@@ -56,7 +56,7 @@ public class NoFriendDamage extends Module {
 
     public static boolean isFriend(Entity entity) {
 
-        if (instance != null && instance.enable && entity instanceof PlayerEntity player) {
+        if (instance != null && instance.enable && entity instanceof Player player) {
             return FriendStorage.isFriend(player.getName().getString());
         }
         return false;

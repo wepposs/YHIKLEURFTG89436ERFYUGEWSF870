@@ -12,31 +12,31 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.entity.projectile.TridentEntity;
 import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.BufferAllocator;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import net.minecraft.world.Heightmap.Type;
-import net.minecraft.client.util.math.MatrixStack.Entry;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
+import net.minecraft.client.util.math.PoseStack.Entry;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -135,15 +135,15 @@ public class Particles extends Module {
    private static final String PIPELINE_NAMESPACE = "vesence";
    private static final RenderPipeline TEXTURED_QUADS_PIPELINE = RenderPipelines.register(
            RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(Identifier.of("vesence", "textures/world/textured_quads"))
-                   .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                   .withLocation(ResourceLocation.of("vesence", "textures/world/textured_quads"))
+                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                    .withCull(false)
                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                    .withDepthWrite(false)
                    .withBlend(BlendFunction.LIGHTNING)
                    .build());
-   private static final Identifier BLOOM_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
-   private static final Identifier BLOOM_SOFT_TEXTURE = Identifier.of("vesence", "textures/world/dashbloomsample.png");
+   private static final ResourceLocation BLOOM_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
+   private static final ResourceLocation BLOOM_SOFT_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloomsample.png");
 
    public static TitleSetting glowTitle = new TitleSetting("Свечение");
    public static BooleanSetting glowEnabled = new BooleanSetting("Свечение", true);
@@ -154,13 +154,13 @@ public class Particles extends Module {
    public static SliderSetting glowRadius = new SliderSetting("Радиус свечения", 2.5F, 1.0F, 6.0F, 0.1F, false)
            .hidden(() -> !glowEnabled.get());
 
-   private static final Map<ParticleType, RenderLayer> RENDER_LAYER_CACHE = new ConcurrentHashMap<>();
+   private static final Map<ParticleType, RenderType> RENDER_LAYER_CACHE = new ConcurrentHashMap<>();
    private static final Random CACHED_RANDOM = Random.create();
    // Переиспользуемые BlockPos (рендер/тик — один поток), чтобы не аллоцировать на каждую проверку блока.
    private static final BlockPos.Mutable SHARED_SOLID_POS = new BlockPos.Mutable();
    private static final BlockPos.Mutable SHARED_AIR_POS = new BlockPos.Mutable();
-   private static RenderLayer cachedBloomLayer = null;
-   private static RenderLayer cachedBloomSoftLayer = null;
+   private static RenderType cachedBloomLayer = null;
+   private static RenderType cachedBloomSoftLayer = null;
    private final List<Particle> targetParticles = new ArrayList<>();
    private final List<Particle> worldParticles = new ArrayList<>();
    private final List<Particle> flameParticles = new ArrayList<>();
@@ -170,7 +170,7 @@ public class Particles extends Module {
    private long totemPopTime = 0L;
    private Entity totemPopEntity = null;
    private static final long TOTEM_POP_DURATION = 1500L;
-   private BufferAllocator allocator = null;
+   private ByteBufferBuilder allocator = null;
    private Immediate immediate = null;
    // Значения, вычисляемые ОДИН раз за кадр (чтобы не боксить Double и не дёргать камеру на каждую частицу).
    private final Quaternionf frameCamRot = new Quaternionf();
@@ -185,9 +185,9 @@ public class Particles extends Module {
 
    /** Проверка «блок сплошной» без аллокации BlockPos (значение идентично PlayerUtil.isBlockSolid). */
    static boolean isSolidAt(double x, double y, double z) {
-      if (Module.mc.world == null) return false;
-      BlockPos.Mutable p = SHARED_SOLID_POS.set(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
-      return Module.mc.world.getBlockState(p).isFullCube(Module.mc.world, p);
+      if (Module.mc.level == null) return false;
+      BlockPos.Mutable p = SHARED_SOLID_POS.set(Mth.floor(x), Mth.floor(y), Mth.floor(z));
+      return Module.mc.level.getBlockState(p).isFullCube(Module.mc.level, p);
    }
 
    public Particles() {
@@ -211,7 +211,7 @@ public class Particles extends Module {
       this.vegaParticles.clear();
    }
 
-   private void spawnParticle(List<Particle> particles, Vec3d position, Vec3d velocity) {
+   private void spawnParticle(List<Particle> particles, Vec3 position, Vec3 velocity) {
       float particleSize = (float) (0.05F + size.get() * 0.2F);
       int color;
       if (vesence.renderengine.render.Renderer2D.ColorUtil.isDualColor()) {
@@ -248,7 +248,7 @@ public class Particles extends Module {
                       0.2F));
    }
 
-   private void spawnTotemParticle(Vec3d position, Vec3d velocity, int color) {
+   private void spawnTotemParticle(Vec3 position, Vec3 velocity, int color) {
       float particleSize = (float) (0.05F + size.get() * 0.2F);
       String var7 = particleMode.get();
 
@@ -276,7 +276,7 @@ public class Particles extends Module {
                       0.2F));
    }
 
-   private void spawnVegaParticle(Vec3d position, long lifetime, float speed) {
+   private void spawnVegaParticle(Vec3 position, long lifetime, float speed) {
       boolean lower = particleMode2.is("Dollar") || particleMode2.is("Bitcoin");
       vegaParticles.add(new VegaParticle(position, lower, lifetime, speed));
    }
@@ -295,7 +295,7 @@ public class Particles extends Module {
             float h = target.getHeight();
             int count = attackCount2.get().intValue();
             for (int i = 0; i < count; i++) {
-               Vec3d vec = new Vec3d(target.getX(), target.getY(), target.getZ()).add(
+               Vec3 vec = new Vec3(target.getX(), target.getY(), target.getZ()).add(
                        (-w) + (w * 2.0F) * Math.random(),
                        h * Math.random(),
                        (-w) + (w * 2.0F) * Math.random());
@@ -309,8 +309,8 @@ public class Particles extends Module {
          for (int i = 0; i < count; i++) {
             this.spawnParticle(
                     this.targetParticles,
-                    new Vec3d(target.getX(), target.getY() + Mathf.randomValue(0.0F, target.getHeight()), target.getZ()),
-                    new Vec3d(
+                    new Vec3(target.getX(), target.getY() + Mathf.randomValue(0.0F, target.getHeight()), target.getZ()),
+                    new Vec3(
                             Mathf.randomValue(-1.0F, 1.0F) * attackSpeed.get() * 10,
                             Mathf.randomValue(-1.0F, 1.0F) * attackSpeed.get() * 10,
                             Mathf.randomValue(-1.0F, 1.0F) * attackSpeed.get() * 10));
@@ -340,15 +340,15 @@ public class Particles extends Module {
                      boolean isGreen = i % 2 == 0;
                      int color = isGreen ? ColorUtil.getColor(125, 255, 125) : ColorUtil.getColor(255, 255, 125);
 
-                     Vec3d pos = new Vec3d(
-                             popEntity.getX() + MathHelper.nextDouble(CACHED_RANDOM, -0.3, 0.3),
-                             popEntity.getY() + popEntity.getHeight() / 2 + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2),
-                             popEntity.getZ() + MathHelper.nextDouble(CACHED_RANDOM, -0.3, 0.3)
+                     Vec3 pos = new Vec3(
+                             popEntity.getX() + Mth.nextDouble(CACHED_RANDOM, -0.3, 0.3),
+                             popEntity.getY() + popEntity.getHeight() / 2 + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                             popEntity.getZ() + Mth.nextDouble(CACHED_RANDOM, -0.3, 0.3)
                      );
-                     Vec3d velocity = new Vec3d(
-                             MathHelper.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed,
-                             MathHelper.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed,
-                             MathHelper.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed
+                     Vec3 velocity = new Vec3(
+                             Mth.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed,
+                             Mth.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed,
+                             Mth.nextDouble(CACHED_RANDOM, -1.0, 1.0) * 6.0 * speed
                      );
 
                      if (particleBase.is("2")) {
@@ -368,18 +368,18 @@ public class Particles extends Module {
       }
 
       if (events.get("Бросок")) {
-         if (mc.world == null) {
+         if (mc.level == null) {
             return;
          }
 
-         for (Entity entity : mc.world.getEntities()) {
+         for (Entity entity : mc.level.getEntities()) {
             if ((entity instanceof EnderPearlEntity || entity instanceof ArrowEntity || entity instanceof TridentEntity)
-                    && (!(entity instanceof TridentEntity trident) || !trident.isOnGround())) {
+                    && (!(entity instanceof TridentEntity trident) || !trident.onGround())) {
                boolean isMoving = entity.lastX != entity.getX()
                        || entity.lastY != entity.getY()
                        || entity.lastZ != entity.getZ();
                if (isMoving) {
-                  Vec3d pos = new Vec3d(entity.getX(), entity.getY(), entity.getZ());
+                  Vec3 pos = new Vec3(entity.getX(), entity.getY(), entity.getZ());
 
                   if (particleBase.is("2")) {
                      int count = throwCount2.get().intValue();
@@ -388,10 +388,10 @@ public class Particles extends Module {
                      for (int i = 0; i < count; i++) {
                         boolean lower = particleMode2.is("Dollar") || particleMode2.is("Bitcoin");
                         VegaParticle vp = new VegaParticle(
-                                new Vec3d(
-                                        pos.x + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2),
-                                        pos.y + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2),
-                                        pos.z + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2)),
+                                new Vec3(
+                                        pos.x + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                                        pos.y + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                                        pos.z + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2)),
                                 lower, lifetime, speed);
                         vegaParticles.add(vp);
                      }
@@ -400,14 +400,14 @@ public class Particles extends Module {
                      for (int i = 0; i < count; i++) {
                         this.spawnParticle(
                                 this.flameParticles,
-                                new Vec3d(
-                                        pos.x + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2),
-                                        pos.y + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2),
-                                        pos.z + MathHelper.nextDouble(CACHED_RANDOM, -0.2, 0.2)),
-                                new Vec3d(
-                                        MathHelper.nextDouble(CACHED_RANDOM, -1.0, 1.0) * throwSpeed.get() * 10,
-                                        MathHelper.nextDouble(CACHED_RANDOM, -0.3, 0.3) * throwSpeed.get() * 10,
-                                        MathHelper.nextDouble(CACHED_RANDOM, -1.0, 1.0) * throwSpeed.get() * 10));
+                                new Vec3(
+                                        pos.x + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                                        pos.y + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                                        pos.z + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2)),
+                                new Vec3(
+                                        Mth.nextDouble(CACHED_RANDOM, -1.0, 1.0) * throwSpeed.get() * 10,
+                                        Mth.nextDouble(CACHED_RANDOM, -0.3, 0.3) * throwSpeed.get() * 10,
+                                        Mth.nextDouble(CACHED_RANDOM, -1.0, 1.0) * throwSpeed.get() * 10));
                      }
                   }
                }
@@ -416,7 +416,7 @@ public class Particles extends Module {
       }
 
       if (events.get("В мире")) {
-         if (mc.world == null || mc.player == null) {
+         if (mc.level == null || mc.player == null) {
             return;
          }
 
@@ -427,15 +427,15 @@ public class Particles extends Module {
             float speed = worldSpeed2.get().floatValue();
             long lifetime = (long)(worldLifetime2.get() * 1000);
             for (int i = 0; i < count; i++) {
-               Vec3d additional = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ())
+               Vec3 additional = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ())
                        .add(Mathf.randomValue((float) (-r), (float) r), 0.0, Mathf.randomValue((float) (-r), (float) r));
-               BlockPos topPos = mc.world.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
+               BlockPos topPos = mc.level.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
                double x = topPos.getX() + Mathf.randomValue(0.0F, 1.0F);
                double z = topPos.getZ() + Mathf.randomValue(0.0F, 1.0F);
                double y = mc.player.getY() + Mathf.randomValue(mc.player.getHeight(), (float) r);
-               Vec3d spawnPos = new Vec3d(x, y, z);
+               Vec3 spawnPos = new Vec3(x, y, z);
 
-               while (!mc.world.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.world.getTopYInclusive()) {
+               while (!mc.level.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.level.getTopYInclusive()) {
                   spawnPos = spawnPos.add(0.0, 1.0, 0.0);
                }
 
@@ -446,25 +446,25 @@ public class Particles extends Module {
          } else {
             int count = worldCount.get().intValue();
             for (int i = 0; i < count; i++) {
-               Vec3d additional = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ())
+               Vec3 additional = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ())
                        .add(Mathf.randomValue((float) (-r), (float) r), 0.0, Mathf.randomValue((float) (-r), (float) r));
-               BlockPos topPos = mc.world.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
+               BlockPos topPos = mc.level.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
                double x = topPos.getX() + Mathf.randomValue(0.0F, 1.0F);
                double z = topPos.getZ() + Mathf.randomValue(0.0F, 1.0F);
                double y = mc.player.getY() + Mathf.randomValue(mc.player.getHeight(), (float) r);
-               Vec3d spawnPos = new Vec3d(x, y, z);
+               Vec3 spawnPos = new Vec3(x, y, z);
 
-               while (!mc.world.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.world.getTopYInclusive()) {
+               while (!mc.level.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.level.getTopYInclusive()) {
                   spawnPos = spawnPos.add(0.0, 1.0, 0.0);
                }
 
                this.spawnParticle(
                        this.worldParticles,
                        spawnPos,
-                       new Vec3d(
-                               mc.player.getVelocity().x + Mathf.randomValue(-2.0F, 2.0F) * worldSpeed.get() * 10,
+                       new Vec3(
+                               mc.player.getDeltaMovement().x + Mathf.randomValue(-2.0F, 2.0F) * worldSpeed.get() * 10,
                                Mathf.randomValue(-0.2, 0.2) * worldSpeed.get() * 10,
-                               mc.player.getVelocity().z + Mathf.randomValue(-2.0F, 2.0F) * worldSpeed.get() * 10));
+                               mc.player.getDeltaMovement().z + Mathf.randomValue(-2.0F, 2.0F) * worldSpeed.get() * 10));
             }
          }
       }
@@ -490,7 +490,7 @@ public class Particles extends Module {
       if (events.get("Тотем") && event.getType() == EventPacket.Type.RECEIVE) {
          if (event.getPacket() instanceof EntityStatusS2CPacket statusPacket) {
             if (statusPacket.getStatus() == 35) {
-               Entity entity = statusPacket.getEntity(mc.world);
+               Entity entity = statusPacket.getEntity(mc.level);
                if (entity != null) {
                   totemPopTime = System.currentTimeMillis();
                   totemPopEntity = entity;
@@ -502,8 +502,8 @@ public class Particles extends Module {
 
    @EventInit
    public void onEvent(EventRender3D event) {
-      MatrixStack matrix = event.getMatrixStack();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      PoseStack matrix = event.getMatrixStack();
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
       long now = System.nanoTime();
       double deltaTime = (now - this.lastUpdateTime) / 1.0E9;
       this.lastUpdateTime = now;
@@ -523,12 +523,12 @@ public class Particles extends Module {
       this.framePartialTicks = mc.getRenderTickCounter().getDynamicDeltaTicks();
 
       if (allocator == null) {
-         allocator = new BufferAllocator(2097152);
-         immediate = VertexConsumerProvider.immediate(allocator);
+         allocator = new ByteBufferBuilder(2097152);
+         immediate = MultiBufferSource.immediate(allocator);
       }
 
       try {
-         Matrix4f base = matrix.peek().getPositionMatrix();
+         Matrix4f base = matrix.last().getPositionMatrix();
 
          if (!particleBase.is("2")) {
             double friction = Math.pow(0.999, deltaTime * 60.0);
@@ -539,7 +539,7 @@ public class Particles extends Module {
             this.updateParticleList(this.totemParticles, 1000L, 2000L, deltaTime, friction);
 
             // БАТЧИНГ ПО СЛОЯМ: сперва ВСЕ основные квады, затем bloom, затем soft.
-            // В 1.21.11 переключение RenderLayer у immediate = дорогой flush/draw,
+            // В 1.21.11 переключение RenderType у immediate = дорогой flush/draw,
             // поэтому раньше выходило ~3 draw-call'а НА КАЖДУЮ частицу. Теперь ~3 на кадр.
             this.emitMainQuads(this.targetParticles, base, cameraPos, immediate);
             this.emitMainQuads(this.flameParticles, base, cameraPos, immediate);
@@ -606,38 +606,38 @@ public class Particles extends Module {
       }
    }
 
-   private Matrix4f buildParticleMatrix(Matrix4f base, Vec3d cameraPos, float x, float y, float z, int rotateDeg) {
+   private Matrix4f buildParticleMatrix(Matrix4f base, Vec3 cameraPos, float x, float y, float z, int rotateDeg) {
       return this.particleMatrix.set(base)
               .translate((float) (x - cameraPos.x), (float) (y - cameraPos.y), (float) (z - cameraPos.z))
               .rotate(this.frameCamRot)
               .rotateZ((float) Math.toRadians(rotateDeg));
    }
 
-   private RenderLayer layerFor(ParticleType type) {
+   private RenderType layerFor(ParticleType type) {
       return RENDER_LAYER_CACHE.computeIfAbsent(
               type,
               t -> {
-                 Identifier texture = t.texture();
-                 return RenderLayer.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+                 ResourceLocation texture = t.texture();
+                 return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
               });
    }
 
-   private RenderLayer bloomLayer() {
+   private RenderType bloomLayer() {
       if (cachedBloomLayer == null) {
-         cachedBloomLayer = RenderLayer.of(BLOOM_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_TEXTURE).build());
+         cachedBloomLayer = RenderType.of(BLOOM_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_TEXTURE).build());
       }
       return cachedBloomLayer;
    }
 
-   private RenderLayer bloomSoftLayer() {
+   private RenderType bloomSoftLayer() {
       if (cachedBloomSoftLayer == null) {
-         cachedBloomSoftLayer = RenderLayer.of(BLOOM_SOFT_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_SOFT_TEXTURE).build());
+         cachedBloomSoftLayer = RenderType.of(BLOOM_SOFT_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_SOFT_TEXTURE).build());
       }
       return cachedBloomSoftLayer;
    }
 
    /** Основные квады частиц — все в один слой (минимум переключений). */
-   private void emitMainQuads(List<Particle> particles, Matrix4f base, Vec3d cameraPos, Immediate immediate) {
+   private void emitMainQuads(List<Particle> particles, Matrix4f base, Vec3 cameraPos, Immediate immediate) {
       if (particles.isEmpty()) return;
       for (Particle particle : particles) {
          int alpha = (int) (particle.animation.get() * 255.0F);
@@ -654,7 +654,7 @@ public class Particles extends Module {
    }
 
    /** Bloom (soft=false) или подсветка (soft=true) — все в один слой. */
-   private void emitGlowQuads(List<Particle> particles, Matrix4f base, Vec3d cameraPos, Immediate immediate, boolean soft) {
+   private void emitGlowQuads(List<Particle> particles, Matrix4f base, Vec3 cameraPos, Immediate immediate, boolean soft) {
       if (particles.isEmpty()) return;
       float radiusMul = this.frameGlowRadius;
       float intensity = this.frameGlowIntensity;
@@ -692,7 +692,7 @@ public class Particles extends Module {
       }
    }
 
-   private Matrix4f buildVegaMatrix(VegaParticle part, Matrix4f base, Vec3d cameraPos, float pSize) {
+   private Matrix4f buildVegaMatrix(VegaParticle part, Matrix4f base, Vec3 cameraPos, float pSize) {
       float ax = (float) part.posX;
       float ay = (float) part.posY + pSize * 0.5F;
       float az = (float) part.posZ;
@@ -715,7 +715,7 @@ public class Particles extends Module {
       return m;
    }
 
-   private void emitVegaMain(Matrix4f base, Vec3d cameraPos, Immediate immediate) {
+   private void emitVegaMain(Matrix4f base, Vec3 cameraPos, Immediate immediate) {
       if (this.vegaParticles.isEmpty()) return;
       float pSize = this.frameVegaSize;
       boolean colorize = particleMode2.is("Star");
@@ -734,7 +734,7 @@ public class Particles extends Module {
       }
    }
 
-   private void emitVegaGlow(Matrix4f base, Vec3d cameraPos, Immediate immediate, boolean soft) {
+   private void emitVegaGlow(Matrix4f base, Vec3 cameraPos, Immediate immediate, boolean soft) {
       if (this.vegaParticles.isEmpty()) return;
       float pSize = this.frameVegaSize;
       boolean colorize = particleMode2.is("Star");
@@ -796,7 +796,7 @@ public class Particles extends Module {
 
    @Environment(EnvType.CLIENT)
    public static class Particle {
-      private Box box;
+      private AABB box;
       private final ParticleType type;
       private double posX, posY, posZ;
       private double velX, velY, velZ;
@@ -809,12 +809,12 @@ public class Particles extends Module {
       private final StopWatch time = new StopWatch();
       private final Animation animation = new Animation();
 
-      public Particle(ParticleType type, Vec3d position, Vec3d velocity, int index, int rotate, int color,
+      public Particle(ParticleType type, Vec3 position, Vec3 velocity, int index, int rotate, int color,
                       float size, double speedMultiplier) {
          double halfSize = size / 2.0;
-         this.box = new Box(
-                 new Vec3d(position.x - halfSize, position.y - halfSize, position.z - halfSize),
-                 new Vec3d(position.x + halfSize, position.y + halfSize, position.z + halfSize));
+         this.box = new AABB(
+                 new Vec3(position.x - halfSize, position.y - halfSize, position.z - halfSize),
+                 new Vec3(position.x + halfSize, position.y + halfSize, position.z + halfSize));
          this.type = type;
          this.posX = position.x;
          this.posY = position.y;
@@ -832,7 +832,7 @@ public class Particles extends Module {
       }
 
       public void update(boolean physic, double deltaTime, double friction) {
-         if (physic && Module.mc.world != null) {
+         if (physic && Module.mc.level != null) {
             double velMagSq = this.velX * this.velX
                     + this.velY * this.velY
                     + this.velZ * this.velZ;
@@ -863,12 +863,12 @@ public class Particles extends Module {
       }
 
       @Generated
-      public Box box() {
+      public AABB box() {
          if (this.box == null) {
             double halfSize = this.size / 2.0;
-            this.box = new Box(
-                    new Vec3d(this.posX - halfSize, this.posY - halfSize, this.posZ - halfSize),
-                    new Vec3d(this.posX + halfSize, this.posY + halfSize, this.posZ + halfSize));
+            this.box = new AABB(
+                    new Vec3(this.posX - halfSize, this.posY - halfSize, this.posZ - halfSize),
+                    new Vec3(this.posX + halfSize, this.posY + halfSize, this.posZ + halfSize));
          }
          return this.box;
       }
@@ -879,13 +879,13 @@ public class Particles extends Module {
       }
 
       @Generated
-      public Vec3d position() {
-         return new Vec3d(this.posX, this.posY, this.posZ);
+      public Vec3 position() {
+         return new Vec3(this.posX, this.posY, this.posZ);
       }
 
       @Generated
-      public Vec3d velocity() {
-         return new Vec3d(this.velX, this.velY, this.velZ);
+      public Vec3 velocity() {
+         return new Vec3(this.velX, this.velY, this.velZ);
       }
 
       @Generated
@@ -947,7 +947,7 @@ public class Particles extends Module {
 
       public int color = -1;
 
-      public VegaParticle(Vec3d vec, boolean lower, long maxTime, float speed) {
+      public VegaParticle(Vec3 vec, boolean lower, long maxTime, float speed) {
          this.posX = vec.x;
          this.posY = vec.y;
          this.posZ = vec.z;
@@ -998,13 +998,13 @@ public class Particles extends Module {
             this.rotSpeedX = this.rotSpeedX * 0.96F;
          }
 
-         if (mc.world != null) {
-            boolean collideX = !mc.world.isAir(SHARED_AIR_POS.set(
-                    MathHelper.floor(this.posX + this.motionX * 2.0F), MathHelper.floor(this.posY - this.motionY + 0.1), MathHelper.floor(this.posZ)));
-            boolean collideY = !mc.world.isAir(SHARED_AIR_POS.set(
-                    MathHelper.floor(this.posX), MathHelper.floor(this.posY + this.motionY * 2.0F), MathHelper.floor(this.posZ)));
-            boolean collideZ = !mc.world.isAir(SHARED_AIR_POS.set(
-                    MathHelper.floor(this.posX), MathHelper.floor(this.posY - this.motionY + 0.1), MathHelper.floor(this.posZ + this.motionZ * 2.0F)));
+         if (mc.level != null) {
+            boolean collideX = !mc.level.isAir(SHARED_AIR_POS.set(
+                    Mth.floor(this.posX + this.motionX * 2.0F), Mth.floor(this.posY - this.motionY + 0.1), Mth.floor(this.posZ)));
+            boolean collideY = !mc.level.isAir(SHARED_AIR_POS.set(
+                    Mth.floor(this.posX), Mth.floor(this.posY + this.motionY * 2.0F), Mth.floor(this.posZ)));
+            boolean collideZ = !mc.level.isAir(SHARED_AIR_POS.set(
+                    Mth.floor(this.posX), Mth.floor(this.posY - this.motionY + 0.1), Mth.floor(this.posZ + this.motionZ * 2.0F)));
 
             if (this.motionY != 0.0F) {
                this.motionY -= this.lower ? 0.003333F : 0.01F;
@@ -1042,16 +1042,16 @@ public class Particles extends Module {
       VEGA_BITCOIN("vega_bitcoin", true),
       VEGA_STAR("vega_star", true);
 
-      private final Identifier texture;
+      private final ResourceLocation texture;
       private final boolean rotatable;
 
       private ParticleType(String name, boolean rotatable) {
-         this.texture = Identifier.of("vesence", "textures/world/" + name + ".png");
+         this.texture = ResourceLocation.of("vesence", "textures/world/" + name + ".png");
          this.rotatable = rotatable;
       }
 
       @Generated
-      public Identifier texture() {
+      public ResourceLocation texture() {
          return this.texture;
       }
 

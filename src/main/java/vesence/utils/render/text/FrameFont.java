@@ -2,11 +2,11 @@ package vesence.utils.render.text;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.Minecraft;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -21,12 +21,12 @@ import java.util.function.Supplier;
 
 /**
  * FrameFont — гладкий системный шрифт (Arial) для символов рамки скорборда
- * (Box Drawing U+2500..257F и bar-dingbat ❚ U+275A), которых НЕТ в MSDF-атласе
+ * (AABB Drawing U+2500..257F и bar-dingbat ❚ U+275A), которых НЕТ в MSDF-атласе
  * vesence.
  *
  * <p>Порт идеи RelevantPremiumpp4 ({@code Fonts.getSystemFont("Arial")} +
  * {@code MCFontRenderer/CFont}, TTF-фолбэк для рамки). Оригинал берёт РОВНО тот
- * же системный Arial (в нём есть блок Box Drawing на всех платформах) и грузит
+ * же системный Arial (в нём есть блок AABB Drawing на всех платформах) и грузит
  * атлас через {@link NativeImageBackedTexture} — безопасный путь MC.
  *
  * <p>Каждый нужный глиф рендерится AWT-шрифтом Arial (со сглаживанием) в
@@ -169,8 +169,8 @@ public final class FrameFont {
         Supplier<String> nameSupplier = () -> nameFinal;
         NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, nativeImage);
         tex.upload();
-        Identifier id = Identifier.of("vesence", "frameglyph/" + name);
-        MinecraftClient.getInstance().getTextureManager().registerTexture(id, tex);
+        ResourceLocation id = ResourceLocation.of("vesence", "frameglyph/" + name);
+        Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
 
         if (tex.getGlTexture() instanceof GlTexture glTex) {
             return glTex.getGlId();

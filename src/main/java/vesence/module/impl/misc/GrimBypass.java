@@ -3,9 +3,9 @@ package vesence.module.impl.misc;
 import java.util.Random;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import vesence.mixin.IPlayerMoveC2SPacketAccessor;
 
 /**
@@ -39,10 +39,10 @@ public final class GrimBypass {
 
    private GrimBypass() {}
 
-   /** Главный обработчик исходящего PlayerMoveC2SPacket. Вызывается из
+   /** Главный обработчик исходящего ServerboundMovePlayerPacket. Вызывается из
     *  EventPacket SEND-перехватчика ServerHelper когда ACTIVE == true. */
-   public static void handleMovement(PlayerMoveC2SPacket packet) {
-      MinecraftClient mc = MinecraftClient.getInstance();
+   public static void handleMovement(ServerboundMovePlayerPacket packet) {
+      Minecraft mc = Minecraft.getInstance();
       if (mc == null || mc.player == null) return;
       IPlayerMoveC2SPacketAccessor acc;
       try {
@@ -52,7 +52,7 @@ public final class GrimBypass {
       }
 
       // 1) Ground-spoof: иногда (15%) на 1-3 тика подменяем onGround=true.
-      if (mc.player.isOnGround()) {
+      if (mc.player.onGround()) {
          handleGroundSpoofing(acc);
       }
       // 2) Criticals pulse — только если есть состояние крит-удара.
@@ -75,13 +75,13 @@ public final class GrimBypass {
       }
    }
 
-   private static void handleCriticals(PlayerEntity player, IPlayerMoveC2SPacketAccessor acc) {
-      boolean criticalState = !player.isOnGround()
+   private static void handleCriticals(Player player, IPlayerMoveC2SPacketAccessor acc) {
+      boolean criticalState = !player.onGround()
             && player.fallDistance > 0.0f
-            && player.getVelocity().y < 0.0;
+            && player.getDeltaMovement().y < 0.0;
       boolean attackReady = true;
       try {
-         attackReady = ((net.minecraft.client.network.ClientPlayerEntity) player)
+         attackReady = ((net.minecraft.client.network.LocalPlayer) player)
                .getAttackCooldownProgress(0.0f) >= 1.0f;
       } catch (Throwable ignored) {}
 
@@ -91,20 +91,20 @@ public final class GrimBypass {
          acc.setOnGround(false);
          acc.setY(acc.getY() + 0.0625);
          lastGroundY = acc.getY();
-         lastGroundTick = player.age;
-      } else if (player.age - lastGroundTick == 1) {
+         lastGroundTick = player.tickCount;
+      } else if (player.tickCount - lastGroundTick == 1) {
          acc.setOnGround(true);
          acc.setY(lastGroundY);
       }
    }
 
-   private static void handleVelocity(PlayerEntity player, IPlayerMoveC2SPacketAccessor acc) {
+   private static void handleVelocity(Player player, IPlayerMoveC2SPacketAccessor acc) {
       // Намеренно no-op (как в relevant). Модификация x/z в исходящем
       // move-пакете ломает client-server position sync (анти-чит видит
       // teleport-распыл). Оставлено для сохранения структуры оригинала.
    }
 
-   private static void handleNoFall(PlayerEntity player, IPlayerMoveC2SPacketAccessor acc) {
+   private static void handleNoFall(Player player, IPlayerMoveC2SPacketAccessor acc) {
       if (player.fallDistance <= 2.5f) return;
       if (acc.getOnGround()) return;
       // Gradient уменьшение fallDistance — клиентское поле.

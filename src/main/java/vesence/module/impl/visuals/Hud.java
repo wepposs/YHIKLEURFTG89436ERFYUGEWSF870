@@ -1,8 +1,8 @@
 package vesence.module.impl.visuals;
 
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
 import org.lwjgl.glfw.GLFW;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreen;
@@ -217,11 +217,11 @@ public class Hud extends Module {
     public void onRender(EventScreen event) {
         if (!this.enable) return;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
 
-        boolean isGuiOpen  = mc.currentScreen != null;
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
+        boolean isGuiOpen  = mc.screen != null;
+        boolean isChatOpen = mc.screen instanceof ChatScreen;
 
         double mouseX = 0, mouseY = 0;
         boolean leftDown  = false;
@@ -857,7 +857,7 @@ public class Hud extends Module {
             target = lastInteracted;
         }
 
-        long handle = MinecraftClient.getInstance().getWindow().getHandle();
+        long handle = Minecraft.getInstance().getWindow().getHandle();
         int[] codes = { GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN };
         float[] dxs = { -1f, 1f, 0f, 0f };
         float[] dys = { 0f, 0f, -1f, 1f };

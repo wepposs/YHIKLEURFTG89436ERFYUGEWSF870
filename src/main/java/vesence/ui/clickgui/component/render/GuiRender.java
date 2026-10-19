@@ -2,8 +2,8 @@ package vesence.ui.clickgui.component.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.Vesence;
 import vesence.module.api.Category;
 import vesence.module.api.Module;
@@ -18,12 +18,12 @@ public class GuiRender extends GuiScreen {
 
    public static void render(
            Renderer2D renderer2D,
-           DrawContext context,
+           GuiGraphics context,
            int mouseXRaw,
            int mouseYRaw,
            float tickDelta
    ) {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
 
       if (client == null || client.getWindow() == null) {
          return;

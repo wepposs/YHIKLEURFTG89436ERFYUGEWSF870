@@ -2,10 +2,10 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.player.EventElytraBoost;
 import vesence.module.api.Category;
@@ -82,11 +82,11 @@ public class ElytraBoost extends Module {
             return;
         }
 
-        Vec3d boost = event.getBoost();
+        Vec3 boost = event.getBoost();
         
         // Apply speed multiplier based on rotation
-        Vec2f multiplier = getBoostMultiplier();
-        Vec3d modified = new Vec3d(
+        Vector2f multiplier = getBoostMultiplier();
+        Vec3 modified = new Vec3(
                 boost.x * multiplier.x,
                 boost.y * multiplier.y,
                 boost.z * multiplier.x
@@ -100,13 +100,13 @@ public class ElytraBoost extends Module {
         event.setBoost(modified);
     }
 
-    private Vec2f getBoostMultiplier() {
-        float yaw = mc.player.getYaw();
-        float pitch = mc.player.getPitch();
+    private Vector2f getBoostMultiplier() {
+        float yaw = mc.player.getYRot();
+        float pitch = mc.player.getXRot();
 
         // Use target rotations if available (handled by AttackAura)
 
-        float normalizedYaw = convertValToRange(MathHelper.wrapDegrees(yaw));
+        float normalizedYaw = convertValToRange(Mth.wrapDegrees(yaw));
         float normalizedPitch = convertValToRange(Math.abs(pitch));
 
         int yawIndex = getRangeIndex(normalizedYaw, yawSpeeds.length);
@@ -124,10 +124,10 @@ public class ElytraBoost extends Module {
         yawSpeed += jitter;
         pitchSpeed += jitter * 0.7F;
 
-        return new Vec2f(yawSpeed, pitchSpeed);
+        return new Vector2f(yawSpeed, pitchSpeed);
     }
 
-    private Vec3d adaptBoost(Vec3d boost) {
+    private Vec3 adaptBoost(Vec3 boost) {
         if (mc.player == null || !mc.player.isGliding()) {
             return boost;
         }
@@ -144,7 +144,7 @@ public class ElytraBoost extends Module {
 
         double targetBps = getBps(target);
         double playerBps = getBps(mc.player);
-        double distance = mc.player.getEyePos().distanceTo(target.getEyePos());
+        double distance = mc.player.getEyePosition().distanceTo(target.getEyePosition());
 
         double desiredDistance = Math.max(elytraTarget.predictBlocks.get().doubleValue(),
                 target.getWidth() + mc.player.getWidth());
@@ -152,13 +152,13 @@ public class ElytraBoost extends Module {
 
         double predictedTargetEyeY = target.getEyeY();
         double heightError = predictedTargetEyeY - mc.player.getEyeY();
-        double relativeY = target.getVelocity().y - mc.player.getVelocity().y;
-        double fallHold = Math.max(0.0, -mc.player.getVelocity().y);
+        double relativeY = target.getDeltaMovement().y - mc.player.getDeltaMovement().y;
+        double fallHold = Math.max(0.0, -mc.player.getDeltaMovement().y);
 
         double bpsFactor = targetBps / Math.max(playerBps, 0.05);
-        double distanceFactor = 1.0 + MathHelper.clamp(distanceError, -1.0, 1.0);
-        double horizontalFactor = MathHelper.clamp(bpsFactor * distanceFactor, 0.35, 1.08);
-        double verticalFactor = MathHelper.clamp(
+        double distanceFactor = 1.0 + Mth.clamp(distanceError, -1.0, 1.0);
+        double horizontalFactor = Mth.clamp(bpsFactor * distanceFactor, 0.35, 1.08);
+        double verticalFactor = Mth.clamp(
                 1.0 + (heightError * 0.72 + relativeY * 1.25 + fallHold * 2.4) / Math.max(distance, 1.0),
                 0.62, 1.14
         );
@@ -167,7 +167,7 @@ public class ElytraBoost extends Module {
         double horizontal = baseHorizontal * horizontalFactor;
         double vertical = boost.y * verticalFactor;
 
-        return new Vec3d(horizontal, vertical, horizontal);
+        return new Vec3(horizontal, vertical, horizontal);
     }
 
     private double getBps(LivingEntity entity) {

@@ -2,11 +2,11 @@ package vesence.utils.render.world;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.render.*;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Vec3d;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import java.util.Objects;
 
@@ -14,23 +14,23 @@ import java.util.Objects;
 public class WorldRenderer {
     private static final int DEFAULT_BUFFER_CAPACITY_BYTES = 262144;
     private final Camera camera;
-    private final MatrixStack matrixStack;
+    private final PoseStack matrixStack;
     private final Matrix4f positionMatrix;
     private final Matrix4f worldMatrix;
     private final Matrix4f projectionMatrix;
-    private final BufferAllocator bufferAllocator;
-    private final VertexConsumerProvider.Immediate immediate;
+    private final ByteBufferBuilder bufferAllocator;
+    private final MultiBufferSource.Immediate immediate;
     private final float tickDelta;
     private boolean closed;
 
     private WorldRenderer(
             Camera camera,
-            MatrixStack matrixStack,
+            PoseStack matrixStack,
             Matrix4f positionMatrix,
             Matrix4f worldMatrix,
             Matrix4f projectionMatrix,
-            BufferAllocator bufferAllocator,
-            VertexConsumerProvider.Immediate immediate,
+            ByteBufferBuilder bufferAllocator,
+            MultiBufferSource.Immediate immediate,
             float tickDelta
     ) {
         this.camera = camera;
@@ -43,18 +43,18 @@ public class WorldRenderer {
         this.tickDelta = tickDelta;
     }
 
-    public static WorldRenderer begin(MinecraftClient client, RenderTickCounter tickCounter, Camera camera, Matrix4f positionMatrix, Matrix4f projectionMatrix) {
+    public static WorldRenderer begin(Minecraft client, DeltaTracker tickCounter, Camera camera, Matrix4f positionMatrix, Matrix4f projectionMatrix) {
         Objects.requireNonNull(client, "client");
         Objects.requireNonNull(tickCounter, "tickCounter");
         Objects.requireNonNull(camera, "camera");
         Objects.requireNonNull(positionMatrix, "positionMatrix");
         Objects.requireNonNull(projectionMatrix, "projectionMatrix");
-        MatrixStack stack = new MatrixStack();
+        PoseStack stack = new PoseStack();
         Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
         Matrix4f baseWorldMatrix = new Matrix4f(basePositionMatrix);
         stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));
-        BufferAllocator allocator = new BufferAllocator(262144);
-        VertexConsumerProvider.Immediate immediate = VertexConsumerProvider.immediate(allocator);
+        ByteBufferBuilder allocator = new ByteBufferBuilder(262144);
+        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(allocator);
         float tickDelta = tickCounter.getTickProgress(false);
         return new WorldRenderer(camera, stack, basePositionMatrix, baseWorldMatrix, new Matrix4f(projectionMatrix), allocator, immediate, tickDelta);
     }
@@ -63,7 +63,7 @@ public class WorldRenderer {
         return this.camera;
     }
 
-    public MatrixStack matrixStack() {
+    public PoseStack matrixStack() {
         return this.matrixStack;
     }
 
@@ -83,7 +83,7 @@ public class WorldRenderer {
         return this.tickDelta;
     }
 
-    public VertexConsumerProvider.Immediate bufferSource() {
+    public MultiBufferSource.Immediate bufferSource() {
         if (this.closed) {
             throw new IllegalStateException("Cannot access buffers after the world renderer has been closed.");
         } else {
@@ -91,7 +91,7 @@ public class WorldRenderer {
         }
     }
 
-    public VertexConsumer getBuffer(RenderLayer layer) {
+    public VertexConsumer getBuffer(RenderType layer) {
         Objects.requireNonNull(layer, "layer");
         if (this.closed) {
             throw new IllegalStateException("Cannot request buffers after the world renderer has been closed.");
@@ -100,25 +100,25 @@ public class WorldRenderer {
         }
     }
 
-    public void drawQuad(Vec3d v0, Vec3d v1, Vec3d v2, Vec3d v3, int rgbaColor, boolean depthTest) {
+    public void drawQuad(Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, int rgbaColor, boolean depthTest) {
         Objects.requireNonNull(v0, "v0");
         Objects.requireNonNull(v1, "v1");
         Objects.requireNonNull(v2, "v2");
         Objects.requireNonNull(v3, "v3");
-        RenderLayer layer = depthTest ? WorldRenderLayers.POSITION_COLOR_QUADS() : WorldRenderLayers.POSITION_COLOR_QUADS_NO_DEPTH();
-        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.peek(), this.getBuffer(layer));
+        RenderType layer = depthTest ? WorldRenderLayers.POSITION_COLOR_QUADS() : WorldRenderLayers.POSITION_COLOR_QUADS_NO_DEPTH();
+        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.last(), this.getBuffer(layer));
         emitter.emitQuad(v0, v1, v2, v3, rgbaColor);
     }
 
-    public void drawCube(Vec3d min, Vec3d max, int rgbaColor, boolean depthTest) {
+    public void drawCube(Vec3 min, Vec3 max, int rgbaColor, boolean depthTest) {
         Objects.requireNonNull(min, "min");
         Objects.requireNonNull(max, "max");
-        RenderLayer layer = depthTest ? WorldRenderLayers.POSITION_COLOR_QUADS() : WorldRenderLayers.POSITION_COLOR_QUADS_NO_DEPTH_BLEND();
-        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.peek(), this.getBuffer(layer));
+        RenderType layer = depthTest ? WorldRenderLayers.POSITION_COLOR_QUADS() : WorldRenderLayers.POSITION_COLOR_QUADS_NO_DEPTH_BLEND();
+        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.last(), this.getBuffer(layer));
         emitter.emitCube(min, max, rgbaColor);
     }
 
-    public void drawLine(Vec3d start, Vec3d end, double width, int rgbaColor, boolean depthTest) {
+    public void drawLine(Vec3 start, Vec3 end, double width, int rgbaColor, boolean depthTest) {
         Objects.requireNonNull(start, "start");
         Objects.requireNonNull(end, "end");
         if (!Double.isFinite(width)) {
@@ -126,17 +126,17 @@ public class WorldRenderer {
         } else if (width < 0.0) {
             throw new IllegalArgumentException("Line width cannot be negative.");
         } else {
-            RenderLayer layer = depthTest ? WorldRenderLayers.LINES(width) : WorldRenderLayers.LINES_NO_DEPTH(width);
-            WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.peek(), this.getBuffer(layer));
+            RenderType layer = depthTest ? WorldRenderLayers.LINES(width) : WorldRenderLayers.LINES_NO_DEPTH(width);
+            WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.last(), this.getBuffer(layer));
             emitter.emitLine(start, end, rgbaColor);
         }
     }
 
     public void drawTexturedQuad(
-            Vec3d v0,
-            Vec3d v1,
-            Vec3d v2,
-            Vec3d v3,
+            Vec3 v0,
+            Vec3 v1,
+            Vec3 v2,
+            Vec3 v3,
             float u0,
             float v0Coord,
             float u1,
@@ -151,8 +151,8 @@ public class WorldRenderer {
         Objects.requireNonNull(v1, "v1");
         Objects.requireNonNull(v2, "v2");
         Objects.requireNonNull(v3, "v3");
-        RenderLayer layer = WorldRenderLayers.TEXTURED_QUADS();
-        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.peek(), this.getBuffer(layer));
+        RenderType layer = WorldRenderLayers.TEXTURED_QUADS();
+        WorldGeometryEmitter emitter = new WorldGeometryEmitter(this, this.matrixStack.last(), this.getBuffer(layer));
         emitter.emitTexturedQuad(v0, v1, v2, v3, u0, v0Coord, u1, v1Coord, u2, v2Coord, u3, v3Coord, rgbaColor);
     }
 

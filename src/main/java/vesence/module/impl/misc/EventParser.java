@@ -37,7 +37,7 @@ public class EventParser extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      boolean connected = mc.player != null && mc.world != null;
+      boolean connected = mc.player != null && mc.level != null;
 
       if (this.wasConnected && !connected) {
          EventWaypointStorage.getInstance().clearEventWaypoints();
@@ -56,7 +56,7 @@ public class EventParser extends Module {
          EventWaypointStorage.getInstance().tickEventWaypoints();
       }
 
-      int worldId = System.identityHashCode(mc.world);
+      int worldId = System.identityHashCode(mc.level);
       if (worldId != this.lastWorldId) {
          this.lastWorldId = worldId;
          this.delayTicks = 5;
@@ -65,8 +65,8 @@ public class EventParser extends Module {
 
       if (this.pendingCmd && --this.delayTicks <= 0) {
          this.pendingCmd = false;
-         if (mc.getNetworkHandler() != null) {
-            mc.getNetworkHandler().sendChatCommand("event delay");
+         if (mc.getConnection() != null) {
+            mc.getConnection().sendChatCommand("event delay");
          }
       }
    }

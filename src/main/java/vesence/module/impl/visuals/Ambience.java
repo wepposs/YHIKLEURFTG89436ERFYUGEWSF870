@@ -2,8 +2,8 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.PoseStack;
 import vesence.event.EventInit;
 import vesence.event.player.AttackEvent;
 import vesence.event.player.EventMotion;
@@ -16,7 +16,7 @@ import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.module.api.setting.impl.HueSetting;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.module.impl.visuals.world.CubesEngine;
 import vesence.module.impl.visuals.world.LineGlyphsEngine;
 import vesence.renderengine.render.Renderer2D;
@@ -24,7 +24,7 @@ import vesence.renderengine.render.Renderer2D;
 import java.util.ArrayList;
 import java.util.List;
 
-@IModule(name = "Custom World", description = "Изменяет время, туман, кубы и линии вокруг мира", category = Category.VISUALS, bind = -1)
+@IModule(name = "Custom Level", description = "Изменяет время, туман, кубы и линии вокруг мира", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class Ambience extends Module {
 
@@ -186,7 +186,7 @@ public class Ambience extends Module {
 
     /**
      * Возвращает градиент дождя (0.0 - нет дождя, 1.0 - максимальный дождь).
-     * Вызывать из миксина в ClientWorld (например, в методе getRainGradient).
+     * Вызывать из миксина в ClientLevel (например, в методе getRainGradient).
      */
     public static float getRainGradient(float original) {
         if (!isWeatherOverridden()) return original;
@@ -197,7 +197,7 @@ public class Ambience extends Module {
 
     /**
      * Возвращает градиент грозы (0.0 - нет грозы, 1.0 - максимальная гроза).
-     * Вызывать из миксина в ClientWorld (например, в методе getThunderGradient).
+     * Вызывать из миксина в ClientLevel (например, в методе getThunderGradient).
      */
     public static float getThunderGradient(float original) {
         if (!isWeatherOverridden()) return original;
@@ -261,7 +261,7 @@ public class Ambience extends Module {
      */
     public void renderFogBlur() {
         if (!isBlurEnabled()) return;
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (mc.gameRenderer != null && mc.gameRenderer.isRenderingPanorama()) return;
         try {
             if (blurPipeline == null) {
@@ -314,7 +314,7 @@ public class Ambience extends Module {
 
     @EventInit
     public void onRender3D(EventRender3D event) {
-        MatrixStack matrices = event.getMatrixStack();
+        PoseStack matrices = event.getMatrixStack();
         Camera camera = mc.gameRenderer.getCamera();
 
         if (this.cubesEnabled.get()) {

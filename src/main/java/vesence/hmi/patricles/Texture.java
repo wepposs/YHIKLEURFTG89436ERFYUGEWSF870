@@ -1,10 +1,10 @@
 package vesence.hmi.patricles;
 
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 
 public class Texture {
-    public Identifier of(String namespace, String path) {
-        return Identifier.of((String)namespace, (String)path);
+    public ResourceLocation of(String namespace, String path) {
+        return ResourceLocation.of((String)namespace, (String)path);
     }
 }
 

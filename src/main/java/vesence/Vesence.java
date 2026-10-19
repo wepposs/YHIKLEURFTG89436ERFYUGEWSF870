@@ -6,7 +6,7 @@ import lombok.Generated;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.event.EventInit;
 import vesence.event.EventManager;
 import vesence.event.impl.EventChangeWorld;
@@ -186,8 +186,8 @@ public class Vesence implements ClientModInitializer {
                 .get(net.minecraft.resource.ResourceType.CLIENT_RESOURCES)
                 .registerReloadListener(new net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener() {
                     @Override
-                    public net.minecraft.util.Identifier getFabricId() {
-                        return net.minecraft.util.Identifier.of("vesence", "sky_shader_reload");
+                    public net.minecraft.util.ResourceLocation getFabricId() {
+                        return net.minecraft.util.ResourceLocation.of("vesence", "sky_shader_reload");
                     }
 
                     @Override
@@ -284,14 +284,14 @@ public class Vesence implements ClientModInitializer {
         GlContextManager.onRenderFrame();
         if (modInitialized) {
             long frameSection = vesence.utils.debug.FreezeWatchdog.sectionEnter("render.frame");
-            GlState.Snapshot snapshot = GlState.push();
+            GlState.Snapshot snapshot = GlState.pushPose();
             try {
                 ensureRendererInitialized();
                 if (!initialized || renderer2D == null) {
                     return;
                 }
 
-                MinecraftClient client = MinecraftClient.getInstance();
+                Minecraft client = Minecraft.getInstance();
                 if (client == null || client.getWindow() == null) {
                     return;
                 }

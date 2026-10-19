@@ -5,7 +5,7 @@ import java.util.Optional;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -42,7 +42,7 @@ public class NoPush extends Module {
     * На следующем тике вычитаем именно его из текущей скорости,
     * не ломая обычное движение игрока.
     */
-   private Vec3d pendingExplosionKnockback = null;
+   private Vec3 pendingExplosionKnockback = null;
 
    public NoPush() {
       this.addSettings(new Setting[]{modes});
@@ -70,7 +70,7 @@ public class NoPush extends Module {
          return;
       }
 
-      Optional<Vec3d> knockback = packet.playerKnockback();
+      Optional<Vec3> knockback = packet.playerKnockback();
 
       if (knockback.isPresent()) {
          pendingExplosionKnockback = knockback.get();
@@ -106,10 +106,10 @@ public class NoPush extends Module {
        * Обычная скорость игрока сохраняется.
        */
       if (shouldIgnoreExplosions() && pendingExplosionKnockback != null) {
-         Vec3d current = mc.player.getVelocity();
-         Vec3d knockback = pendingExplosionKnockback;
+         Vec3 current = mc.player.getDeltaMovement();
+         Vec3 knockback = pendingExplosionKnockback;
 
-         mc.player.setVelocity(
+         mc.player.setDeltaMovement(
                  current.x - knockback.x,
                  current.y - knockback.y,
                  current.z - knockback.z

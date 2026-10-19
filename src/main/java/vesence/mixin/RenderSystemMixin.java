@@ -3,7 +3,7 @@ package vesence.mixin;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.Window;
+import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.util.tracy.TracyFrameCapturer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

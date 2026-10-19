@@ -2,10 +2,10 @@ package vesence.utils.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import org.w3c.dom.Node;
 import vesence.renderengine.render.Renderer2D;
 
@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * форматом и состоянием занимается сам Blaze3D — поэтому нет ни «шума», ни
  * перевёрнутости, ни битого stride (это и была причина артефактов у сырого
  * glTexImage2D в середине батча). Рисуем через тот же путь, что и остальные
- * картинки клиента — {@link Renderer2D#drawImage(Identifier, float, float, float, float, int, boolean, float)}.
+ * картинки клиента — {@link Renderer2D#drawImage(ResourceLocation, float, float, float, float, int, boolean, float)}.
  *
  * Кадры грузятся ПОЛНОСТЬЮ заранее: пока не зарегистрированы все кадры,
  * не рисуем ничего (никакого «предпросмотра» полузагруженной гифки).
@@ -66,7 +66,7 @@ public final class GifTexture {
    private int totalDurationMs;
 
    // Только render-поток.
-   private Identifier[] frameIds;
+   private ResourceLocation[] frameIds;
    private int registeredCount = 0;
    private long startTimeMs = -1L;
 
@@ -97,7 +97,7 @@ public final class GifTexture {
    /** Рисует гифку, полностью заполняя рект (object-fit: cover), по центру,
     *  с обрезкой по скруглённому ректу. Пока не готова — не рисует ничего. */
    public void drawCover(Renderer2D r, float x, float y, float w, float h, float rounding) {
-      Identifier id = this.currentId();
+      ResourceLocation id = this.currentId();
       if (id == null) return;
 
       float ar = (float) frameW / (float) frameH;
@@ -114,11 +114,11 @@ public final class GifTexture {
 
    /** Рисует гифку, растянутую под рект (со скруглением). */
    public void draw(Renderer2D r, float x, float y, float w, float h, float rounding) {
-      Identifier id = this.currentId();
+      ResourceLocation id = this.currentId();
       if (id != null) r.drawImage(id, x, y, w, h, -1, false, rounding);
    }
 
-   private Identifier currentId() {
+   private ResourceLocation currentId() {
       if (failed) return null;
       if (!ready) {
          this.ensureRegistered();
@@ -145,10 +145,10 @@ public final class GifTexture {
     *  недогруженной гифки. */
    private void ensureRegistered() {
       if (ready || failed || !decoded) return;
-      MinecraftClient mc = MinecraftClient.getInstance();
+      Minecraft mc = Minecraft.getInstance();
       if (mc == null || mc.getTextureManager() == null) return;
       try {
-         if (frameIds == null) frameIds = new Identifier[frameCount];
+         if (frameIds == null) frameIds = new ResourceLocation[frameCount];
          int end = Math.min(frameCount, registeredCount + REGISTER_PER_FRAME);
          for (int i = registeredCount; i < end; i++) {
             final int fi = i;
@@ -158,7 +158,7 @@ public final class GifTexture {
             // тогда Renderer2D.resolveTextureId ищет текстуру в TextureManager
             // (resolveFromTextureManager) и берёт её GL-id. Без ".png" картинка
             // не находится и квадрат пустой.
-            Identifier id = Identifier.of("vesence", "gifframe/" + key + "/" + i + ".png");
+            ResourceLocation id = ResourceLocation.of("vesence", "gifframe/" + key + "/" + i + ".png");
             mc.getTextureManager().registerTexture(id, tex);
             try { tex.getGlTextureView(); } catch (Throwable ignored) {} // форсим заливку в GPU сейчас
             frameIds[i] = id;

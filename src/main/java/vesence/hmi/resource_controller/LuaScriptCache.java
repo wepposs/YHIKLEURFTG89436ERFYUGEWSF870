@@ -17,14 +17,14 @@ import vesence.hmi.script_wrappers.S;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
-import net.minecraft.util.Hand;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.toast.SystemToast;
-import net.minecraft.client.toast.ToastManager;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.toast.ToastComponent;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.player.AbstractClientPlayer;
 import org.luaj.vm2.Globals;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.jse.CoerceJavaToLua;
@@ -63,7 +63,7 @@ public class LuaScriptCache {
         this.chunk = this.globals.load(sourceCode);
     }
 
-    public void execute(MatrixStack matrices, boolean bl, HashMap<String, Object> registry, float swingProgress, ItemStack item, AbstractClientPlayerEntity player, Hand hand, boolean mainHand, float deltaTime, float equipProgress, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
+    public void execute(PoseStack matrices, boolean bl, HashMap<String, Object> registry, float swingProgress, ItemStack item, AbstractClientPlayer player, InteractionHand hand, boolean mainHand, float deltaTime, float equipProgress, float mainHandSwingProgress, float offHandSwingProgress, boolean mainHandSwitchEvent, boolean offHandSwitchEvent, boolean swingMHand, boolean swingOHand, boolean interact, boolean blockBreaking, List<Particle> particles) {
         if (!this.canRun) {
             return;
         }
@@ -102,7 +102,7 @@ public class LuaScriptCache {
         }
         catch (Exception e) {
             System.err.println("[HoldMyItems] Lua runtime error: " + e.getMessage());
-            SystemToast.show(MinecraftClient.getInstance().getToastManager(), SystemToast.Type.PACK_LOAD_FAILURE, Text.of("HMI Lua Runtime error!"), Text.of(e.getMessage()));
+            SystemToast.show(Minecraft.getInstance().getToastManager(), SystemToast.Type.PACK_LOAD_FAILURE, Component.of("HMI Lua Runtime error!"), Component.of(e.getMessage()));
             this.canRun = false;
         }
     }

@@ -2,8 +2,8 @@ package vesence.hmi.mixin;
 
 import vesence.hmi.access.CameraAccessor;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.render.Camera;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Camera;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
@@ -45,7 +45,7 @@ implements CameraAccessor {
     @Final
     private Vector3f diagonalPlane;
     @Shadow
-    private Vec3d pos;
+    private Vec3 pos;
     @Unique
     private float pitchM = 0.0f;
     @Unique
@@ -60,7 +60,7 @@ implements CameraAccessor {
     private float zM = 0.0f;
 
     @Shadow
-    protected abstract void setPos(Vec3d var1);
+    protected abstract void setPos(Vec3 var1);
 
     public void hMI5_0$applyRotation() {
         this.rotation.add((Quaternionfc)RotationAxis.POSITIVE_X.rotationDegrees(this.pitchM));
@@ -102,7 +102,7 @@ implements CameraAccessor {
             return;
         }
         if (!FabricLoader.getInstance().isModLoaded("do_a_barrel_roll")) {
-            this.setPos(new Vec3d(x += (double)this.xM, y += (double)this.yM, z += (double)this.zM));
+            this.setPos(new Vec3(x += (double)this.xM, y += (double)this.yM, z += (double)this.zM));
             ci.cancel();
         }
     }

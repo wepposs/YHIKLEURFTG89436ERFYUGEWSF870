@@ -1,23 +1,23 @@
 package vesence.utils.render.text;
 
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Хелпер для разбора legacy §/&/$-цвет-кодов и извлечения «сырого» цветного
- * текста из дерева {@link Text}. Порт из RelevantPremiumpp4
+ * текста из дерева {@link Component}. Порт из RelevantPremiumpp4
  * (ru.whylol.api.utils.render.LegacyTextHelper), используется кастомным
  * scoreboard ({@code ScoreboardElement}) для разбиения строк на цветные
- * сегменты и учёта цвета из стилей {@link Text}.
+ * сегменты и учёта цвета из стилей {@link Component}.
  *
  * <p>Класс самодостаточен (зависит только от net.minecraft.text.* и
- * {@link Formatting}), поэтому перенесён без изменений API.
+ * {@link ChatFormatting}), поэтому перенесён без изменений API.
  */
 public final class LegacyTextHelper {
 
@@ -25,8 +25,8 @@ public final class LegacyTextHelper {
     private static final char LEGACY_PREFIX_AMP     = '&';
     private static final char LEGACY_PREFIX_DOLLAR  = '$';
 
-    public static Text resolve(Text text, int defaultColor) {
-        if (text == null) return Text.empty();
+    public static Component resolve(Component text, int defaultColor) {
+        if (text == null) return Component.empty();
         int baseColor = defaultColor & 0xFFFFFF;
         String raw = extractRaw(text);
         if (containsLegacyCodes(raw)) return parse(raw, baseColor);
@@ -69,10 +69,10 @@ public final class LegacyTextHelper {
                     i += 7;
                     continue;
                 }
-                Formatting formatting = Formatting.byCode(code);
+                ChatFormatting formatting = ChatFormatting.byCode(code);
                 if (formatting != null) {
                     flushSegment(buffer, segments, currentColor);
-                    if (formatting == Formatting.RESET) {
+                    if (formatting == ChatFormatting.RESET) {
                         currentColor = baseColor;
                     } else if (formatting.isColor()) {
                         Integer rgb = formatting.getColorValue();
@@ -88,7 +88,7 @@ public final class LegacyTextHelper {
         return segments;
     }
 
-    public static String extractRaw(Text text) {
+    public static String extractRaw(Component text) {
         if (text == null) return "";
         StringBuilder visited = new StringBuilder();
         text.visit((style, string) -> {
@@ -123,9 +123,9 @@ public final class LegacyTextHelper {
         return false;
     }
 
-    public static Text parse(String input, int defaultColor) {
-        if (input == null || input.isEmpty()) return Text.empty();
-        MutableText result = Text.empty();
+    public static Component parse(String input, int defaultColor) {
+        if (input == null || input.isEmpty()) return Component.empty();
+        MutableText result = Component.empty();
         StringBuilder buffer = new StringBuilder();
         int baseColor = defaultColor & 0xFFFFFF;
         Style current = Style.EMPTY.withColor(TextColor.fromRgb(baseColor));
@@ -158,10 +158,10 @@ public final class LegacyTextHelper {
                     i += 7;
                     continue;
                 }
-                Formatting formatting = Formatting.byCode(code);
+                ChatFormatting formatting = ChatFormatting.byCode(code);
                 if (formatting != null) {
                     flush(buffer, result, current);
-                    if (formatting == Formatting.RESET) {
+                    if (formatting == ChatFormatting.RESET) {
                         current = Style.EMPTY.withColor(TextColor.fromRgb(baseColor));
                     } else if (formatting.isColor()) {
                         current = Style.EMPTY.withFormatting(formatting);
@@ -180,7 +180,7 @@ public final class LegacyTextHelper {
 
     private static void flush(StringBuilder buffer, MutableText result, Style style) {
         if (buffer.length() == 0) return;
-        result.append(Text.literal(buffer.toString()).setStyle(style));
+        result.append(Component.literal(buffer.toString()).setStyle(style));
         buffer.setLength(0);
     }
 
@@ -245,13 +245,13 @@ public final class LegacyTextHelper {
         return input.charAt(startIndex + 8) == endChar;
     }
 
-    private static Text applyDefaultColor(Text text, int defaultColor) {
+    private static Component applyDefaultColor(Component text, int defaultColor) {
         if (hasExplicitColor(text)) return text;
         Style base = Style.EMPTY.withColor(TextColor.fromRgb(defaultColor));
-        return Text.literal("").setStyle(base).append(text);
+        return Component.literal("").setStyle(base).append(text);
     }
 
-    private static boolean hasExplicitColor(Text text) {
+    private static boolean hasExplicitColor(Component text) {
         final boolean[] hasColor = {false};
         text.visit((style, string) -> {
             if (style.getColor() != null) {

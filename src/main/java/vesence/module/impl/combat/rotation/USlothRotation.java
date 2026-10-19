@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 
@@ -39,14 +39,14 @@ public class USlothRotation {
             return;
         }
 
-        Vec3d aim = URotationMath.visibleAimPoint(target, attackDist + rotateDist, false);
+        Vec3 aim = URotationMath.visibleAimPoint(target, attackDist + rotateDist, false);
         if (aim == null) {
-            aim = target.getEyePos();
+            aim = target.getEyePosition();
         }
         Rotation goal = URotationMath.lookAt(aim);
 
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
 
         float yawDelta = URotationMath.wrap(goal.yaw - currentYaw);
         float pitchDelta = goal.pitch - currentPitch;
@@ -57,7 +57,7 @@ public class USlothRotation {
                 URotationMath.stableRand("sl.pitchStep", PITCH_STEP_MIN, PITCH_STEP_MAX, 90L));
 
         float newYaw = currentYaw + yawStep;
-        float newPitch = MathHelper.clamp(currentPitch + pitchStep, -90.0F, 90.0F);
+        float newPitch = Mth.clamp(currentPitch + pitchStep, -90.0F, 90.0F);
 
         // микро-джиттер — только вне окна атаки (в окне атаки ротация чистая).
         if (!attack) {
@@ -74,8 +74,8 @@ public class USlothRotation {
         }
         float toYaw = FreeLookUtil.freeYaw;
         float toPitch = FreeLookUtil.freePitch;
-        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYaw())) < 1.0F
-                && Math.abs(toPitch - mc.player.getPitch()) < 1.0F;
+        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYRot())) < 1.0F
+                && Math.abs(toPitch - mc.player.getXRot()) < 1.0F;
         if (!done) {
             URotationMath.submit(14.0F, 12.0F, 14.0F, 12.0F, 0, 15, toYaw, toPitch);
         }

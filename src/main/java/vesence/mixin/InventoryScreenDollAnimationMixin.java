@@ -2,8 +2,8 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
@@ -15,7 +15,7 @@ import vesence.utils.render.math.animation.AnimationUtils;
  * Дополняет анимацию открытия инвентаря: кукла игрока (3D-превью) тоже
  * масштабируется вместе с панелью.
  * <p>
- * Причина: {@code DrawContext.addEntity(...)} НЕ учитывает GUI matrix stack —
+ * Причина: {@code GuiGraphics.addEntity(...)} НЕ учитывает GUI matrix stack —
  * он захватывает сырые пиксельные координаты прямоугольника. Поэтому
  * matrix-scale из {@link HandledScreenAnimationMixin} масштабирует панель, но
  * не куклу. Здесь через {@link ModifyArgs} масштабируем сам прямоугольник
@@ -27,10 +27,10 @@ import vesence.utils.render.math.animation.AnimationUtils;
 public abstract class InventoryScreenDollAnimationMixin {
 
     @ModifyArgs(
-            method = "drawEntity(Lnet/minecraft/client/gui/DrawContext;IIIIIFFFLnet/minecraft/entity/LivingEntity;)V",
+            method = "drawEntity(Lnet/minecraft/client/gui/GuiGraphics;IIIIIFFFLnet/minecraft/entity/LivingEntity;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/DrawContext;addEntity(Lnet/minecraft/client/render/entity/state/EntityRenderState;FLorg/joml/Vector3f;Lorg/joml/Quaternionf;Lorg/joml/Quaternionf;IIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;addEntity(Lnet/minecraft/client/render/entity/state/EntityRenderState;FLorg/joml/Vector3f;Lorg/joml/Quaternionf;Lorg/joml/Quaternionf;IIII)V"
             )
     )
     private static void vesence$scaleDoll(Args args) {
@@ -45,7 +45,7 @@ public abstract class InventoryScreenDollAnimationMixin {
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         float pivotX = mc.getWindow().getScaledWidth() / 2f;
         float pivotY = mc.getWindow().getScaledHeight() / 2f;
 

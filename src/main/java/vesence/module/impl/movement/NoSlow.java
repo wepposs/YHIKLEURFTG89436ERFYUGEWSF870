@@ -2,7 +2,7 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Hand;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.lifecycle.ClientTickEvent;
 import vesence.event.player.SlowWalkingEvent;
@@ -44,10 +44,10 @@ public class NoSlow extends Module {
 
       switch (mode.get()) {
          case "Grim" -> {
-            if (mc.player.getActiveHand() == Hand.MAIN_HAND) {
-               mc.interactionManager.interactItem(mc.player, Hand.OFF_HAND);
+            if (mc.player.getActiveHand() == InteractionHand.MAIN_HAND) {
+               mc.gameMode.interactItem(mc.player, InteractionHand.OFF_HAND);
             } else {
-               mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
+               mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
             }
             event.cancel();
          }
@@ -59,7 +59,7 @@ public class NoSlow extends Module {
          }
          case "Grim Swap" -> {
             if (mc.player.isUsingItem() && !mc.player.hasVehicle()) {
-               mc.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket(
+               mc.getConnection().sendPacket(new net.minecraft.network.packet.c2s.play.ServerboundSetCarriedItemPacket(
                        mc.player.getInventory().getSelectedSlot()
                ));
                event.cancel();

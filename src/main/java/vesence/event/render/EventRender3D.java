@@ -2,30 +2,30 @@ package vesence.event.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.PoseStack;
 import vesence.event.Event;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
 @Environment(EnvType.CLIENT)
 public class EventRender3D extends Event {
-   private final MatrixStack matrixStack;
+   private final PoseStack matrixStack;
    private final float tickDelta;
    private final Matrix4f projectionMatrix;
    private final Quaternionf cameraRotation;
-   private final Vec3d cameraPos;
+   private final Vec3 cameraPos;
 
-   public EventRender3D(MatrixStack matrixStack, float tickDelta) {
-      this(matrixStack, tickDelta, new Matrix4f(), new Quaternionf(), Vec3d.ZERO);
+   public EventRender3D(PoseStack matrixStack, float tickDelta) {
+      this(matrixStack, tickDelta, new Matrix4f(), new Quaternionf(), Vec3.ZERO);
    }
 
-   public EventRender3D(MatrixStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Camera camera) {
+   public EventRender3D(PoseStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Camera camera) {
       this(matrixStack, tickDelta, projectionMatrix, camera.getRotation(), camera.getCameraPos());
    }
 
-   private EventRender3D(MatrixStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Quaternionf cameraRotation, Vec3d cameraPos) {
+   private EventRender3D(PoseStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Quaternionf cameraRotation, Vec3 cameraPos) {
       this.matrixStack = matrixStack;
       this.tickDelta = tickDelta;
       this.projectionMatrix = new Matrix4f(projectionMatrix);
@@ -33,7 +33,7 @@ public class EventRender3D extends Event {
       this.cameraPos = cameraPos;
    }
 
-   public MatrixStack getMatrixStack() {
+   public PoseStack getMatrixStack() {
       return this.matrixStack;
    }
 
@@ -49,7 +49,7 @@ public class EventRender3D extends Event {
       return new Quaternionf(this.cameraRotation);
    }
 
-   public Vec3d getCameraPos() {
+   public Vec3 getCameraPos() {
       return this.cameraPos;
    }
 }

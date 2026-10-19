@@ -1,15 +1,15 @@
 package vesence.mixin;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(DrawContext.class)
+@Mixin(GuiGraphics.class)
 public interface DrawContextAccessor {
 	@Accessor("state")
 	GuiRenderState getState();
 
 	@Accessor("scissorStack")
-	DrawContext.ScissorStack getScissorStack();
+	GuiGraphics.ScissorStack getScissorStack();
 }

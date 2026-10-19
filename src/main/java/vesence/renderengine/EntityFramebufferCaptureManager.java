@@ -7,22 +7,22 @@ import com.mojang.blaze3d.textures.GpuTextureView;
 import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.util.Window;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.render.VertexConsumerProvider;
+import com.mojang.blaze3d.platform.Window;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.render.MultiBufferSource;
 import net.minecraft.client.gl.SimpleFramebuffer;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack.Entry;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import net.minecraft.client.util.math.PoseStack.Entry;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
 import net.minecraft.client.render.entity.EntityRenderManager;
-import net.minecraft.client.render.entity.state.EntityRenderState;
-import net.minecraft.client.render.state.CameraRenderState;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.render.command.OrderedRenderCommandQueueImpl;
 import net.minecraft.client.render.command.RenderDispatcher;
 import org.joml.Quaternionf;
@@ -59,7 +59,7 @@ public final class EntityFramebufferCaptureManager {
    private volatile int framebufferHeight = -1;
 
    // Кэшируемые ресурсы рендера (создаются один раз, переиспользуются между кадрами).
-   private BufferAllocator captureAllocator;
+   private ByteBufferBuilder captureAllocator;
    private Immediate captureConsumers;
    private OrderedRenderCommandQueueImpl captureQueue;
    private RenderDispatcher captureDispatcher;
@@ -112,7 +112,7 @@ public final class EntityFramebufferCaptureManager {
    //  Начало кадра: подготовка/очистка захватного фреймбуфера и очереди
    // ------------------------------------------------------------------
 
-   public void beginFrame(Vec3d cameraPos, Quaternionf cameraRotation) {
+   public void beginFrame(Vec3 cameraPos, Quaternionf cameraRotation) {
       if (!this.enabled) {
          this.resetFrameState();
          return;
@@ -120,8 +120,8 @@ public final class EntityFramebufferCaptureManager {
       Objects.requireNonNull(cameraPos, "cameraPos");
       Objects.requireNonNull(cameraRotation, "cameraRotation");
 
-      MinecraftClient client = MinecraftClient.getInstance();
-      if (client == null || client.world == null || client.gameRenderer == null) {
+      Minecraft client = Minecraft.getInstance();
+      if (client == null || client.level == null || client.gameRenderer == null) {
          this.resetFrameState();
          return;
       }
@@ -129,7 +129,7 @@ public final class EntityFramebufferCaptureManager {
          this.resetFrameState();
          return;
       }
-      Framebuffer mainFramebuffer = client.getFramebuffer();
+      RenderTarget mainFramebuffer = client.getMainRenderTarget();
       if (mainFramebuffer == null) {
          this.resetFrameState();
          return;
@@ -201,7 +201,7 @@ public final class EntityFramebufferCaptureManager {
    //  Сабмит одной сущности в очередь (без отрисовки — как renderEntityStatic)
    // ------------------------------------------------------------------
 
-   public void captureEntity(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta, MatrixStack matrices) {
+   public void captureEntity(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta, PoseStack matrices) {
       if (!this.enabled || !this.captureFrameActive || this.executingCapturePass) {
          return;
       }
@@ -210,8 +210,8 @@ public final class EntityFramebufferCaptureManager {
       if (this.captureQueue == null) {
          return;
       }
-      MinecraftClient client = MinecraftClient.getInstance();
-      if (client == null || client.world == null) {
+      Minecraft client = Minecraft.getInstance();
+      if (client == null || client.level == null) {
          return;
       }
       EntityRenderManager dispatcher = client.getEntityRenderDispatcher();
@@ -220,11 +220,11 @@ public final class EntityFramebufferCaptureManager {
       }
 
       try {
-         MatrixStack captureMatrices = borrowMatrixStack(matrices);
+         PoseStack captureMatrices = borrowMatrixStack(matrices);
          if (captureMatrices == null) {
             return;
          }
-         Vec3d interpolated = entity.getLerpedPos(tickDelta);
+         Vec3 interpolated = entity.getLerpedPos(tickDelta);
          double renderX = interpolated.x - cameraX;
          double renderY = interpolated.y - cameraY;
          double renderZ = interpolated.z - cameraZ;
@@ -303,18 +303,18 @@ public final class EntityFramebufferCaptureManager {
       if (this.captureDispatcher != null && this.captureQueue != null && this.captureConsumers != null) {
          return true;
       }
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client == null) {
          return false;
       }
       try {
          if (this.captureConsumers == null) {
             // Многобуферный entity-immediate из ванильного BufferBuilderStorage.
-            // Одиночный VertexConsumerProvider.immediate(allocator) держит только ОДИН
+            // Одиночный MultiBufferSource.immediate(allocator) держит только ОДИН
             // строящийся слой за раз, из-за чего предметы с зачарованием падали с
             // "Not building!" (glint рендерится через VertexConsumers.Dual — базовый
             // слой + слой блеска одновременно). Ванильные entity-consumers многобуферные
-            // и корректно тянут glint / несколько RenderLayer сразу.
+            // и корректно тянут glint / несколько RenderType сразу.
             this.captureConsumers = client.getBufferBuilders().getEntityVertexConsumers();
          }
          if (this.captureQueue == null) {
@@ -328,7 +328,7 @@ public final class EntityFramebufferCaptureManager {
                     client.getAtlasManager(),
                     client.getBufferBuilders().getOutlineVertexConsumers(),
                     client.getBufferBuilders().getEffectVertexConsumers(),
-                    client.textRenderer);
+                    client.font);
          }
          return true;
       } catch (RuntimeException var2) {
@@ -357,13 +357,13 @@ public final class EntityFramebufferCaptureManager {
       }
    }
 
-   private static MatrixStack borrowMatrixStack(MatrixStack source) {
+   private static PoseStack borrowMatrixStack(PoseStack source) {
       if (source == null) {
          return null;
       }
-      MatrixStack copy = new MatrixStack();
-      Entry sourceEntry = source.peek();
-      Entry copyEntry = copy.peek();
+      PoseStack copy = new PoseStack();
+      Entry sourceEntry = source.last();
+      Entry copyEntry = copy.last();
       copyEntry.getPositionMatrix().set(sourceEntry.getPositionMatrix());
       copyEntry.getNormalMatrix().set(sourceEntry.getNormalMatrix());
       return copy;
@@ -404,7 +404,7 @@ public final class EntityFramebufferCaptureManager {
    }
 
    private void deleteFramebuffer() {
-      Framebuffer framebuffer = this.captureFramebuffer;
+      RenderTarget framebuffer = this.captureFramebuffer;
       if (framebuffer != null) {
          try {
             framebuffer.delete();
@@ -421,14 +421,14 @@ public final class EntityFramebufferCaptureManager {
       this.submittedThisFrame = false;
    }
 
-   private static boolean hasColorAttachment(Framebuffer framebuffer) {
+   private static boolean hasColorAttachment(RenderTarget framebuffer) {
       if (framebuffer == null) {
          return false;
       }
       return framebuffer.getColorAttachment() instanceof GlTexture glTexture && glTexture.getGlId() > 0;
    }
 
-   private static int extractColorTextureId(Framebuffer framebuffer) {
+   private static int extractColorTextureId(RenderTarget framebuffer) {
       if (framebuffer == null) {
          return 0;
       }

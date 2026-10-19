@@ -3,10 +3,10 @@ package vesence.mixin;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -24,8 +24,8 @@ public abstract class ScreenTooltipMixin {
             at = @At("RETURN"),
             require = 0
     )
-    private static void onGetTooltip(MinecraftClient client, ItemStack stack,
-                                     CallbackInfoReturnable<List<Text>> cir) {
+    private static void onGetTooltip(Minecraft client, ItemStack stack,
+                                     CallbackInfoReturnable<List<Component>> cir) {
         try {
             AuctionHelper.appendPerUnitTooltip(stack, cir.getReturnValue());
         } catch (Throwable ignored) {

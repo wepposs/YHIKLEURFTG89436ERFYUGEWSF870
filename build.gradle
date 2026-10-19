@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.14.1'
+    id 'net.fabricmc.fabric-loom' version '1.18-SNAPSHOT'
     id 'maven-publish'
 }
 
@@ -33,14 +33,16 @@ repositories {
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
         content { includeGroup("software.bernie.geckolib") }
     }
+    // GeckoLib 5.5 (Fabric, 26.1) — публикуется только на Modrinth
+    maven { url "https://api.modrinth.com/maven" }
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    // 26.x не обфусцирован — маппинги не нужны, компилируем против официальных имён Mojang
 
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     compileOnly "org.projectlombok:lombok:1.18.34"
     annotationProcessor "org.projectlombok:lombok:1.18.34"
@@ -61,8 +63,8 @@ dependencies {
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.1"))
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1"))
 
-    modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
-    include "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+    implementation "maven.modrinth:geckolib:5.5"
+    include "maven.modrinth:geckolib:5.5"
 }
 
 processResources {
@@ -73,12 +75,13 @@ processResources {
 }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
+    it.options.release = 25
     it.options.compilerArgs.addAll(['-Xmaxerrs', '10000'])
 }
 

@@ -7,21 +7,21 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.Vec3i;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -39,35 +39,35 @@ import java.util.Random;
 @Environment(EnvType.CLIENT)
 public final class LineGlyphsEngine {
 
-   private static final MinecraftClient mc = MinecraftClient.getInstance();
+   private static final Minecraft mc = Minecraft.getInstance();
 
-   private static final Identifier GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
+   private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
 
    private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_glyphes_lines"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+         .withLocation(ResourceLocation.of("vesence", "customworld_glyphes_lines"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.ADDITIVE)
          .build()
    );
-   private static final RenderLayer LINE_LAYER = RenderLayer.of(
+   private static final RenderType LINE_LAYER = RenderType.of(
       "customworld_glyphes_lines", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(8192).translucent().build()
    );
 
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_glyphes_glow"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "customworld_glyphes_glow"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.ADDITIVE)
          .build()
    );
-   private static final RenderLayer GLOW_LAYER = RenderLayer.of(
+   private static final RenderType GLOW_LAYER = RenderType.of(
       "customworld_glyphes_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(8192).translucent().texture("Sampler0", GLOW_TEXTURE).build()
    );
 
@@ -100,7 +100,7 @@ public final class LineGlyphsEngine {
    }
 
    public void onMotion() {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          this.glyphs.clear();
          return;
       }
@@ -109,8 +109,8 @@ public final class LineGlyphsEngine {
       this.maintainGlyphCount();
    }
 
-   public void onRender3D(MatrixStack matrices, float partialTicks) {
-      if (mc.player == null || mc.world == null || this.glyphs.isEmpty()) {
+   public void onRender3D(PoseStack matrices, float partialTicks) {
+      if (mc.player == null || mc.level == null || this.glyphs.isEmpty()) {
          return;
       }
 
@@ -134,8 +134,8 @@ public final class LineGlyphsEngine {
       }
 
       Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Matrix4f matrix = matrices.last().getPositionMatrix();
 
       Quaternionf cameraRotation = mc.gameRenderer.getCamera().getRotation();
       Vector3f cameraRight = new Vector3f(1.0F, 0.0F, 0.0F).rotate(cameraRotation);
@@ -153,15 +153,15 @@ public final class LineGlyphsEngine {
             continue;
          }
 
-         List<Vec3d> points = glyph.getSmoothedPositions(partialTicks);
+         List<Vec3> points = glyph.getSmoothedPositions(partialTicks);
          int pointCount = points.size();
          if (pointCount < 2) {
             continue;
          }
 
          for (int i = 0; i < pointCount - 1; i++) {
-            Vec3d from = points.get(i).subtract(cameraPos);
-            Vec3d to = points.get(i + 1).subtract(cameraPos);
+            Vec3 from = points.get(i).subtract(cameraPos);
+            Vec3 to = points.get(i + 1).subtract(cameraPos);
             float segmentAlpha = glyphAlpha * (0.25F + (float) i / (float) pointCount / 1.75F);
             int color = this.themeColor(glyph, segmentAlpha);
 
@@ -174,7 +174,7 @@ public final class LineGlyphsEngine {
 
          float markerSize = 0.018F;
          for (int i = 0; i < pointCount; i++) {
-            Vec3d pos = points.get(i).subtract(cameraPos);
+            Vec3 pos = points.get(i).subtract(cameraPos);
             float localAlpha = glyphAlpha * (0.25F + (float) i / (float) pointCount / 1.75F);
             int color = this.themeColor(glyph, localAlpha);
             this.putPointCross(lineBuffer, matrix, pos, color, markerSize);
@@ -189,10 +189,10 @@ public final class LineGlyphsEngine {
                continue;
             }
 
-            List<Vec3d> points = glyph.getSmoothedPositions(partialTicks);
+            List<Vec3> points = glyph.getSmoothedPositions(partialTicks);
             int pointCount = points.size();
             for (int i = 0; i < pointCount; i++) {
-               Vec3d pos = points.get(i).subtract(cameraPos);
+               Vec3 pos = points.get(i).subtract(cameraPos);
                float localAlpha = glyphAlpha * (0.25F + (float) i / (float) pointCount / 1.75F);
                int color = this.themeColor(glyph, localAlpha * 0.6F);
                this.putGlow(glowBuffer, matrix, pos, 0.25F, color, cameraRight, cameraUp);
@@ -205,16 +205,16 @@ public final class LineGlyphsEngine {
 
    private int themeColor(GlyphPath glyph, float alphaMul) {
       int base = glyph.colorGroup == 1 ? this.colB : this.colA;
-      int alpha = MathHelper.clamp((int) (MathHelper.clamp(alphaMul, 0.0F, 1.0F) * 255.0F), 0, 255);
+      int alpha = Mth.clamp((int) (Mth.clamp(alphaMul, 0.0F, 1.0F) * 255.0F), 0, 255);
       return ColorUtil.getColor(ColorUtil.red(base), ColorUtil.green(base), ColorUtil.blue(base), alpha);
    }
 
-   private void putSegment(VertexConsumer buffer, Matrix4f matrix, Vec3d from, Vec3d to, int color) {
+   private void putSegment(VertexConsumer buffer, Matrix4f matrix, Vec3 from, Vec3 to, int color) {
       this.putColorVertex(buffer, matrix, from, color);
       this.putColorVertex(buffer, matrix, to, color);
    }
 
-   private void putDashedSegment(VertexConsumer buffer, Matrix4f matrix, Vec3d from, Vec3d to, int color, float dashLen, float gapLen) {
+   private void putDashedSegment(VertexConsumer buffer, Matrix4f matrix, Vec3 from, Vec3 to, int color, float dashLen, float gapLen) {
       double dx = to.x - from.x;
       double dy = to.y - from.y;
       double dz = to.z - from.z;
@@ -234,8 +234,8 @@ public final class LineGlyphsEngine {
          double next = Math.min(length, cursor + step);
 
          if (draw) {
-            Vec3d s = new Vec3d(from.x + nx * cursor, from.y + ny * cursor, from.z + nz * cursor);
-            Vec3d e = new Vec3d(from.x + nx * next, from.y + ny * next, from.z + nz * next);
+            Vec3 s = new Vec3(from.x + nx * cursor, from.y + ny * cursor, from.z + nz * cursor);
+            Vec3 e = new Vec3(from.x + nx * next, from.y + ny * next, from.z + nz * next);
             this.putColorVertex(buffer, matrix, s, color);
             this.putColorVertex(buffer, matrix, e, color);
          }
@@ -245,35 +245,35 @@ public final class LineGlyphsEngine {
       }
    }
 
-   private void putPointCross(VertexConsumer buffer, Matrix4f matrix, Vec3d pos, int color, float size) {
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x - size, pos.y, pos.z), color);
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x + size, pos.y, pos.z), color);
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x, pos.y - size, pos.z), color);
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x, pos.y + size, pos.z), color);
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x, pos.y, pos.z - size), color);
-      this.putColorVertex(buffer, matrix, new Vec3d(pos.x, pos.y, pos.z + size), color);
+   private void putPointCross(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color, float size) {
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x - size, pos.y, pos.z), color);
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x + size, pos.y, pos.z), color);
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x, pos.y - size, pos.z), color);
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x, pos.y + size, pos.z), color);
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x, pos.y, pos.z - size), color);
+      this.putColorVertex(buffer, matrix, new Vec3(pos.x, pos.y, pos.z + size), color);
    }
 
-   private void putGlow(VertexConsumer buffer, Matrix4f matrix, Vec3d center, float size, int color, Vector3f cameraRight, Vector3f cameraUp) {
+   private void putGlow(VertexConsumer buffer, Matrix4f matrix, Vec3 center, float size, int color, Vector3f cameraRight, Vector3f cameraUp) {
       double half = size * 0.5;
-      Vec3d right = new Vec3d(cameraRight.x(), cameraRight.y(), cameraRight.z()).multiply(half);
-      Vec3d up = new Vec3d(cameraUp.x(), cameraUp.y(), cameraUp.z()).multiply(half);
-      Vec3d v0 = center.subtract(right).subtract(up);
-      Vec3d v1 = center.add(right).subtract(up);
-      Vec3d v2 = center.add(right).add(up);
-      Vec3d v3 = center.subtract(right).add(up);
+      Vec3 right = new Vec3(cameraRight.x(), cameraRight.y(), cameraRight.z()).multiply(half);
+      Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()).multiply(half);
+      Vec3 v0 = center.subtract(right).subtract(up);
+      Vec3 v1 = center.add(right).subtract(up);
+      Vec3 v2 = center.add(right).add(up);
+      Vec3 v3 = center.subtract(right).add(up);
       this.putTexturedVertex(buffer, matrix, v0, color, 0.0F, 1.0F);
       this.putTexturedVertex(buffer, matrix, v1, color, 1.0F, 1.0F);
       this.putTexturedVertex(buffer, matrix, v2, color, 1.0F, 0.0F);
       this.putTexturedVertex(buffer, matrix, v3, color, 0.0F, 0.0F);
    }
 
-   private void putColorVertex(VertexConsumer buffer, Matrix4f matrix, Vec3d pos, int color) {
+   private void putColorVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color) {
       buffer.vertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
          .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color));
    }
 
-   private void putTexturedVertex(VertexConsumer buffer, Matrix4f matrix, Vec3d pos, int color, float u, float v) {
+   private void putTexturedVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color, float u, float v) {
       buffer.vertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
          .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
          .texture(u, v);
@@ -332,17 +332,17 @@ public final class LineGlyphsEngine {
       final int minY = 0;
       final int maxY = 12;
 
-      Vec3d cameraPos = this.getCameraPos();
+      Vec3 cameraPos = this.getCameraPos();
 
       for (int attempt = 0; attempt < 16; attempt++) {
          int distance = this.randInt(minDistance, maxDistance + 1);
-         float yawBase = mc.player != null ? mc.player.getYaw() : 0.0F;
+         float yawBase = mc.player != null ? mc.player.getYRot() : 0.0F;
          float randomYaw = yawBase + this.randFloat(-135.0F, 135.0F);
          float yawRad = (float) Math.toRadians(randomYaw);
 
-         int offsetX = (int) (-(MathHelper.sin(yawRad) * distance));
+         int offsetX = (int) (-(Mth.sin(yawRad) * distance));
          int offsetY = this.randInt(minY, maxY + 1);
-         int offsetZ = (int) (MathHelper.cos(yawRad) * distance);
+         int offsetZ = (int) (Mth.cos(yawRad) * distance);
 
          Vec3i spawn = new Vec3i(
             (int) Math.floor(cameraPos.x) + offsetX,
@@ -363,27 +363,27 @@ public final class LineGlyphsEngine {
    }
 
    private boolean isSpawnPosFree(Vec3i pos) {
-      if (mc.world == null) {
+      if (mc.level == null) {
          return true;
       }
 
       BlockPos bp = new BlockPos(pos.getX(), pos.getY(), pos.getZ());
-      BlockState state = mc.world.getBlockState(bp);
+      BlockState state = mc.level.getBlockState(bp);
       if (state.isAir()) {
          return true;
       }
       if (!state.getFluidState().isEmpty()) {
          return false;
       }
-      return state.getCollisionShape(mc.world, bp).isEmpty();
+      return state.getCollisionShape(mc.level, bp).isEmpty();
    }
 
-   private Vec3d getCameraPos() {
+   private Vec3 getCameraPos() {
       Camera camera = mc.gameRenderer != null ? mc.gameRenderer.getCamera() : null;
       if (camera != null) {
          return camera.getCameraPos();
       }
-      return mc.player != null ? mc.player.getEntityPos() : Vec3d.ZERO;
+      return mc.player != null ? mc.player.getEntityPos() : Vec3.ZERO;
    }
 
    private Vec3i randomAxisDirection() {
@@ -422,7 +422,7 @@ public final class LineGlyphsEngine {
          return 1.0F;
       }
       float progress = 1.0F - ((float) ticksLeft - partialTicks) / (float) ticksSet;
-      return MathHelper.clamp(progress, 0.0F, 1.0F);
+      return Mth.clamp(progress, 0.0F, 1.0F);
    }
 
    private static double lerp(double start, double end, double delta) {
@@ -495,8 +495,8 @@ public final class LineGlyphsEngine {
          }
       }
 
-      private List<Vec3d> getSmoothedPositions(float partialTicks) {
-         List<Vec3d> smoothed = new ArrayList<>(this.points.size());
+      private List<Vec3> getSmoothedPositions(float partialTicks) {
+         List<Vec3> smoothed = new ArrayList<>(this.points.size());
          float moveAdvance = LineGlyphsEngine.this.moveAdvanceFromTicks(this.lastStepSet, this.currentStepTicks, partialTicks);
 
          for (int i = 0; i < this.points.size(); i++) {
@@ -512,7 +512,7 @@ public final class LineGlyphsEngine {
                z = lerp(previous.getZ(), z, moveAdvance);
             }
 
-            smoothed.add(new Vec3d(x, y, z));
+            smoothed.add(new Vec3(x, y, z));
          }
 
          return smoothed;
@@ -523,7 +523,7 @@ public final class LineGlyphsEngine {
       }
 
       private float getAlpha() {
-         return MathHelper.clamp(this.alpha.getAnim(), 0.0F, 1.0F);
+         return Mth.clamp(this.alpha.getAnim(), 0.0F, 1.0F);
       }
 
       private boolean isRemoving() {

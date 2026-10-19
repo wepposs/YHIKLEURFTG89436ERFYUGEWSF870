@@ -5,8 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import vesence.renderengine.render.pipeline.GlassKawaseBlurPipeline;
 import vesence.renderengine.render.pipeline.MaskDiffPipeline;
 import vesence.renderengine.render.pipeline.ShadowTrailCompositePipeline;
@@ -15,7 +15,7 @@ import vesence.renderengine.render.pipeline.TrailAccumPipeline;
 public class HandShadowTrailRenderer {
     private static HandShadowTrailRenderer instance;
 
-    private final MinecraftClient client;
+    private final Minecraft client;
     private MaskDiffPipeline maskDiff;
     private GlassKawaseBlurPipeline blurPipeline;
     private GlassKawaseBlurPipeline itemBlurPipeline;
@@ -55,7 +55,7 @@ public class HandShadowTrailRenderer {
     private float itemBlurAmount = 1.0f;
 
     public HandShadowTrailRenderer() {
-        this.client = MinecraftClient.getInstance();
+        this.client = Minecraft.getInstance();
         instance = this;
     }
 
@@ -161,7 +161,7 @@ public class HandShadowTrailRenderer {
         if (!enabled) return;
         ensureInitialized();
 
-        Framebuffer fb = client.getFramebuffer();
+        RenderTarget fb = client.getMainRenderTarget();
         if (fb == null || fb.getColorAttachment() == null) return;
 
         int width = fb.textureWidth;
@@ -181,7 +181,7 @@ public class HandShadowTrailRenderer {
     public void captureSceneAfterAndRender() {
         if (!enabled || !capturing) return;
 
-        Framebuffer fb = client.getFramebuffer();
+        RenderTarget fb = client.getMainRenderTarget();
         if (fb == null || fb.getColorAttachment() == null) {
             capturing = false;
             return;

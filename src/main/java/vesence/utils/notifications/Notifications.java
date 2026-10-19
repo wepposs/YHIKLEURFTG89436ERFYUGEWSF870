@@ -3,8 +3,8 @@ package vesence.utils.notifications;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.item.ItemStack;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.impl.visuals.Hud;
 import vesence.module.impl.visuals.HudElement;
@@ -118,11 +118,11 @@ public class Notifications {
     public static float modernBoundsWidth()  { return lastModernWidth; }
     public static float modernBoundsHeight() { return lastModernHeight; }
 
-    public static void render(Renderer2D renderer, DrawContext ctx, int screenWidth, int screenHeight) {
+    public static void render(Renderer2D renderer, GuiGraphics ctx, int screenWidth, int screenHeight) {
         render(renderer, ctx, screenWidth / 2f, screenHeight / 2f + 30f, 1f);
     }
 
-    public static void render(Renderer2D renderer, DrawContext ctx, float centerX, float topY, float scale) {
+    public static void render(Renderer2D renderer, GuiGraphics ctx, float centerX, float topY, float scale) {
         long now = System.currentTimeMillis();
 
         active.removeIf(n -> {
@@ -301,7 +301,7 @@ public class Notifications {
     }
 
     /** Renders the separate pill-card layout used by the Modern HUD. */
-    public static void renderModern(Renderer2D renderer, DrawContext ctx, float centerX, float topY, float scale) {
+    public static void renderModern(Renderer2D renderer, GuiGraphics ctx, float centerX, float topY, float scale) {
         long now = System.currentTimeMillis();
 
         active.removeIf(n -> {
@@ -406,7 +406,7 @@ public class Notifications {
         }
     }
 
-    private static void drawModernItemIcon(DrawContext ctx, ItemStack stack, float centerX, float centerY,
+    private static void drawModernItemIcon(GuiGraphics ctx, ItemStack stack, float centerX, float centerY,
                                            float iconSize, float scale, float alpha) {
         if (alpha <= 0.01f) return;
 

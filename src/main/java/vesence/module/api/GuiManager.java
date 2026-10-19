@@ -9,13 +9,13 @@ import java.util.Map;
 import java.util.Properties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.Vesence;
 import vesence.module.Theme;
 
 @Environment(EnvType.CLIENT)
 public class GuiManager {
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+   public static Minecraft mc = Minecraft.getInstance();
    private File file;
    private Theme currentTheme = Theme.Blue;
    private Category currentCategory = Category.VISUALS;

@@ -3,9 +3,9 @@ package vesence.module.impl.visuals.particular;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.SimpleParticleType;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.math.noise.SimplexNoiseSampler;
 import net.minecraft.util.math.random.CheckedRandom;
 import net.minecraft.util.math.random.Random;
@@ -16,7 +16,7 @@ public class FireflyParticle extends BillboardParticle {
     private int ticksUntilNextSwitch = 40;
     private boolean lit;
 
-    protected FireflyParticle(ClientWorld world, double x, double y, double z, SpriteProvider provider) {
+    protected FireflyParticle(ClientLevel world, double x, double y, double z, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.setSprite(provider.getSprite(this.random));
         this.collidesWithWorld = false;
@@ -57,19 +57,19 @@ public class FireflyParticle extends BillboardParticle {
             }
         }
 
-        this.alpha = this.lit && (this.maxAge - this.age) > 3 ? Math.min(1.0F, this.alpha + 0.33F) : Math.max(0.0F, this.alpha - 0.33F);
+        this.alpha = this.lit && (this.maxAge - this.tickCount) > 3 ? Math.min(1.0F, this.alpha + 0.33F) : Math.max(0.0F, this.alpha - 0.33F);
 
         double broadSpeed = 0.1D;
         double broadNoise = 1.0D / 300.0D;
-        this.velocityX = this.noise.sample(this.age * broadNoise, this.age * broadNoise) * broadSpeed;
-        this.velocityY = this.noise.sample((this.age + this.ageOffset) * broadNoise - 50.0D, (this.age + this.ageOffset) * broadNoise + 100.0D) * broadSpeed * 0.5D;
-        this.velocityZ = this.noise.sample(this.age * broadNoise + 100.0D, this.age * broadNoise - 50.0D) * broadSpeed;
+        this.velocityX = this.noise.sample(this.tickCount * broadNoise, this.tickCount * broadNoise) * broadSpeed;
+        this.velocityY = this.noise.sample((this.tickCount + this.ageOffset) * broadNoise - 50.0D, (this.tickCount + this.ageOffset) * broadNoise + 100.0D) * broadSpeed * 0.5D;
+        this.velocityZ = this.noise.sample(this.tickCount * broadNoise + 100.0D, this.tickCount * broadNoise - 50.0D) * broadSpeed;
 
-        double fineSpeed = 1.0D / (10.0D + Math.sin(Math.PI + this.age / 30.0D) * 2.0D);
+        double fineSpeed = 1.0D / (10.0D + Math.sin(Math.PI + this.tickCount / 30.0D) * 2.0D);
         double fineNoise = 1.0D / 30.0D;
-        this.velocityX += this.noise.sample(this.age * fineNoise, this.age * fineNoise) * fineSpeed * 0.5D;
-        this.velocityY += this.noise.sample((this.age + this.ageOffset) * fineNoise - 50.0D, (this.age + this.ageOffset) * fineNoise + 100.0D) * fineSpeed;
-        this.velocityZ += this.noise.sample(this.age * fineNoise + 100.0D, this.age * fineNoise - 50.0D) * fineSpeed * 0.5D;
+        this.velocityX += this.noise.sample(this.tickCount * fineNoise, this.tickCount * fineNoise) * fineSpeed * 0.5D;
+        this.velocityY += this.noise.sample((this.tickCount + this.ageOffset) * fineNoise - 50.0D, (this.tickCount + this.ageOffset) * fineNoise + 100.0D) * fineSpeed;
+        this.velocityZ += this.noise.sample(this.tickCount * fineNoise + 100.0D, this.tickCount * fineNoise - 50.0D) * fineSpeed * 0.5D;
     }
 
     @Override
@@ -83,14 +83,14 @@ public class FireflyParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new FireflyParticle(world, x, y, z, this.provider);
         }
     }

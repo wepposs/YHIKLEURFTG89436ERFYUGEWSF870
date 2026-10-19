@@ -2,9 +2,9 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
 
@@ -18,8 +18,8 @@ import static vesence.utils.other.IMinecraft.mc;
  * sampled-pull feedback and with a single 50-degree distance falloff:
  *
  *   aimPoint     = box centre + 0.15
- *   desiredYaw   = wrapDegrees(aimYaw - player.getYaw())
- *   desiredPitch = aimPitch - player.getPitch()
+ *   desiredYaw   = wrapDegrees(aimYaw - player.getYRot())
+ *   desiredPitch = aimPitch - player.getXRot()
  *   speed        = abs(0.07)
  *   if abs(desiredYaw) > 50 then speed /= 1.05
  *   maxYaw   = clamp(abs(desiredYaw)   * mult,     0, 999)
@@ -52,15 +52,15 @@ public class UEnergyMLRotation {
         if (mc.player == null || target == null) return;
 
         // ТЗ: аим-поинт — ближайшая ВИДИМАЯ точка хитбокса, не центр коробки.
-        Vec3d aimPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
+        Vec3 aimPoint = URotationMath.visibleAimPoint(target, rotateDist, false);
         if (aimPoint == null) {
             aimPoint = target.getBoundingBox().getCenter().add(0.0, AIM_LIFT, 0.0);
         }
-        Rotation aim = toRotation(aimPoint.subtract(mc.player.getEyePos()));
+        Rotation aim = toRotation(aimPoint.subtract(mc.player.getEyePosition()));
 
-        float playerYaw = mc.player.getYaw();
-        float playerPitch = mc.player.getPitch();
-        float desiredYaw = MathHelper.wrapDegrees(aim.yaw - playerYaw);
+        float playerYaw = mc.player.getYRot();
+        float playerPitch = mc.player.getXRot();
+        float desiredYaw = Mth.wrapDegrees(aim.yaw - playerYaw);
         float desiredPitch = aim.pitch - playerPitch;
 
         float base = Math.abs(SPEED_BASE);
@@ -70,27 +70,27 @@ public class UEnergyMLRotation {
 
         boolean onPitchLimit = playerPitch == PITCH_LIMIT_TOP || playerPitch == PITCH_LIMIT_BOTTOM;
         boolean boxesIntersect = mc.player.getBoundingBox().intersects(target.getBoundingBox());
-        float yawMult = (onPitchLimit || (boxesIntersect && !mc.player.isOnGround())) ? 0.0F : base;
-        float maxYaw = MathHelper.clamp(Math.abs(desiredYaw) * yawMult, 0.0F, CLAMP_YAW);
-        float maxPitch = MathHelper.clamp(Math.abs(desiredPitch) * base / 2.0F, 0.0F, CLAMP_PITCH);
+        float yawMult = (onPitchLimit || (boxesIntersect && !mc.player.onGround())) ? 0.0F : base;
+        float maxYaw = Mth.clamp(Math.abs(desiredYaw) * yawMult, 0.0F, CLAMP_YAW);
+        float maxPitch = Mth.clamp(Math.abs(desiredPitch) * base / 2.0F, 0.0F, CLAMP_PITCH);
 
-        float stepYaw = MathHelper.clamp(desiredYaw, -maxYaw, maxYaw);
-        float stepPitch = MathHelper.clamp(desiredPitch, -maxPitch, maxPitch);
+        float stepYaw = Mth.clamp(desiredYaw, -maxYaw, maxYaw);
+        float stepPitch = Mth.clamp(desiredPitch, -maxPitch, maxPitch);
 
         float newYaw = playerYaw + stepYaw;
-        float newPitch = MathHelper.clamp(playerPitch + stepPitch, OUT_PITCH_MIN, OUT_PITCH_MAX);
+        float newPitch = Mth.clamp(playerPitch + stepPitch, OUT_PITCH_MIN, OUT_PITCH_MAX);
 
         Rotation rot = new Rotation(newYaw, newPitch);
         URotations.update(rot, ENGINE_SPEED, ENGINE_SPEED, 0.0F, 0.0F, 1, 1, mc.options.getPerspective().isFirstPerson());
 
-        float dy = (float) (mc.player.getVelocity().y / SAMPLE_DIV_Y);
-        float dx = (float) (mc.player.getVelocity().x / SAMPLE_DIV_X);
+        float dy = (float) (mc.player.getDeltaMovement().y / SAMPLE_DIV_Y);
+        float dx = (float) (mc.player.getDeltaMovement().x / SAMPLE_DIV_X);
         samples.add(new float[]{dy, dx});
     }
 
-    private static Rotation toRotation(Vec3d v) {
+    private static Rotation toRotation(Vec3 v) {
         float yaw = (float) Math.toDegrees(Math.atan2(-v.x, v.z));
-        float pitch = (float) MathHelper.clamp(
+        float pitch = (float) Mth.clamp(
                 -Math.toDegrees(Math.atan2(v.y, Math.hypot(v.x, v.z))), -90.0F, 90.0F);
         return new Rotation(yaw, pitch);
     }

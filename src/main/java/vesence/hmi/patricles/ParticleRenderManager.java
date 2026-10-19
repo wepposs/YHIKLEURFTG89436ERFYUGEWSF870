@@ -2,14 +2,14 @@ package vesence.hmi.patricles;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import net.minecraft.util.Hand;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.world.InteractionHand;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.player.AbstractClientPlayer;
 
 public class ParticleRenderManager {
     @SuppressWarnings("StringEquality")
-    public static void draw(ArrayList<Particle> particles, MatrixStack matrices, OrderedRenderCommandQueue queue, String space, Hand hand, int light, AbstractClientPlayerEntity player) {
+    public static void draw(ArrayList<Particle> particles, PoseStack matrices, OrderedRenderCommandQueue queue, String space, InteractionHand hand, int light, AbstractClientPlayer player) {
         Iterator<Particle> iterator = particles.iterator();
         while (iterator.hasNext()) {
             Particle particle = iterator.next();

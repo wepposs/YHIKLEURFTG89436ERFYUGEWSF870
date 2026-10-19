@@ -2,11 +2,11 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.option.Perspective;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -62,7 +62,7 @@ public abstract class GameRendererAnimationFovMixin {
 
         if (animations.isCameraZoomEnabled()) {
             AnimationUtils zoom = vesence$ensureZoom();
-            boolean screenOpen = MinecraftClient.getInstance().currentScreen != null;
+            boolean screenOpen = Minecraft.getInstance().screen != null;
             float target = screenOpen ? 0.95F : 1.0F;
             zoom.update(target);
             multiplier *= zoom.getValue();
@@ -70,7 +70,7 @@ public abstract class GameRendererAnimationFovMixin {
         }
 
         if (animations.isPerspectiveEnabled()) {
-            Perspective current = MinecraftClient.getInstance().options.getPerspective();
+            Perspective current = Minecraft.getInstance().options.getPerspective();
             if (vesence$lastPerspective == null) {
                 vesence$lastPerspective = current;
             } else if (current != vesence$lastPerspective) {
@@ -82,7 +82,7 @@ public abstract class GameRendererAnimationFovMixin {
             AnimationUtils persp = vesence$ensurePersp();
             if (persp.isAlive()) {
                 persp.update(1.0F);
-                multiplier *= MathHelper.clamp(persp.getValue(), 0.5F, 1.0F);
+                multiplier *= Mth.clamp(persp.getValue(), 0.5F, 1.0F);
                 changed = true;
             }
         }

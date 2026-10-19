@@ -1,41 +1,41 @@
 package vesence.module.impl.visuals.particular;
 
-import net.minecraft.block.BarrelBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CampfireBlock;
-import net.minecraft.block.ChestBlock;
-import net.minecraft.block.FlowerBlock;
-import net.minecraft.block.TallFlowerBlock;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.level.block.BarrelBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CampfireBlock;
+import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.FlowerBlock;
+import net.minecraft.world.level.block.TallFlowerBlock;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.fluid.Fluids;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ItemStackParticleEffect;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.state.property.Properties;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.LightType;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.biome.FoliageColors;
-import net.minecraft.client.color.world.BiomeColors;
-import net.minecraft.block.enums.ChestType;
+import net.minecraft.client.renderer.BiomeColors;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import vesence.Vesence;
 import vesence.module.api.Module;
 
@@ -60,7 +60,7 @@ public final class ParticularEffects {
     private static final Map<String, ChestSoulState> CHEST_SOUL_STATES = new HashMap<>();
     private static final Map<String, ChestSoulState> ENDER_CHEST_SOUL_STATES = new HashMap<>();
 
-    private static Identifier currentDimension;
+    private static ResourceLocation currentDimension;
     private static float fireflyFrequency = 1.0F;
     private static long lastWorldTime = Long.MIN_VALUE;
 
@@ -91,13 +91,13 @@ public final class ParticularEffects {
     }
 
     public static void tick() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (!isEnabled() || mc.world == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!isEnabled() || mc.level == null) {
             return;
         }
 
-        ClientWorld world = mc.world;
-        Identifier dimension = world.getRegistryKey().getValue();
+        ClientLevel world = mc.level;
+        ResourceLocation dimension = world.getRegistryKey().getValue();
         if (currentDimension == null || !currentDimension.equals(dimension)) {
             currentDimension = dimension;
             CASCADES.clear();
@@ -129,19 +129,19 @@ public final class ParticularEffects {
     }
 
     /**
-     * Воспроизводит ванильный цикл {@code ClientWorld.doRandomBlockDisplayTicks}: выбирает
+     * Воспроизводит ванильный цикл {@code ClientLevel.doRandomBlockDisplayTicks}: выбирает
      * случайные блоки вокруг игрока и вызывает соответствующие обработчики Particular
      * (листья, светлячки, пыль пещер, брызги водопадов, каскады). Так эффекты работают
      * без миксинов в ванильные классы блоков.
      */
-    private static void emitRandomDisplayTicks(MinecraftClient mc, ClientWorld world) {
+    private static void emitRandomDisplayTicks(Minecraft mc, ClientLevel world) {
         if (mc.player == null) {
             return;
         }
 
-        int px = MathHelper.floor(mc.player.getX());
-        int py = MathHelper.floor(mc.player.getY());
-        int pz = MathHelper.floor(mc.player.getZ());
+        int px = Mth.floor(mc.player.getX());
+        int py = Mth.floor(mc.player.getY());
+        int pz = Mth.floor(mc.player.getZ());
         BlockPos.Mutable mutable = new BlockPos.Mutable();
         for (int i = 0; i < 667; ++i) {
             randomDisplayTickAt(world, mutable, px, py, pz, 16);
@@ -149,7 +149,7 @@ public final class ParticularEffects {
         }
     }
 
-    private static void randomDisplayTickAt(ClientWorld world, BlockPos.Mutable mutable, int px, int py, int pz, int radius) {
+    private static void randomDisplayTickAt(ClientLevel world, BlockPos.Mutable mutable, int px, int py, int pz, int radius) {
         int x = px + world.random.nextInt(radius) - world.random.nextInt(radius);
         int y = py + world.random.nextInt(radius) - world.random.nextInt(radius);
         int z = pz + world.random.nextInt(radius) - world.random.nextInt(radius);
@@ -171,7 +171,7 @@ public final class ParticularEffects {
      * splash-звука/частиц: если сущность в этом тике пересекла поверхность воды сверху
      * вниз (была выше, стала в воде), спавним эмиттер всплеска.
      */
-    private static void emitEntitySplashes(ClientWorld world) {
+    private static void emitEntitySplashes(ClientLevel world) {
         Set<Integer> seen = new HashSet<>();
         for (Entity entity : world.getEntities()) {
             processEntitySplash(entity, seen);
@@ -179,7 +179,7 @@ public final class ParticularEffects {
 
         // Явно обрабатываем клиентского игрока: в некоторых версиях он не входит в
         // world.getEntities(), а всплеск при собственном падении в воду важнее всего.
-        processEntitySplash(MinecraftClient.getInstance().player, seen);
+        processEntitySplash(Minecraft.getInstance().player, seen);
 
         ENTITY_IN_WATER.keySet().retainAll(seen);
     }
@@ -246,7 +246,7 @@ public final class ParticularEffects {
         return Arrays.copyOf(CAVE_DUST_COLOR, CAVE_DUST_COLOR.length);
     }
 
-    public static void onLeavesAnimateTick(BlockState state, World world, BlockPos pos) {
+    public static void onLeavesAnimateTick(BlockState state, Level world, BlockPos pos) {
         if (!isEnabled() || world == null || !world.isClient()) {
             return;
         }
@@ -269,14 +269,14 @@ public final class ParticularEffects {
         double x = pos.getX() + 0.02D + world.random.nextDouble() * 0.96D;
         double y = pos.getY() - 0.05D;
         double z = pos.getZ() + 0.02D + world.random.nextDouble() * 0.96D;
-        Particle particle = MinecraftClient.getInstance().particleManager.addParticle(leafData.particle, x, y, z, 0.0D, 0.0D, 0.0D);
+        Particle particle = Minecraft.getInstance().particleManager.addParticle(leafData.particle, x, y, z, 0.0D, 0.0D, 0.0D);
         if (particle instanceof BillboardParticle billboard) {
             Color color = leafData.fixedColor != null ? leafData.fixedColor : new Color(BiomeColors.getFoliageColor(world, pos));
             billboard.setColor(color.getRed() / 255.0F, color.getGreen() / 255.0F, color.getBlue() / 255.0F);
         }
     }
 
-    public static void onBlockAnimateTick(BlockState state, World world, BlockPos pos) {
+    public static void onBlockAnimateTick(BlockState state, Level world, BlockPos pos) {
         if (!isEnabled() || world == null || !world.isClient()) {
             return;
         }
@@ -295,7 +295,7 @@ public final class ParticularEffects {
         }
     }
 
-    public static void onWaterAnimateTick(World world, BlockPos pos, FluidState state) {
+    public static void onWaterAnimateTick(Level world, BlockPos pos, FluidState state) {
         if (!isEnabled() || world == null || !world.isClient()) {
             return;
         }
@@ -319,7 +319,7 @@ public final class ParticularEffects {
 
                 world.addParticleClient(ParticularParticles.WATERFALL_SPRAY, x, y, z, 0.0D, 0.0D, 0.0D);
             } else {
-                Vec3d flow = state.getVelocity(world, pos).multiply(0.075D);
+                Vec3 flow = state.getVelocity(world, pos).multiply(0.075D);
                 double x = pos.getX() + world.random.nextDouble();
                 double y = pos.getY() + world.random.nextDouble() * state.getHeight();
                 double z = pos.getZ() + world.random.nextDouble();
@@ -328,7 +328,7 @@ public final class ParticularEffects {
         }
     }
 
-    public static void updateCascade(World world, BlockPos pos, FluidState state) {
+    public static void updateCascade(Level world, BlockPos pos, FluidState state) {
         if (!isEnabled() || world == null || !world.isClient()) {
             return;
         }
@@ -378,7 +378,7 @@ public final class ParticularEffects {
             return;
         }
 
-        float baseY = MathHelper.floor(entity.getY());
+        float baseY = Mth.floor(entity.getY());
         boolean foundSurface = false;
         FluidState previous = Fluids.EMPTY.getDefaultState();
         BlockPos basePos = entity.getBlockPos();
@@ -397,7 +397,7 @@ public final class ParticularEffects {
         }
 
         ArrayDeque<Double> speeds = ENTITY_SPLASH_SPEEDS.get(entity.getId());
-        double maxSpeed = Math.abs(entity.getVelocity().y);
+        double maxSpeed = Math.abs(entity.getDeltaMovement().y);
         if (speeds != null) {
             for (Double speed : speeds) {
                 if (speed != null && speed > maxSpeed) {
@@ -409,12 +409,12 @@ public final class ParticularEffects {
         entity.getEntityWorld().addParticleClient(ParticularParticles.WATER_SPLASH_EMITTER, entity.getX(), baseY + previous.getHeight(), entity.getZ(), entity.getWidth(), maxSpeed, 0.0D);
     }
 
-    public static void onCakeEat(World world, BlockPos pos, Entity entity) {
+    public static void onCakeEat(Level world, BlockPos pos, Entity entity) {
         if (!isEnabled() || world == null || !world.isClient() || entity == null) {
             return;
         }
 
-        world.playSoundClient(entity.getX(), entity.getY(), entity.getZ(), SoundEvents.ENTITY_GENERIC_EAT.value(), SoundCategory.PLAYERS, 1.0F, 1.0F, false);
+        world.playSoundClient(entity.getX(), entity.getY(), entity.getZ(), SoundEvents.ENTITY_GENERIC_EAT.value(), SoundSource.PLAYERS, 1.0F, 1.0F, false);
         for (int i = 0; i < 5; ++i) {
             double x = entity.getX() + (world.random.nextDouble() - 0.5D) * entity.getWidth();
             double y = entity.getEyeY() - 0.3D;
@@ -435,7 +435,7 @@ public final class ParticularEffects {
         return ParticleTypes.RAIN;
     }
 
-    public static void spawnWaterDripRipple(World world, double x, double y, double z, BlockPos pos, FluidState fluidState) {
+    public static void spawnWaterDripRipple(Level world, double x, double y, double z, BlockPos pos, FluidState fluidState) {
         if (!isEnabled() || world == null || !world.isClient() || !fluidState.isIn(FluidTags.WATER)) {
             return;
         }
@@ -446,7 +446,7 @@ public final class ParticularEffects {
         }
     }
 
-    public static void onChestActivate(BlockState state, World world, BlockPos pos) {
+    public static void onChestActivate(BlockState state, Level world, BlockPos pos) {
         if (!isEnabled() || world == null || !world.isClient() || !state.contains(Properties.WATERLOGGED)) {
             return;
         }
@@ -462,7 +462,7 @@ public final class ParticularEffects {
         }
     }
 
-    public static void onBarrelActivate(BlockState state, World world, BlockPos pos) {
+    public static void onBarrelActivate(BlockState state, Level world, BlockPos pos) {
         if (!isEnabled() || world == null || !world.isClient()) {
             return;
         }
@@ -480,7 +480,7 @@ public final class ParticularEffects {
         }
     }
 
-    public static void onEnderChestActivate(BlockState state, World world, BlockPos pos) {
+    public static void onEnderChestActivate(BlockState state, Level world, BlockPos pos) {
         if (!isEnabled() || world == null || !world.isClient() || !state.contains(Properties.WATERLOGGED)) {
             return;
         }
@@ -492,7 +492,7 @@ public final class ParticularEffects {
         spawnChestBubbles(ParticularParticles.ENDER_BUBBLE, world, pos);
     }
 
-    public static int getChestSoulSandUsers(World world, BlockPos pos, BlockState state) {
+    public static int getChestSoulSandUsers(Level world, BlockPos pos, BlockState state) {
         if (!isEnabled() || world == null || !world.isClient() || !state.contains(Properties.WATERLOGGED)) {
             return -1;
         }
@@ -508,7 +508,7 @@ public final class ParticularEffects {
             soulState.open = !soulState.open;
             soulState.ticksUntilNextSwitch = soulState.open ? randomBetween(world, (20 * 2), (20 * 3)) : randomBetween(world, (20 * 8), (20 * 24));
             if (soulState.open) {
-                world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.AMBIENT, 1.0F, 1.0F, true);
+                world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.AMBIENT, 1.0F, 1.0F, true);
             }
         }
 
@@ -527,7 +527,7 @@ public final class ParticularEffects {
         return wasOpen ? 0 : -1;
     }
 
-    public static int getEnderChestSoulSandUsers(World world, BlockPos pos, BlockState state) {
+    public static int getEnderChestSoulSandUsers(Level world, BlockPos pos, BlockState state) {
         if (!isEnabled() || world == null || !world.isClient() || !state.contains(Properties.WATERLOGGED)) {
             return -1;
         }
@@ -543,7 +543,7 @@ public final class ParticularEffects {
             soulState.open = !soulState.open;
             soulState.ticksUntilNextSwitch = soulState.open ? randomBetween(world, (20 * 2), (20 * 3)) : randomBetween(world, (20 * 8), (20 * 24));
             if (soulState.open) {
-                world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.AMBIENT, 1.0F, 1.0F, true);
+                world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.AMBIENT, 1.0F, 1.0F, true);
             }
         }
 
@@ -558,14 +558,14 @@ public final class ParticularEffects {
         return wasOpen ? 0 : -1;
     }
 
-    public static void spawnBubble(ParticleEffect particle, World world, BlockPos pos) {
+    public static void spawnBubble(ParticleEffect particle, Level world, BlockPos pos) {
         double x = pos.getX() + 0.25D + world.random.nextDouble() * 0.5D;
         double y = pos.getY() + 0.25D + world.random.nextDouble() * 0.5D;
         double z = pos.getZ() + 0.25D + world.random.nextDouble() * 0.5D;
         world.addParticleClient(particle, x, y, z, 0.0D, 0.0D, 0.0D);
     }
 
-    public static void spawnDoubleBubbles(ParticleEffect particle, World world, BlockPos pos, BlockState state) {
+    public static void spawnDoubleBubbles(ParticleEffect particle, Level world, BlockPos pos, BlockState state) {
         Bounds bounds = getChestBounds(state);
         for (int i = 0; i < 2; ++i) {
             double x = pos.getX() + 0.25D + world.random.nextDouble() * (0.5D + bounds.xLength) + bounds.xOffset;
@@ -575,13 +575,13 @@ public final class ParticularEffects {
         }
     }
 
-    public static void spawnChestBubbles(ParticleEffect particle, World world, BlockPos pos) {
+    public static void spawnChestBubbles(ParticleEffect particle, Level world, BlockPos pos) {
         for (int i = 0; i < 10; ++i) {
             spawnBubble(particle, world, pos);
         }
     }
 
-    public static void spawnDoubleChestBubbles(ParticleEffect particle, World world, BlockPos pos, BlockState state) {
+    public static void spawnDoubleChestBubbles(ParticleEffect particle, Level world, BlockPos pos, BlockState state) {
         Bounds bounds = getChestBounds(state);
         for (int i = 0; i < 20; ++i) {
             double x = pos.getX() + 0.25D + world.random.nextDouble() * (0.5D + bounds.xLength) + bounds.xOffset;
@@ -591,7 +591,7 @@ public final class ParticularEffects {
         }
     }
 
-    private static void emitCascades(MinecraftClient mc, World world) {
+    private static void emitCascades(Minecraft mc, Level world) {
         CASCADES.forEach((pos, strength) -> {
             float height = world.getFluidState(pos.up()).getHeight();
             double x = pos.getX();
@@ -614,7 +614,7 @@ public final class ParticularEffects {
         });
     }
 
-    private static void trackEntitySplashSpeeds(ClientWorld world) {
+    private static void trackEntitySplashSpeeds(ClientLevel world) {
         Set<Integer> seen = new HashSet<>();
         for (Entity entity : world.getEntities()) {
             if (entity == null) {
@@ -623,7 +623,7 @@ public final class ParticularEffects {
 
             seen.add(entity.getId());
             ArrayDeque<Double> deque = ENTITY_SPLASH_SPEEDS.computeIfAbsent(entity.getId(), key -> new ArrayDeque<>());
-            deque.offer(Math.abs(entity.getVelocity().y));
+            deque.offer(Math.abs(entity.getDeltaMovement().y));
             while (deque.size() > 4) {
                 deque.poll();
             }
@@ -637,7 +637,7 @@ public final class ParticularEffects {
         }
     }
 
-    private static boolean trySpawnFireflies(World world, BlockPos pos, Block block) {
+    private static boolean trySpawnFireflies(Level world, BlockPos pos, Block block) {
         double chance = world.random.nextDouble();
         if ((block == Blocks.SHORT_GRASS && chance < (1.0F / 6.0F)) ||
                 (block == Blocks.TALL_GRASS && chance < (1.0F / 12.0F)) ||
@@ -650,7 +650,7 @@ public final class ParticularEffects {
         return false;
     }
 
-    private static void spawnFirefly(World world, BlockPos pos) {
+    private static void spawnFirefly(Level world, BlockPos pos) {
         if (world.random.nextDouble() > fireflyFrequency) {
             return;
         }
@@ -708,7 +708,7 @@ public final class ParticularEffects {
         return new Bounds(xLength, zLength, xOffset, zOffset);
     }
 
-    private static boolean hasChestSoulSand(World world, BlockPos pos, BlockState state) {
+    private static boolean hasChestSoulSand(Level world, BlockPos pos, BlockState state) {
         BlockPos below = pos.down();
         if (world.getBlockState(below).getBlock() == Blocks.SOUL_SAND) {
             return true;
@@ -722,7 +722,7 @@ public final class ParticularEffects {
         return false;
     }
 
-    private static ChestSoulState getOrCreateSoulState(Map<String, ChestSoulState> map, World world, BlockPos pos) {
+    private static ChestSoulState getOrCreateSoulState(Map<String, ChestSoulState> map, Level world, BlockPos pos) {
         String key = soulKey(world, pos);
         ChestSoulState state = map.get(key);
         if (state == null) {
@@ -732,16 +732,16 @@ public final class ParticularEffects {
         return state;
     }
 
-    private static void forgetSoulState(Map<String, ChestSoulState> map, World world, BlockPos pos) {
+    private static void forgetSoulState(Map<String, ChestSoulState> map, Level world, BlockPos pos) {
         map.remove(soulKey(world, pos));
     }
 
-    private static String soulKey(World world, BlockPos pos) {
-        Identifier dimensionId = world.getRegistryKey().getValue();
+    private static String soulKey(Level world, BlockPos pos) {
+        ResourceLocation dimensionId = world.getRegistryKey().getValue();
         return dimensionId + ":" + pos.asLong();
     }
 
-    private static int randomBetween(World world, int min, int max) {
+    private static int randomBetween(Level world, int min, int max) {
         return min + world.random.nextInt(Math.max(1, max - min + 1));
     }
 

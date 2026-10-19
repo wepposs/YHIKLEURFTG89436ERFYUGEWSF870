@@ -2,8 +2,8 @@ package vesence.event.impl;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)

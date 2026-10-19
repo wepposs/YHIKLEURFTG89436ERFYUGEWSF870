@@ -2,8 +2,8 @@ package vesence.module.impl.visuals.pet;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.util.math.MatrixStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 
@@ -59,26 +59,26 @@ public class PetBox {
       this.children.add(child);
    }
 
-   public void render(MatrixStack matrices, VertexConsumer buffer) {
+   public void render(PoseStack matrices, VertexConsumer buffer) {
       if (!this.showModel) {
          return;
       }
       if (this.cubes.isEmpty() && this.children.isEmpty()) {
          return;
       }
-      matrices.push();
+      matrices.pushPose();
       this.translateRotate(matrices);
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      Matrix4f matrix = matrices.last().getPositionMatrix();
       for (Cube cube : this.cubes) {
          cube.render(matrix, buffer);
       }
       for (PetBox child : this.children) {
          child.render(matrices, buffer);
       }
-      matrices.pop();
+      matrices.popPose();
    }
 
-   private void translateRotate(MatrixStack matrices) {
+   private void translateRotate(PoseStack matrices) {
       matrices.translate(this.rotationPointX / 16.0F, this.rotationPointY / 16.0F, this.rotationPointZ / 16.0F);
       if (this.rotateAngleZ != 0.0F) {
          matrices.multiply(RotationAxis.POSITIVE_Z.rotation(this.rotateAngleZ));

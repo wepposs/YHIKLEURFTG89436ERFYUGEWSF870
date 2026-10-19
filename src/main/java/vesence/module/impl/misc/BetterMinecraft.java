@@ -2,19 +2,19 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.widget.LockButtonWidget;
 import net.minecraft.client.gui.widget.ScrollableWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.widget.TextWidget;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.client.DeltaTracker;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.util.Arm;
 import net.minecraft.world.GameMode;
 import org.joml.Matrix3x2fStack;
@@ -73,7 +73,7 @@ public class BetterMinecraft extends Module {
 
    // Buttons whose custom skin must be painted AFTER the GuiRenderer flushes the GuiRenderState.
    // Collected during widget rendering, consumed in renderPostGuiOverlays().
-   private static final List<ClickableWidget> PENDING_BUTTONS = new ArrayList<>();
+   private static final List<AbstractWidget> PENDING_BUTTONS = new ArrayList<>();
 
    // Geometry captured while the custom hotbar is recorded, so the stack counts can be painted on
    // top of the item textures after the GuiRenderer flush.
@@ -89,7 +89,7 @@ public class BetterMinecraft extends Module {
 
    // Persistent per-widget animation state (hover color blend, slider fill smoothing, text change
    // cross-fade). WeakHashMap so entries are collected when a screen and its widgets are discarded.
-   private static final Map<ClickableWidget, WidgetAnim> WIDGET_ANIMS = new WeakHashMap<>();
+   private static final Map<AbstractWidget, WidgetAnim> WIDGET_ANIMS = new WeakHashMap<>();
 
    private static final class WidgetAnim {
       final Animation2 hover = new Animation2();
@@ -101,7 +101,7 @@ public class BetterMinecraft extends Module {
       String prevText;
    }
 
-   private static WidgetAnim animFor(ClickableWidget widget) {
+   private static WidgetAnim animFor(AbstractWidget widget) {
       return WIDGET_ANIMS.computeIfAbsent(widget, w -> new WidgetAnim());
    }
 
@@ -167,8 +167,8 @@ public class BetterMinecraft extends Module {
    // before) forces GPU pipeline stalls and caused severe lag; this one is created once and reused.
    private static int sharedFbo;
 
-   private static int beginMainFramebuffer(MinecraftClient client) {
-      Framebuffer mainFb = client.getFramebuffer();
+   private static int beginMainFramebuffer(Minecraft client) {
+      RenderTarget mainFb = client.getMainRenderTarget();
       if (mainFb != null && mainFb.getColorAttachment() instanceof GlTexture glColor) {
          if (sharedFbo == 0) {
             sharedFbo = GL30.glGenFramebuffers();
@@ -205,29 +205,29 @@ public class BetterMinecraft extends Module {
       return instance != null && instance.enable && hotBar.get();
    }
 
-   private static boolean canRenderHotBar(MinecraftClient client) {
-      if (!customHotBarEnabled() || client == null || client.player == null || client.interactionManager == null || client.getWindow() == null) {
+   private static boolean canRenderHotBar(Minecraft client) {
+      if (!customHotBarEnabled() || client == null || client.player == null || client.gameMode == null || client.getWindow() == null) {
          return false;
       }
-      if (client.interactionManager.getCurrentGameMode() == GameMode.SPECTATOR) {
+      if (client.gameMode.getCurrentGameMode() == GameMode.SPECTATOR) {
          return false;
       }
       return client.player.getVehicle() == null;
    }
 
-   public static boolean shouldReplaceMainHud(MinecraftClient client) {
+   public static boolean shouldReplaceMainHud(Minecraft client) {
       return canRenderHotBar(client) && valuesDisplayType.is("Модерн");
    }
 
-   public static boolean shouldReplaceHotbarOnly(MinecraftClient client) {
+   public static boolean shouldReplaceHotbarOnly(Minecraft client) {
       return canRenderHotBar(client) && valuesDisplayType.is("Ванила");
    }
 
-   public static boolean shouldRenderCustomHeldItemName(MinecraftClient client) {
+   public static boolean shouldRenderCustomHeldItemName(Minecraft client) {
       return canRenderHotBar(client);
    }
 
-   public static boolean renderButton(DrawContext context, ClickableWidget widget) {
+   public static boolean renderButton(GuiGraphics context, AbstractWidget widget) {
       return tryReplaceButton(widget);
    }
 
@@ -235,7 +235,7 @@ public class BetterMinecraft extends Module {
     * Queues a pressable widget (button / cycling button) for the custom skin. Returns {@code false}
     * for icon-only widgets so the caller keeps the vanilla rendering (and the icon stays visible).
     */
-   public static boolean tryReplaceButton(ClickableWidget widget) {
+   public static boolean tryReplaceButton(AbstractWidget widget) {
       if (widget == null || isIconOnly(widget)) {
          return false;
       }
@@ -243,7 +243,7 @@ public class BetterMinecraft extends Module {
       return true;
    }
 
-   public static boolean tryReplaceSlider(ClickableWidget widget) {
+   public static boolean tryReplaceSlider(AbstractWidget widget) {
       if (widget == null) {
          return false;
       }
@@ -251,7 +251,7 @@ public class BetterMinecraft extends Module {
       return true;
    }
 
-   public static boolean tryReplaceHeader(ClickableWidget widget) {
+   public static boolean tryReplaceHeader(AbstractWidget widget) {
       if (widget == null) {
          return false;
       }
@@ -263,7 +263,7 @@ public class BetterMinecraft extends Module {
       return true;
    }
 
-   private static boolean isIconOnly(ClickableWidget widget) {
+   private static boolean isIconOnly(AbstractWidget widget) {
       if (widget instanceof LockButtonWidget) {
          return true;
       }
@@ -276,7 +276,7 @@ public class BetterMinecraft extends Module {
     * these overlays land ON TOP of the vanilla GUI content instead of underneath it.
     */
    public static void renderPostGuiOverlays() {
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       boolean hasCounts = hotbarCountsPending;
       boolean hasButtons = !PENDING_BUTTONS.isEmpty();
 
@@ -294,7 +294,7 @@ public class BetterMinecraft extends Module {
          return;
       }
 
-      GlState.Snapshot snapshot = GlState.push();
+      GlState.Snapshot snapshot = GlState.pushPose();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -324,21 +324,21 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   private static void drawHotBarCounts(Renderer2D renderer, PlayerEntity player) {
+   private static void drawHotBarCounts(Renderer2D renderer, Player player) {
       PlayerInventory inv = player.getInventory();
       for (int i = 0; i < 9; i++) {
-         drawStackCount(renderer, inv.getStack(i), countsSlotStartX + i * countsStep, countsSlotY, countsSlotSize, countsFontSize, countsTextColor);
+         drawStackCount(renderer, inv.getItem(i), countsSlotStartX + i * countsStep, countsSlotY, countsSlotSize, countsFontSize, countsTextColor);
       }
-      drawStackCount(renderer, player.getOffHandStack(), countsOffSlotX, countsOffSlotY, countsSlotSize, countsFontSize, countsTextColor);
+      drawStackCount(renderer, player.getOffhandItem(), countsOffSlotX, countsOffSlotY, countsSlotSize, countsFontSize, countsTextColor);
    }
 
-   private static void drawPendingButtons(Renderer2D renderer, MinecraftClient client) {
+   private static void drawPendingButtons(Renderer2D renderer, Minecraft client) {
       double scale = client.getWindow().getScaleFactor();
-      for (ClickableWidget widget : PENDING_BUTTONS) {
+      for (AbstractWidget widget : PENDING_BUTTONS) {
          if (widget == null) {
             continue;
          }
-         if (widget instanceof SliderWidget) {
+         if (widget instanceof AbstractSliderButton) {
             drawCustomSlider(renderer, widget, scale);
          } else if (widget instanceof TextWidget) {
             drawCustomHeader(renderer, widget, scale);
@@ -348,7 +348,7 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   private static void drawCustomButton(Renderer2D renderer, ClickableWidget widget, double scale) {
+   private static void drawCustomButton(Renderer2D renderer, AbstractWidget widget, double scale) {
       float bx = (float) (widget.getX() * scale);
       float by = (float) (widget.getY() * scale);
       float bw = (float) (widget.getWidth() * scale);
@@ -381,7 +381,7 @@ public class BetterMinecraft extends Module {
       drawAnimatedText(renderer, anim, bx + bw / 2f, by + bh / 2f + fontSize / 4f, fontSize, text.replace(".", ""), textColor, (float) scale);
    }
 
-   private static void drawCustomSlider(Renderer2D renderer, ClickableWidget widget, double scale) {
+   private static void drawCustomSlider(Renderer2D renderer, AbstractWidget widget, double scale) {
       float bx = (float) (widget.getX() * scale);
       float by = (float) (widget.getY() * scale);
       float bw = (float) (widget.getWidth() * scale);
@@ -429,7 +429,7 @@ public class BetterMinecraft extends Module {
       drawAnimatedText(renderer, anim, bx + bw / 2f, by + bh / 2f + fontSize / 4f, fontSize, text, textColor, (float) scale);
    }
 
-   private static void drawCustomHeader(Renderer2D renderer, ClickableWidget widget, double scale) {
+   private static void drawCustomHeader(Renderer2D renderer, AbstractWidget widget, double scale) {
       float bx = (float) (widget.getX() * scale);
       float by = (float) (widget.getY() * scale);
       float bw = (float) (widget.getWidth() * scale);
@@ -502,12 +502,12 @@ public class BetterMinecraft extends Module {
       renderer.text(FontRegistry.MONTSERRAT, valueX, cy + slide * (1f - tf), fontSize, anim.currentText, ColorUtil.replAlpha(color, ca));
    }
 
-   public static void renderCustomHotBar(DrawContext ctx, RenderTickCounter tickCounter) {
+   public static void renderCustomHotBar(GuiGraphics ctx, DeltaTracker tickCounter) {
       renderCustomHotBar(ctx, tickCounter, true);
    }
 
-   public static void renderCustomHotBar(DrawContext ctx, RenderTickCounter tickCounter, boolean renderValues) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   public static void renderCustomHotBar(GuiGraphics ctx, DeltaTracker tickCounter, boolean renderValues) {
+      Minecraft client = Minecraft.getInstance();
       if (client == null || client.player == null || client.getWindow() == null) {
          return;
       }
@@ -545,7 +545,7 @@ public class BetterMinecraft extends Module {
       float offSlotX = offPanelX + 2f * scale;
       float offSlotY = offPanelY + 2f * scale;
 
-      PlayerEntity player = client.player;
+      Player player = client.player;
       PlayerInventory inv = player.getInventory();
 
       int theme = Renderer2D.ColorUtil.getClientColor();
@@ -567,7 +567,7 @@ public class BetterMinecraft extends Module {
       float armorPct = Math.min(1f, player.getArmor() / 20f);
       float xpPct = Math.max(0f, Math.min(1f, player.experienceProgress));
 
-      GlState.Snapshot snapshot = GlState.push();
+      GlState.Snapshot snapshot = GlState.pushPose();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -635,9 +635,9 @@ public class BetterMinecraft extends Module {
             renderer.flush();
             for (int i = 0; i < 9; i++) {
                float sx = slotStartX + i * (20f * scale);
-               drawItemStack(ctx, inv.getStack(i), sx + (slot - itemSize) * 0.5f, slotY + (slot - itemSize) * 0.5f, itemSize);
+               drawItemStack(ctx, inv.getItem(i), sx + (slot - itemSize) * 0.5f, slotY + (slot - itemSize) * 0.5f, itemSize);
             }
-            drawItemStack(ctx, player.getOffHandStack(), offSlotX + (slot - itemSize) * 0.5f, offSlotY + (slot - itemSize) * 0.5f, itemSize);
+            drawItemStack(ctx, player.getOffhandItem(), offSlotX + (slot - itemSize) * 0.5f, offSlotY + (slot - itemSize) * 0.5f, itemSize);
 
             // Stack counts are NOT drawn here. In 1.21.11 the item textures above are only recorded
             // into the GuiRenderState and painted later by the GuiRenderer, which would cover any
@@ -661,8 +661,8 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   public static void renderHeldItemNameOverlay(DrawContext ctx) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   public static void renderHeldItemNameOverlay(GuiGraphics ctx) {
+      Minecraft client = Minecraft.getInstance();
       if (!shouldRenderCustomHeldItemName(client) || client.player == null || client.getWindow() == null) {
          return;
       }
@@ -677,7 +677,7 @@ public class BetterMinecraft extends Module {
       float centerX = fbW * 0.5f;
       float baselineY = fbH - 81f * scale;
 
-      GlState.Snapshot snapshot = GlState.push();
+      GlState.Snapshot snapshot = GlState.pushPose();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -736,11 +736,11 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   private static void drawItemStack(DrawContext ctx, ItemStack stack, float x, float y, float drawSize) {
+   private static void drawItemStack(GuiGraphics ctx, ItemStack stack, float x, float y, float drawSize) {
       if (stack == null || stack.isEmpty()) {
          return;
       }
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       float guiScale = (float) client.getWindow().getScaleFactor();
       float cx = (x + drawSize * 0.5f) / guiScale;
       float cy = (y + drawSize * 0.5f) / guiScale;
@@ -763,12 +763,12 @@ public class BetterMinecraft extends Module {
               String.valueOf(stack.getCount()), color, 0.1f);
    }
 
-   private static void renderHeldItemName(Renderer2D renderer, PlayerEntity player, float centerX, float baselineY, float fontSize) {
+   private static void renderHeldItemName(Renderer2D renderer, Player player, float centerX, float baselineY, float fontSize) {
       if (renderer == null || player == null) {
          return;
       }
 
-      ItemStack current = player.getMainHandStack();
+      ItemStack current = player.getMainHandItem();
       int currentSlot = player.getInventory().getSelectedSlot();
       long now = System.currentTimeMillis();
 

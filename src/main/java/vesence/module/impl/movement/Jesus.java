@@ -3,8 +3,8 @@ package vesence.module.impl.movement;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -87,7 +87,7 @@ public class Jesus extends Module {
             return;
         }
 
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             this.releaseJump();
             return;
         }
@@ -119,7 +119,7 @@ public class Jesus extends Module {
         if (!fluid) {
             this.releaseJump();
 
-            if (mc.player.isOnGround()) {
+            if (mc.player.onGround()) {
                 holdTicksLeft = 0;
                 airTicks = 0;
             } else {
@@ -167,7 +167,7 @@ public class Jesus extends Module {
         /*
          * Wait for submersion, then a new burst of swim-up.
          */
-        if (fluidHeight > 0.1D && mc.player.getVelocity().y <= 0.0D) {
+        if (fluidHeight > 0.1D && mc.player.getDeltaMovement().y <= 0.0D) {
             holdTicksLeft = dolphinHold.get().intValue();
             this.holdJump();
         }
@@ -186,10 +186,10 @@ public class Jesus extends Module {
         double surfaceY = fluidBlockY + 0.9D;
         double currentY = mc.player.getY();
 
-        if (currentY < surfaceY && mc.player.getVelocity().y < 0.05D) {
-            mc.player.setVelocity(mc.player.getVelocity().x, 0.05D, mc.player.getVelocity().z);
-        } else if (currentY >= surfaceY && mc.player.getVelocity().y > 0.0D && mc.player.getVelocity().y < 0.15D) {
-            mc.player.setVelocity(mc.player.getVelocity().x, 0.0D, mc.player.getVelocity().z);
+        if (currentY < surfaceY && mc.player.getDeltaMovement().y < 0.05D) {
+            mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, 0.05D, mc.player.getDeltaMovement().z);
+        } else if (currentY >= surfaceY && mc.player.getDeltaMovement().y > 0.0D && mc.player.getDeltaMovement().y < 0.15D) {
+            mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, 0.0D, mc.player.getDeltaMovement().z);
         }
     }
 
@@ -208,18 +208,18 @@ public class Jesus extends Module {
 
         if (currentY < surfaceY) {
             double up = Math.min(bounceUp.get(), (surfaceY - currentY) * 0.25D + 0.02D);
-            mc.player.setVelocity(mc.player.getVelocity().x, up, mc.player.getVelocity().z);
+            mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, up, mc.player.getDeltaMovement().z);
 
             double boost = bounceHBoost.get();
             if (boost > 0.0D) {
-                double yaw = Math.toRadians(mc.player.getYaw());
+                double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
                 mc.player.addVelocity(xt * boost, 0.0D, zt * boost);
             }
         } else {
-            if (mc.player.getVelocity().y < 0.0D && mc.player.getVelocity().y > -0.1D) {
-                mc.player.setVelocity(mc.player.getVelocity().x, 0.0D, mc.player.getVelocity().z);
+            if (mc.player.getDeltaMovement().y < 0.0D && mc.player.getDeltaMovement().y > -0.1D) {
+                mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, 0.0D, mc.player.getDeltaMovement().z);
             }
         }
     }
@@ -231,7 +231,7 @@ public class Jesus extends Module {
         if (debugTickCounter < 20) return;
         debugTickCounter = 0;
 
-        Vec3d v = mc.player.getVelocity();
+        Vec3 v = mc.player.getDeltaMovement();
         double fluidHeight = mc.player.isTouchingWater()
                 ? mc.player.getFluidHeight(FluidTags.WATER)
                 : mc.player.getFluidHeight(FluidTags.LAVA);
@@ -258,7 +258,7 @@ public class Jesus extends Module {
             setbackCount++;
 
             if (debug.get()) {
-                Vec3d v = mc.player.getVelocity();
+                Vec3 v = mc.player.getDeltaMovement();
                 this.debugMessage(String.format(
                         "SETBACK #%d y=%.3f vy=%.3f",
                         setbackCount, mc.player.getY(), v.y
@@ -301,7 +301,7 @@ public class Jesus extends Module {
         if (mc.player == null) return;
         try {
             mc.player.sendMessage(
-                    net.minecraft.text.Text.literal("[Jesus] " + message),
+                    net.minecraft.text.Component.literal("[Jesus] " + message),
                     false
             );
         } catch (Throwable ignored) {

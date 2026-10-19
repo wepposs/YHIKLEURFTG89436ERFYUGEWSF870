@@ -9,19 +9,19 @@ import com.mojang.blaze3d.platform.SourceFactor;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.module.api.setting.Setting;
 import vesence.module.api.setting.impl.ModeSetting;
@@ -43,15 +43,15 @@ import java.util.Random;
  * пунктирные рёбра, импульс от удара по перекрестью, кривая alpha из Relevant.
  * <p>
  * Форма «Лого» намеренно НЕ переносится. Рендер использует
- * {@link RenderPipeline}/{@link RenderLayer} (raw-GL из Relevant в 1.21.11 в
+ * {@link RenderPipeline}/{@link RenderType} (raw-GL из Relevant в 1.21.11 в
  * мире не работает), визуально результат идентичен.
  */
 @Environment(EnvType.CLIENT)
 public final class CubesEngine {
 
-   private static final MinecraftClient mc = MinecraftClient.getInstance();
+   private static final Minecraft mc = Minecraft.getInstance();
 
-   private static final Identifier GLOW_TEX = Identifier.of("vesence", "textures/particle/bloom.png");
+   private static final ResourceLocation GLOW_TEX = ResourceLocation.of("vesence", "textures/particle/bloom.png");
    private static final float PARTICLE_SIZE = 0.18F;
    private static final float PARTICLE_SPEED = 0.25F;
    private static final float GLOW_INTENSITY = 1.7F;
@@ -82,57 +82,57 @@ public final class CubesEngine {
 
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_cubes_glow"))
-         .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_glow"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(SRC_ALPHA_ADDITIVE)
          .build()
    );
-   private static final RenderLayer GLOW_LAYER = RenderLayer.of(
+   private static final RenderType GLOW_LAYER = RenderType.of(
       "customworld_cubes_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(4096).translucent().texture("Sampler0", GLOW_TEX).build()
    );
 
    private static final RenderPipeline FACE_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_cubes_face"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_face"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.TRANSLUCENT)
          .build()
    );
-   private static final RenderLayer FACE_LAYER = RenderLayer.of(
+   private static final RenderType FACE_LAYER = RenderType.of(
       "customworld_cubes_face", RenderSetup.builder(FACE_PIPELINE).expectedBufferSize(4096).translucent().build()
    );
 
    private static final RenderPipeline TRI_FACE_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_cubes_tri_face"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLES)
+         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_tri_face"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(BlendFunction.TRANSLUCENT)
          .build()
    );
-   private static final RenderLayer TRI_FACE_LAYER = RenderLayer.of(
+   private static final RenderType TRI_FACE_LAYER = RenderType.of(
       "customworld_cubes_tri_face", RenderSetup.builder(TRI_FACE_PIPELINE).expectedBufferSize(4096).translucent().build()
    );
 
    private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
       RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(Identifier.of("vesence", "customworld_cubes_line"))
-         .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_line"))
+         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
          .withCull(false)
          .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
          .withDepthWrite(false)
          .withBlend(SRC_ALPHA_ADDITIVE)
          .build()
    );
-   private static final RenderLayer LINE_LAYER = RenderLayer.of(
+   private static final RenderType LINE_LAYER = RenderType.of(
       "customworld_cubes_line", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(4096).translucent().build()
    );
 
@@ -157,7 +157,7 @@ public final class CubesEngine {
     * якоря, не от текущей позиции игрока — поэтому при ходьбе облако остаётся
     * на месте. Снэпается к игроку при дальнем уходе (телепорт/полёт).
     */
-   private Vec3d spawnAnchor = null;
+   private Vec3 spawnAnchor = null;
    private boolean lastAttackPressed;
    private int cr, cg, cb;
    private int c0r, c0g, c0b, c1r, c1g, c1b;
@@ -176,8 +176,8 @@ public final class CubesEngine {
       this.applyHitImpulseFromCrosshair(camera);
    }
 
-   public void onRender3D(MatrixStack ms, Camera camera) {
-      if (mc.player == null || mc.world == null) {
+   public void onRender3D(PoseStack ms, Camera camera) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
 
@@ -200,13 +200,13 @@ public final class CubesEngine {
          return;
       }
 
-      Vec3d origin = camera.getCameraPos();
-      float yaw = (float) Math.toRadians(camera.getYaw());
-      float pitch = (float) Math.toRadians(camera.getPitch());
+      Vec3 origin = camera.getCameraPos();
+      float yaw = (float) Math.toRadians(camera.getYRot());
+      float pitch = (float) Math.toRadians(camera.getXRot());
 
-      double dirX = -MathHelper.sin(yaw) * MathHelper.cos(pitch);
-      double dirY = -MathHelper.sin(pitch);
-      double dirZ = MathHelper.cos(yaw) * MathHelper.cos(pitch);
+      double dirX = -Mth.sin(yaw) * Mth.cos(pitch);
+      double dirY = -Mth.sin(pitch);
+      double dirZ = Mth.cos(yaw) * Mth.cos(pitch);
 
       CubeParticle best = null;
       double bestT = Double.MAX_VALUE;
@@ -248,7 +248,7 @@ public final class CubesEngine {
    private void updateCubes() {
       // Anchor — спавн и cull считаются от якоря, не от player.getPos(),
       // поэтому при ходьбе облако остаётся на месте.
-      Vec3d anchor = this.ensureAnchor();
+      Vec3 anchor = this.ensureAnchor();
 
       int target = (int) this.count.get().doubleValue();
       int currentSize = this.cubes.size();
@@ -314,8 +314,8 @@ public final class CubesEngine {
     * Возвращает текущий якорь, инициализирует при первом вызове и
     * перепривязывает при дальнем уходе игрока (телепорт/полёт).
     */
-   private Vec3d ensureAnchor() {
-      Vec3d playerPos = mc.player.getEntityPos();
+   private Vec3 ensureAnchor() {
+      Vec3 playerPos = mc.player.getEntityPos();
       if (this.spawnAnchor == null) {
          this.spawnAnchor = playerPos;
          return this.spawnAnchor;
@@ -334,8 +334,8 @@ public final class CubesEngine {
       return this.spawnAnchor;
    }
 
-   private void renderCubes(MatrixStack ms, Camera camera) {
-      Vec3d cam = camera.getCameraPos();
+   private void renderCubes(PoseStack ms, Camera camera) {
+      Vec3 cam = camera.getCameraPos();
       float s = PARTICLE_SIZE * this.size.get().floatValue();
       float glow = GLOW_INTENSITY;
 
@@ -354,11 +354,11 @@ public final class CubesEngine {
       // "запасу" в updateCubes.
       float renderMaxR = this.renderDistance.get().floatValue() * 2.5F;
       double renderCullSq = renderMaxR * renderMaxR;
-      float yaw = (float) Math.toRadians(camera.getYaw());
-      float pitch = (float) Math.toRadians(camera.getPitch());
-      double lookX = -MathHelper.sin(yaw) * MathHelper.cos(pitch);
-      double lookY = -MathHelper.sin(pitch);
-      double lookZ = MathHelper.cos(yaw) * MathHelper.cos(pitch);
+      float yaw = (float) Math.toRadians(camera.getYRot());
+      float pitch = (float) Math.toRadians(camera.getXRot());
+      double lookX = -Mth.sin(yaw) * Mth.cos(pitch);
+      double lookY = -Mth.sin(pitch);
+      double lookZ = Mth.cos(yaw) * Mth.cos(pitch);
 
       for (int i = 0, sz = this.cubes.size(); i < sz; i++) {
          CubeParticle p = this.cubes.get(i);
@@ -403,7 +403,7 @@ public final class CubesEngine {
       immediate.draw();
    }
 
-   private void drawGlowBatch(MatrixStack ms, Camera camera, Vec3d cam, float s, float glow, Immediate immediate) {
+   private void drawGlowBatch(PoseStack ms, Camera camera, Vec3 cam, float s, float glow, Immediate immediate) {
       VertexConsumer builder = immediate.getBuffer(GLOW_LAYER);
 
       for (int particleIndex = 0, sz = this.visibleCubes.size(); particleIndex < sz; particleIndex++) {
@@ -411,16 +411,16 @@ public final class CubesEngine {
          float alpha = p.renderAlpha;
          this.applyColor(p);
 
-         ms.push();
+         ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
+         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
+         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
 
-         Matrix4f matrix = ms.peek().getPositionMatrix();
+         Matrix4f matrix = ms.last().getPositionMatrix();
          for (int i = 0; i < 3; i++) {
             float scale = s * GLOW_SCALES[i] * glow;
             int a = (int) (alpha * GLOW_ALPHA_SCALES[i] * glow * 255.0F);
-            a = MathHelper.clamp(a, 0, 255);
+            a = Mth.clamp(a, 0, 255);
             float hs = scale * 0.5F;
 
             builder.vertex(matrix, -hs, hs, 0).color(this.cr, this.cg, this.cb, a).texture(0F, 1F);
@@ -428,13 +428,13 @@ public final class CubesEngine {
             builder.vertex(matrix, hs, -hs, 0).color(this.cr, this.cg, this.cb, a).texture(1F, 0F);
             builder.vertex(matrix, -hs, -hs, 0).color(this.cr, this.cg, this.cb, a).texture(0F, 0F);
          }
-         ms.pop();
+         ms.popPose();
       }
    }
 
    /** Кривая прозрачности 1:1 из Relevant: lifePct × fadeIn(20 тиков). */
    private float getAlpha(CubeParticle p) {
-      float lifePct = MathHelper.clamp((float) p.life / p.maxLife, 0.0F, 1.0F);
+      float lifePct = Mth.clamp((float) p.life / p.maxLife, 0.0F, 1.0F);
       float fadeIn = Math.min(1.0F, (p.maxLife - p.life) / 20.0F);
       return lifePct * fadeIn;
    }
@@ -448,7 +448,7 @@ public final class CubesEngine {
       }
    }
 
-   private void drawCubeFacesBatch(MatrixStack ms, Vec3d cam, float s, Immediate immediate) {
+   private void drawCubeFacesBatch(PoseStack ms, Vec3 cam, float s, Immediate immediate) {
       if (!this.hasFaceRenderableParticles()) {
          return;
       }
@@ -461,17 +461,17 @@ public final class CubesEngine {
          }
 
          this.applyColor(p);
-         ms.push();
+         ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
          ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
          ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
          ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendCubeFaces(buffer, ms.peek().getPositionMatrix(), s, alpha);
-         ms.pop();
+         this.appendCubeFaces(buffer, ms.last().getPositionMatrix(), s, alpha);
+         ms.popPose();
       }
    }
 
-   private void drawTriangleFacesBatch(MatrixStack ms, Vec3d cam, float s, Immediate immediate) {
+   private void drawTriangleFacesBatch(PoseStack ms, Vec3 cam, float s, Immediate immediate) {
       if (!this.hasFaceRenderableParticles()) {
          return;
       }
@@ -484,13 +484,13 @@ public final class CubesEngine {
          }
 
          this.applyColor(p);
-         ms.push();
+         ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
          ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
          ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
          ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendTriangleFaces(buffer, ms.peek().getPositionMatrix(), s, alpha);
-         ms.pop();
+         this.appendTriangleFaces(buffer, ms.last().getPositionMatrix(), s, alpha);
+         ms.popPose();
       }
    }
 
@@ -565,37 +565,37 @@ public final class CubesEngine {
       buffer.vertex(m, -halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
    }
 
-   private void drawCubeDashedEdgesBatch(MatrixStack ms, Vec3d cam, float s, Immediate immediate) {
+   private void drawCubeDashedEdgesBatch(PoseStack ms, Vec3 cam, float s, Immediate immediate) {
       VertexConsumer buf = immediate.getBuffer(LINE_LAYER);
       for (int i = 0, sz = this.visibleCubes.size(); i < sz; i++) {
          CubeParticle p = this.visibleCubes.get(i);
-         int alpha = MathHelper.clamp((int) (p.renderAlpha * 255.0F), 0, 255);
+         int alpha = Mth.clamp((int) (p.renderAlpha * 255.0F), 0, 255);
 
          this.applyColor(p);
-         ms.push();
+         ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
          ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
          ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
          ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendCubeDashedEdges(buf, ms.peek().getPositionMatrix(), s, alpha);
-         ms.pop();
+         this.appendCubeDashedEdges(buf, ms.last().getPositionMatrix(), s, alpha);
+         ms.popPose();
       }
    }
 
-   private void drawTriangleDashedEdgesBatch(MatrixStack ms, Vec3d cam, float s, Immediate immediate) {
+   private void drawTriangleDashedEdgesBatch(PoseStack ms, Vec3 cam, float s, Immediate immediate) {
       VertexConsumer buf = immediate.getBuffer(LINE_LAYER);
       for (int i = 0, sz = this.visibleCubes.size(); i < sz; i++) {
          CubeParticle p = this.visibleCubes.get(i);
-         int alpha = MathHelper.clamp((int) (p.renderAlpha * 255.0F), 0, 255);
+         int alpha = Mth.clamp((int) (p.renderAlpha * 255.0F), 0, 255);
 
          this.applyColor(p);
-         ms.push();
+         ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
          ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
          ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
          ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendTriangleDashedEdges(buf, ms.peek().getPositionMatrix(), s, alpha);
-         ms.pop();
+         this.appendTriangleDashedEdges(buf, ms.last().getPositionMatrix(), s, alpha);
+         ms.popPose();
       }
    }
 
@@ -648,7 +648,7 @@ public final class CubesEngine {
       float dx = x2 - x1;
       float dy = y2 - y1;
       float dz = z2 - z1;
-      float len = MathHelper.sqrt(dx * dx + dy * dy + dz * dz);
+      float len = Mth.sqrt(dx * dx + dy * dy + dz * dz);
 
       if (len < 0.001F) {
          return;
@@ -691,7 +691,7 @@ public final class CubesEngine {
       };
    }
 
-   private CubeParticle spawnCube(Vec3d anchor) {
+   private CubeParticle spawnCube(Vec3 anchor) {
       float r = this.renderDistance.get().floatValue();
       boolean falling = this.animation.is("Падение");
       int life = falling ? 260 + this.random.nextInt(220) : 420 + this.random.nextInt(420);
@@ -713,8 +713,8 @@ public final class CubesEngine {
       } else {
          float yaw = this.random.nextFloat() * 360F;
          float vel = (0.010F + this.random.nextFloat() * 0.020F) * speedMult;
-         vx = -MathHelper.sin((float) Math.toRadians(yaw)) * vel;
-         vz = MathHelper.cos((float) Math.toRadians(yaw)) * vel;
+         vx = -Mth.sin((float) Math.toRadians(yaw)) * vel;
+         vz = Mth.cos((float) Math.toRadians(yaw)) * vel;
          vy = (this.random.nextFloat() - 0.5F) * 0.010F * speedMult;
       }
 

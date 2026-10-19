@@ -3,13 +3,13 @@ package vesence.module.impl.combat.auraComponent;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
@@ -22,66 +22,66 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Rotation cameraAngle() {
-      return new Rotation(mc.player.getYaw(), mc.player.getPitch());
+      return new Rotation(mc.player.getYRot(), mc.player.getXRot());
    }
 
    public static boolean validDistance(Entity entity, float distance, boolean smart) {
       return getStrictDistance(entity) < distance;
    }
 
-   public static Vec3d getClosestVec(Entity entity) {
-      Vec3d eyePosVec = mc.player.getEyePos();
+   public static Vec3 getClosestVec(Entity entity) {
+      Vec3 eyePosVec = mc.player.getEyePosition();
       return getClosestVec(eyePosVec, entity).subtract(eyePosVec);
    }
 
-   public static Vec3d getClosestVec(Vec3d vec, Box AABB) {
-      return new Vec3d(
-            MathHelper.clamp(vec.x, AABB.minX, AABB.maxX),
-            MathHelper.clamp(vec.y, AABB.minY, AABB.maxY),
-            MathHelper.clamp(vec.z, AABB.minZ, AABB.maxZ));
+   public static Vec3 getClosestVec(Vec3 vec, AABB AABB) {
+      return new Vec3(
+            Mth.clamp(vec.x, AABB.minX, AABB.maxX),
+            Mth.clamp(vec.y, AABB.minY, AABB.maxY),
+            Mth.clamp(vec.z, AABB.minZ, AABB.maxZ));
    }
 
-   public static Vec3d getClosestVec(Vec3d vec, Entity entity) {
+   public static Vec3 getClosestVec(Vec3 vec, Entity entity) {
       return getClosestVec(vec, entity.getBoundingBox());
    }
 
-   public static Vec3d getVector4(LivingEntity target) {
+   public static Vec3 getVector4(LivingEntity target) {
       double wHalf = target.getWidth() / 2.0F;
-      double yExpand = MathHelper.clamp(target.getY() - 6.0, 0.0, target.getHeight());
-      double xExpand = MathHelper.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
-      double zExpand = MathHelper.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
-      return new Vec3d(
+      double yExpand = Mth.clamp(target.getY() - 6.0, 0.0, target.getHeight());
+      double xExpand = Mth.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
+      double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
+      return new Vec3(
             target.getX() - mc.player.getX() + xExpand,
             target.getY() - mc.player.getY() - 0.8F,
             target.getZ() - mc.player.getZ() + zExpand);
    }
 
-   public static Vec3d getVector3(LivingEntity target) {
-      double yExpand = MathHelper.clamp(target.getY() - target.getY(), 0.0, target.getHeight());
-      double xExpand = MathHelper.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
-      double zExpand = MathHelper.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
-      return new Vec3d(
+   public static Vec3 getVector3(LivingEntity target) {
+      double yExpand = Mth.clamp(target.getY() - target.getY(), 0.0, target.getHeight());
+      double xExpand = Mth.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
+      double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
+      return new Vec3(
             target.getX() - mc.player.getX() + xExpand,
             target.getY() - mc.player.getY() - 0.8F,
             target.getZ() - mc.player.getZ() + zExpand);
    }
 
-   public static Vec3d getVector2(LivingEntity target) {
-      double yExpand = MathHelper.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
-      double xExpand = MathHelper.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
-      double zExpand = MathHelper.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
-      return new Vec3d(
+   public static Vec3 getVector2(LivingEntity target) {
+      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
+      double xExpand = Mth.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
+      double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
+      return new Vec3(
             target.getX() - mc.player.getX() + xExpand,
             target.getY() - mc.player.getEyeY() + yExpand,
             target.getZ() - mc.player.getZ() + zExpand);
    }
 
-   public static Vec3d getVector(LivingEntity target) {
+   public static Vec3 getVector(LivingEntity target) {
       double wHalf = target.getWidth() / 2.0F;
-      double yExpand = MathHelper.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
-      double xExpand = MathHelper.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
-      double zExpand = MathHelper.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
-      return new Vec3d(
+      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
+      double xExpand = Mth.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
+      double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
+      return new Vec3(
             target.getX() - mc.player.getX() + xExpand,
             target.getY() - mc.player.getEyeY() + yExpand,
             target.getZ() - mc.player.getZ() + zExpand);
@@ -112,13 +112,13 @@ public final class AuraUtil implements IMinecraft {
       return Math.toRadians(rotationYaw);
    }
 
-   public static Vec3d getClosestTargetPoint(Vec3d vec, Entity entity, float point) {
+   public static Vec3 getClosestTargetPoint(Vec3 vec, Entity entity, float point) {
       if (entity == null) {
-         return Vec3d.ZERO;
+         return Vec3.ZERO;
       } else {
-         Box box = entity.getBoundingBox().expand(-point);
-         Vec3d center = box.getCenter();
-         Vec3d closestPoint = null;
+         AABB box = entity.getBoundingBox().expand(-point);
+         Vec3 center = box.getCenter();
+         Vec3 closestPoint = null;
          double closestDistance = Double.MAX_VALUE;
 
          for (double offsetX = 0.0; offsetX <= (box.maxX - box.minX) / 2.0; offsetX += 0.1) {
@@ -130,7 +130,7 @@ public final class AuraUtil implements IMinecraft {
                            double x = center.x + signX * offsetX;
                            double y = center.y + signY * offsetY;
                            double z = center.z + signZ * offsetZ;
-                           Vec3d potentialPoint = new Vec3d(x, y, z);
+                           Vec3 potentialPoint = new Vec3(x, y, z);
                            Vector2f rotation = calculate(potentialPoint);
                            if (RayTraceUtil.calculateRayTrace(6.0, rotation.x, rotation.y, mc.player,
                                  false) instanceof EntityHitResult entityTrace
@@ -151,43 +151,43 @@ public final class AuraUtil implements IMinecraft {
          if (closestPoint != null) {
             return closestPoint;
          } else {
-            double closestX = MathHelper.clamp(vec.x, box.minX, box.maxX);
-            double closestY = MathHelper.clamp(vec.y, box.minY, box.maxY);
-            double closestZ = MathHelper.clamp(vec.z, box.minZ, box.maxZ);
-            return new Vec3d(closestX, closestY, closestZ);
+            double closestX = Mth.clamp(vec.x, box.minX, box.maxX);
+            double closestY = Mth.clamp(vec.y, box.minY, box.maxY);
+            double closestZ = Mth.clamp(vec.z, box.minZ, box.maxZ);
+            return new Vec3(closestX, closestY, closestZ);
          }
       }
    }
 
-   public static Vector2f calculate(Vec3d toVec) {
-      return calculate(new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).add(0.0, mc.player.getEyeY(), 0.0), toVec);
+   public static Vector2f calculate(Vec3 toVec) {
+      return calculate(new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ()).add(0.0, mc.player.getEyeY(), 0.0), toVec);
    }
 
-   public static Vector2f calculate(Vec3d fromVec, Vec3d toVec) {
+   public static Vector2f calculate(Vec3 fromVec, Vec3 toVec) {
       double TO_DEGREES = 180.0 / Math.PI;
-      Vec3d diff = toVec.subtract(fromVec);
+      Vec3 diff = toVec.subtract(fromVec);
       double distance = Math.hypot(diff.x, diff.z);
-      float yaw = (float) (MathHelper.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0F;
-      float pitch = (float) (-(MathHelper.atan2(diff.y, distance) * (180.0 / Math.PI)));
+      float yaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0F;
+      float pitch = (float) (-(Mth.atan2(diff.y, distance) * (180.0 / Math.PI)));
       return new Vector2f(yaw, pitch);
    }
 
-   public static Vec2f getRotations(Vec3d vec3d) {
+   public static Vector2f getRotations(Vec3 vec3d) {
       return getRotations(vec3d.x, vec3d.y, vec3d.z);
    }
 
-   public static Vec2f getRotations(double x, double y, double z) {
+   public static Vector2f getRotations(double x, double y, double z) {
       double deltaX = x - mc.player.getX();
       double deltaY = y - mc.player.getEyeY();
       double deltaZ = z - mc.player.getZ();
-      double distance = MathHelper.sqrt((float) (deltaX * deltaX + deltaZ * deltaZ));
+      double distance = Mth.sqrt((float) (deltaX * deltaX + deltaZ * deltaZ));
 
-      float yaw = (float) (MathHelper.atan2(deltaZ, deltaX) * (180D / Math.PI) - 90.0F);
-      float pitch = (float) (-MathHelper.atan2(deltaY, distance) * (180D / Math.PI));
-      return new Vec2f(yaw, pitch);
+      float yaw = (float) (Mth.atan2(deltaZ, deltaX) * (180D / Math.PI) - 90.0F);
+      float pitch = (float) (-Mth.atan2(deltaY, distance) * (180D / Math.PI));
+      return new Vector2f(yaw, pitch);
    }
 
-   public static Vec3d getClosestTargetPoint(Entity entity) {
+   public static Vec3 getClosestTargetPoint(Entity entity) {
       float tickDelta = mc.getRenderTickCounter().getTickProgress(false);
       return getClosestTargetPoint(mc.player.getCameraPosVec(tickDelta), entity,
             Math.min(entity.getWidth(), entity.getHeight()) / 4.0F);
@@ -195,12 +195,12 @@ public final class AuraUtil implements IMinecraft {
 
    public static Vector4f calculateRotationFromCamera(LivingEntity target) {
       float tickDelta = mc.getRenderTickCounter().getTickProgress(false);
-      Vec3d eyePos = mc.player.getCameraPosVec(tickDelta);
-      Vec3d vec = getClosestTargetPoint(target).subtract(eyePos);
-      float rawYaw = MathHelper.wrapDegrees((float) (Math.toDegrees(Math.atan2(vec.z, vec.x)) - 90.0));
+      Vec3 eyePos = mc.player.getCameraPosVec(tickDelta);
+      Vec3 vec = getClosestTargetPoint(target).subtract(eyePos);
+      float rawYaw = Mth.wrapDegrees((float) (Math.toDegrees(Math.atan2(vec.z, vec.x)) - 90.0));
       float rawPitch = (float) (-Math.toDegrees(Math.atan2(vec.y, Math.sqrt(vec.x * vec.x + vec.z * vec.z))));
-      float yawDelta = MathHelper.wrapDegrees(rawYaw - mc.player.getYaw());
-      float pitchDelta = rawPitch - mc.player.getPitch();
+      float yawDelta = Mth.wrapDegrees(rawYaw - mc.player.getYRot());
+      float pitchDelta = rawPitch - mc.player.getXRot();
       return new Vector4f(rawYaw, rawPitch, yawDelta, pitchDelta);
    }
 

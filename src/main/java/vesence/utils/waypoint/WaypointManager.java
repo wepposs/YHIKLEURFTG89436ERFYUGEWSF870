@@ -7,9 +7,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
+import net.minecraft.world.phys.Vec3;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreenPre;
@@ -21,7 +21,7 @@ import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.AnimatedText;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
-import vesence.utils.render.text.TextRenderer;
+import vesence.utils.render.text.Font;
 
 import java.io.File;
 import java.io.FileReader;
@@ -44,7 +44,7 @@ public final class WaypointManager {
    private static final double BASE_WALK_SPEED_PER_SEC = 4.317;
    private static final double DEFAULT_SPEED_ATTR = 0.1;
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
    private final CopyOnWriteArrayList<Waypoint> waypoints = new CopyOnWriteArrayList<>();
    private boolean loaded = false;
 
@@ -169,7 +169,7 @@ public final class WaypointManager {
 
    @EventInit
    private void onRender(EventScreenPre event) {
-      if (mc.world == null || mc.player == null) return;
+      if (mc.level == null || mc.player == null) return;
       if (waypoints.isEmpty()) return;
 
       Renderer2D renderer = event.renderer();
@@ -177,10 +177,10 @@ public final class WaypointManager {
       float scale = (float) Mathf.getScaleFactor();
 
       Camera camera = mc.gameRenderer.getCamera();
-      Vec3d camPos = camera.getCameraPos();
+      Vec3 camPos = camera.getCameraPos();
 
-      double yawRad = Math.toRadians(camera.getYaw());
-      double pitchRad = Math.toRadians(camera.getPitch());
+      double yawRad = Math.toRadians(camera.getYRot());
+      double pitchRad = Math.toRadians(camera.getXRot());
       double cosPitch = Math.cos(pitchRad);
       double fx = -Math.sin(yawRad) * cosPitch;
       double fy = -Math.sin(pitchRad);
@@ -196,10 +196,10 @@ public final class WaypointManager {
       }
       if (speedPerSec < 0.5) speedPerSec = 0.5;
 
-      Vec3d playerPos = mc.player.getEntityPos();
+      Vec3 playerPos = mc.player.getEntityPos();
 
       for (Waypoint w : waypoints) {
-         Vec3d worldPos = new Vec3d(w.x + 0.5, w.y + 0.5, w.z + 0.5);
+         Vec3 worldPos = new Vec3(w.x + 0.5, w.y + 0.5, w.z + 0.5);
 
          double dx = worldPos.x - camPos.x;
          double dy = worldPos.y - camPos.y;
@@ -207,7 +207,7 @@ public final class WaypointManager {
          double dot = dx * fx + dy * fy + dz * fz;
          if (dot <= 0.05) continue;
 
-         Vec3d screen = Mathf.worldSpaceToScreenSpace(worldPos);
+         Vec3 screen = Mathf.worldSpaceToScreenSpace(worldPos);
          if (!Float.isFinite((float) screen.x) || !Float.isFinite((float) screen.y)) continue;
 
          double pdx = worldPos.x - playerPos.x;
@@ -225,8 +225,8 @@ public final class WaypointManager {
          float sx = (float) screen.x * scale;
          float sy = (float) screen.y * scale;
 
-         TextRenderer.TextMetrics nameM = renderer.measureText(font, name, FONT_SIZE);
-         TextRenderer.TextMetrics infoM = renderer.measureText(font, info, INFO_FONT_SIZE);
+         Font.TextMetrics nameM = renderer.measureText(font, name, FONT_SIZE);
+         Font.TextMetrics infoM = renderer.measureText(font, info, INFO_FONT_SIZE);
 
          float padH = 10;
          float padV = 8;

@@ -2,14 +2,14 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.option.Perspective;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.entity.player.Player;
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
 import vesence.mixin.WorldRendererAccessor;
@@ -77,7 +77,7 @@ public class ShaderESP extends Module {
     }
 
     public boolean shouldOutline(Entity entity) {
-        if (!enable || mc.world == null || mc.player == null || entity == null || !isAnyEffectEnabled()) {
+        if (!enable || mc.level == null || mc.player == null || entity == null || !isAnyEffectEnabled()) {
             return false;
         }
         if (!entity.isAlive() || entity.isRemoved()) {
@@ -91,7 +91,7 @@ public class ShaderESP extends Module {
 
     @EventInit
     public void onRender3D(EventRender3D event) {
-        if (!enable || mc.world == null || mc.player == null || !isAnyEffectEnabled()) {
+        if (!enable || mc.level == null || mc.player == null || !isAnyEffectEnabled()) {
             renderingShaderPass = false;
             return;
         }
@@ -148,10 +148,10 @@ public class ShaderESP extends Module {
     }
 
     private int getEntityOutlineTextureId() {
-        if (!(mc.worldRenderer instanceof WorldRendererAccessor accessor)) {
+        if (!(mc.levelRenderer instanceof WorldRendererAccessor accessor)) {
             return 0;
         }
-        Framebuffer outlineFramebuffer = accessor.vesence$getEntityOutlineFramebufferRaw();
+        RenderTarget outlineFramebuffer = accessor.vesence$getEntityOutlineFramebufferRaw();
         if (outlineFramebuffer == null) {
             return 0;
         }
@@ -159,10 +159,10 @@ public class ShaderESP extends Module {
     }
 
     private boolean hasRenderableTarget() {
-        if (mc.world == null) {
+        if (mc.level == null) {
             return false;
         }
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.level.getEntities()) {
             if (shouldOutline(entity)) {
                 return true;
             }
@@ -199,7 +199,7 @@ public class ShaderESP extends Module {
     }
 
     private boolean isValidEntity(Entity entity) {
-        if (entity instanceof AbstractClientPlayerEntity player) {
+        if (entity instanceof AbstractClientPlayer player) {
             if (player == mc.player) {
                 return selectEntities.get("Себя и друзей")
                         && mc.options.getPerspective() != Perspective.FIRST_PERSON;
@@ -209,7 +209,7 @@ public class ShaderESP extends Module {
             }
             return selectEntities.get("Игроков");
         }
-        if (entity instanceof PlayerEntity) {
+        if (entity instanceof Player) {
             return selectEntities.get("Игроков");
         }
         if (entity instanceof MobEntity) {

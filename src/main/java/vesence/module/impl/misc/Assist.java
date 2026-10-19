@@ -11,25 +11,25 @@ import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.component.type.PotionContentsComponent;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket.Mode;
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.network.packet.c2s.play.ServerboundPlayerCommandPacket.Mode;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.packet.s2c.play.EntityPositionSyncS2CPacket;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
+import net.minecraft.core.Holder;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.util.PlayerInput;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -235,7 +235,7 @@ public class Assist extends Module {
     @EventInit
     public void onUpdate(EventUpdate e) {
         if (!this.enable) return;
-        if (mc.player == null || mc.world == null || mc.interactionManager == null || mc.getNetworkHandler() == null) {
+        if (mc.player == null || mc.level == null || mc.gameMode == null || mc.getConnection() == null) {
             this.testQueue.clear();
             return;
         }
@@ -253,7 +253,7 @@ public class Assist extends Module {
 
         handleAutoChorus();
 
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         if (mode.is("FunTime")) {
             handleFunTime();
@@ -267,12 +267,12 @@ public class Assist extends Module {
         if (!this.enable) return;
 
         if (mode.is("SpookyTime")) {
-            // SEND: GrimBypass подменяет поля исходящего PlayerMoveC2SPacket пока
+            // SEND: GrimBypass подменяет поля исходящего ServerboundMovePlayerPacket пока
             // активен bypass-цикл SpookyTime (только если включён «Обход Grim»).
             if (!this.grimBypass.get() || !GrimBypass.ACTIVE) return;
             if (!e.isSend()) return;
-            if (!(e.getPacket() instanceof PlayerMoveC2SPacket move)) return;
-            if (mc.player == null || mc.world == null) return;
+            if (!(e.getPacket() instanceof ServerboundMovePlayerPacket move)) return;
+            if (mc.player == null || mc.level == null) return;
             try {
                 GrimBypass.handleMovement(move);
             } catch (Throwable ignored) {}
@@ -321,7 +321,7 @@ public class Assist extends Module {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void handleAutoChorus() {
-        if (!autoChorus.get() || mc.player == null || mc.world == null || mc.currentScreen != null) {
+        if (!autoChorus.get() || mc.player == null || mc.level == null || mc.screen != null) {
             stopChorus();
             return;
         }
@@ -411,7 +411,7 @@ public class Assist extends Module {
     }
 
     private void handleFunTime() {
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         switch (state) {
             case 1: {
@@ -424,7 +424,7 @@ public class Assist extends Module {
                 return;
             }
             case 2: {
-                InventoryActionUtil.useHand(Hand.MAIN_HAND);
+                InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
                 state = 3;
                 return;
             }
@@ -441,7 +441,7 @@ public class Assist extends Module {
                 return;
             }
             case 5: {
-                InventoryActionUtil.useHand(Hand.MAIN_HAND);
+                InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
                 state = 6;
                 return;
             }
@@ -454,19 +454,19 @@ public class Assist extends Module {
 
         if (ftAutoAura.get()) {
             boolean hasNegative = false;
-            StatusEffectInstance poison = mc.player.getStatusEffect(StatusEffects.POISON);
+            MobEffectInstance poison = mc.player.getStatusEffect(MobEffects.POISON);
             if (poison != null && poison.getAmplifier() >= 0 && poison.getDuration() >= 50 * 20) {
                 hasNegative = true;
             }
-            StatusEffectInstance slowness = mc.player.getStatusEffect(StatusEffects.SLOWNESS);
+            MobEffectInstance slowness = mc.player.getStatusEffect(MobEffects.SLOWNESS);
             if (slowness != null && slowness.getAmplifier() >= 2 && slowness.getDuration() >= 90 * 20) {
                 hasNegative = true;
             }
-            StatusEffectInstance weakness = mc.player.getStatusEffect(StatusEffects.WEAKNESS);
+            MobEffectInstance weakness = mc.player.getStatusEffect(MobEffects.WEAKNESS);
             if (weakness != null && weakness.getAmplifier() >= 1 && weakness.getDuration() >= 90 * 20) {
                 hasNegative = true;
             }
-            StatusEffectInstance wither = mc.player.getStatusEffect(StatusEffects.WITHER);
+            MobEffectInstance wither = mc.player.getStatusEffect(MobEffects.WITHER);
             if (wither != null && wither.getAmplifier() >= 3 && wither.getDuration() >= 30 * 20) {
                 hasNegative = true;
             }
@@ -500,14 +500,14 @@ public class Assist extends Module {
 
     private void useItem(String nameSubstring, Item item) {
         if (state != 0) return;
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         int currentSlot = mc.player.getInventory().getSelectedSlot();
         int hotbarSlot = findItemSlot(nameSubstring, item, true);
 
         if (hotbarSlot != -1) {
             if (hotbarSlot == currentSlot) {
-                InventoryActionUtil.useHand(Hand.MAIN_HAND);
+                InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
             } else {
                 MoveComponent.stop = true;
                 savedCurrentSlot = currentSlot;
@@ -536,7 +536,7 @@ public class Assist extends Module {
     }
 
     private void handleHolyWorld() {
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         checkHolyWorldBinds();
 
@@ -549,7 +549,7 @@ public class Assist extends Module {
         switch (hwState) {
             case USE: {
                 if (now - hwActionStartTime >= 30 + hwRandom.nextInt(20)) {
-                    InventoryActionUtil.useHand(Hand.MAIN_HAND);
+                    InventoryActionUtil.useHand(InteractionHand.MAIN_HAND);
                     hwState = HWState.SWAP_BACK;
                     hwActionStartTime = now;
                 }
@@ -566,7 +566,7 @@ public class Assist extends Module {
 
     private void checkHolyWorldBinds() {
         if (hwState != HWState.IDLE) return;
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         Item selectedItem = null;
         if (hwExplosiveTrapBind.key != -1 && hwExplosiveTrapBind.isPressed()) {
@@ -661,7 +661,7 @@ public class Assist extends Module {
         int start = inHotbar ? 0 : 9;
         int end = inHotbar ? 9 : 36;
         for (int i = start; i < end; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
 
             if (nameSubstring != null) {
@@ -713,7 +713,7 @@ public class Assist extends Module {
 
     /** Rising-edge опрос всех спуки-биндов (в vesence нет EventBinding). */
     private void checkBinds() {
-        if (mc.currentScreen != null) return;
+        if (mc.screen != null) return;
 
         for (int i = 0; i < this.actionBinds.length; i++) {
             BindSettings b = this.actionBinds[i];
@@ -745,7 +745,7 @@ public class Assist extends Module {
 
     private void msg(String s) {
         if (mc.player != null) {
-            mc.player.sendMessage(Text.of(s), false);
+            mc.player.sendMessage(Component.of(s), false);
         }
     }
 
@@ -762,13 +762,13 @@ public class Assist extends Module {
     }
 
     private void testTick() {
-        if (mc.player == null || mc.world == null || mc.interactionManager == null) {
+        if (mc.player == null || mc.level == null || mc.gameMode == null) {
             this.testWaitStillAction = null;
             this.testBypassTicks = 0;
             this.testBypassAction = null;
             return;
         }
-        if (mc.currentScreen != null) {
+        if (mc.screen != null) {
             this.testWaitStillAction = null;
             return;
         }
@@ -790,7 +790,7 @@ public class Assist extends Module {
                 // tick=0 (cleanup): восстанавливаем sprint-input, снимаем флаги.
                 if (this.testBypassWasSprinting) {
                     try {
-                        mc.player.networkHandler.sendPacket(new PlayerInputC2SPacket(mc.player.input.playerInput));
+                        mc.player.connection.sendPacket(new PlayerInputC2SPacket(mc.player.input.playerInput));
                     } catch (Throwable ignored) {}
                     this.testBypassWasSprinting = false;
                 }
@@ -809,7 +809,7 @@ public class Assist extends Module {
         if (this.testWaitStillAction != null) {
             this.setTestActive(true);
             SUPPRESS_VANILLA_USE = true;
-            boolean still = mc.player.getVelocity().horizontalLengthSquared() < TEST_PLAST_STILL_EPSILON;
+            boolean still = mc.player.getDeltaMovement().horizontalLengthSquared() < TEST_PLAST_STILL_EPSILON;
             boolean timedOut = System.currentTimeMillis() >= this.testWaitStillDeadline;
             if (still || timedOut) {
                 Action a = this.testWaitStillAction;
@@ -842,7 +842,7 @@ public class Assist extends Module {
 
         // Пласт требует полной остановки.
         if (this.testNeedsStill(next)
-                && mc.player.getVelocity().horizontalLengthSquared() >= TEST_PLAST_STILL_EPSILON) {
+                && mc.player.getDeltaMovement().horizontalLengthSquared() >= TEST_PLAST_STILL_EPSILON) {
             this.testWaitStillAction = next;
             this.testWaitStillDeadline = System.currentTimeMillis() + TEST_WAIT_STILL_MAX_MS;
             return;
@@ -859,10 +859,10 @@ public class Assist extends Module {
         this.testBypassWasSprinting = false;
         if (mc.player.isSprinting()) {
             try {
-                mc.player.networkHandler.sendPacket(
+                mc.player.connection.sendPacket(
                         new PlayerInputC2SPacket(new PlayerInput(false, false, false, false, false, false, false)));
                 mc.player.setSprinting(false);
-                mc.player.networkHandler.sendPacket(new ClientCommandC2SPacket(mc.player, Mode.STOP_SPRINTING));
+                mc.player.connection.sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.STOP_SPRINTING));
                 mc.options.sprintKey.setPressed(false);
                 this.testBypassWasSprinting = true;
             } catch (Throwable ignored) {}
@@ -888,8 +888,8 @@ public class Assist extends Module {
     }
 
     /** Единое использование руки. interactItem сам делает swingHand при успехе. */
-    private void testUseHand(Hand hand, boolean raw) {
-        mc.interactionManager.interactItem(mc.player, hand);
+    private void testUseHand(InteractionHand hand, boolean raw) {
+        mc.gameMode.interactItem(mc.player, hand);
     }
 
     /**
@@ -906,16 +906,16 @@ public class Assist extends Module {
      * @return {@code true} если фейерверк найден и использован.
      */
     public boolean useFirework(boolean grimBypass) {
-        if (mc.player == null || mc.world == null || mc.interactionManager == null
-                || mc.getNetworkHandler() == null) {
+        if (mc.player == null || mc.level == null || mc.gameMode == null
+                || mc.getConnection() == null) {
             return false;
         }
         if (grimBypass && mc.player.isSprinting()) {
             try {
-                mc.player.networkHandler.sendPacket(
+                mc.player.connection.sendPacket(
                         new PlayerInputC2SPacket(new PlayerInput(false, false, false, false, false, false, false)));
                 mc.player.setSprinting(false);
-                mc.player.networkHandler.sendPacket(new ClientCommandC2SPacket(mc.player, Mode.STOP_SPRINTING));
+                mc.player.connection.sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.STOP_SPRINTING));
                 mc.options.sprintKey.setPressed(false);
             } catch (Throwable ignored) {}
         }
@@ -938,18 +938,18 @@ public class Assist extends Module {
         boolean isUsingItem = mc.player.isUsingItem();
 
         // 1) уже в main hand
-        if (this.matchesAction(mc.player.getMainHandStack(), act)) {
-            if (this.testCheckCooldown(mc.player.getMainHandStack(), act, announce)) return false;
+        if (this.matchesAction(mc.player.getMainHandItem(), act)) {
+            if (this.testCheckCooldown(mc.player.getMainHandItem(), act, announce)) return false;
             if (!isUsingItem) {
-                this.testUseHand(Hand.MAIN_HAND, this.testIsProjectile(act));
+                this.testUseHand(InteractionHand.MAIN_HAND, this.testIsProjectile(act));
             }
             if (announce) this.msg(act.successText);
             return true;
         }
         // 2) уже в off hand
-        if (this.matchesAction(mc.player.getOffHandStack(), act)) {
-            if (this.testCheckCooldown(mc.player.getOffHandStack(), act, announce)) return false;
-            this.testUseHand(Hand.OFF_HAND, this.testIsProjectile(act));
+        if (this.matchesAction(mc.player.getOffhandItem(), act)) {
+            if (this.testCheckCooldown(mc.player.getOffhandItem(), act, announce)) return false;
+            this.testUseHand(InteractionHand.OFF_HAND, this.testIsProjectile(act));
             if (announce) this.msg(act.successText);
             return true;
         }
@@ -961,7 +961,7 @@ public class Assist extends Module {
         if (hotbarInv == -1 && invSlot == -1) {
             int anySlot = this.findMatchingSlot(act, 0, 35);
             if (anySlot != -1) {
-                this.testCheckCooldown(mc.player.getInventory().getStack(anySlot), act, announce);
+                this.testCheckCooldown(mc.player.getInventory().getItem(anySlot), act, announce);
             } else if (announce) {
                 this.msg(act.failText);
             }
@@ -973,10 +973,10 @@ public class Assist extends Module {
             final int fScreenSlot = (hotbarInv != -1) ? (36 + hotbarInv) : invSlot;
             final boolean projectile = this.testIsProjectile(act);
             this.runInv(() -> {
-                mc.interactionManager.clickSlot(0, fScreenSlot, 40, SlotActionType.SWAP, mc.player);
-                this.testUseHand(Hand.OFF_HAND, projectile);
-                mc.interactionManager.clickSlot(0, fScreenSlot, 40, SlotActionType.SWAP, mc.player);
-                mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+                mc.gameMode.clickSlot(0, fScreenSlot, 40, ClickType.SWAP, mc.player);
+                this.testUseHand(InteractionHand.OFF_HAND, projectile);
+                mc.gameMode.clickSlot(0, fScreenSlot, 40, ClickType.SWAP, mc.player);
+                mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
             });
             if (announce) this.msg(act.successText);
             return true;
@@ -987,10 +987,10 @@ public class Assist extends Module {
             final int fHotScreen = 36 + hotbarInv;
             final boolean projectile = this.testIsProjectile(act);
             this.runInv(() -> {
-                mc.interactionManager.clickSlot(0, fHotScreen, 40, SlotActionType.SWAP, mc.player);
-                this.testUseHand(Hand.OFF_HAND, projectile);
-                mc.interactionManager.clickSlot(0, fHotScreen, 40, SlotActionType.SWAP, mc.player);
-                mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+                mc.gameMode.clickSlot(0, fHotScreen, 40, ClickType.SWAP, mc.player);
+                this.testUseHand(InteractionHand.OFF_HAND, projectile);
+                mc.gameMode.clickSlot(0, fHotScreen, 40, ClickType.SWAP, mc.player);
+                mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
             });
             if (announce) this.msg(act.successText);
             return true;
@@ -1000,10 +1000,10 @@ public class Assist extends Module {
         final int fInvSlot = invSlot;
         final boolean fProjectile = this.testIsProjectile(act);
         this.runInv(() -> {
-            mc.interactionManager.clickSlot(0, fInvSlot, 40, SlotActionType.SWAP, mc.player);
-            this.testUseHand(Hand.OFF_HAND, fProjectile);
-            mc.interactionManager.clickSlot(0, fInvSlot, 40, SlotActionType.SWAP, mc.player);
-            mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+            mc.gameMode.clickSlot(0, fInvSlot, 40, ClickType.SWAP, mc.player);
+            this.testUseHand(InteractionHand.OFF_HAND, fProjectile);
+            mc.gameMode.clickSlot(0, fInvSlot, 40, ClickType.SWAP, mc.player);
+            mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
         });
         if (announce) this.msg(act.successText);
         return true;
@@ -1020,7 +1020,7 @@ public class Assist extends Module {
 
     private int findFirstNonCooldownSlot(Action act, int start, int end) {
         for (int i = start; i <= end; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (this.matchesAction(stack, act)
                     && !mc.player.getItemCooldownManager().isCoolingDown(stack)) {
                 return i;
@@ -1031,7 +1031,7 @@ public class Assist extends Module {
 
     private int findMatchingSlot(Action action, int start, int end) {
         for (int slot = start; slot <= end; slot++) {
-            if (this.matchesAction(mc.player.getInventory().getStack(slot), action)) {
+            if (this.matchesAction(mc.player.getInventory().getItem(slot), action)) {
                 return slot;
             }
         }
@@ -1050,14 +1050,14 @@ public class Assist extends Module {
         return var1.getName().getString().toLowerCase(Locale.ROOT).contains(var2.query);
     }
 
-    private Map<RegistryEntry<StatusEffect>, Integer> getPotionEffects(ItemStack stack) {
-        Map<RegistryEntry<StatusEffect>, Integer> effects = new HashMap<>();
+    private Map<Holder<MobEffect>, Integer> getPotionEffects(ItemStack stack) {
+        Map<Holder<MobEffect>, Integer> effects = new HashMap<>();
         if (stack == null || stack.isEmpty()) return effects;
 
         PotionContentsComponent potionContents = stack.get(DataComponentTypes.POTION_CONTENTS);
         if (potionContents == null) return effects;
 
-        for (StatusEffectInstance effect : potionContents.customEffects()) {
+        for (MobEffectInstance effect : potionContents.customEffects()) {
             effects.put(effect.getEffectType(), effect.getAmplifier());
         }
         return effects;
@@ -1067,7 +1067,7 @@ public class Assist extends Module {
         if (requirements == null || requirements.isEmpty()) return false;
         if (stack.getItem() != Items.SPLASH_POTION && stack.getItem() != Items.LINGERING_POTION) return false;
 
-        Map<RegistryEntry<StatusEffect>, Integer> effects = getPotionEffects(stack);
+        Map<Holder<MobEffect>, Integer> effects = getPotionEffects(stack);
         if (effects.isEmpty()) return false;
 
         int matchCount = 0;
@@ -1085,10 +1085,10 @@ public class Assist extends Module {
     // ══════════════════════════════════════════════════════════════════════════
 
     private boolean throwWindChargeDown(boolean swing) {
-        if (mc.world == null || mc.player == null || mc.interactionManager == null) return false;
-        if (mc.player.networkHandler == null) return false;
+        if (mc.level == null || mc.player == null || mc.gameMode == null) return false;
+        if (mc.player.connection == null) return false;
 
-        boolean isOffhand = mc.player.getOffHandStack().getItem() == Items.WIND_CHARGE;
+        boolean isOffhand = mc.player.getOffhandItem().getItem() == Items.WIND_CHARGE;
 
         // 1) off-hand / хотбар — простое переключение слота.
         if (isOffhand || this.findHotbarWindCharge() != -1) {
@@ -1096,13 +1096,13 @@ public class Assist extends Module {
             int oldSlot = mc.player.getInventory().getSelectedSlot();
             if (!isOffhand && oldSlot != hotbarSlot) {
                 mc.player.getInventory().setSelectedSlot(hotbarSlot);
-                mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(hotbarSlot));
+                mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(hotbarSlot));
             }
-            Hand hand = isOffhand ? Hand.OFF_HAND : Hand.MAIN_HAND;
+            InteractionHand hand = isOffhand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
             this.sendInteractDown(hand, swing);
             if (!isOffhand && oldSlot != hotbarSlot) {
                 mc.player.getInventory().setSelectedSlot(oldSlot);
-                mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(oldSlot));
+                mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(oldSlot));
             }
             return true;
         }
@@ -1110,7 +1110,7 @@ public class Assist extends Module {
         // 2) основной инвентарь (9..35) — временный swap в хотбар.
         int invSlot = -1;
         for (int i = 9; i < 36; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == Items.WIND_CHARGE) {
+            if (mc.player.getInventory().getItem(i).getItem() == Items.WIND_CHARGE) {
                 invSlot = i;
                 break;
             }
@@ -1121,24 +1121,24 @@ public class Assist extends Module {
         int tempSlot = this.findFreeHotbarSlot(oldSlot);
         final int fInv = invSlot;
         final int fTemp = tempSlot;
-        mc.interactionManager.clickSlot(0, fInv, fTemp, SlotActionType.SWAP, mc.player);
-        mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+        mc.gameMode.clickSlot(0, fInv, fTemp, ClickType.SWAP, mc.player);
+        mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
         mc.player.getInventory().setSelectedSlot(fTemp);
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(fTemp));
+        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(fTemp));
 
-        this.sendInteractDown(Hand.MAIN_HAND, swing);
+        this.sendInteractDown(InteractionHand.MAIN_HAND, swing);
 
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(oldSlot));
+        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(oldSlot));
         mc.player.getInventory().setSelectedSlot(oldSlot);
-        mc.interactionManager.clickSlot(0, fInv, fTemp, SlotActionType.SWAP, mc.player);
-        mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+        mc.gameMode.clickSlot(0, fInv, fTemp, ClickType.SWAP, mc.player);
+        mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
         return true;
     }
 
-    private void sendInteractDown(Hand hand, boolean swing) {
-        float yaw = mc.player.getYaw();
+    private void sendInteractDown(InteractionHand hand, boolean swing) {
+        float yaw = mc.player.getYRot();
         float pitch = 90.0F;
-        mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(hand, 0, yaw, pitch));
+        mc.player.connection.sendPacket(new ServerboundUseItemPacket(hand, 0, yaw, pitch));
         if (swing) {
             mc.player.swingHand(hand);
         }
@@ -1146,14 +1146,14 @@ public class Assist extends Module {
 
     private int findHotbarWindCharge() {
         for (int i = 0; i < 9; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == Items.WIND_CHARGE) return i;
+            if (mc.player.getInventory().getItem(i).getItem() == Items.WIND_CHARGE) return i;
         }
         return -1;
     }
 
     private int findFreeHotbarSlot(int selected) {
         for (int i = 0; i < 9; i++) {
-            if (i != selected && mc.player.getInventory().getStack(i).isEmpty()) return i;
+            if (i != selected && mc.player.getInventory().getItem(i).isEmpty()) return i;
         }
         return selected;
     }
@@ -1163,21 +1163,21 @@ public class Assist extends Module {
     // ══════════════════════════════════════════════════════════════════════════
 
     private void fireCrossbow() {
-        if (mc.player == null || mc.world == null || mc.interactionManager == null) return;
-        if (mc.player.networkHandler == null) return;
+        if (mc.player == null || mc.level == null || mc.gameMode == null) return;
+        if (mc.player.connection == null) return;
 
-        if (isLoadedCrossbow(mc.player.getMainHandStack())) {
-            this.sendCrossbowShot(Hand.MAIN_HAND);
+        if (isLoadedCrossbow(mc.player.getMainHandItem())) {
+            this.sendCrossbowShot(InteractionHand.MAIN_HAND);
             return;
         }
-        if (isLoadedCrossbow(mc.player.getOffHandStack())) {
-            this.sendCrossbowShot(Hand.OFF_HAND);
+        if (isLoadedCrossbow(mc.player.getOffhandItem())) {
+            this.sendCrossbowShot(InteractionHand.OFF_HAND);
             return;
         }
 
         int slot = -1;
         for (int i = 0; i < 9; i++) {
-            if (isLoadedCrossbow(mc.player.getInventory().getStack(i))) {
+            if (isLoadedCrossbow(mc.player.getInventory().getItem(i))) {
                 slot = i;
                 break;
             }
@@ -1193,18 +1193,18 @@ public class Assist extends Module {
 
         int oldSlot = mc.player.getInventory().getSelectedSlot();
         mc.player.getInventory().setSelectedSlot(slot);
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
+        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(slot));
 
-        this.sendCrossbowShot(Hand.MAIN_HAND);
+        this.sendCrossbowShot(InteractionHand.MAIN_HAND);
 
         mc.player.getInventory().setSelectedSlot(oldSlot);
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(oldSlot));
+        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(oldSlot));
     }
 
-    private void sendCrossbowShot(Hand hand) {
-        float yaw = mc.player.getYaw();
-        float pitch = mc.player.getPitch();
-        mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(hand, 0, yaw, pitch));
+    private void sendCrossbowShot(InteractionHand hand) {
+        float yaw = mc.player.getYRot();
+        float pitch = mc.player.getXRot();
+        mc.player.connection.sendPacket(new ServerboundUseItemPacket(hand, 0, yaw, pitch));
         mc.player.swingHand(hand);
     }
 
@@ -1215,10 +1215,10 @@ public class Assist extends Module {
     }
 
     private boolean hasAnyCrossbow() {
-        if (mc.player.getMainHandStack().getItem() == Items.CROSSBOW) return true;
-        if (mc.player.getOffHandStack().getItem() == Items.CROSSBOW) return true;
+        if (mc.player.getMainHandItem().getItem() == Items.CROSSBOW) return true;
+        if (mc.player.getOffhandItem().getItem() == Items.CROSSBOW) return true;
         for (int i = 0; i < 9; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == Items.CROSSBOW) return true;
+            if (mc.player.getInventory().getItem(i).getItem() == Items.CROSSBOW) return true;
         }
         return false;
     }
@@ -1244,7 +1244,7 @@ public class Assist extends Module {
             Action a = this.actionMap[i];
             int slot = this.findMatchingSlot(a, 0, 35);
             if (slot == -1) continue;
-            ItemStack stack = mc.player.getInventory().getStack(slot);
+            ItemStack stack = mc.player.getInventory().getItem(slot);
             if (stack.isEmpty()) continue;
             int count = this.countMatching(a);
             if (count == 0) continue;
@@ -1260,7 +1260,7 @@ public class Assist extends Module {
         int count = 0;
         int size = mc.player.getInventory().size();
         for (int i = 0; i < size; i++) {
-            ItemStack s = mc.player.getInventory().getStack(i);
+            ItemStack s = mc.player.getInventory().getItem(i);
             if (this.matchesAction(s, a)) count += s.getCount();
         }
         return count;
@@ -1272,7 +1272,7 @@ public class Assist extends Module {
         int count = 0;
         int size = mc.player.getInventory().size();
         for (int i = 0; i < size; i++) {
-            ItemStack s = mc.player.getInventory().getStack(i);
+            ItemStack s = mc.player.getInventory().getItem(i);
             if (s.getItem() == item) {
                 if (found.isEmpty()) found = s;
                 count += s.getCount();
@@ -1291,10 +1291,10 @@ public class Assist extends Module {
     }
 
     private static class EffectRequirement {
-        final RegistryEntry<StatusEffect> effect;
+        final Holder<MobEffect> effect;
         final int minAmplifier;
 
-        EffectRequirement(RegistryEntry<StatusEffect> effect, int minAmplifier) {
+        EffectRequirement(Holder<MobEffect> effect, int minAmplifier) {
             this.effect = effect;
             this.minAmplifier = minAmplifier;
         }
@@ -1312,26 +1312,26 @@ public class Assist extends Module {
         JUMP_POTION("прыж", "зелья прыжка", Items.SPLASH_POTION, "Использовал зелье прыжка!", "Зелье прыжка не найдено!"),
         WEAKNESS_POTION("слабост", "зелья слабости", Items.SPLASH_POTION, "Использовал зелье слабости!", "Зелье слабости не найдено!"),
         HLOPUSHKA("хлопушка", "хлопушки", Items.SPLASH_POTION, "Использовал хлопушку!", "Хлопушка не найдена!",
-                List.of(new EffectRequirement(StatusEffects.SLOWNESS, 9), new EffectRequirement(StatusEffects.SPEED, 4),
-                        new EffectRequirement(StatusEffects.BLINDNESS, 9), new EffectRequirement(StatusEffects.GLOWING, 0))),
+                List.of(new EffectRequirement(MobEffects.SLOWNESS, 9), new EffectRequirement(MobEffects.SPEED, 4),
+                        new EffectRequirement(MobEffects.BLINDNESS, 9), new EffectRequirement(MobEffects.GLOWING, 0))),
         HOLY_WATER("святая вода", "святой воды", Items.SPLASH_POTION, "Использовал святую воду!", "Святая вода не найдена!",
-                List.of(new EffectRequirement(StatusEffects.REGENERATION, 2), new EffectRequirement(StatusEffects.INVISIBILITY, 1),
-                        new EffectRequirement(StatusEffects.INSTANT_HEALTH, 1))),
+                List.of(new EffectRequirement(MobEffects.REGENERATION, 2), new EffectRequirement(MobEffects.INVISIBILITY, 1),
+                        new EffectRequirement(MobEffects.INSTANT_HEALTH, 1))),
         GNEV("зелье гнева", "зелья гнева", Items.SPLASH_POTION, "Использовал зелье гнева!", "Зелье гнева не найдено!",
-                List.of(new EffectRequirement(StatusEffects.STRENGTH, 4), new EffectRequirement(StatusEffects.SLOWNESS, 3))),
+                List.of(new EffectRequirement(MobEffects.STRENGTH, 4), new EffectRequirement(MobEffects.SLOWNESS, 3))),
         PALADIN("зелье палладина", "зелья палладина", Items.SPLASH_POTION, "Использовал зелье палладина!", "Зелье палладина не найдено!",
-                List.of(new EffectRequirement(StatusEffects.RESISTANCE, 0), new EffectRequirement(StatusEffects.FIRE_RESISTANCE, 0),
-                        new EffectRequirement(StatusEffects.INVISIBILITY, 0), new EffectRequirement(StatusEffects.HEALTH_BOOST, 2))),
+                List.of(new EffectRequirement(MobEffects.RESISTANCE, 0), new EffectRequirement(MobEffects.FIRE_RESISTANCE, 0),
+                        new EffectRequirement(MobEffects.INVISIBILITY, 0), new EffectRequirement(MobEffects.HEALTH_BOOST, 2))),
         ASSASSIN("зелье ассасина", "зелья ассасина", Items.SPLASH_POTION, "Использовал зелье ассасина!", "Зелье ассасина не найдено!",
-                List.of(new EffectRequirement(StatusEffects.STRENGTH, 3), new EffectRequirement(StatusEffects.SPEED, 2),
-                        new EffectRequirement(StatusEffects.HASTE, 0), new EffectRequirement(StatusEffects.INSTANT_DAMAGE, 1))),
+                List.of(new EffectRequirement(MobEffects.STRENGTH, 3), new EffectRequirement(MobEffects.SPEED, 2),
+                        new EffectRequirement(MobEffects.HASTE, 0), new EffectRequirement(MobEffects.INSTANT_DAMAGE, 1))),
         RADIATION("зелье радиации", "зелья радиации", Items.SPLASH_POTION, "Использовал зелье радиации!", "Зелье радиации не найдено!",
-                List.of(new EffectRequirement(StatusEffects.POISON, 1), new EffectRequirement(StatusEffects.WITHER, 1),
-                        new EffectRequirement(StatusEffects.SLOWNESS, 2), new EffectRequirement(StatusEffects.HUNGER, 4),
-                        new EffectRequirement(StatusEffects.GLOWING, 0))),
+                List.of(new EffectRequirement(MobEffects.POISON, 1), new EffectRequirement(MobEffects.WITHER, 1),
+                        new EffectRequirement(MobEffects.SLOWNESS, 2), new EffectRequirement(MobEffects.HUNGER, 4),
+                        new EffectRequirement(MobEffects.GLOWING, 0))),
         SNOTVORNOE("снотворное", "снотворного", Items.SPLASH_POTION, "Использовал снотворное!", "Снотворное не найдено!",
-                List.of(new EffectRequirement(StatusEffects.WEAKNESS, 1), new EffectRequirement(StatusEffects.MINING_FATIGUE, 1),
-                        new EffectRequirement(StatusEffects.WITHER, 2), new EffectRequirement(StatusEffects.BLINDNESS, 0))),
+                List.of(new EffectRequirement(MobEffects.WEAKNESS, 1), new EffectRequirement(MobEffects.MINING_FATIGUE, 1),
+                        new EffectRequirement(MobEffects.WITHER, 2), new EffectRequirement(MobEffects.BLINDNESS, 0))),
         // Фейерверк — маршрутизация использования из ElytraSwap («elytra helper»).
         // query="" => матч по любому FIREWORK_ROCKET (имя не важно), как у ENDER_PEARL.
         FIREWORK("", "фейерверка", Items.FIREWORK_ROCKET, "Использовал фейерверк!", "Фейерверк не найден!");

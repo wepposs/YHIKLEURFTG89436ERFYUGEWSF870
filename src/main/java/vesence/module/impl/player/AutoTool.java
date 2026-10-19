@@ -2,11 +2,11 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ToolComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -32,8 +32,8 @@ public class AutoTool extends Module {
 
    @EventInit
    public void onEvent(EventUpdate event) {
-      if (mc.player != null && mc.world != null && mc.interactionManager != null && !mc.player.isCreative()) {
-         if (mc.interactionManager.isBreakingBlock()) {
+      if (mc.player != null && mc.level != null && mc.gameMode != null && !mc.player.isCreative()) {
+         if (mc.gameMode.isBreakingBlock()) {
             if (this.previousSlot == -1) {
                this.previousSlot = mc.player.getInventory().getSelectedSlot();
             }
@@ -61,7 +61,7 @@ public class AutoTool extends Module {
 
    private int findOptimalTool() {
       if (mc.crosshairTarget instanceof BlockHitResult blockHitResult) {
-         BlockState blockState = mc.world.getBlockState(blockHitResult.getBlockPos());
+         BlockState blockState = mc.level.getBlockState(blockHitResult.getBlockPos());
          return this.findBestToolSlot(blockState);
       } else {
          return -1;
@@ -73,7 +73,7 @@ public class AutoTool extends Module {
       float bestSpeed = 1.0F;
 
       for (int i = 0; i < 9; i++) {
-         float speed = getMiningSpeed(mc.player.getInventory().getStack(i), blockState);
+         float speed = getMiningSpeed(mc.player.getInventory().getItem(i), blockState);
          if (speed > bestSpeed) {
             bestSpeed = speed;
             bestSlot = i;

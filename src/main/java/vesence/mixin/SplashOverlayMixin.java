@@ -2,14 +2,14 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screen.SplashOverlay;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.util.Window;
+import net.minecraft.client.gui.screens.Screen;
+import com.mojang.blaze3d.platform.Window;
 import net.minecraft.resource.ResourceReload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,7 +27,7 @@ import vesence.utils.render.text.FontRegistry;
 @Mixin(SplashOverlay.class)
 public abstract class SplashOverlayMixin {
 
-    @Shadow private MinecraftClient client;
+    @Shadow private Minecraft client;
     @Shadow private ResourceReload reload;
     @Shadow private boolean reloading;
     @Shadow private float progress;
@@ -38,9 +38,9 @@ public abstract class SplashOverlayMixin {
     private long vesence$lastNanos = 0L;
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-    private void vesence$customSplash(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+    private void vesence$customSplash(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
         if (!Vesence.isModInitialized()) return;
-        MinecraftClient mc = this.client;
+        Minecraft mc = this.client;
         if (mc == null || mc.getWindow() == null) return;
 
         long now = net.minecraft.util.Util.getMeasuringTimeMs();
@@ -52,15 +52,15 @@ public abstract class SplashOverlayMixin {
 
         float alpha;
         if (fadeOut >= 1f) {
-            alpha = 1f - MathHelper.clamp(fadeOut - 1f, 0f, 1f);
+            alpha = 1f - Mth.clamp(fadeOut - 1f, 0f, 1f);
         } else if (this.reloading) {
-            alpha = MathHelper.clamp(fadeIn, 0f, 1f);
+            alpha = Mth.clamp(fadeIn, 0f, 1f);
         } else {
             alpha = 1f;
         }
 
         float target = this.reload.getProgress();
-        this.progress = MathHelper.clamp(this.progress * 0.95f + target * 0.05000001f, 0f, 1f);
+        this.progress = Mth.clamp(this.progress * 0.95f + target * 0.05000001f, 0f, 1f);
 
         ci.cancel();
 
@@ -68,8 +68,8 @@ public abstract class SplashOverlayMixin {
         int height = mc.getWindow().getFramebufferHeight();
         if (width <= 0 || height <= 0) return;
 
-        if (fadeOut >= 1f && mc.currentScreen != null) {
-            try { mc.currentScreen.render(context, 0, 0, deltaTicks); } catch (Exception ignored) {}
+        if (fadeOut >= 1f && mc.screen != null) {
+            try { mc.screen.render(context, 0, 0, deltaTicks); } catch (Exception ignored) {}
         }
 
         vesence$draw(mc, width, height, alpha);
@@ -79,7 +79,7 @@ public abstract class SplashOverlayMixin {
         }
     }
 
-    private void vesence$draw(MinecraftClient mc, int width, int height, float alpha) {
+    private void vesence$draw(Minecraft mc, int width, int height, float alpha) {
 
         long nowNanos = System.nanoTime();
         if (vesence$lastNanos != 0L) {
@@ -89,8 +89,8 @@ public abstract class SplashOverlayMixin {
         }
         vesence$lastNanos = nowNanos;
 
-        GlState.Snapshot snapshot = GlState.push();
-        net.minecraft.client.gl.Framebuffer mainFb = mc.getFramebuffer();
+        GlState.Snapshot snapshot = GlState.pushPose();
+        net.minecraft.client.gl.RenderTarget mainFb = mc.getMainRenderTarget();
         int tempFbo = 0;
         try {
             if (mainFb != null && mainFb.getColorAttachment() instanceof net.minecraft.client.texture.GlTexture glColor) {
@@ -129,12 +129,12 @@ public abstract class SplashOverlayMixin {
     }
 
     private void vesence$renderContent(Renderer2D r, int sw, int sh, float alpha) {
-        float a = MathHelper.clamp(alpha, 0f, 1f);
+        float a = Mth.clamp(alpha, 0f, 1f);
         if (a <= 0.001f) return;
 
         r.pushAlpha(a);
 
-        Identifier bg = Identifier.of("vesence", "images/main_menu/background.png");
+        ResourceLocation bg = ResourceLocation.of("vesence", "images/main_menu/background.png");
         r.drawImage(bg, 0, 0, sw, sh);
         r.rect(0, 0, sw, sh, 0, ColorUtil.getColor(0, 150));
         r.gradient(0, 0, sw, sh, 0,
@@ -158,14 +158,14 @@ public abstract class SplashOverlayMixin {
             r.drawCircle(dx, dy, dotR, ColorUtil.getColor(255, 174, 247, dotA));
         }
 
-        int pct = Math.round(MathHelper.clamp(this.progress, 0f, 1f) * 100f);
+        int pct = Math.round(Mth.clamp(this.progress, 0f, 1f) * 100f);
         r.textCenter(FontRegistry.SF_SEMI, cx, cy + ringR + 40f * scale, 40f * scale,
                 pct + "%", new int[]{ColorUtil.getColor(255, 255), ColorUtil.getColor(255, 211, 251, 255)});
 
         float barH = 5f * scale;
         float barY = sh - barH;
         r.rect(0, barY, sw, barH, ColorUtil.getColor(255, 174, 247, 40));
-        float fillW = sw * MathHelper.clamp(this.progress, 0f, 1f);
+        float fillW = sw * Mth.clamp(this.progress, 0f, 1f);
         r.rect(0, barY, fillW, barH, ColorUtil.getColor(255, 174, 247, 255));
 
         r.popAlpha();

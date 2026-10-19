@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -15,11 +15,11 @@ import vesence.module.api.Module;
 )
 public class Cape extends Module {
 
-    public static final Identifier STATIC_CAPE =
-            Identifier.of("vesence", "textures/cape/cape.png");
+    public static final ResourceLocation STATIC_CAPE =
+            ResourceLocation.of("vesence", "textures/cape/cape.png");
 
-    public static final Identifier STATIC_ELYTRA =
-            Identifier.of("vesence", "textures/cape/cape.png");
+    public static final ResourceLocation STATIC_ELYTRA =
+            ResourceLocation.of("vesence", "textures/cape/cape.png");
 
     public Cape() {
         // Настроек нет специально:
@@ -29,14 +29,14 @@ public class Cape extends Module {
     /**
      * Возвращает статичную текстуру плаща.]
      */
-    public Identifier getCapeTexture() {
+    public ResourceLocation getCapeTexture() {
         return STATIC_CAPE;
     }
 
     /**
      * Возвращает текстуру элитры.
      */
-    public Identifier getElytraTexture() {
+    public ResourceLocation getElytraTexture() {
         return STATIC_ELYTRA;
     }
 }

@@ -3,21 +3,21 @@ package vesence.module.impl.visuals.particular;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.SimpleParticleType;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
 public class WaterRippleParticle extends BillboardParticle {
-    private final SpriteProvider provider;
+    private final SpriteSet provider;
 
-    protected WaterRippleParticle(ClientWorld world, double x, double y, double z, SpriteProvider provider) {
+    protected WaterRippleParticle(ClientLevel world, double x, double y, double z, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.provider = provider;
         this.maxAge = 7;
         this.alpha = 0.2F;
         this.scale = 0.25F;
-        this.setSprite(provider.getSprite(this.age, this.maxAge));
+        this.setSprite(provider.getSprite(this.tickCount, this.maxAge));
     }
 
     @Override
@@ -25,10 +25,10 @@ public class WaterRippleParticle extends BillboardParticle {
         this.lastX = this.x;
         this.lastY = this.y;
         this.lastZ = this.z;
-        if (this.age++ >= this.maxAge) {
+        if (this.tickCount++ >= this.maxAge) {
             this.markDead();
         } else {
-            this.setSprite(this.provider.getSprite(this.age, this.maxAge));
+            this.setSprite(this.provider.getSprite(this.tickCount, this.maxAge));
         }
     }
 
@@ -45,14 +45,14 @@ public class WaterRippleParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new WaterRippleParticle(world, x, y, z, this.provider);
         }
     }

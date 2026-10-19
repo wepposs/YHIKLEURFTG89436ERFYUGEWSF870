@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -47,7 +47,7 @@ public class InterpolateF5 extends Module {
 
     @EventInit
     public void onUpdate(EventUpdate event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         boolean isThirdPerson = !mc.options.getPerspective().isFirstPerson();
 
@@ -63,11 +63,11 @@ public class InterpolateF5 extends Module {
 
     @EventInit
     public void onRotation(EventRotation event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         if (mc.options.getPerspective().isFirstPerson()) return;
 
-        event.setYaw(getInterpolatedYaw(event.getPartialTicks()));
-        event.setPitch(getInterpolatedPitch(event.getPartialTicks()));
+        event.setYRot(getInterpolatedYaw(event.getPartialTicks()));
+        event.setXRot(getInterpolatedPitch(event.getPartialTicks()));
     }
 
     private void initCamera(boolean animateSwitch) {
@@ -95,8 +95,8 @@ public class InterpolateF5 extends Module {
 
         float rotationSpeed = ROTATION_SMOOTH;
 
-        currentYaw += MathHelper.wrapDegrees(getReferenceYaw() - currentYaw) * rotationSpeed;
-        currentPitch = MathHelper.clamp(currentPitch + (getReferencePitch() - currentPitch) * rotationSpeed, -90.0F, 90.0F);
+        currentYaw += Mth.wrapDegrees(getReferenceYaw() - currentYaw) * rotationSpeed;
+        currentPitch = Mth.clamp(currentPitch + (getReferencePitch() - currentPitch) * rotationSpeed, -90.0F, 90.0F);
 
         float distanceSpeed = switchAnimating ? SWITCH_ANIM_SPEED : DISTANCE_SPEED;
         currentDistance += (CAMERA_DISTANCE - currentDistance) * distanceSpeed;
@@ -109,8 +109,8 @@ public class InterpolateF5 extends Module {
         if (mc.player.isSneaking()) {
             targetOffset = -SNEAK_OFFSET;
         }
-        if (!mc.player.isOnGround()) {
-            targetOffset += (float) (-mc.player.getVelocity().y * JUMP_MULTIPLIER);
+        if (!mc.player.onGround()) {
+            targetOffset += (float) (-mc.player.getDeltaMovement().y * JUMP_MULTIPLIER);
         }
 
         heightOffset += (targetOffset - heightOffset) * ANIM_SPEED;
@@ -123,7 +123,7 @@ public class InterpolateF5 extends Module {
 
     public float getInterpolatedPitch(float partialTicks) {
         if (mc.player == null) return 0.0F;
-        return MathHelper.clamp(prevPitch + (currentPitch - prevPitch) * partialTicks, -90.0F, 90.0F);
+        return Mth.clamp(prevPitch + (currentPitch - prevPitch) * partialTicks, -90.0F, 90.0F);
     }
 
     public float getInterpolatedDistance(float partialTicks) {
@@ -141,7 +141,7 @@ public class InterpolateF5 extends Module {
         if (FreeLookUtil.active) {
             return FreeLookUtil.freeYaw;
         }
-        return mc.player != null ? mc.player.getYaw() : 0.0F;
+        return mc.player != null ? mc.player.getYRot() : 0.0F;
     }
 
     private float getReferencePitch() {
@@ -151,7 +151,7 @@ public class InterpolateF5 extends Module {
         if (FreeLookUtil.active) {
             return FreeLookUtil.freePitch;
         }
-        return mc.player != null ? mc.player.getPitch() : 0.0F;
+        return mc.player != null ? mc.player.getXRot() : 0.0F;
     }
 
     @Override

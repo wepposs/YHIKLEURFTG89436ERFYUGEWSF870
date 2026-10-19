@@ -1,11 +1,11 @@
 package vesence.mixin;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.util.DefaultSkinHelper;
 import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.util.AssetInfo;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,7 +17,7 @@ import vesence.module.impl.visuals.NoRender;
 
 import java.util.Optional;
 
-@Mixin(AbstractClientPlayerEntity.class)
+@Mixin(AbstractClientPlayer.class)
 public abstract class AbstractClientPlayerEntityMixin {
 
     /** Deluxe NoRender: «Эффекты FOV» — множитель FOV всегда 1 (спринт/зелья не меняют FOV). */
@@ -30,10 +30,10 @@ public abstract class AbstractClientPlayerEntityMixin {
 
     @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
     private void vesence$injectCape(CallbackInfoReturnable<SkinTextures> cir) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        AbstractClientPlayerEntity self = (AbstractClientPlayerEntity) (Object) this;
+        AbstractClientPlayer self = (AbstractClientPlayer) (Object) this;
         boolean isSelf = (self == mc.player);
 
         SkinTextures result = cir.getReturnValue();
@@ -55,8 +55,8 @@ public abstract class AbstractClientPlayerEntityMixin {
         if (isSelf && Vesence.get != null && Vesence.get.manager != null) {
             Cape cape = Vesence.get.manager.get(Cape.class);
             if (cape != null && cape.enable) {
-                Identifier capeTexture = cape.getCapeTexture();
-                Identifier elytraTexture = cape.getElytraTexture();
+                ResourceLocation capeTexture = cape.getCapeTexture();
+                ResourceLocation elytraTexture = cape.getElytraTexture();
 
                 AssetInfo.TextureAssetInfo capeInfo =
                         new AssetInfo.TextureAssetInfo(capeTexture, capeTexture);

@@ -2,15 +2,15 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -43,37 +43,37 @@ public class OpenWalls extends Module {
    @EventInit
    public void onUpdate(EventUpdate e) {
       if (!this.enable) return;
-      if (mc.player == null || mc.world == null) return;
+      if (mc.player == null || mc.level == null) return;
       if (!mc.options.useKey.isPressed()) return;
-      if (mc.currentScreen instanceof HandledScreen) return;
+      if (mc.screen instanceof HandledScreen) return;
 
-      Vec3d eyePos = mc.player.getEyePos();
-      Vec3d lookVec = mc.player.getRotationVec(1.0F);
+      Vec3 eyePos = mc.player.getEyePosition();
+      Vec3 lookVec = mc.player.getRotationVec(1.0F);
       double reach = 5.0;
 
-      Vec3d endPos = eyePos.add(lookVec.multiply(reach));
+      Vec3 endPos = eyePos.add(lookVec.multiply(reach));
 
-      BlockHitResult initialHit = mc.world.raycast(
-         new RaycastContext(eyePos, endPos,
-            RaycastContext.ShapeType.COLLIDER,
-            RaycastContext.FluidHandling.NONE,
+      BlockHitResult initialHit = mc.level.raycast(
+         new ClipContext(eyePos, endPos,
+            ClipContext.ShapeType.COLLIDER,
+            ClipContext.FluidHandling.NONE,
             mc.player));
 
       if (initialHit != null && initialHit.getType() == HitResult.Type.BLOCK) {
-         Block block = mc.world.getBlockState(initialHit.getBlockPos()).getBlock();
+         Block block = mc.level.getBlockState(initialHit.getBlockPos()).getBlock();
          if (isContainer(block)) return;
       }
 
       for (double d = 0.5; d <= reach; d += 0.5) {
-         Vec3d checkPos = eyePos.add(lookVec.multiply(d));
+         Vec3 checkPos = eyePos.add(lookVec.multiply(d));
          BlockPos blockPos = BlockPos.ofFloored(checkPos);
 
-         Block block = mc.world.getBlockState(blockPos).getBlock();
+         Block block = mc.level.getBlockState(blockPos).getBlock();
          if (isContainer(block)) {
-            mc.player.swingHand(Hand.MAIN_HAND);
-            mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND,
+            mc.player.swingHand(InteractionHand.MAIN_HAND);
+            mc.gameMode.interactBlock(mc.player, InteractionHand.MAIN_HAND,
                new BlockHitResult(
-                  new Vec3d(blockPos.getX() + 0.5, blockPos.getY() + 1.0, blockPos.getZ() + 0.5),
+                  new Vec3(blockPos.getX() + 0.5, blockPos.getY() + 1.0, blockPos.getZ() + 0.5),
                   Direction.UP, blockPos, false));
             return;
          }

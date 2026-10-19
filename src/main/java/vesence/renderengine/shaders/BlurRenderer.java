@@ -2,10 +2,10 @@ package vesence.renderengine.shaders;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.util.Window;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import com.mojang.blaze3d.platform.Window;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.*;
 import vesence.Vesence;
@@ -98,15 +98,15 @@ public final class BlurRenderer {
         preparedKernelStrengthBits = Integer.MIN_VALUE;
     }
 
-    public static void draw(DrawContext context, float x, float y, float width, float height, float alpha, Corner corner) {
+    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, Corner corner) {
         draw(context, x, y, width, height, alpha, defaultRadius, corner);
     }
 
-    public static void draw(DrawContext context, float x, float y, float width, float height, float alpha, float strength, Corner corner) {
+    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength, Corner corner) {
         draw(context, x, y, width, height, alpha, strength, corner, 1.0f, 0x00000000);
     }
 
-    public static void draw(DrawContext context, float x, float y, float width, float height, float alpha, float strength, Corner corner, float brightness, int overlayColor) {
+    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength, Corner corner, float brightness, int overlayColor) {
         if (context == null || width <= 0.0f || height <= 0.0f || alpha <= 0.0f) {
             return;
         }
@@ -118,15 +118,15 @@ public final class BlurRenderer {
         drawBlurRegion(x, y, width, height, clamp(alpha, 0.0f, 1.0f), Corner.of(corner), clamp(brightness, 0.6f, 1.5f), overlayColor);
     }
 
-    public static void draw(DrawContext context, float x, float y, float width, float height, float alpha) {
+    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha) {
         draw(context, x, y, width, height, alpha, Corner.zero());
     }
 
-    public static void draw(DrawContext context, float x, float y, float width, float height, float alpha, float strength) {
+    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength) {
         draw(context, x, y, width, height, alpha, strength, Corner.zero());
     }
 
-    public static void renderBlur(DrawContext context, float x, float y, float width, float height, float radius, float quality, float brightness, int overlayColor) {
+    public static void renderBlur(GuiGraphics context, float x, float y, float width, float height, float radius, float quality, float brightness, int overlayColor) {
         float alpha = ((overlayColor >>> 24) & 0xFF) / 255.0f;
         float round = Math.min(Math.max(0.0f, radius), Math.min(width, height) * 0.5f);
         float strength = clamp(Math.max(radius, quality * 10.0f), MIN_RADIUS, MAX_RADIUS);
@@ -223,7 +223,7 @@ public final class BlurRenderer {
     }
 
     private static void ensureBuffers(int downsample) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             return;
         }
@@ -263,7 +263,7 @@ public final class BlurRenderer {
             return;
         }
         ShaderProgram program = BlurShaderRegistration.getCopyProgram();
-        GlState.Snapshot snapshot = GlState.push();
+        GlState.Snapshot snapshot = GlState.pushPose();
         try {
             bindTarget(target);
             GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -287,7 +287,7 @@ public final class BlurRenderer {
             return;
         }
         ShaderProgram program = BlurShaderRegistration.getGaussianProgram();
-        GlState.Snapshot snapshot = GlState.push();
+        GlState.Snapshot snapshot = GlState.pushPose();
         try {
             bindTarget(target);
             GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -314,12 +314,12 @@ public final class BlurRenderer {
 
     private static void drawBlurRegion(float x, float y, float width, float height, float alpha, Corner corner, float brightness, int overlayColor) {
         ShaderProgram program = BlurShaderRegistration.getMaskProgram();
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             return;
         }
         Window window = client.getWindow();
-        GlState.Snapshot snapshot = GlState.push();
+        GlState.Snapshot snapshot = GlState.pushPose();
         try {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, snapshot.drawFramebuffer);
             GL11.glViewport(0, 0, window.getFramebufferWidth(), window.getFramebufferHeight());
@@ -494,12 +494,12 @@ public final class BlurRenderer {
     }
 
     private static int extractMainFramebufferTexture() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getFramebuffer() == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getMainRenderTarget() == null) {
             return 0;
         }
         try {
-            if (client.getFramebuffer().getColorAttachment() instanceof GlTexture glTexture) {
+            if (client.getMainRenderTarget().getColorAttachment() instanceof GlTexture glTexture) {
                 return glTexture.getGlId();
             }
         } catch (Exception ignored) {

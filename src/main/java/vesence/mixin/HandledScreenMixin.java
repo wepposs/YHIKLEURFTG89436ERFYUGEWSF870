@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -33,7 +33,7 @@ public abstract class HandledScreenMixin {
     protected int y;
 
     @Inject(method = "render", at = @At("RETURN"))
-    private void onRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRender(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         EventManager.call(new HandledScreenEvent(context, focusedSlot, backgroundWidth, backgroundHeight, this.x, this.y));
     }
 }

@@ -3,11 +3,11 @@ package vesence.utils.render;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.Minecraft;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.mixin.AbstractTextureAccessor;
 
 import java.io.InputStream;
@@ -52,7 +52,7 @@ public final class AnimatedCapeTexture {
     private static final int DST_W = 438;
     private static final int DST_H = 340;
 
-    private static final Identifier[] frameIds = new Identifier[FRAME_COUNT];
+    private static final ResourceLocation[] frameIds = new ResourceLocation[FRAME_COUNT];
 
     /** Ресемпленные на ЦП кадры (готовит фон-поток). Публикуется через volatile. */
     private static volatile NativeImage[] cpuFrames;
@@ -72,11 +72,11 @@ public final class AnimatedCapeTexture {
     private AnimatedCapeTexture() {}
 
     /**
-     * Возвращает Identifier текущего кадра анимации.
+     * Возвращает ResourceLocation текущего кадра анимации.
      * {@code null} если анимация ещё не готова (идёт фоновая подготовка) или
      * недоступна (файл не найден / ошибка) — тогда показывается статичный плащ.
      */
-    public static Identifier getCurrentFrame() {
+    public static ResourceLocation getCurrentFrame() {
         if (failed) {
             return null;
         }
@@ -135,7 +135,7 @@ public final class AnimatedCapeTexture {
                     }
 
                     frames[i] = capeFrame;
-                    frameIds[i] = Identifier.of("vesence", "cape/anim_" + i);
+                    frameIds[i] = ResourceLocation.of("vesence", "cape/anim_" + i);
                 }
 
                 spriteSheet.close();
@@ -164,7 +164,7 @@ public final class AnimatedCapeTexture {
             return;
         }
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             if (linearSampler == null) {
                 linearSampler = RenderSystem.getSamplerCache().get(
                         AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,

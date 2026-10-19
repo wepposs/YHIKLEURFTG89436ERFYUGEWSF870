@@ -2,9 +2,9 @@ package vesence.module.impl.visuals.elements.modern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
@@ -53,8 +53,8 @@ public class ModernEventsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        boolean chatOpen = MinecraftClient.getInstance().currentScreen instanceof ChatScreen;
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        boolean chatOpen = Minecraft.getInstance().screen instanceof ChatScreen;
         boolean shouldShow = chatOpen || ROWS.length > 0;
 
         visibilityAnim.update();

@@ -2,21 +2,21 @@ package vesence.utils.render.text;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
 
 @Environment(EnvType.CLIENT)
 public final class RichTextUtil {
 
     private RichTextUtil() {}
 
-    public static String toColorFormat(Text text, int defaultRgb, int alpha) {
+    public static String toColorFormat(Component text, int defaultRgb, int alpha) {
         if (text == null) {
             return "";
         }
         StringBuilder result = new StringBuilder();
-        Text translated = PrefixHelper.translate(text);
+        Component translated = PrefixHelper.translate(text);
         int dr = (defaultRgb >> 16) & 0xFF;
         int dg = (defaultRgb >> 8) & 0xFF;
         int db = defaultRgb & 0xFF;
@@ -33,9 +33,9 @@ public final class RichTextUtil {
                 char c = segment.charAt(i);
                 if (c == '\u00a7' && i + 1 < segment.length()) {
                     flushColored(result, pending, curColor, dr, dg, db, alpha);
-                    net.minecraft.util.Formatting fmt = net.minecraft.util.Formatting.byCode(segment.charAt(i + 1));
+                    net.minecraft.util.ChatFormatting fmt = net.minecraft.util.ChatFormatting.byCode(segment.charAt(i + 1));
                     if (fmt != null) {
-                        if (fmt == net.minecraft.util.Formatting.RESET) {
+                        if (fmt == net.minecraft.util.ChatFormatting.RESET) {
                             curColor = styleColor;
                         } else if (fmt.isColor() && fmt.getColorValue() != null) {
                             curColor = fmt.getColorValue();

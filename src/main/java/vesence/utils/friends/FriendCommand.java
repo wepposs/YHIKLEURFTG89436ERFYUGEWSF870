@@ -3,9 +3,9 @@ package vesence.utils.friends;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.commands.Command;
 import vesence.utils.commands.CommandContext;
@@ -113,16 +113,16 @@ public final class FriendCommand implements Command {
             return;
         }
 
-        MutableText builder = Text.literal("Friends (" + friends.size() + "): ");
+        MutableText builder = Component.literal("Friends (" + friends.size() + "): ");
 
         int i = 0;
         for (String friend : friends) {
-            MutableText nameText = Text.literal(friend);
+            MutableText nameText = Component.literal(friend);
             nameText = nameText.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(Renderer2D.ColorUtil.getClientColor())));
             builder = builder.append(nameText);
 
             if (i < friends.size() - 1) {
-                builder = builder.append(Text.literal(", "));
+                builder = builder.append(Component.literal(", "));
             }
             i++;
         }

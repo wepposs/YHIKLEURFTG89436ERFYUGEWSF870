@@ -4,21 +4,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Hand;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.Event;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
 public class HandOffsetEvent extends Event {
-   MatrixStack matrices;
+   PoseStack matrices;
    ItemStack stack;
-   Hand hand;
+   InteractionHand hand;
    float scale;
 
-   public HandOffsetEvent(MatrixStack matrices, ItemStack stack, Hand hand) {
+   public HandOffsetEvent(PoseStack matrices, ItemStack stack, InteractionHand hand) {
       this.matrices = matrices;
       this.stack = stack;
       this.hand = hand;

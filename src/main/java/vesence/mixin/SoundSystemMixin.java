@@ -3,11 +3,11 @@ package vesence.mixin;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.client.sound.SoundSystem.PlayResult;
 import net.minecraft.client.sound.Channel.SourceManager;
-import net.minecraft.sound.SoundCategory;
+import net.minecraft.sounds.SoundSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -71,7 +71,7 @@ public abstract class SoundSystemMixin {
     private void vesence$muteMenuMusic(SoundInstance sound, CallbackInfoReturnable<Float> cir) {
         try {
             if (MainScreen.isMenuMusicActive()
-                    && sound != null && sound.getCategory() == SoundCategory.MUSIC) {
+                    && sound != null && sound.getCategory() == SoundSource.MUSIC) {
                 cir.setReturnValue(0.0F);
             }
         } catch (Throwable ignored) {

@@ -2,11 +2,11 @@ package vesence.utils.render.ttf;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.Minecraft;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.ResourceLocation;
 import vesence.renderengine.render.Renderer2D;
 
 import java.awt.Color;
@@ -98,8 +98,8 @@ public final class TtfFont {
       Supplier<String> nameSupplier = () -> nameFinal;
       NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, native_);
       tex.upload();
-      Identifier id = Identifier.of("vesence", "ttf_glyph/" + name);
-      MinecraftClient.getInstance().getTextureManager().registerTexture(id, tex);
+      ResourceLocation id = ResourceLocation.of("vesence", "ttf_glyph/" + name);
+      Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
 
       int glId = 0;
       if (tex.getGlTexture() instanceof GlTexture glTex) {
@@ -165,8 +165,8 @@ public final class TtfFont {
       Supplier<String> nameSupplier = () -> nameFinal;
       NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, glowImg);
       tex.upload();
-      Identifier id = Identifier.of("vesence", "ttf_glow/" + name);
-      MinecraftClient.getInstance().getTextureManager().registerTexture(id, tex);
+      ResourceLocation id = ResourceLocation.of("vesence", "ttf_glow/" + name);
+      Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
 
       int glowGlId = 0;
       if (tex.getGlTexture() instanceof GlTexture glTex) {
@@ -325,7 +325,7 @@ public final class TtfFont {
 
    private static final class Glyph {
       int glId;
-      Identifier identifier;
+      ResourceLocation identifier;
       int width;
       int height;
       int advance;
@@ -333,7 +333,7 @@ public final class TtfFont {
       int offsetY;
       // Pre-baked, Gaussian-blurred glow texture (white with soft alpha halo).
       int glowGlId;
-      Identifier glowIdentifier;
+      ResourceLocation glowIdentifier;
       int glowWidth;
       int glowHeight;
       int glowPad;

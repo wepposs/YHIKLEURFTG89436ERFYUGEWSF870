@@ -6,24 +6,24 @@ import vesence.hmi.access.ItemStackAccessor;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.FishingRodItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.SplashPotionItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.FishingRodItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SplashPotionItem;
 import net.minecraft.item.consume.UseAction;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.Block;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.client.Minecraft;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.registry.RegistryOps;
+import net.minecraft.tags.TagKey;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.component.ComponentMap;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.item.ProjectileItem;
+import net.minecraft.world.item.ProjectileItem;
 
 public class I {
     public float getAttackDamage(ItemStack stack) {
@@ -114,7 +114,7 @@ public class I {
     }
 
     public static JsonObject getComponents(ItemStack stack) {
-        RegistryOps<JsonElement> ops = RegistryOps.of(JsonOps.INSTANCE, MinecraftClient.getInstance().world.getRegistryManager());
+        RegistryOps<JsonElement> ops = RegistryOps.of(JsonOps.INSTANCE, Minecraft.getInstance().world.getRegistryManager());
         ComponentMap components = stack.getComponents();
         JsonElement json = ComponentMap.CODEC.encodeStart(ops, components).getOrThrow();
         return json.getAsJsonObject();

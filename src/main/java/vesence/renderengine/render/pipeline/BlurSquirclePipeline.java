@@ -1,8 +1,8 @@
 package vesence.renderengine.render.pipeline;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.MemoryUtil;
@@ -99,12 +99,12 @@ public class BlurSquirclePipeline {
 
             int kawaseTex = FrameBlurCache.prepareForRadius(blurRadius);
 
-            GlState.Snapshot state = GlState.push();
+            GlState.Snapshot state = GlState.pushPose();
             try {
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, state.drawFramebuffer);
                 GL11.glViewport(0, 0, (int)viewW, (int)viewH);
 
-                Framebuffer mainFb = MinecraftClient.getInstance().getFramebuffer();
+                RenderTarget mainFb = Minecraft.getInstance().getMainRenderTarget();
 
                 int srcTexId = kawaseTex;
                 int preBlurred = 1;
@@ -194,7 +194,7 @@ public class BlurSquirclePipeline {
         return Math.max(2, Math.min(it, 6));
     }
 
-    private static int extractGlTexId(Framebuffer framebuffer) {
+    private static int extractGlTexId(RenderTarget framebuffer) {
         if (framebuffer == null) return 0;
         try {
             GpuTextureView view = framebuffer.getColorAttachmentView();

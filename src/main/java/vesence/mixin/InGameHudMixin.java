@@ -4,14 +4,14 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.InGameHud;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.hud.bar.Bar;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.texture.GlTexture;
+import net.minecraft.client.DeltaTracker;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.spongepowered.asm.mixin.Mixin;
@@ -30,7 +30,7 @@ import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.text.FontRegistry;
 
 @Environment(EnvType.CLIENT)
-@Mixin(InGameHud.class)
+@Mixin(Gui.class)
 public abstract class InGameHudMixin {
 
    @org.spongepowered.asm.mixin.Unique
@@ -49,7 +49,7 @@ public abstract class InGameHudMixin {
    private static boolean vesence$fboStatusComplete = false;
 
    @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
-   private void onRenderCrosshair(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+   private void onRenderCrosshair(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized() && Vesence.get.manager.get(vesence.module.impl.visuals.Crosshair.class).enable) {
          ci.cancel();
       }
@@ -76,8 +76,8 @@ public abstract class InGameHudMixin {
    }
 
    @Inject(method = "renderMainHud", at = @At("HEAD"), cancellable = true)
-   private void vesence$renderCustomHotBar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   private void vesence$renderCustomHotBar(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+      Minecraft client = Minecraft.getInstance();
       if (!BetterMinecraft.shouldReplaceMainHud(client)) {
          return;
       }
@@ -86,8 +86,8 @@ public abstract class InGameHudMixin {
    }
 
    @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
-   private void vesence$renderCustomHotBarOnly(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   private void vesence$renderCustomHotBarOnly(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+      Minecraft client = Minecraft.getInstance();
       if (!BetterMinecraft.shouldReplaceHotbarOnly(client)) {
          return;
       }
@@ -96,26 +96,26 @@ public abstract class InGameHudMixin {
    }
 
    @Inject(method = "renderStatusBars", at = @At("HEAD"))
-   private void vesence$pushVanillaValuesOffset(DrawContext context, CallbackInfo ci) {
-      if (BetterMinecraft.shouldReplaceHotbarOnly(MinecraftClient.getInstance())) {
+   private void vesence$pushVanillaValuesOffset(GuiGraphics context, CallbackInfo ci) {
+      if (BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          context.getMatrices().pushMatrix();
          context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
       }
    }
 
    @Inject(method = "renderStatusBars", at = @At("RETURN"))
-   private void vesence$popVanillaValuesOffset(DrawContext context, CallbackInfo ci) {
-      if (BetterMinecraft.shouldReplaceHotbarOnly(MinecraftClient.getInstance())) {
+   private void vesence$popVanillaValuesOffset(GuiGraphics context, CallbackInfo ci) {
+      if (BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          context.getMatrices().popMatrix();
       }
    }
 
    @WrapOperation(
            method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderBar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V")
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderBar(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/render/DeltaTracker;)V")
    )
-   private void vesence$offsetVanillaBar(Bar instance, DrawContext context, RenderTickCounter tickCounter, Operation<Void> original) {
-      if (!BetterMinecraft.shouldReplaceHotbarOnly(MinecraftClient.getInstance())) {
+   private void vesence$offsetVanillaBar(Bar instance, GuiGraphics context, DeltaTracker tickCounter, Operation<Void> original) {
+      if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          original.call(instance, context, tickCounter);
          return;
       }
@@ -130,10 +130,10 @@ public abstract class InGameHudMixin {
 
    @WrapOperation(
            method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderAddons(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V")
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderAddons(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/render/DeltaTracker;)V")
    )
-   private void vesence$offsetVanillaBarAddons(Bar instance, DrawContext context, RenderTickCounter tickCounter, Operation<Void> original) {
-      if (!BetterMinecraft.shouldReplaceHotbarOnly(MinecraftClient.getInstance())) {
+   private void vesence$offsetVanillaBarAddons(Bar instance, GuiGraphics context, DeltaTracker tickCounter, Operation<Void> original) {
+      if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          original.call(instance, context, tickCounter);
          return;
       }
@@ -148,33 +148,33 @@ public abstract class InGameHudMixin {
 
    @WrapOperation(
            method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;drawExperienceLevel(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;I)V")
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;drawExperienceLevel(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;I)V")
    )
-   private void vesence$offsetVanillaExperienceLevel(DrawContext context, TextRenderer textRenderer, int level, Operation<Void> original) {
-      if (!BetterMinecraft.shouldReplaceHotbarOnly(MinecraftClient.getInstance())) {
-         original.call(context, textRenderer, level);
+   private void vesence$offsetVanillaExperienceLevel(GuiGraphics context, Font font, int level, Operation<Void> original) {
+      if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
+         original.call(context, font, level);
          return;
       }
       context.getMatrices().pushMatrix();
       context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
       try {
-         original.call(context, textRenderer, level);
+         original.call(context, font, level);
       } finally {
          context.getMatrices().popMatrix();
       }
    }
 
    @Inject(method = "renderMainHud", at = @At("RETURN"))
-   private void vesence$renderHeldItemNameOverlay(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
-      MinecraftClient client = MinecraftClient.getInstance();
+   private void vesence$renderHeldItemNameOverlay(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+      Minecraft client = Minecraft.getInstance();
       if (BetterMinecraft.shouldRenderCustomHeldItemName(client) && !BetterMinecraft.shouldReplaceMainHud(client)) {
          BetterMinecraft.renderHeldItemNameOverlay(context);
       }
    }
 
    @Inject(method = "renderHeldItemTooltip", at = @At("HEAD"), cancellable = true)
-   private void vesence$cancelVanillaHeldItemTooltip(DrawContext context, CallbackInfo ci) {
-      if (BetterMinecraft.shouldRenderCustomHeldItemName(MinecraftClient.getInstance())) {
+   private void vesence$cancelVanillaHeldItemTooltip(GuiGraphics context, CallbackInfo ci) {
+      if (BetterMinecraft.shouldRenderCustomHeldItemName(Minecraft.getInstance())) {
          ci.cancel();
       }
    }
@@ -189,7 +189,7 @@ public abstract class InGameHudMixin {
 
    /** Deluxe NoRender: «Тыква на голове» — прячем оверлей pumpkinblur. */
    @Inject(method = "renderOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$hidePumpkinOverlay(DrawContext context, net.minecraft.util.Identifier texture, float opacity, CallbackInfo ci) {
+   private void vesence$hidePumpkinOverlay(GuiGraphics context, net.minecraft.util.ResourceLocation texture, float opacity, CallbackInfo ci) {
       if (NoRender.isElementActive("Тыква на голове") && texture.getPath().contains("pumpkinblur")) {
          ci.cancel();
       }
@@ -228,14 +228,14 @@ public abstract class InGameHudMixin {
    }
 
    @Inject(method = "render", at = @At("HEAD"))
-   private void onPreRenderHud(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+   private void onPreRenderHud(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized()) {
-         MinecraftClient client = MinecraftClient.getInstance();
-         if (client != null && client.player != null && client.world != null && client.getWindow() != null) {
+         Minecraft client = Minecraft.getInstance();
+         if (client != null && client.player != null && client.level != null && client.getWindow() != null) {
             int width = client.getWindow().getFramebufferWidth();
             int height = client.getWindow().getFramebufferHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.push();
+               GlState.Snapshot snapshot = GlState.pushPose();
 
                int tempFbo = vesence$bindMainFramebuffer(client);
 
@@ -264,14 +264,14 @@ public abstract class InGameHudMixin {
    }
 
    @Inject(method = "render", at = @At("RETURN"))
-   private void onRenderHud(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+   private void onRenderHud(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized()) {
-         MinecraftClient client = MinecraftClient.getInstance();
-         if (client != null && client.player != null && client.world != null && client.getWindow() != null) {
+         Minecraft client = Minecraft.getInstance();
+         if (client != null && client.player != null && client.level != null && client.getWindow() != null) {
             int width = client.getWindow().getFramebufferWidth();
             int height = client.getWindow().getFramebufferHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.push();
+               GlState.Snapshot snapshot = GlState.pushPose();
 
                int tempFbo = vesence$bindMainFramebuffer(client);
 
@@ -300,10 +300,10 @@ public abstract class InGameHudMixin {
    }
 
    @org.spongepowered.asm.mixin.Unique
-   private static int vesence$bindMainFramebuffer(MinecraftClient client) {
+   private static int vesence$bindMainFramebuffer(Minecraft client) {
       long section = vesence.utils.debug.FreezeWatchdog.sectionEnter("framebuffer.attach");
       try {
-         Framebuffer mainFramebuffer = client.getFramebuffer();
+         RenderTarget mainFramebuffer = client.getMainRenderTarget();
          if (mainFramebuffer == null) {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
             return 0;

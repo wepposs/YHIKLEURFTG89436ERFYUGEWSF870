@@ -2,8 +2,8 @@ package vesence.utils.render.math.animation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL11;
 
 @Environment(EnvType.CLIENT)
@@ -11,7 +11,7 @@ public class AnimationUtil {
    public static double delta;
 
    public static float animation(float animation, float target, float speedTarget) {
-      float dif = (target - animation) / Math.max((float)MinecraftClient.getInstance().getCurrentFps(), 5.0F) * 15.0F;
+      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getCurrentFps(), 5.0F) * 15.0F;
       if (dif > 0.0F) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);
@@ -24,7 +24,7 @@ public class AnimationUtil {
    }
 
    public static double animation(double animation, double target, double speedTarget) {
-      double dif = (target - animation) / Math.max(MinecraftClient.getInstance().getCurrentFps(), 5) * speedTarget;
+      double dif = (target - animation) / Math.max(Minecraft.getInstance().getCurrentFps(), 5) * speedTarget;
       if (dif > 0.0) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);
@@ -63,11 +63,11 @@ public class AnimationUtil {
    }
 
    public static float Move(float from, float to, float minstep, float maxstep, float factor) {
-      float f = (to - from) * MathHelper.clamp(factor, 0.0F, 1.0F);
+      float f = (to - from) * Mth.clamp(factor, 0.0F, 1.0F);
       if (f < 0.0F) {
-         f = MathHelper.clamp(f, -maxstep, -minstep);
+         f = Mth.clamp(f, -maxstep, -minstep);
       } else {
-         f = MathHelper.clamp(f, minstep, maxstep);
+         f = Mth.clamp(f, minstep, maxstep);
       }
 
       return Math.abs(f) > Math.abs(to - from) ? to : from + f;

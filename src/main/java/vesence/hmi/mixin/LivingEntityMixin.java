@@ -3,11 +3,11 @@ package vesence.hmi.mixin;
 import vesence.hmi.access.LivingEntityAccessor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.Hand;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -68,7 +68,7 @@ implements LivingEntityAccessor {
         this.swingMHand = !this.swingMHand;
         ++this.mainSwingCount;
         this.interactMainHand = interact;
-        if (MinecraftClient.getInstance().interactionManager.isBreakingBlock()) {
+        if (Minecraft.getInstance().gameMode.isBreakingBlock()) {
             this.blockBreaking = true;
         }
     }
@@ -114,7 +114,7 @@ implements LivingEntityAccessor {
         int i;
         this.lastOffHandSwingProgress = this.offHandSwingProgress;
         this.lastMainHandSwingProgress = this.mainHandSwingProgress;
-        int n = i = this.getMainHandStack().isOf(Items.MACE) ? 12 : 10;
+        int n = i = this.getMainHandItem().isOf(Items.MACE) ? 12 : 10;
         if (this.mainHandSwinging) {
             ++this.mainHandSwingTicks;
             if (this.mainHandSwingTicks >= i) {
@@ -147,9 +147,9 @@ implements LivingEntityAccessor {
         this.offHandSwingProgress = (float)this.offHandSwingTicks / (float)i2;
     }
 
-    @Inject(method={"swingHand(Lnet/minecraft/util/Hand;Z)V"}, at={@At(value="HEAD")})
-    private void onSwingHand(Hand hand, boolean fromServerPlayer, CallbackInfo ci) {
-        if (hand == Hand.OFF_HAND) {
+    @Inject(method={"swingHand(Lnet/minecraft/util/InteractionHand;Z)V"}, at={@At(value="HEAD")})
+    private void onSwingHand(InteractionHand hand, boolean fromServerPlayer, CallbackInfo ci) {
+        if (hand == InteractionHand.OFF_HAND) {
             int duration = 9;
             if (!this.offHandSwinging || this.offHandSwingTicks >= duration / 2 || this.offHandSwingTicks < 0) {
                 this.offHandSwingTicks = -1;
@@ -157,11 +157,11 @@ implements LivingEntityAccessor {
             }
         } else {
             int duration;
-            int n = duration = this.getMainHandStack().isOf(Items.MACE) ? 11 : 9;
+            int n = duration = this.getMainHandItem().isOf(Items.MACE) ? 11 : 9;
             if (!this.mainHandSwinging || this.mainHandSwingTicks >= duration / 2 || this.mainHandSwingTicks < 0) {
                 this.mainHandSwingTicks = -1;
                 this.mainHandSwinging = true;
-                if (MinecraftClient.getInstance().interactionManager.isBreakingBlock()) {
+                if (Minecraft.getInstance().gameMode.isBreakingBlock()) {
                     this.blockBreaking = true;
                 }
             }
@@ -173,7 +173,7 @@ implements LivingEntityAccessor {
         if (!vesence.module.impl.visuals.LivingHands.isEnabled()) {
             return;
         }
-        if ((Object) this == MinecraftClient.getInstance().player) {
+        if ((Object) this == Minecraft.getInstance().player) {
             cir.setReturnValue(vesence.hmi.resource_controller.LuaScriptCache.swingSpeed);
         }
     }

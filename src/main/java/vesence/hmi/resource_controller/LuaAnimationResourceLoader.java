@@ -13,14 +13,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.Identifier;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 public class LuaAnimationResourceLoader
 implements SimpleSynchronousResourceReloadListener {
-    public Identifier getFabricId() {
-        return Identifier.of((String)"holdmyitems", (String)"lua_animation_loader");
+    public ResourceLocation getFabricId() {
+        return ResourceLocation.of((String)"holdmyitems", (String)"lua_animation_loader");
     }
 
     private String preprocessScript(String script) {
@@ -114,7 +114,7 @@ implements SimpleSynchronousResourceReloadListener {
     }
 
     private void loadSingle(ResourceManager manager, String path, Consumer<String> consumer) {
-        Identifier id = Identifier.of((String)"minecraft", (String)path);
+        ResourceLocation id = ResourceLocation.of((String)"minecraft", (String)path);
         try {
             Resource resource = manager.getResource(id).orElse(null);
             if (resource == null) {
@@ -134,7 +134,7 @@ implements SimpleSynchronousResourceReloadListener {
     }
 
     private ArrayList<LuaScriptCache> loadMultiple(ResourceManager manager, String path) {
-        Identifier id = Identifier.of((String)"minecraft", (String)path);
+        ResourceLocation id = ResourceLocation.of((String)"minecraft", (String)path);
         ArrayList<LuaScriptCache> caches = new ArrayList<LuaScriptCache>();
         try {
             List<Resource> resources = manager.getAllResources(id);

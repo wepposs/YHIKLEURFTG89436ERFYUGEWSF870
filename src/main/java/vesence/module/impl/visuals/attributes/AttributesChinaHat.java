@@ -5,21 +5,21 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -41,8 +41,8 @@ public final class AttributesChinaHat {
     private static final float CONE_APEX_HEIGHT = 0.3F;
     private static final float RIM_ALPHA = 0.5F;
 
-    private static volatile RenderLayer coneLayer;
-    private static volatile RenderLayer rimLayer;
+    private static volatile RenderType coneLayer;
+    private static volatile RenderType rimLayer;
 
     private final Attributes parent;
 
@@ -56,10 +56,10 @@ public final class AttributesChinaHat {
     public void deactivate() {
     }
 
-    public void renderOnHead(PlayerEntity player, MatrixStack matrices, BipedEntityModel<?> model,
+    public void renderOnHead(Player player, PoseStack matrices, BipedEntityModel<?> model,
                              OrderedRenderCommandQueue queue) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (player == null || model == null || client.world == null || client.player == null) return;
+        Minecraft client = Minecraft.getInstance();
+        if (player == null || model == null || client.level == null || client.player == null) return;
         boolean local = player == client.player;
         boolean friend = vesence.utils.friends.FriendStorage.isFriend(player.getName().getString());
         if (!local && (!friend || !parent.showChinaHatOnFriends())) return;
@@ -97,8 +97,8 @@ public final class AttributesChinaHat {
             int fadeIndex = i * 8;
             int ring = ColorUtil.fade(3, fadeIndex, theme, ColorUtil.replAlpha(theme, TOP_ALPHA));
             int ringColor = ColorUtil.replAlpha(ring, ColorUtil.alpha(ring) / 255.0F * TOP_ALPHA);
-            float x = (float) (MathHelper.sin(angle) * width);
-            float z = (float) (MathHelper.cos(angle) * width);
+            float x = (float) (Mth.sin(angle) * width);
+            float z = (float) (Mth.cos(angle) * width);
             consumer.vertex(matrix, x, 0.0F, z).color(ringColor);
             consumer.vertex(matrix, 0.0F, CONE_APEX_HEIGHT, 0.0F).color(apex);
         }
@@ -110,19 +110,19 @@ public final class AttributesChinaHat {
         float outer = width + RIM_FLARE;
         float inner = width - RIM_FLARE;
 
-        float prevOuterX = (float) (MathHelper.sin(0.0F) * outer);
-        float prevOuterZ = (float) (MathHelper.cos(0.0F) * outer);
-        float prevInnerX = (float) (MathHelper.sin(0.0F) * inner);
-        float prevInnerZ = (float) (MathHelper.cos(0.0F) * inner);
+        float prevOuterX = (float) (Mth.sin(0.0F) * outer);
+        float prevOuterZ = (float) (Mth.cos(0.0F) * outer);
+        float prevInnerX = (float) (Mth.sin(0.0F) * inner);
+        float prevInnerZ = (float) (Mth.cos(0.0F) * inner);
 
         for (int i = 1; i <= 181; i++) {
             float angle = i * SEG_STEP;
             int fadeIndex = (i - 1) * 8;
             int color = ColorUtil.fade(3, fadeIndex, theme, ColorUtil.replAlpha(theme, RIM_ALPHA));
-            float outerX = (float) (MathHelper.sin(angle) * outer);
-            float outerZ = (float) (MathHelper.cos(angle) * outer);
-            float innerX = (float) (MathHelper.sin(angle) * inner);
-            float innerZ = (float) (MathHelper.cos(angle) * inner);
+            float outerX = (float) (Mth.sin(angle) * outer);
+            float outerZ = (float) (Mth.cos(angle) * outer);
+            float innerX = (float) (Mth.sin(angle) * inner);
+            float innerZ = (float) (Mth.cos(angle) * inner);
 
             consumer.vertex(matrix, prevOuterX, yLow, prevOuterZ).color(color);
             consumer.vertex(matrix, prevOuterX, yHigh, prevOuterZ).color(color);
@@ -141,7 +141,7 @@ public final class AttributesChinaHat {
         }
     }
 
-    private static void applyHead(MatrixStack.Entry entry, HeadTransform head) {
+    private static void applyHead(PoseStack.Entry entry, HeadTransform head) {
         entry.translate(head.originX / 16.0F, head.originY / 16.0F, head.originZ / 16.0F);
         if (head.pitch != 0.0F || head.yaw != 0.0F || head.roll != 0.0F) {
             entry.rotate(new Quaternionf().rotationZYX(head.roll, head.yaw, head.pitch));
@@ -161,13 +161,13 @@ public final class AttributesChinaHat {
         }
     }
 
-    private static RenderLayer coneLayer() {
-        RenderLayer local = coneLayer;
+    private static RenderType coneLayer() {
+        RenderType local = coneLayer;
         if (local == null) {
             synchronized (AttributesChinaHat.class) {
                 local = coneLayer;
                 if (local == null) {
-                    local = RenderLayer.of("vesence_china_hat_cone",
+                    local = RenderType.of("vesence_china_hat_cone",
                             RenderSetup.builder(hatPipeline(DrawMode.TRIANGLE_STRIP, "china_hat_cone"))
                                     .expectedBufferSize(8192).translucent().build());
                     coneLayer = local;
@@ -177,13 +177,13 @@ public final class AttributesChinaHat {
         return local;
     }
 
-    private static RenderLayer rimLayer() {
-        RenderLayer local = rimLayer;
+    private static RenderType rimLayer() {
+        RenderType local = rimLayer;
         if (local == null) {
             synchronized (AttributesChinaHat.class) {
                 local = rimLayer;
                 if (local == null) {
-                    local = RenderLayer.of("vesence_china_hat_rim",
+                    local = RenderType.of("vesence_china_hat_rim",
                             RenderSetup.builder(hatPipeline(DrawMode.QUADS, "china_hat_rim"))
                                     .expectedBufferSize(16384).translucent().build());
                     rimLayer = local;
@@ -196,8 +196,8 @@ public final class AttributesChinaHat {
     private static RenderPipeline hatPipeline(DrawMode mode, String path) {
         return RenderPipelines.register(
                 RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                        .withLocation(Identifier.of("vesence", path))
-                        .withVertexFormat(VertexFormats.POSITION_COLOR, mode)
+                        .withLocation(ResourceLocation.of("vesence", path))
+                        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, mode)
                         .withCull(false)
                         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
                         .withDepthWrite(true)

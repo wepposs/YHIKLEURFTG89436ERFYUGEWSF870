@@ -1,7 +1,7 @@
 package vesence.mixin;
 
 import net.minecraft.client.Keyboard;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyInput;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,8 +24,8 @@ public class KeyboardMixin {
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.currentScreen != null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != null) {
             return;
         }
 

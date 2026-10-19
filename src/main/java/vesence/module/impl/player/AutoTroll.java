@@ -3,7 +3,7 @@ package vesence.module.impl.player;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -218,7 +218,7 @@ public class AutoTroll extends Module {
             "Ты меня понимаешь, ты чисто терпильница, сука, полоумная."
     );
 
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
+    private static final Minecraft mc = Minecraft.getInstance();
     private static final Random RNG = new Random();
     private static final int DELAY_TICKS = 50; // 2.5 сек
 
@@ -237,7 +237,7 @@ public class AutoTroll extends Module {
                 if (!this.enable) return;
                 if (++tickCounter < DELAY_TICKS) return;
                 tickCounter = 0;
-                if (mc.getNetworkHandler() == null) return;
+                if (mc.getConnection() == null) return;
 
                 String body = pickPhrase();
                 if (body == null || body.isEmpty()) return;
@@ -252,7 +252,7 @@ public class AutoTroll extends Module {
                     }
                 }
 
-                mc.getNetworkHandler().sendChatMessage(outgoing);
+                mc.getConnection().sendChatMessage(outgoing);
                 lastSent = outgoing;
             });
         }

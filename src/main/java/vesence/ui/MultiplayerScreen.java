@@ -2,23 +2,23 @@ package vesence.ui;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screen.world.WorldIcon;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.network.MultiplayerServerListPinger;
-import net.minecraft.client.network.ServerAddress;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.option.ServerList;
-import net.minecraft.client.texture.GlTexture;
-import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.server.ServerInfo;
+import net.minecraft.client.multiplayer.ServerList;
+import com.mojang.renderpearl.backend.opengl.GlTexture;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.network.NetworkingBackend;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
@@ -115,7 +115,7 @@ public class MultiplayerScreen extends Screen {
     }
 
     public MultiplayerScreen(Screen parent) {
-        super(Text.literal("vesence Multiplayer"));
+        super(Component.literal("vesence Multiplayer"));
         this.parent = parent;
     }
 
@@ -127,7 +127,7 @@ public class MultiplayerScreen extends Screen {
     @Override
     public void init() {
         super.init();
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         serverList = new ServerList(mc);
         serverList.loadFile();
         rebuildEntries();
@@ -181,15 +181,15 @@ public class MultiplayerScreen extends Screen {
         return (float) Easings.CUBIC_OUT.ease(local);
     }
 
-    private boolean splashFadeStarted(MinecraftClient mc) {
+    private boolean splashFadeStarted(Minecraft mc) {
         net.minecraft.client.gui.screen.Overlay overlay = mc.getOverlay();
         if (overlay == null) return true;
         return false;
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+        Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getWindow() == null || !Vesence.isModInitialized()) {
             context.fill(0, 0, this.width, this.height, 0xFF000000);
             return;
@@ -198,8 +198,8 @@ public class MultiplayerScreen extends Screen {
         int height = mc.getWindow().getFramebufferHeight();
         if (width <= 0 || height <= 0) return;
 
-        GlState.Snapshot snapshot = GlState.push();
-        Framebuffer mainFb = mc.getFramebuffer();
+        GlState.Snapshot snapshot = GlState.pushPose();
+        RenderTarget mainFb = mc.getMainRenderTarget();
         int tempFbo = 0;
         try {
             if (mainFb != null && mainFb.getColorAttachment() instanceof net.minecraft.client.texture.GlTexture glColor) {
@@ -240,7 +240,7 @@ public class MultiplayerScreen extends Screen {
 
     private float mxFb, myFb;
 
-    private void renderVesence(Renderer2D r, int sw, int sh, MinecraftClient mc) {
+    private void renderVesence(Renderer2D r, int sw, int sh, Minecraft mc) {
         if (introStartMillis == 0L && splashFadeStarted(mc)) introStartMillis = System.currentTimeMillis();
 
         double[] gx = new double[1], gy = new double[1];
@@ -248,7 +248,7 @@ public class MultiplayerScreen extends Screen {
         mxFb = (float) (gx[0] * ((double) sw / mc.getWindow().getWidth()));
         myFb = (float) (gy[0] * ((double) sh / mc.getWindow().getHeight()));
 
-        Identifier bg = Identifier.of("vesence", "images/main_menu/background.png");
+        ResourceLocation bg = ResourceLocation.of("vesence", "images/main_menu/background.png");
         // Непрозрачная подложка ПЕРЕД фоном (как в главном меню): если фон
         // где-то полупрозрачный, без неё сквозь него просвечивал живой мир
         // игры из кадра — это и давало «сетку». Base перекрывает мир.
@@ -301,7 +301,7 @@ public class MultiplayerScreen extends Screen {
     }
 
     private void preloadFavicons() {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         for (Entry e : entries) {
             if (e.removing) continue;
             byte[] bytes = null;
@@ -331,8 +331,8 @@ public class MultiplayerScreen extends Screen {
     private int resolveFavicon(Entry e) {
         if (!e.faviconLoaded || e.icon == null) return 0;
         try {
-            Identifier id = e.icon.getTextureId();
-            var tex = MinecraftClient.getInstance().getTextureManager().getTexture(id);
+            ResourceLocation id = e.icon.getTextureId();
+            var tex = Minecraft.getInstance().getTextureManager().getTexture(id);
             if (tex != null) {
                 var view = tex.getGlTextureView();
                 if (view != null && view.texture() instanceof GlTexture glTex) {
@@ -438,7 +438,7 @@ public class MultiplayerScreen extends Screen {
             r.popAlpha();
         }
 
-        r.getTransformStack().pop();
+        r.getTransformStack().popPose();
         r.popClipRect();
 
     }
@@ -568,7 +568,7 @@ public class MultiplayerScreen extends Screen {
         boolean left = button == GLFW.GLFW_MOUSE_BUTTON_LEFT;
         boolean right = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT;
         if (!left && !right) return super.mouseClicked(click, bl);
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         double scale = (double) mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaledWidth();
         float mx = (float) (click.x() * scale);
         float my = (float) (click.y() * scale);
@@ -684,7 +684,7 @@ public class MultiplayerScreen extends Screen {
     public boolean shouldCloseOnEsc() { return false; }
 
     @Override
-    public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
     }
 
     private static boolean inside(float px, float py, float x, float y, float w, float h) {
@@ -771,7 +771,7 @@ public class MultiplayerScreen extends Screen {
 
     private void connect(Entry e) {
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             ServerAddress addr = ServerAddress.parse(e.info.address);
             ConnectScreen.connect(this, mc, addr, e.info, false, null);
         } catch (Throwable t) {

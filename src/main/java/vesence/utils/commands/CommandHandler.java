@@ -2,7 +2,7 @@ package vesence.utils.commands;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.c2s.play.ChatMessageC2SPacket;
+import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 
@@ -25,7 +25,7 @@ public final class CommandHandler {
 
     @EventInit
     public void onPacket(EventPacket event) {
-        if (event.isSend() && event.getPacket() instanceof ChatMessageC2SPacket packet) {
+        if (event.isSend() && event.getPacket() instanceof ServerboundChatPacket packet) {
             String message = packet.chatMessage();
             if (message != null && !message.isEmpty()) {
                 CommandManager commandManager = CommandManager.getInstance();

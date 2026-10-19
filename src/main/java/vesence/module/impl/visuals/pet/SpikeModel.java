@@ -9,14 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.resource.Resource;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -28,12 +28,12 @@ import org.joml.Quaternionf;
  */
 public class SpikeModel {
 
-   public static final RenderLayer LAYER = PetRender.meshLayer(
-      "vesence_pet_spike", Identifier.of("vesence", "textures/pet/spike.png"));
-   private static final Identifier MODEL_LOCATION = Identifier.of("vesence", "pet/spike_mesh.json");
+   public static final RenderType LAYER = PetRender.meshLayer(
+      "vesence_pet_spike", ResourceLocation.of("vesence", "textures/pet/spike.png"));
+   private static final ResourceLocation MODEL_LOCATION = ResourceLocation.of("vesence", "pet/spike_mesh.json");
    private static final float MODEL_SCALE = 1.18F;
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
    private final List<ModelNode> nodes = new ArrayList<>();
    private final List<Integer> rootNodes = new ArrayList<>();
    private final List<ModelAnimation> animations = new ArrayList<>();
@@ -52,17 +52,17 @@ public class SpikeModel {
    private float walkCycleProgress;
    private long lastAnimationTimeNanos;
 
-   public void render(MatrixStack matrixStack, VertexConsumerProvider vertexConsumers, float partialTicks, SpikeBrain brain) {
+   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, SpikeBrain brain) {
       ensureLoaded();
       if (failed || nodes.isEmpty()) {
          return;
       }
 
       VertexConsumer buffer = vertexConsumers.getBuffer(LAYER);
-      float ageInTicks = mc.player == null ? 0.0F : mc.player.age + partialTicks;
+      float ageInTicks = mc.player == null ? 0.0F : mc.player.tickCount + partialTicks;
       float deltaSeconds = updateAnimationClock();
       float moveSpeed = brain.getMoveSpeed();
-      float interpolatedWalkAmount = MathHelper.lerp(partialTicks, brain.prevLimbSwingAmount, brain.limbSwingAmount);
+      float interpolatedWalkAmount = Mth.lerp(partialTicks, brain.prevLimbSwingAmount, brain.limbSwingAmount);
       float walkAmount = Math.min(Math.max(interpolatedWalkAmount, moveSpeed * 18.0F), 1.0F);
       float targetWalkBlend = walkAmount > 0.025F ? Math.min(1.0F, walkAmount * 1.35F) : 0.0F;
       walkBlend = smoothApproach(walkBlend, targetWalkBlend, deltaSeconds, 3.6F);
@@ -119,7 +119,7 @@ public class SpikeModel {
       float tailBaseRoll = 4.0F + ((float) Math.cos(idleCycle * 0.4F) * 0.45F) * idleBlend + ((float) Math.cos(walkCycle * 0.9F) * 1.5F) * walkBlend;
       float tailTipYaw = tailBaseYaw * 1.28F + ((float) Math.sin(idleCycle * 0.62F + 0.45F) * 0.9F) * idleBlend;
 
-      matrixStack.push();
+      matrixStack.pushPose();
       matrixStack.translate(sideShift, bob - 0.01 * 10.0F, 0.0D);
       matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(smoothedYaw));
       matrixStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
@@ -138,16 +138,16 @@ public class SpikeModel {
       for (int rootNode : rootNodes) {
          renderNode(matrixStack, buffer, rootNode, pose);
       }
-      matrixStack.pop();
+      matrixStack.popPose();
    }
 
-   private void renderNode(MatrixStack matrixStack, VertexConsumer buffer, int nodeIndex, AnimationPose pose) {
+   private void renderNode(PoseStack matrixStack, VertexConsumer buffer, int nodeIndex, AnimationPose pose) {
       if (nodeIndex < 0 || nodeIndex >= nodes.size()) {
          return;
       }
 
       ModelNode node = nodes.get(nodeIndex);
-      matrixStack.push();
+      matrixStack.pushPose();
       matrixStack.translate(node.translation[0], node.translation[1], node.translation[2]);
       matrixStack.multiply(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
       if (!isUnitScale(node.scale)) {
@@ -163,10 +163,10 @@ public class SpikeModel {
       for (int childIndex : node.children) {
          renderNode(matrixStack, buffer, childIndex, pose);
       }
-      matrixStack.pop();
+      matrixStack.popPose();
    }
 
-   private void applyNodeAnimation(MatrixStack matrixStack, String nodeName, AnimationPose pose) {
+   private void applyNodeAnimation(PoseStack matrixStack, String nodeName, AnimationPose pose) {
       if (applyClipAnimation(matrixStack, nodeName, pose)) {
          return;
       }
@@ -209,7 +209,7 @@ public class SpikeModel {
       }
    }
 
-   private boolean applyClipAnimation(MatrixStack matrixStack, String nodeName, AnimationPose pose) {
+   private boolean applyClipAnimation(PoseStack matrixStack, String nodeName, AnimationPose pose) {
       AnimationTransform idle = idleAnimation == null ? null : idleAnimation.sample(nodeName, pose.animationTime);
       AnimationTransform walk = walkAnimation == null ? null : walkAnimation.sample(nodeName, pose.walkAnimationTime);
       if (idle == null && walk == null) {
@@ -244,9 +244,9 @@ public class SpikeModel {
          b = new float[]{0.0F, 0.0F, 0.0F};
       }
       return new float[]{
-            MathHelper.lerp(blend, a[0], b[0]),
-            MathHelper.lerp(blend, a[1], b[1]),
-            MathHelper.lerp(blend, a[2], b[2])
+            Mth.lerp(blend, a[0], b[0]),
+            Mth.lerp(blend, a[1], b[1]),
+            Mth.lerp(blend, a[2], b[2])
       };
    }
 
@@ -297,7 +297,7 @@ public class SpikeModel {
       float y = scaleA * ay + scaleB * by;
       float z = scaleA * az + scaleB * bz;
       float w = scaleA * aw + scaleB * bw;
-      float length = MathHelper.sqrt(x * x + y * y + z * z + w * w);
+      float length = Mth.sqrt(x * x + y * y + z * z + w * w);
       if (length < 1.0E-5F) {
          return new float[]{0.0F, 0.0F, 0.0F, 1.0F};
       }
@@ -607,8 +607,8 @@ public class SpikeModel {
             array.get(4).getAsFloat());
    }
 
-   private void renderTriangles(MatrixStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
-      Matrix4f matrix = matrixStack.peek().getPositionMatrix();
+   private void renderTriangles(PoseStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
+      Matrix4f matrix = matrixStack.last().getPositionMatrix();
       for (MeshTriangle triangle : triangles) {
          putVertex(buffer, matrix, triangle.a);
          putVertex(buffer, matrix, triangle.b);
@@ -696,7 +696,7 @@ public class SpikeModel {
          int size = Math.min(a.length, b.length);
          float[] result = new float[size];
          for (int i = 0; i < size; i++) {
-            result[i] = MathHelper.lerp(blend, a[i], b[i]);
+            result[i] = Mth.lerp(blend, a[i], b[i]);
          }
          return result;
       }
@@ -733,7 +733,7 @@ public class SpikeModel {
          float y = scaleA * ay + scaleB * by;
          float z = scaleA * az + scaleB * bz;
          float w = scaleA * aw + scaleB * bw;
-         float length = MathHelper.sqrt(x * x + y * y + z * z + w * w);
+         float length = Mth.sqrt(x * x + y * y + z * z + w * w);
          if (length < 1.0E-5F) {
             return new float[]{0.0F, 0.0F, 0.0F, 1.0F};
          }

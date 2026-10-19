@@ -5,8 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import vesence.renderengine.render.pipeline.GlassCompositePipeline;
 import vesence.renderengine.render.pipeline.GlassKawaseBlurPipeline;
 import vesence.renderengine.render.pipeline.MaskDiffPipeline;
@@ -14,7 +14,7 @@ import vesence.renderengine.render.pipeline.MaskDiffPipeline;
 public class GlassHandsRenderer {
     private static GlassHandsRenderer instance;
 
-    private final MinecraftClient client;
+    private final Minecraft client;
     private GlassKawaseBlurPipeline kawaseBlur;
     private GlassCompositePipeline glassComposite;
     private MaskDiffPipeline maskDiff;
@@ -46,7 +46,7 @@ public class GlassHandsRenderer {
     private float edgeGlowIntensity = 0.2f;
 
     public GlassHandsRenderer() {
-        this.client = MinecraftClient.getInstance();
+        this.client = Minecraft.getInstance();
         instance = this;
     }
 
@@ -231,7 +231,7 @@ public class GlassHandsRenderer {
 
         ensureInitialized();
 
-        Framebuffer framebuffer = client.getFramebuffer();
+        RenderTarget framebuffer = client.getMainRenderTarget();
         if (framebuffer == null || framebuffer.getColorAttachment() == null) {
             return;
         }
@@ -255,7 +255,7 @@ public class GlassHandsRenderer {
             return;
         }
 
-        Framebuffer framebuffer = client.getFramebuffer();
+        RenderTarget framebuffer = client.getMainRenderTarget();
         if (framebuffer == null || framebuffer.getColorAttachment() == null) {
             return;
         }
@@ -273,7 +273,7 @@ public class GlassHandsRenderer {
             return;
         }
 
-        Framebuffer framebuffer = client.getFramebuffer();
+        RenderTarget framebuffer = client.getMainRenderTarget();
         if (framebuffer == null || framebuffer.getColorAttachment() == null) {
             capturing = false;
             return;

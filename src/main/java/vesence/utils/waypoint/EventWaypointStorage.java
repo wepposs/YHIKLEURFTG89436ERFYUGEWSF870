@@ -2,10 +2,10 @@ package vesence.utils.waypoint;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreenPre;
 import vesence.renderengine.render.Renderer2D;
@@ -13,7 +13,7 @@ import vesence.utils.other.Mathf;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
-import vesence.utils.render.text.TextRenderer;
+import vesence.utils.render.text.Font;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Рендер повторяет донора: компактный тёмный прямоугольник + иконка типа
  * ивента + название + редкость (цвет по редкости) + дистанция. Проекция
- * мира в экран — через {@link Mathf#worldSpaceToScreenSpace(Vec3d)} (как у
+ * мира в экран — через {@link Mathf#worldSpaceToScreenSpace(Vec3)} (как у
  * обычных вейпоинтов vesence).
  */
 @Environment(EnvType.CLIENT)
@@ -42,13 +42,13 @@ public final class EventWaypointStorage {
 
    private static final long EVENT_TTL_MS = 300000L;
 
-   private static final Identifier WAYPOINT_ICON = Identifier.of("vesence", "textures/events/waypoint.png");
-   private static final Identifier ICON_MAYAK = Identifier.of("vesence", "textures/events/may.png");
-   private static final Identifier ICON_VULKAN = Identifier.of("vesence", "textures/events/vul.png");
-   private static final Identifier ICON_METEOR = Identifier.of("vesence", "textures/events/met.png");
-   private static final Identifier ICON_GEYSER = Identifier.of("vesence", "textures/events/gez.png");
+   private static final ResourceLocation WAYPOINT_ICON = ResourceLocation.of("vesence", "textures/events/waypoint.png");
+   private static final ResourceLocation ICON_MAYAK = ResourceLocation.of("vesence", "textures/events/may.png");
+   private static final ResourceLocation ICON_VULKAN = ResourceLocation.of("vesence", "textures/events/vul.png");
+   private static final ResourceLocation ICON_METEOR = ResourceLocation.of("vesence", "textures/events/met.png");
+   private static final ResourceLocation ICON_GEYSER = ResourceLocation.of("vesence", "textures/events/gez.png");
 
-   private final MinecraftClient mc = MinecraftClient.getInstance();
+   private final Minecraft mc = Minecraft.getInstance();
    private final Map<String, Entry> waypoints = new ConcurrentHashMap<>();
 
    private EventWaypointStorage() {
@@ -67,7 +67,7 @@ public final class EventWaypointStorage {
       this.clearEventWaypoints();
       this.waypoints.put(name, new Entry(x, y, z, rarity == null ? "" : rarity, System.currentTimeMillis()));
       if (notify && mc.player != null) {
-         mc.player.sendMessage(net.minecraft.text.Text.literal(
+         mc.player.sendMessage(net.minecraft.text.Component.literal(
                "[EventParser] " + name + (rarity != null && !rarity.isEmpty() ? " [" + rarity + "]" : "")
                      + " -> " + x + " " + y + " " + z), false);
       }
@@ -110,7 +110,7 @@ public final class EventWaypointStorage {
 
    @EventInit
    public void onRender(EventScreenPre event) {
-      if (mc.player == null || mc.world == null || this.waypoints.isEmpty()) {
+      if (mc.player == null || mc.level == null || this.waypoints.isEmpty()) {
          return;
       }
 
@@ -123,10 +123,10 @@ public final class EventWaypointStorage {
 
       float scale = (float) Mathf.getScaleFactor();
       Camera camera = mc.gameRenderer.getCamera();
-      Vec3d camPos = camera.getCameraPos();
+      Vec3 camPos = camera.getCameraPos();
 
-      double yawRad = Math.toRadians(camera.getYaw());
-      double pitchRad = Math.toRadians(camera.getPitch());
+      double yawRad = Math.toRadians(camera.getYRot());
+      double pitchRad = Math.toRadians(camera.getXRot());
       double cosPitch = Math.cos(pitchRad);
       double fx = -Math.sin(yawRad) * cosPitch;
       double fy = -Math.sin(pitchRad);
@@ -136,7 +136,7 @@ public final class EventWaypointStorage {
 
       for (Map.Entry<String, Entry> mapEntry : this.waypoints.entrySet()) {
          Entry waypoint = mapEntry.getValue();
-         Vec3d worldPos = new Vec3d(waypoint.x + 0.5, waypoint.y + 1.5, waypoint.z + 0.5);
+         Vec3 worldPos = new Vec3(waypoint.x + 0.5, waypoint.y + 1.5, waypoint.z + 0.5);
 
          double dx = worldPos.x - camPos.x;
          double dy = worldPos.y - camPos.y;
@@ -146,12 +146,12 @@ public final class EventWaypointStorage {
             continue;
          }
 
-         Vec3d screen = Mathf.worldSpaceToScreenSpace(worldPos);
+         Vec3 screen = Mathf.worldSpaceToScreenSpace(worldPos);
          if (screen == null || !Float.isFinite((float) screen.x) || !Float.isFinite((float) screen.y)) {
             continue;
          }
 
-         int distance = (int) camPos.distanceTo(new Vec3d(waypoint.x, waypoint.y, waypoint.z));
+         int distance = (int) camPos.distanceTo(new Vec3(waypoint.x, waypoint.y, waypoint.z));
          float cx = (float) screen.x * scale;
          float cy = (float) screen.y * scale;
 
@@ -173,9 +173,9 @@ public final class EventWaypointStorage {
 
       boolean hasRarity = rarity != null && !rarity.isEmpty();
 
-      TextRenderer.TextMetrics nameM = renderer.measureText(titleFont, name, titleSize);
-      TextRenderer.TextMetrics rarM = hasRarity ? renderer.measureText(smallFont, rarity, smallSize) : null;
-      TextRenderer.TextMetrics distM = renderer.measureText(smallFont, distText, smallSize);
+      Font.TextMetrics nameM = renderer.measureText(titleFont, name, titleSize);
+      Font.TextMetrics rarM = hasRarity ? renderer.measureText(smallFont, rarity, smallSize) : null;
+      Font.TextMetrics distM = renderer.measureText(smallFont, distText, smallSize);
 
       float nameW = nameM.width;
       float rarW = hasRarity ? rarM.width : 0.0F;
@@ -214,7 +214,7 @@ public final class EventWaypointStorage {
       renderer.text(smallFont, bgX + bgW - rightPad - distW, bgY + (bgH + distM.height) / 2.0F, smallSize, distText, themeColor);
    }
 
-   private Identifier getEventIcon(String name) {
+   private ResourceLocation getEventIcon(String name) {
       String lower = name.toLowerCase();
       if (lower.contains("маяк")) {
          return ICON_MAYAK;

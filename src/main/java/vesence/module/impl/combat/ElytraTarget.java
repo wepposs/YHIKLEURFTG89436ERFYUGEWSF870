@@ -2,11 +2,11 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.lifecycle.ClientTickEvent;
 import vesence.module.api.Category;
@@ -82,7 +82,7 @@ public class ElytraTarget extends Module {
     /**
      * Get predicted point (MeowDLC logic)
      */
-    public Vec3d getPredictedPoint(LivingEntity target) {
+    public Vec3 getPredictedPoint(LivingEntity target) {
         if (target == null || mc.player == null) {
             return getCenterPoint(target);
         }
@@ -102,18 +102,18 @@ public class ElytraTarget extends Module {
     /**
      * Calculate prediction with physics (MeowDLC baseOffset)
      */
-    private Vec3d calculatePrediction(LivingEntity target) {
-        Vec3d base = getCenterPoint(target);
+    private Vec3 calculatePrediction(LivingEntity target) {
+        Vec3 base = getCenterPoint(target);
         double blocks = predictBlocks.get().doubleValue();
 
         if (blocks <= 0.0) {
             return base;
         }
 
-        Vec3d center = target.getBoundingBox().getCenter();
+        Vec3 center = target.getBoundingBox().getCenter();
         double centerYOffset = center.y - target.getY();
         double tickVertical = target.getY() - target.lastRenderY;
-        Vec3d velocity = target.getVelocity();
+        Vec3 velocity = target.getDeltaMovement();
         double horizontal = Math.hypot(velocity.x, velocity.z);
 
         if (horizontal < 1.0E-4) {
@@ -131,13 +131,13 @@ public class ElytraTarget extends Module {
         double drag = Math.pow(1.0 / GLIDE_DRAG, ticks);
         
         // Extrapolate position
-        Vec3d extrapolated = velocity.multiply(ticks * drag * OVERTAKE_SPEED_SCALE);
+        Vec3 extrapolated = velocity.multiply(ticks * drag * OVERTAKE_SPEED_SCALE);
 
         // Vertical prediction based on pitch
-        double pitchRad = Math.toRadians(target.getPitch());
+        double pitchRad = Math.toRadians(target.getXRot());
         double pitchLead = -Math.sin(pitchRad) * horizontal * PITCH_HORIZONTAL;
         double verticalStep = (tickVertical * TICK_VERTICAL + pitchLead) * blocks;
-        verticalStep = MathHelper.clamp(verticalStep, VERTICAL_CLAMP_LOW, VERTICAL_CLAMP_HIGH);
+        verticalStep = Mth.clamp(verticalStep, VERTICAL_CLAMP_LOW, VERTICAL_CLAMP_HIGH);
 
         return base.add(extrapolated.x, extrapolated.y + centerYOffset + verticalStep, extrapolated.z);
     }
@@ -150,20 +150,20 @@ public class ElytraTarget extends Module {
             return false;
         }
 
-        Vec3d toTarget = new Vec3d(
+        Vec3 toTarget = new Vec3(
                 target.getX() - mc.player.getX(),
                 target.getY() - mc.player.getY(),
                 target.getZ() - mc.player.getZ()
         );
-        Vec3d flatToTarget = new Vec3d(toTarget.x, 0.0, toTarget.z);
+        Vec3 flatToTarget = new Vec3(toTarget.x, 0.0, toTarget.z);
 
-        if (flatToTarget.lengthSquared() < 1.0E-6) {
+        if (flatToTarget.lengthSqr() < 1.0E-6) {
             return true;
         }
 
-        Vec3d own = mc.player.getVelocity();
-        Vec3d flatOwn = new Vec3d(own.x, 0.0, own.z).normalize();
-        Vec3d flatTarget = new Vec3d(target.getVelocity().x, 0.0, target.getVelocity().z).normalize();
+        Vec3 own = mc.player.getDeltaMovement();
+        Vec3 flatOwn = new Vec3(own.x, 0.0, own.z).normalize();
+        Vec3 flatTarget = new Vec3(target.getDeltaMovement().x, 0.0, target.getDeltaMovement().z).normalize();
 
         double closing = flatOwn.dotProduct(flatTarget);
         double approach = flatOwn.dotProduct(flatToTarget.normalize());
@@ -171,11 +171,11 @@ public class ElytraTarget extends Module {
         return closing >= OVERTAKE_DOT_MIN && approach >= OVERTAKE_DOT_MIN;
     }
 
-    private Vec3d getCenterPoint(LivingEntity entity) {
+    private Vec3 getCenterPoint(LivingEntity entity) {
         if (entity == null) {
-            return Vec3d.ZERO;
+            return Vec3.ZERO;
         }
-        return new Vec3d(
+        return new Vec3(
                 entity.getX(),
                 entity.getY() + entity.getHeight() * AIM_HEIGHT_FRAC,
                 entity.getZ()

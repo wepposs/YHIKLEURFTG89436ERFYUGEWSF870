@@ -66,7 +66,7 @@ public class AimAssist extends Module {
 
     @EventInit
     public void onRender2D(EventScreen event) {
-        if (!this.enable || !showFov.get() || mc.player == null || mc.world == null) {
+        if (!this.enable || !showFov.get() || mc.player == null || mc.level == null) {
             return;
         }
 
@@ -83,7 +83,7 @@ public class AimAssist extends Module {
 
     @EventInit
     public void onLook(EventLook event) {
-        if (!this.enable || mc.player == null || mc.world == null || mc.currentScreen != null) {
+        if (!this.enable || mc.player == null || mc.level == null || mc.screen != null) {
             resetAssist();
             return;
         }
@@ -94,40 +94,40 @@ public class AimAssist extends Module {
             return;
         }
 
-        Vec3d aimPoint = target.getBoundingBox().getCenter();
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d diff = aimPoint.subtract(eye);
+        Vec3 aimPoint = target.getBoundingBox().getCenter();
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 diff = aimPoint.subtract(eye);
 
         double horizontal = Math.hypot(diff.x, diff.z);
         float targetYaw = (float) (Math.toDegrees(Math.atan2(diff.z, diff.x)) - 90.0);
         float targetPitch = (float) (-Math.toDegrees(Math.atan2(diff.y, horizontal)));
 
-        float yawDelta = MathHelper.wrapDegrees(targetYaw - mc.player.getYaw());
-        float pitchDelta = MathHelper.clamp(targetPitch - mc.player.getPitch(), -90.0f, 90.0f);
+        float yawDelta = Mth.wrapDegrees(targetYaw - mc.player.getYRot());
+        float pitchDelta = Mth.clamp(targetPitch - mc.player.getXRot(), -90.0f, 90.0f);
 
         float baseSpeed = (float) speed.get().doubleValue() / 100.0f;
         float smoothFactor = 1.0f - (float) smooth.get().doubleValue() / 100.0f;
 
-        float desiredYaw = MathHelper.clamp(yawDelta, -baseSpeed * 50.0f, baseSpeed * 50.0f);
-        float desiredPitch = MathHelper.clamp(pitchDelta, -baseSpeed * 50.0f, baseSpeed * 50.0f);
+        float desiredYaw = Mth.clamp(yawDelta, -baseSpeed * 50.0f, baseSpeed * 50.0f);
+        float desiredPitch = Mth.clamp(pitchDelta, -baseSpeed * 50.0f, baseSpeed * 50.0f);
 
         assistYaw += (desiredYaw - assistYaw) * smoothFactor;
         assistPitch += (desiredPitch - assistPitch) * smoothFactor;
 
-        event.setYaw(event.getYaw() + assistYaw);
-        event.setPitch(MathHelper.clamp(event.getPitch() + assistPitch, -90.0f, 90.0f));
+        event.setYRot(event.getYRot() + assistYaw);
+        event.setXRot(Mth.clamp(event.getXRot() + assistPitch, -90.0f, 90.0f));
     }
 
     private LivingEntity selectTarget() {
         LivingEntity best = null;
         double bestScore = Double.MAX_VALUE;
 
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.level.getEntities()) {
             if (!(entity instanceof LivingEntity living) || !isValidTarget(living)) {
                 continue;
             }
 
-            Vec3d point = living.getBoundingBox().getCenter();
+            Vec3 point = living.getBoundingBox().getCenter();
             float[] rotations = getRotationsTo(point);
             double angle = Math.hypot(rotations[0], rotations[1]);
 
@@ -148,7 +148,7 @@ public class AimAssist extends Module {
     }
 
     private boolean isValidTarget(LivingEntity entity) {
-        if (entity == mc.player || !entity.isAlive() || entity.isInvulnerable() || entity instanceof ArmorStandEntity) {
+        if (entity == mc.player || !entity.isAlive() || entity.isInvulnerable() || entity instanceof ArmorStand) {
             return false;
         }
 
@@ -168,7 +168,7 @@ public class AimAssist extends Module {
             return false;
         }
 
-        boolean player = entity instanceof PlayerEntity;
+        boolean player = entity instanceof Player;
         if (player && !targets.get("Игроки")) {
             return false;
         }
@@ -181,22 +181,22 @@ public class AimAssist extends Module {
         if (!player && !(entity instanceof Monster || entity instanceof SlimeEntity || entity instanceof VillagerEntity || entity instanceof AnimalEntity)) {
             return false;
         }
-        if (entity instanceof PlayerEntity playerEntity && playerEntity.isCreative()) {
+        if (entity instanceof Player playerEntity && playerEntity.isCreative()) {
             return false;
         }
 
         return true;
     }
 
-    private float[] getRotationsTo(Vec3d point) {
-        Vec3d eye = mc.player.getEyePos();
-        Vec3d diff = point.subtract(eye);
+    private float[] getRotationsTo(Vec3 point) {
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 diff = point.subtract(eye);
         double horizontal = Math.hypot(diff.x, diff.z);
         float yaw = (float) (Math.toDegrees(Math.atan2(diff.z, diff.x)) - 90.0);
         float pitch = (float) (-Math.toDegrees(Math.atan2(diff.y, horizontal)));
         return new float[]{
-            MathHelper.wrapDegrees(yaw - mc.player.getYaw()),
-            pitch - mc.player.getPitch()
+            Mth.wrapDegrees(yaw - mc.player.getYRot()),
+            pitch - mc.player.getXRot()
         };
     }
 

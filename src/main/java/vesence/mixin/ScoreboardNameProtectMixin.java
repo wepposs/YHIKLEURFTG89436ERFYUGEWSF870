@@ -5,16 +5,16 @@ import java.util.List;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.scoreboard.number.NumberFormat;
+import net.minecraft.world.scores.Team;
+import net.minecraft.network.chat.numbers.NumberFormat;
 import net.minecraft.scoreboard.number.StyledNumberFormat;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,23 +28,23 @@ import vesence.utils.other.SidebarEntry;
  * Streamer Mode (4): перерисовывает ванильный scoreboard-сайдбар с применением
  * замены ника/друзей, скрытия грифер- и серверных слов и перекраски красного
  * текста в белый. Порт из RelevantPremiumpp4 (GorbunovRendererMixin),
- * адаптированный под 1.21.11 (сигнатура renderScoreboardSidebar(DrawContext,
+ * адаптированный под 1.21.11 (сигнатура renderScoreboardSidebar(GuiGraphics,
  * ScoreboardObjective)).
  *
- * <p>Скорборд рисуется деревьями {@link Text}, которые НЕ проходят через
+ * <p>Скорборд рисуется деревьями {@link Component}, которые НЕ проходят через
  * строковый {@link DrawContextNameProtectMixin}, поэтому чистим его отдельно —
  * иначе имя/домены осталось бы видно в таблице.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(InGameHud.class)
+@Mixin(Gui.class)
 public abstract class ScoreboardNameProtectMixin {
 
     @Inject(
-        method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+        method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
         at = @At("HEAD"),
         cancellable = true
     )
-    private void vesence$renderPatchedScoreboard(DrawContext drawContext, ScoreboardObjective objective, CallbackInfo ci) {
+    private void vesence$renderPatchedScoreboard(GuiGraphics drawContext, ScoreboardObjective objective, CallbackInfo ci) {
         // Кастомный скорборд (ScoreboardElement) активен — подавляем И ванильную
         // отрисовку, И NameProtect-перерисовку: скорборд рисует HUD-элемент,
         // который сам применяет замену ника/грифа/сервер-слов и red->white.
@@ -67,8 +67,8 @@ public abstract class ScoreboardNameProtectMixin {
             }
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.textRenderer == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.font == null) {
             return;
         }
 
@@ -81,20 +81,20 @@ public abstract class ScoreboardNameProtectMixin {
             .limit(15L)
             .map(entry -> {
                 Team team = scoreboard.getScoreHolderTeam(entry.owner());
-                Text name = this.vesence$patchText(Team.decorateName(team, entry.name()));
+                Component name = this.vesence$patchText(Team.decorateName(team, entry.name()));
                 // Счёт справа (красные цифры 1..N) тоже перекрашиваем красный->белый.
-                Text score = np.recolorRedToWhite(entry.formatted(numberFormat));
-                int scoreWidth = client.textRenderer.getWidth(score);
+                Component score = np.recolorRedToWhite(entry.formatted(numberFormat));
+                int scoreWidth = client.font.getWidth(score);
                 return new SidebarEntry(name, score, scoreWidth);
             })
             .toList();
-        Text title = this.vesence$patchText(objective.getDisplayName());
-        int titleWidth = client.textRenderer.getWidth(title);
+        Component title = this.vesence$patchText(objective.getDisplayName());
+        int titleWidth = client.font.getWidth(title);
         int maxWidth = titleWidth;
-        int separatorWidth = client.textRenderer.getWidth(": ");
+        int separatorWidth = client.font.getWidth(": ");
 
         for (SidebarEntry line : lines) {
-            maxWidth = Math.max(maxWidth, client.textRenderer.getWidth(line.name) + (line.scoreWidth > 0 ? separatorWidth + line.scoreWidth : 0));
+            maxWidth = Math.max(maxWidth, client.font.getWidth(line.name) + (line.scoreWidth > 0 ? separatorWidth + line.scoreWidth : 0));
         }
 
         int lineCount = lines.size();
@@ -107,25 +107,25 @@ public abstract class ScoreboardNameProtectMixin {
         int top = bottom - lineCount * 9;
         drawContext.fill(left - 2, top - 10, right, top - 1, headerColor);
         drawContext.fill(left - 2, top - 1, right, bottom, bodyColor);
-        drawContext.drawText(client.textRenderer, title, left + maxWidth / 2 - titleWidth / 2, top - 9, -1, false);
+        drawContext.drawText(client.font, title, left + maxWidth / 2 - titleWidth / 2, top - 9, -1, false);
 
         for (int index = 0; index < lineCount; index++) {
             SidebarEntry line = lines.get(index);
             int y = bottom - (lineCount - index) * 9;
-            drawContext.drawText(client.textRenderer, line.name, left, y, -1, false);
-            drawContext.drawText(client.textRenderer, line.score, right - line.scoreWidth, y, -1, false);
+            drawContext.drawText(client.font, line.name, left, y, -1, false);
+            drawContext.drawText(client.font, line.score, right - line.scoreWidth, y, -1, false);
         }
 
         ci.cancel();
     }
 
-    private Text vesence$patchText(Text text) {
+    private Component vesence$patchText(Component text) {
         NameProtect np = NameProtect.getInstance();
         if (np == null) {
             return text;
         }
-        // Замена ника/друзей в дереве Text (сохраняя стили).
-        Text patched = np.patchText(text);
+        // Замена ника/друзей в дереве Component (сохраняя стили).
+        Component patched = np.patchText(text);
         // Перекраска красного (&c/&4) в белый (если галочка включена).
         patched = np.recolorRedToWhite(patched);
         // Чистим грифер/серверные слова на ПОЛНОЙ строке (склейка дублей).
@@ -133,6 +133,6 @@ public abstract class ScoreboardNameProtectMixin {
         String cleaned = np.patchServerAndGrief(patchedString);
         return cleaned.equals(patchedString)
             ? patched
-            : Text.literal(cleaned).setStyle(patched.getStyle());
+            : Component.literal(cleaned).setStyle(patched.getStyle());
     }
 }

@@ -2,17 +2,17 @@ package vesence.mixin;
 
 import java.util.HashMap;
 
-import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.ItemEntityRenderer;
-import net.minecraft.client.render.entity.state.ItemEntityRenderState;
+import net.minecraft.client.renderer.entity.ItemEntityRenderer;
+import net.minecraft.client.renderer.entity.state.ItemEntityRenderState;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.state.CameraRenderState;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.util.math.Box;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.math.random.Random;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,12 +41,12 @@ public abstract class ItemEntityRendererMixin extends EntityRenderer<ItemEntity,
 
     @Inject(method = "updateRenderState(Lnet/minecraft/entity/ItemEntity;Lnet/minecraft/client/render/entity/state/ItemEntityRenderState;F)V", at = @At("TAIL"))
     private void onUpdateRenderState(ItemEntity entity, ItemEntityRenderState state, float tickDelta, CallbackInfo ci) {
-        boolean stableGround = vesence$resolveGroundState(entity, entity.isOnGround());
+        boolean stableGround = vesence$resolveGroundState(entity, entity.onGround());
         ((IItemEntityRenderState) state).setOnGround(stableGround);
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/render/entity/state/ItemEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
-    private void onRender(ItemEntityRenderState state, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/render/entity/state/ItemEntityRenderState;Lnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
+    private void onRender(ItemEntityRenderState state, PoseStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState, CallbackInfo ci) {
         if (Vesence.get != null && Vesence.get.manager != null) {
             ItemPhysic itemPhysic = Vesence.get.manager.get(ItemPhysic.class);
             if (itemPhysic != null && itemPhysic.enable) {
@@ -54,14 +54,14 @@ public abstract class ItemEntityRendererMixin extends EntityRenderer<ItemEntity,
                     ci.cancel();
                     return;
                 }
-                matrixStack.push();
-                Box box = state.itemRenderState.getModelBoundingBox();
+                matrixStack.pushPose();
+                AABB box = state.itemRenderState.getModelBoundingBox();
                 float f6 = (float) -box.minY;
 
                 matrixStack.translate(0.0f, f6, 0.0f);
 
                 float itemRotation = ItemEntity.getRotation(state.age, state.uniqueOffset);
-                boolean onGround = ((IItemEntityRenderState) state).isOnGround();
+                boolean onGround = ((IItemEntityRenderState) state).onGround();
 
                 if (onGround) {
                     matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0f));
@@ -73,7 +73,7 @@ public abstract class ItemEntityRendererMixin extends EntityRenderer<ItemEntity,
 
                 ItemEntityRenderer.render(matrixStack, orderedRenderCommandQueue, state.light, state, this.random, box);
 
-                matrixStack.pop();
+                matrixStack.popPose();
 
                 super.render(state, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 
@@ -96,7 +96,7 @@ public abstract class ItemEntityRendererMixin extends EntityRenderer<ItemEntity,
         if (holdTicks == null || holdTicks <= 0) {
             return false;
         }
-        Vec3d velocity = entity.getVelocity();
+        Vec3 velocity = entity.getDeltaMovement();
         boolean lowMotion = Math.abs(velocity.x) <= 0.08 && Math.abs(velocity.y) <= 0.08 && Math.abs(velocity.z) <= 0.08;
         if (!lowMotion) {
             vesence$groundHoldMap.remove(entityId);

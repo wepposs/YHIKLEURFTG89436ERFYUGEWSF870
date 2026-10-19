@@ -2,12 +2,12 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import vesence.Vesence;
 import vesence.module.api.setting.impl.BindSettings;
 import vesence.module.impl.misc.Assist;
@@ -37,15 +37,15 @@ public class AssistElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
         Hud hud = Vesence.get.manager.get(Hud.class);
         if (hud != null && !hud.isElementEnabled(name)) return;
 
         Assist assist = Vesence.get.manager.get(Assist.class);
-        boolean preview = mc.currentScreen instanceof ChatScreen;
+        boolean preview = mc.screen instanceof ChatScreen;
         if ((assist == null || !assist.enable) && !preview) return;
 
         List<BoundItem> boundItems = assist != null && assist.enable
@@ -96,7 +96,7 @@ public class AssistElement extends HudElement {
 
     @Override
     public float getWidth(Renderer2D renderer, FontObject font) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return PANEL_SIZE;
 
         Assist assist = Vesence.get.manager.get(Assist.class);
@@ -113,7 +113,7 @@ public class AssistElement extends HudElement {
         return PANEL_SIZE;
     }
 
-    private List<BoundItem> getBoundItemsFromAssist(MinecraftClient mc, Assist assist) {
+    private List<BoundItem> getBoundItemsFromAssist(Minecraft mc, Assist assist) {
         List<BoundItem> items = new ArrayList<>();
 
         if (assist.mode.is("FunTime")) {
@@ -138,7 +138,7 @@ public class AssistElement extends HudElement {
         return items;
     }
 
-    private void addBoundItem(List<BoundItem> items, MinecraftClient mc, BindSettings bind, Item item, String nameSubstring) {
+    private void addBoundItem(List<BoundItem> items, Minecraft mc, BindSettings bind, Item item, String nameSubstring) {
         if (bind.key == -1) return;
 
         if (mc.player.getItemCooldownManager().isCoolingDown(new ItemStack(item))) return;
@@ -146,7 +146,7 @@ public class AssistElement extends HudElement {
         int slot = findItemSlot(mc, nameSubstring, item);
         if (slot == -1) return;
 
-        ItemStack stack = mc.player.getInventory().getStack(slot);
+        ItemStack stack = mc.player.getInventory().getItem(slot);
         if (stack.isEmpty()) return;
 
         int totalCount = countItemsInInventory(mc, nameSubstring, item);
@@ -157,9 +157,9 @@ public class AssistElement extends HudElement {
         items.add(new BoundItem(stack, bindKey, totalCount));
     }
 
-    private int findItemSlot(MinecraftClient mc, String nameSubstring, Item fallbackItem) {
+    private int findItemSlot(Minecraft mc, String nameSubstring, Item fallbackItem) {
         for (int i = 0; i < 36; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
 
             if (nameSubstring != null) {
@@ -177,10 +177,10 @@ public class AssistElement extends HudElement {
         return -1;
     }
 
-    private int countItemsInInventory(MinecraftClient mc, String nameSubstring, Item fallbackItem) {
+    private int countItemsInInventory(Minecraft mc, String nameSubstring, Item fallbackItem) {
         int count = 0;
         for (int i = 0; i < mc.player.getInventory().size(); i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
+            ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
 
             boolean matches = false;

@@ -2,27 +2,27 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.CloseHandledScreenC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.core.Direction;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -54,7 +54,7 @@ public final class AutoExplosion extends Module {
    private int targetSlot = -1;
    private int oldSlot = -1;
    private boolean needSync;
-   private Box crystalArea;
+   private AABB crystalArea;
    private boolean blocked;
    private boolean internalInteract;
    private boolean bindWasPressed;
@@ -65,7 +65,7 @@ public final class AutoExplosion extends Module {
 
    @EventInit
    public void onPacket(EventPacket event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          return;
       }
       if (!event.isSend()) {
@@ -75,7 +75,7 @@ public final class AutoExplosion extends Module {
          return;
       }
 
-      if (event.getPacket() instanceof PlayerInteractBlockC2SPacket packet) {
+      if (event.getPacket() instanceof ServerboundUseItemOnPacket packet) {
          BlockHitResult hit = packet.getBlockHitResult();
          BlockPos clickedPos = hit.getBlockPos();
          BlockPos placePos = clickedPos.offset(hit.getSide());
@@ -100,14 +100,14 @@ public final class AutoExplosion extends Module {
 
    @EventInit
    public void onTick(EventUpdate event) {
-      if (mc.player == null || mc.world == null) {
+      if (mc.player == null || mc.level == null) {
          this.reset();
          return;
       }
 
       if (this.modeBaxa.is("По бинду")) {
          boolean pressed = this.bind.isPressed();
-         if (pressed && !this.bindWasPressed && mc.currentScreen == null) {
+         if (pressed && !this.bindWasPressed && mc.screen == null) {
             this.placeObsidianByCrosshair();
          }
          this.bindWasPressed = pressed;
@@ -119,7 +119,7 @@ public final class AutoExplosion extends Module {
       }
 
       if (this.targetPos != null) {
-         if (mc.world.getBlockState(this.targetPos).isAir()) {
+         if (mc.level.getBlockState(this.targetPos).isAir()) {
             this.targetPos = null;
          } else if (this.blocked) {
             this.blocked = false;
@@ -136,16 +136,16 @@ public final class AutoExplosion extends Module {
          return;
       }
 
-      this.rotateTo(Vec3d.ofCenter(pos));
+      this.rotateTo(Vec3.ofCenter(pos));
 
       this.oldSlot = mc.player.getInventory().getSelectedSlot();
-      mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(this.targetSlot));
+      mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.targetSlot));
       mc.player.getInventory().setSelectedSlot(this.targetSlot);
 
-      Vec3d hitVec = Vec3d.ofCenter(pos).add(0.0, 0.5, 0.0);
+      Vec3 hitVec = Vec3.ofCenter(pos).add(0.0, 0.5, 0.0);
       BlockHitResult result = new BlockHitResult(hitVec, Direction.UP, pos, false);
-      this.sendInteract(Hand.MAIN_HAND, result);
-      mc.player.swingHand(Hand.MAIN_HAND);
+      this.sendInteract(InteractionHand.MAIN_HAND, result);
+      mc.player.swingHand(InteractionHand.MAIN_HAND);
 
       this.needSync = true;
       this.crystalArea = this.boxFromBlock(pos.up()).expand(0.1);
@@ -157,12 +157,12 @@ public final class AutoExplosion extends Module {
          return;
       }
 
-      for (Entity entity : mc.world.getOtherEntities(null, this.crystalArea)) {
-         if (!(entity instanceof EndCrystalEntity crystal) || !crystal.isAlive()) {
+      for (Entity entity : mc.level.getOtherEntities(null, this.crystalArea)) {
+         if (!(entity instanceof EndCrystal crystal) || !crystal.isAlive()) {
             continue;
          }
 
-         if (!crystal.getBoundingBox().contains(mc.player.getEyePos())) {
+         if (!crystal.getBoundingBox().contains(mc.player.getEyePosition())) {
             this.rotateTo(crystal.getBoundingBox().getCenter());
          }
          this.attackCrystal(crystal);
@@ -182,33 +182,33 @@ public final class AutoExplosion extends Module {
          return false;
       }
 
-      Block block = mc.world.getBlockState(clickedPos).getBlock();
+      Block block = mc.level.getBlockState(clickedPos).getBlock();
       if (block != Blocks.OBSIDIAN && block != Blocks.BEDROCK) {
          return false;
       }
 
-      return mc.world.getBlockState(clickedPos.up()).isAir();
+      return mc.level.getBlockState(clickedPos.up()).isAir();
    }
 
    private boolean placeCrystalFromOffhand(BlockHitResult hit, BlockPos clickedPos) {
       int slot = this.findScreenSlot(Items.END_CRYSTAL);
-      if (slot == -1 && mc.player.getOffHandStack().getItem() != Items.END_CRYSTAL) {
+      if (slot == -1 && mc.player.getOffhandItem().getItem() != Items.END_CRYSTAL) {
          return false;
       }
 
       boolean swapped = false;
-      if (mc.player.getOffHandStack().getItem() != Items.END_CRYSTAL) {
+      if (mc.player.getOffhandItem().getItem() != Items.END_CRYSTAL) {
          this.swapSlotToOffhand(slot);
          swapped = true;
       }
 
-      this.sendInteract(Hand.OFF_HAND, hit);
-      mc.player.swingHand(Hand.OFF_HAND);
+      this.sendInteract(InteractionHand.OFF_HAND, hit);
+      mc.player.swingHand(InteractionHand.OFF_HAND);
       this.crystalArea = this.boxFromBlock(clickedPos.up()).expand(0.1);
 
       if (swapped) {
          this.swapSlotToOffhand(slot);
-         mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+         mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
       }
       return true;
    }
@@ -225,7 +225,7 @@ public final class AutoExplosion extends Module {
       if (hit.getType() != HitResult.Type.BLOCK) {
          return;
       }
-      if (mc.world.getBlockState(hit.getBlockPos()).isAir()) {
+      if (mc.level.getBlockState(hit.getBlockPos()).isAir()) {
          return;
       }
 
@@ -235,28 +235,28 @@ public final class AutoExplosion extends Module {
       this.blocked = true;
 
       this.swapSlotToOffhand(obsidianSlot);
-      this.sendInteract(Hand.OFF_HAND, hit);
-      mc.player.swingHand(Hand.OFF_HAND);
+      this.sendInteract(InteractionHand.OFF_HAND, hit);
+      mc.player.swingHand(InteractionHand.OFF_HAND);
       this.swapSlotToOffhand(obsidianSlot);
-      mc.player.networkHandler.sendPacket(new CloseHandledScreenC2SPacket(0));
+      mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
    }
 
-   private void attackCrystal(EndCrystalEntity crystal) {
-      mc.getNetworkHandler().sendPacket(PlayerInteractEntityC2SPacket.attack(crystal, false));
-      mc.player.swingHand(Hand.MAIN_HAND);
+   private void attackCrystal(EndCrystal crystal) {
+      mc.getConnection().sendPacket(ServerboundInteractPacket.attack(crystal, false));
+      mc.player.swingHand(InteractionHand.MAIN_HAND);
    }
 
-   private void sendInteract(Hand hand, BlockHitResult hitResult) {
+   private void sendInteract(InteractionHand hand, BlockHitResult hitResult) {
       this.internalInteract = true;
       try {
-         mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(hand, hitResult, 0));
+         mc.getConnection().sendPacket(new ServerboundUseItemOnPacket(hand, hitResult, 0));
       } finally {
          this.internalInteract = false;
       }
    }
 
-   private void rotateTo(Vec3d vec) {
-      Vec2f rotation = AuraUtil.getRotations(vec);
+   private void rotateTo(Vec3 vec) {
+      Vector2f rotation = AuraUtil.getRotations(vec);
       URotations.update(new Rotation(rotation.x, rotation.y), 360, 360, 360, 360, 1, 2, false);
    }
 
@@ -264,20 +264,20 @@ public final class AutoExplosion extends Module {
       BlockPos up1 = pos.up();
       BlockPos up2 = pos.up(2);
 
-      if (!mc.world.getBlockState(up1).isAir()) {
+      if (!mc.level.getBlockState(up1).isAir()) {
          return false;
       }
-      if (!mc.world.getBlockState(up2).isAir()) {
+      if (!mc.level.getBlockState(up2).isAir()) {
          return false;
       }
 
-      Box box = new Box(
+      AABB box = new AABB(
          up1.getX(), up1.getY(), up1.getZ(),
          up1.getX() + 1.0, up1.getY() + 2.0, up1.getZ() + 1.0
       );
 
-      for (Entity entity : mc.world.getOtherEntities(null, box)) {
-         if (!(entity instanceof EndCrystalEntity)) {
+      for (Entity entity : mc.level.getOtherEntities(null, box)) {
+         if (!(entity instanceof EndCrystal)) {
             return false;
          }
       }
@@ -286,7 +286,7 @@ public final class AutoExplosion extends Module {
 
    private int findCrystalSlot() {
       for (int i = 0; i < 9; i++) {
-         if (mc.player.getInventory().getStack(i).getItem() == Items.END_CRYSTAL) {
+         if (mc.player.getInventory().getItem(i).getItem() == Items.END_CRYSTAL) {
             return i;
          }
       }
@@ -295,7 +295,7 @@ public final class AutoExplosion extends Module {
 
    private int findScreenSlot(Item item) {
       for (int i = 9; i < 45; i++) {
-         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getStack();
+         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
          if (stack.getItem() == item) {
             return i;
          }
@@ -305,49 +305,49 @@ public final class AutoExplosion extends Module {
 
    private void swapSlotToOffhand(int slot) {
       if (slot >= 36 && slot <= 44) {
-         mc.interactionManager.clickSlot(0, 45, slot - 36, SlotActionType.SWAP, mc.player);
+         mc.gameMode.clickSlot(0, 45, slot - 36, ClickType.SWAP, mc.player);
          return;
       }
 
-      mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
-      mc.interactionManager.clickSlot(0, 45, 0, SlotActionType.SWAP, mc.player);
-      mc.interactionManager.clickSlot(0, slot, 0, SlotActionType.SWAP, mc.player);
+      mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
+      mc.gameMode.clickSlot(0, 45, 0, ClickType.SWAP, mc.player);
+      mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
    }
 
    private void restoreSelectedSlot() {
       if (this.oldSlot != -1) {
-         mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(this.oldSlot));
+         mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.oldSlot));
          mc.player.getInventory().setSelectedSlot(this.oldSlot);
          this.oldSlot = -1;
       }
    }
 
-   private Box boxFromBlock(BlockPos pos) {
-      return new Box(
+   private AABB boxFromBlock(BlockPos pos) {
+      return new AABB(
          pos.getX(), pos.getY(), pos.getZ(),
          pos.getX() + 1.0, pos.getY() + 1.0, pos.getZ() + 1.0
       );
    }
 
    private boolean isHoldingObsidian() {
-      return mc.player.getMainHandStack().getItem() == Items.OBSIDIAN
-         || mc.player.getOffHandStack().getItem() == Items.OBSIDIAN;
+      return mc.player.getMainHandItem().getItem() == Items.OBSIDIAN
+         || mc.player.getOffhandItem().getItem() == Items.OBSIDIAN;
    }
 
    private boolean isHoldingBlockForPlace() {
-      Item main = mc.player.getMainHandStack().getItem();
-      Item off = mc.player.getOffHandStack().getItem();
+      Item main = mc.player.getMainHandItem().getItem();
+      Item off = mc.player.getOffhandItem().getItem();
 
       return main instanceof BlockItem && main != Items.PLAYER_HEAD
          || off instanceof BlockItem && off != Items.PLAYER_HEAD;
    }
 
    private boolean isInRange(BlockPos pos) {
-      return mc.player.getEyePos().distanceTo(Vec3d.ofCenter(pos)) <= INTERACT_RANGE;
+      return mc.player.getEyePosition().distanceTo(Vec3.ofCenter(pos)) <= INTERACT_RANGE;
    }
 
    private void reset() {
-      if (this.oldSlot != -1 && mc.player != null && mc.getNetworkHandler() != null) {
+      if (this.oldSlot != -1 && mc.player != null && mc.getConnection() != null) {
          this.restoreSelectedSlot();
       }
       this.targetPos = null;

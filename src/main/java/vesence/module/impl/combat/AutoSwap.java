@@ -5,11 +5,11 @@ import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -209,7 +209,7 @@ public class AutoSwap extends Module {
             return;
         }
 
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             performVector();
             return;
         }
@@ -270,7 +270,7 @@ public class AutoSwap extends Module {
             allow = true;
             cachedSlot = slot;
 
-            if (mc.player.isOnGround()) {
+            if (mc.player.onGround()) {
                 MoveComponent.stopTicks = 1 + (int) (Math.random() * 2);
                 MoveComponent.stop = true;
             }
@@ -319,7 +319,7 @@ public class AutoSwap extends Module {
             }
 
             boolean canSwap =
-                    mc.currentScreen == null;
+                    mc.screen == null;
 
             if (canSwap) {
                 performSwap(targetSlot);
@@ -423,7 +423,7 @@ public class AutoSwap extends Module {
 
             if (
                     isMoving() &&
-                            mc.player.isOnGround()
+                            mc.player.onGround()
             ) {
                 MoveComponent.stopTicks =
                         1 + (int) (Math.random() * 2);
@@ -474,7 +474,7 @@ public class AutoSwap extends Module {
     private int resolveTargetSlot() {
 
         ItemStack offhand =
-                mc.player.getOffHandStack();
+                mc.player.getOffhandItem();
 
         Item currentOff =
                 offhand.getItem();
@@ -562,7 +562,7 @@ public class AutoSwap extends Module {
 
             ItemStack stack =
                     mc.player.getInventory()
-                            .getStack(i);
+                            .getItem(i);
 
             if (!stack.isOf(item)) {
                 continue;
@@ -615,7 +615,7 @@ public class AutoSwap extends Module {
 
                 ItemStack stack =
                         mc.player.getInventory()
-                                .getStack(i);
+                                .getItem(i);
 
                 if (stack.isOf(item)) {
                     return i;
@@ -648,7 +648,7 @@ public class AutoSwap extends Module {
 
             ItemStack stack =
                     mc.player.getInventory()
-                            .getStack(i);
+                            .getItem(i);
 
             if (!stack.isOf(Items.PLAYER_HEAD)) {
                 continue;
@@ -747,7 +747,7 @@ public class AutoSwap extends Module {
             return false;
         }
 
-        for (Text text : lore.lines()) {
+        for (Component text : lore.lines()) {
 
             String line =
                     normalize(
@@ -794,7 +794,7 @@ public class AutoSwap extends Module {
 
         ItemStack targetStack =
                 mc.player.getInventory()
-                        .getStack(invSlot)
+                        .getItem(invSlot)
                         .copy();
 
         if (targetStack.isEmpty()) {
@@ -913,7 +913,7 @@ public class AutoSwap extends Module {
          * если он не пустой.
          */
         ItemStack offhand =
-                mc.player.getOffHandStack();
+                mc.player.getOffhandItem();
 
         if (
                 offhand != null &&
@@ -956,7 +956,7 @@ public class AutoSwap extends Module {
 
             ItemStack stack =
                     mc.player.getInventory()
-                            .getStack(i);
+                            .getItem(i);
 
             if (stack.isOf(item)) {
 
@@ -1043,7 +1043,7 @@ public class AutoSwap extends Module {
          */
 
         ItemStack offhand =
-                mc.player.getOffHandStack();
+                mc.player.getOffhandItem();
 
         Item current =
                 offhand.getItem();
@@ -1106,7 +1106,7 @@ public class AutoSwap extends Module {
 
         return
                 "item:" +
-                        net.minecraft.registry.Registries.ITEM
+                        net.minecraft.registry.BuiltInRegistries.ITEM
                                 .getId(
                                         stack.getItem()
                                 );
@@ -1121,10 +1121,10 @@ public class AutoSwap extends Module {
     private boolean isMoving() {
 
         double x =
-                mc.player.getVelocity().x;
+                mc.player.getDeltaMovement().x;
 
         double z =
-                mc.player.getVelocity().z;
+                mc.player.getDeltaMovement().z;
 
         return
                 Math.abs(x) > 0.003D ||

@@ -2,7 +2,7 @@ package vesence.renderengine.shaders;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -162,7 +162,7 @@ public final class ShaderEspPipeline {
         if (textureId <= 0) return;
 
         Color c = new Color(color, true);
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         float fbW = Math.max(1.0f, mc.getWindow().getFramebufferWidth());
         float fbH = Math.max(1.0f, mc.getWindow().getFramebufferHeight());
 
@@ -189,7 +189,7 @@ public final class ShaderEspPipeline {
         ensureInitialized();
         if (srcTexture <= 0) return 0;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         int fbW = Math.max(1, mc.getWindow().getFramebufferWidth());
         int fbH = Math.max(1, mc.getWindow().getFramebufferHeight());
         int iters = Math.max(1, Math.min(bloomTargets.length - 2, iterations));
@@ -289,7 +289,7 @@ public final class ShaderEspPipeline {
 
     public static GlState.Snapshot beginRender() {
         ensureInitialized();
-        GlState.Snapshot snapshot = GlState.push();
+        GlState.Snapshot snapshot = GlState.pushPose();
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_CULL_FACE);
         GL11.glEnable(GL11.GL_BLEND);

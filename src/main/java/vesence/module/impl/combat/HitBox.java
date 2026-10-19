@@ -2,13 +2,13 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -96,7 +96,7 @@ public class HitBox extends Module {
             return;
         }
 
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             restoreHitBoxes();
             resetTarget();
             return;
@@ -120,12 +120,12 @@ public class HitBox extends Module {
     private void applyHitBoxes() {
         double expand = Math.max(0.0D, size.get() * 2.5D);
 
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (isInvalid(player)) {
                 continue;
             }
 
-            Box original = player.getBoundingBox();
+            AABB original = player.getBoundingBox();
 
             double minX = player.getX() - 0.30D - expand;
             double minY = original.minY;
@@ -135,7 +135,7 @@ public class HitBox extends Module {
             double maxY = original.maxY;
             double maxZ = player.getZ() + 0.30D + expand;
 
-            player.setBoundingBox(new Box(
+            player.setBoundingBox(new AABB(
                     minX,
                     minY,
                     minZ,
@@ -148,7 +148,7 @@ public class HitBox extends Module {
         hitboxApplied = true;
     }
 
-    private boolean isInvalid(PlayerEntity player) {
+    private boolean isInvalid(Player player) {
         if (player == null) {
             return true;
         }
@@ -166,16 +166,16 @@ public class HitBox extends Module {
     }
 
     private void restoreHitBoxes() {
-        if (!hitboxApplied || mc.world == null) {
+        if (!hitboxApplied || mc.level == null) {
             return;
         }
 
-        for (PlayerEntity player : mc.world.getPlayers()) {
+        for (Player player : mc.level.getPlayers()) {
             if (player == mc.player || !player.isAlive()) {
                 continue;
             }
 
-            Box current = player.getBoundingBox();
+            AABB current = player.getBoundingBox();
 
             double halfWidth = 0.30D;
 
@@ -184,7 +184,7 @@ public class HitBox extends Module {
             double maxX = player.getX() + halfWidth;
             double maxZ = player.getZ() + halfWidth;
 
-            player.setBoundingBox(new Box(
+            player.setBoundingBox(new AABB(
                     minX,
                     current.minY,
                     minZ,
@@ -220,12 +220,12 @@ public class HitBox extends Module {
         summary++;
 
         if (summary >= 2 && canAttack(target)) {
-            mc.interactionManager.attackEntity(
+            mc.gameMode.attackEntity(
                     mc.player,
                     target
             );
 
-            mc.player.swingHand(Hand.MAIN_HAND);
+            mc.player.swingHand(InteractionHand.MAIN_HAND);
 
             lastAttackTime = System.currentTimeMillis();
 
@@ -236,9 +236,9 @@ public class HitBox extends Module {
     }
 
     private LivingEntity refresh() {
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
 
-        Vec3d look = mc.player
+        Vec3 look = mc.player
                 .getRotationVec(1.0F)
                 .normalize();
 
@@ -251,7 +251,7 @@ public class HitBox extends Module {
 
         double range = 3.0D;
 
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.level.getEntities()) {
             if (!(entity instanceof LivingEntity living)) {
                 continue;
             }
@@ -266,7 +266,7 @@ public class HitBox extends Module {
 
             if (
                     ignoreFriends.get()
-                            && living instanceof PlayerEntity player
+                            && living instanceof Player player
                             && FriendStorage.isFriend(
                             player.getName().getString()
                     )
@@ -278,17 +278,17 @@ public class HitBox extends Module {
                 continue;
             }
 
-            Vec3d point = getEntityCenter(living);
+            Vec3 point = getEntityCenter(living);
 
-            Vec3d direction = point.subtract(eye);
+            Vec3 direction = point.subtract(eye);
 
-            if (direction.lengthSquared() <= 1.0E-7D) {
+            if (direction.lengthSqr() <= 1.0E-7D) {
                 continue;
             }
 
             direction = direction.normalize();
 
-            double dot = MathHelper.clamp(
+            double dot = Mth.clamp(
                     look.dotProduct(direction),
                     -1.0D,
                     1.0D
@@ -308,12 +308,12 @@ public class HitBox extends Module {
     }
 
     private Rotation calculateRotation(LivingEntity entity) {
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
 
-        Vec3d point = getEntityCenter(entity);
+        Vec3 point = getEntityCenter(entity);
 
         if (size.get() > 0.0D) {
-            Box box = entity.getBoundingBox().expand(size.get());
+            AABB box = entity.getBoundingBox().expand(size.get());
             point = getClosestPoint(box, eye);
         }
 
@@ -334,8 +334,8 @@ public class HitBox extends Module {
         );
 
         return new Rotation(
-                MathHelper.wrapDegrees(yaw),
-                MathHelper.clamp(
+                Mth.wrapDegrees(yaw),
+                Mth.clamp(
                         pitch,
                         -90.0F,
                         90.0F
@@ -343,34 +343,34 @@ public class HitBox extends Module {
         );
     }
 
-    private Vec3d getEntityCenter(LivingEntity entity) {
-        return new Vec3d(
+    private Vec3 getEntityCenter(LivingEntity entity) {
+        return new Vec3(
                 entity.getX(),
                 entity.getY() + entity.getHeight() * 0.5D,
                 entity.getZ()
         );
     }
 
-    private Vec3d getClosestPoint(Box box, Vec3d point) {
-        double x = MathHelper.clamp(
+    private Vec3 getClosestPoint(AABB box, Vec3 point) {
+        double x = Mth.clamp(
                 point.x,
                 box.minX,
                 box.maxX
         );
 
-        double y = MathHelper.clamp(
+        double y = Mth.clamp(
                 point.y,
                 box.minY,
                 box.maxY
         );
 
-        double z = MathHelper.clamp(
+        double z = Mth.clamp(
                 point.z,
                 box.minZ,
                 box.maxZ
         );
 
-        return new Vec3d(
+        return new Vec3(
                 x,
                 y,
                 z
@@ -378,10 +378,10 @@ public class HitBox extends Module {
     }
 
     private void applyLegitRotation() {
-        float currentYaw = mc.player.getYaw();
-        float currentPitch = mc.player.getPitch();
+        float currentYaw = mc.player.getYRot();
+        float currentPitch = mc.player.getXRot();
 
-        float yawDelta = MathHelper.wrapDegrees(
+        float yawDelta = Mth.wrapDegrees(
                 targetYaw - currentYaw
         );
 
@@ -399,14 +399,14 @@ public class HitBox extends Module {
                         20.0F
                 );
 
-                mc.player.setYaw(
+                mc.player.setYRot(
                         currentYaw
                                 + Math.signum(yawDelta)
                                 * yawStep
                 );
 
-                mc.player.setPitch(
-                        MathHelper.clamp(
+                mc.player.setXRot(
+                        Mth.clamp(
                                 currentPitch
                                         + Math.signum(pitchDelta)
                                         * pitchStep,
@@ -420,12 +420,12 @@ public class HitBox extends Module {
                 float yawStep = yawDelta * 0.45F;
                 float pitchStep = pitchDelta * 0.45F;
 
-                mc.player.setYaw(
+                mc.player.setYRot(
                         currentYaw + yawStep
                 );
 
-                mc.player.setPitch(
-                        MathHelper.clamp(
+                mc.player.setXRot(
+                        Mth.clamp(
                                 currentPitch + pitchStep,
                                 -90.0F,
                                 90.0F
@@ -452,12 +452,12 @@ public class HitBox extends Module {
                         (random.nextFloat() - 0.5F)
                                 * 1.0F;
 
-                mc.player.setYaw(
+                mc.player.setYRot(
                         currentYaw + yawStep
                 );
 
-                mc.player.setPitch(
-                        MathHelper.clamp(
+                mc.player.setXRot(
+                        Mth.clamp(
                                 currentPitch + pitchStep,
                                 -90.0F,
                                 90.0F
@@ -466,12 +466,12 @@ public class HitBox extends Module {
             }
 
             default -> {
-                mc.player.setYaw(
+                mc.player.setYRot(
                         currentYaw + yawDelta
                 );
 
-                mc.player.setPitch(
-                        MathHelper.clamp(
+                mc.player.setXRot(
+                        Mth.clamp(
                                 currentPitch + pitchDelta,
                                 -90.0F,
                                 90.0F
@@ -496,23 +496,23 @@ public class HitBox extends Module {
             return false;
         }
 
-        Vec3d eye = mc.player.getEyePos();
+        Vec3 eye = mc.player.getEyePosition();
 
-        Vec3d look = mc.player
+        Vec3 look = mc.player
                 .getRotationVec(1.0F)
                 .normalize();
 
-        Vec3d point = getEntityCenter(entity);
+        Vec3 point = getEntityCenter(entity);
 
-        Vec3d direction = point.subtract(eye);
+        Vec3 direction = point.subtract(eye);
 
-        if (direction.lengthSquared() <= 1.0E-7D) {
+        if (direction.lengthSqr() <= 1.0E-7D) {
             return false;
         }
 
         direction = direction.normalize();
 
-        double dot = MathHelper.clamp(
+        double dot = Mth.clamp(
                 look.dotProduct(direction),
                 -1.0D,
                 1.0D

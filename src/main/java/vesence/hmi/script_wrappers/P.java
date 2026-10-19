@@ -1,96 +1,96 @@
 package vesence.hmi.script_wrappers;
 
 import vesence.hmi.access.LivingEntityAccessor;
-import net.minecraft.util.Hand;
-import net.minecraft.item.ItemStack;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.player.AbstractClientPlayer;
 
 public class P {
-    public boolean isSneaking(AbstractClientPlayerEntity player) {
+    public boolean isSneaking(AbstractClientPlayer player) {
         return player.isSneaking();
     }
 
-    public boolean isOnGround(AbstractClientPlayerEntity player) {
-        return player.isOnGround();
+    public boolean isOnGround(AbstractClientPlayer player) {
+        return player.onGround();
     }
 
-    public boolean isSwimming(AbstractClientPlayerEntity player) {
+    public boolean isSwimming(AbstractClientPlayer player) {
         return player.isSwimming();
     }
 
-    public boolean isClimbing(AbstractClientPlayerEntity player) {
+    public boolean isClimbing(AbstractClientPlayer player) {
         return player.isClimbing();
     }
 
-    public boolean isCrawling(AbstractClientPlayerEntity player) {
+    public boolean isCrawling(AbstractClientPlayer player) {
         return player.isCrawling();
     }
 
-    public boolean isSubmergedInWater(AbstractClientPlayerEntity player) {
+    public boolean isSubmergedInWater(AbstractClientPlayer player) {
         return player.isSubmergedInWater();
     }
 
-    public double getX(AbstractClientPlayerEntity player) {
+    public double getX(AbstractClientPlayer player) {
         return player.getX();
     }
 
-    public double getY(AbstractClientPlayerEntity player) {
+    public double getY(AbstractClientPlayer player) {
         return player.getY();
     }
 
-    public double getZ(AbstractClientPlayerEntity player) {
+    public double getZ(AbstractClientPlayer player) {
         return player.getZ();
     }
 
-    public double getXSpeed(AbstractClientPlayerEntity player) {
-        return player.getVelocity().getX();
+    public double getXSpeed(AbstractClientPlayer player) {
+        return player.getDeltaMovement().getX();
     }
 
-    public double getYSpeed(AbstractClientPlayerEntity player) {
-        return player.getVelocity().getY();
+    public double getYSpeed(AbstractClientPlayer player) {
+        return player.getDeltaMovement().getY();
     }
 
-    public double getZSpeed(AbstractClientPlayerEntity player) {
-        return player.getVelocity().getZ();
+    public double getZSpeed(AbstractClientPlayer player) {
+        return player.getDeltaMovement().getZ();
     }
 
-    public double getSpeed(AbstractClientPlayerEntity player) {
-        return player.getVelocity().length();
+    public double getSpeed(AbstractClientPlayer player) {
+        return player.getDeltaMovement().length();
     }
 
-    public boolean isUsingItem(AbstractClientPlayerEntity player) {
+    public boolean isUsingItem(AbstractClientPlayer player) {
         return player.isUsingItem();
     }
 
-    public double getYaw(AbstractClientPlayerEntity player) {
+    public double getYaw(AbstractClientPlayer player) {
         return player.getHeadYaw();
     }
 
-    public double getPitch(AbstractClientPlayerEntity player) {
-        return player.getPitch();
+    public double getPitch(AbstractClientPlayer player) {
+        return player.getXRot();
     }
 
-    public ItemStack getMainItem(AbstractClientPlayerEntity player) {
-        return player.getMainHandStack();
+    public ItemStack getMainItem(AbstractClientPlayer player) {
+        return player.getMainHandItem();
     }
 
-    public ItemStack getOffhandItem(AbstractClientPlayerEntity player) {
-        return player.getOffHandStack();
+    public ItemStack getOffhandItem(AbstractClientPlayer player) {
+        return player.getOffhandItem();
     }
 
-    public Hand getActiveHand(AbstractClientPlayerEntity player) {
+    public InteractionHand getActiveHand(AbstractClientPlayer player) {
         return player.getActiveHand();
     }
 
-    public int getAge(AbstractClientPlayerEntity player) {
-        return player.age;
+    public int getAge(AbstractClientPlayer player) {
+        return player.tickCount;
     }
 
-    public boolean isItemCoolingDown(ItemStack item, AbstractClientPlayerEntity player) {
+    public boolean isItemCoolingDown(ItemStack item, AbstractClientPlayer player) {
         return player.getItemCooldownManager().isCoolingDown(item);
     }
 
-    public double getSwingCount(AbstractClientPlayerEntity player) {
+    public double getSwingCount(AbstractClientPlayer player) {
         if (player instanceof LivingEntityAccessor) {
             LivingEntityAccessor access = (LivingEntityAccessor)player;
             return access.hMI5_0$getSwingCount();

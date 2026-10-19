@@ -2,10 +2,10 @@ package vesence.utils.commands.suggestions;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.util.Mth;
 import vesence.renderengine.render.Renderer2D;
 
 import java.util.List;
@@ -28,9 +28,9 @@ public final class CommandSuggestionOverlay {
    }
 
    public static Layout render(
-           DrawContext context,
-           TextRenderer textRenderer,
-           TextFieldWidget chatField,
+           GuiGraphics context,
+           Font font,
+           EditBox chatField,
            int screenWidth,
            List<CommandSuggestions.SuggestionEntry> entries,
            int selectionIndex,
@@ -40,10 +40,10 @@ public final class CommandSuggestionOverlay {
            int mouseY
    ) {
       Objects.requireNonNull(context, "context");
-      Objects.requireNonNull(textRenderer, "textRenderer");
+      Objects.requireNonNull(font, "font");
       Objects.requireNonNull(chatField, "chatField");
       if (entries != null && !entries.isEmpty()) {
-         Layout layout = calculateLayout(textRenderer, chatField, screenWidth, entries, scrollOffset, maxVisible);
+         Layout layout = calculateLayout(font, chatField, screenWidth, entries, scrollOffset, maxVisible);
          if (layout == null) {
             return null;
          } else {
@@ -61,11 +61,11 @@ public final class CommandSuggestionOverlay {
                int rowY = layout.areaY() + visibleIndex * layout.rowHeight();
                boolean isSelected = entryIndex == selectionIndex;
                int primaryColor = isSelected ? themeColor : (entry.accent() ? -11393 : -2039584);
-               context.drawTextWithShadow(textRenderer, entry.primaryText(), layout.contentX(), rowY + 2, primaryColor);
+               context.drawTextWithShadow(font, entry.primaryText(), layout.contentX(), rowY + 2, primaryColor);
                if (layout.hasDescription() && !entry.description().isEmpty()) {
                   int descriptionX = layout.contentX() + layout.primaryColumnWidth() + 8;
                   int descriptionColor = isSelected ? themeColor : -6643546;
-                  context.drawTextWithShadow(textRenderer, entry.description(), descriptionX, rowY + 2, descriptionColor);
+                  context.drawTextWithShadow(font, entry.description(), descriptionX, rowY + 2, descriptionColor);
                }
             }
 
@@ -76,7 +76,7 @@ public final class CommandSuggestionOverlay {
       }
    }
 
-   private static void drawBorders(DrawContext context, Layout layout, int totalEntries) {
+   private static void drawBorders(GuiGraphics context, Layout layout, int totalEntries) {
       if (layout.scrollOffset() > 0) {
          context.fill(layout.areaX(), layout.areaY() - 1, layout.areaRight(), layout.areaY(), -1879048192);
       }
@@ -87,22 +87,22 @@ public final class CommandSuggestionOverlay {
    }
 
    private static Layout calculateLayout(
-           TextRenderer textRenderer, TextFieldWidget chatField, int screenWidth, List<CommandSuggestions.SuggestionEntry> entries, int scrollOffset, int maxVisible
+           Font font, EditBox chatField, int screenWidth, List<CommandSuggestions.SuggestionEntry> entries, int scrollOffset, int maxVisible
    ) {
       if (entries.isEmpty()) {
          return null;
       } else {
          int effectiveMaxVisible = Math.max(1, maxVisible);
-         int clampedOffset = MathHelper.clamp(scrollOffset, 0, Math.max(entries.size() - 1, 0));
+         int clampedOffset = Mth.clamp(scrollOffset, 0, Math.max(entries.size() - 1, 0));
          int primaryWidth = 0;
          int descriptionWidth = 0;
          boolean hasDescription = false;
 
          for (CommandSuggestions.SuggestionEntry entry : entries) {
-            primaryWidth = Math.max(primaryWidth, textRenderer.getWidth(entry.primaryText()));
+            primaryWidth = Math.max(primaryWidth, font.getWidth(entry.primaryText()));
             if (!entry.description().isEmpty()) {
                hasDescription = true;
-               descriptionWidth = Math.max(descriptionWidth, textRenderer.getWidth(entry.description()));
+               descriptionWidth = Math.max(descriptionWidth, font.getWidth(entry.description()));
             }
          }
 
@@ -122,7 +122,7 @@ public final class CommandSuggestionOverlay {
             }
          }
 
-         int contentX = MathHelper.clamp(chatField.getX(), 4, screenWidth - areaWidth - 4) + 4;
+         int contentX = Mth.clamp(chatField.getX(), 4, screenWidth - areaWidth - 4) + 4;
          int areaX = contentX - 4;
          int visibleCount = Math.min(entries.size() - clampedOffset, effectiveMaxVisible);
          if (visibleCount <= 0) {
@@ -193,7 +193,7 @@ public final class CommandSuggestionOverlay {
 
       public int entryIndexAt(double mouseX, double mouseY) {
          if (this.contains(mouseX, mouseY) && this.visibleCount != 0) {
-            int relative = MathHelper.clamp((int)((mouseY - this.areaY) / this.rowHeight), 0, this.visibleCount - 1);
+            int relative = Mth.clamp((int)((mouseY - this.areaY) / this.rowHeight), 0, this.visibleCount - 1);
             return this.scrollOffset + relative;
          } else {
             return -1;

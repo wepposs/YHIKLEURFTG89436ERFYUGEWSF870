@@ -23,9 +23,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
 
 @Environment(EnvType.CLIENT)
 public final class ShulkerCache {

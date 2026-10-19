@@ -5,12 +5,12 @@ import java.math.RoundingMode;
 import java.util.concurrent.ThreadLocalRandom;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.client.render.Camera;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
+import net.minecraft.client.Camera;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -41,7 +41,7 @@ public final class Mathf implements IMinecraft {
       return angle;
    }
 
-   public static Vec3d worldSpaceToScreenSpace(Vec3d pos) {
+   public static Vec3 worldSpaceToScreenSpace(Vec3 pos) {
       Camera camera = mc.getEntityRenderDispatcher().camera;
       int displayHeight = mc.getWindow().getHeight();
       int[] viewport = new int[4];
@@ -54,7 +54,7 @@ public final class Mathf implements IMinecraft {
       Matrix4f matrixProj = new Matrix4f(lastProjMat);
       Matrix4f matrixModel = new Matrix4f(lastModMat);
       matrixProj.mul(matrixModel).project(transformedCoordinates.x(), transformedCoordinates.y(), transformedCoordinates.z(), viewport, target);
-      return new Vec3d(target.x / getScaleFactor(), (displayHeight - target.y) / getScaleFactor(), target.z);
+      return new Vec3(target.x / getScaleFactor(), (displayHeight - target.y) / getScaleFactor(), target.z);
    }
 
    public static double getScaleFactor() {
@@ -80,10 +80,10 @@ public final class Mathf implements IMinecraft {
    }
 
    public static Vector2f rotationToEntity(Entity target) {
-      Vec3d Vec3d = new Vec3d(target.getX(), target.getY(), target.getZ()).subtract(new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()));
-      double magnitude = Math.hypot(Vec3d.x, Vec3d.z);
+      Vec3 Vec3 = new Vec3(target.getX(), target.getY(), target.getZ()).subtract(new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ()));
+      double magnitude = Math.hypot(Vec3.x, Vec3.z);
       return new Vector2f(
-         (float)Math.toDegrees(Math.atan2(Vec3d.z, Vec3d.x)) - 90.0F, (float)(-Math.toDegrees(Math.atan2(Vec3d.y, magnitude)))
+         (float)Math.toDegrees(Math.atan2(Vec3.z, Vec3.x)) - 90.0F, (float)(-Math.toDegrees(Math.atan2(Vec3.y, magnitude)))
       );
    }
 
@@ -123,8 +123,8 @@ public final class Mathf implements IMinecraft {
       return old + (current - old) * scale;
    }
 
-   public static Vec3d interpolate(Vec3d end, Vec3d start, float multiple) {
-      return new Vec3d(
+   public static Vec3 interpolate(Vec3 end, Vec3 start, float multiple) {
+      return new Vec3(
          interpolate(end.getX(), start.getX(), multiple),
          interpolate(end.getY(), start.getY(), multiple),
          interpolate(end.getZ(), start.getZ(), multiple)
@@ -158,7 +158,7 @@ public final class Mathf implements IMinecraft {
    }
 
    public static float fast(float end, float start, float multiple) {
-      return (1.0F - MathHelper.clamp(deltaTime() * multiple, 0.0F, 1.0F)) * end + MathHelper.clamp(deltaTime() * multiple, 0.0F, 1.0F) * start;
+      return (1.0F - Mth.clamp(deltaTime() * multiple, 0.0F, 1.0F)) * end + Mth.clamp(deltaTime() * multiple, 0.0F, 1.0F) * start;
    }
 
    public static double getRandom(double min, double max) {
@@ -254,14 +254,14 @@ public final class Mathf implements IMinecraft {
       double deltaX = calcDiff(x2, x1);
       double deltaY = calcDiff(y2, y1);
       double deltaZ = calcDiff(z2, z1);
-      return MathHelper.sqrt((float)(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ));
+      return Mth.sqrt((float)(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ));
    }
 
    public static double getDistance(BlockPos pos1, BlockPos pos2) {
       double deltaX = calcDiff(pos1.getX(), pos2.getX());
       double deltaY = calcDiff(pos1.getY(), pos2.getY());
       double deltaZ = calcDiff(pos1.getZ(), pos2.getZ());
-      return MathHelper.sqrt((float)(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ));
+      return Mth.sqrt((float)(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ));
    }
 
    public static float limit(float current, float inputMin, float inputMax, float outputMin, float outputMax) {

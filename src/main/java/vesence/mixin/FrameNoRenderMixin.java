@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.Frustum;
-import net.minecraft.client.render.entity.EntityRenderer;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.entity.decoration.painting.PaintingEntity;
 import org.spongepowered.asm.mixin.Mixin;

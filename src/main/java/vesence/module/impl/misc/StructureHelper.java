@@ -10,23 +10,23 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.ChestBlockEntity;
-import net.minecraft.block.entity.TrappedChestBlockEntity;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumerProvider.Immediate;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.TrappedChestBlockEntity;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import net.minecraft.client.render.MultiBufferSource.Immediate;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.chunk.WorldChunk;
 import org.joml.Matrix4f;
 import vesence.Vesence;
@@ -44,7 +44,7 @@ import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
-import vesence.utils.render.text.TextRenderer;
+import vesence.utils.render.text.Font;
 
 import java.io.File;
 import java.io.FileReader;
@@ -76,8 +76,8 @@ public class StructureHelper extends Module {
 
     private static final RenderPipeline SH_LINES_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(Identifier.of("vesence", "structure_helper_lines"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            .withLocation(ResourceLocation.of("vesence", "structure_helper_lines"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
             .withCull(false)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false)
@@ -85,16 +85,16 @@ public class StructureHelper extends Module {
             .build());
     private static final RenderPipeline SH_QUADS_PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(Identifier.of("vesence", "structure_helper_quads"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.QUADS)
+            .withLocation(ResourceLocation.of("vesence", "structure_helper_quads"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
             .withCull(false)
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .withDepthWrite(false)
             .withBlend(BlendFunction.LIGHTNING)
             .build());
-    private static final RenderLayer SH_LINES_LAYER = RenderLayer.of("sh_lines",
+    private static final RenderType SH_LINES_LAYER = RenderType.of("sh_lines",
         RenderSetup.builder(SH_LINES_PIPELINE).expectedBufferSize(2048).translucent().build());
-    private static final RenderLayer SH_QUADS_LAYER = RenderLayer.of("sh_quads",
+    private static final RenderType SH_QUADS_LAYER = RenderType.of("sh_quads",
         RenderSetup.builder(SH_QUADS_PIPELINE).expectedBufferSize(2048).translucent().build());
 
     private static final class ChestEntry {
@@ -115,7 +115,7 @@ public class StructureHelper extends Module {
     }
 
     private final ConcurrentHashMap<BlockPos, ChestEntry> chestCache = new ConcurrentHashMap<>();
-    private BufferAllocator allocator = null;
+    private ByteBufferBuilder allocator = null;
     private boolean timersLoaded = false;
 
     public StructureHelper() {
@@ -190,21 +190,21 @@ public class StructureHelper extends Module {
 
     @EventInit
     private void onRender3D(EventRender3D event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
 
         if (!timersLoaded) {
             loadTimers();
             timersLoaded = true;
         }
 
-        Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-        MatrixStack matrices = event.getMatrixStack();
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        PoseStack matrices = event.getMatrixStack();
+        Matrix4f matrix = matrices.last().getPositionMatrix();
 
         if (allocator == null) {
-            allocator = new BufferAllocator(262144);
+            allocator = new ByteBufferBuilder(262144);
         }
-        Immediate immediate = VertexConsumerProvider.immediate(allocator);
+        Immediate immediate = MultiBufferSource.immediate(allocator);
 
         try {
             long now = System.currentTimeMillis();
@@ -217,8 +217,8 @@ public class StructureHelper extends Module {
             List<BlockPos> loadedChests = new ArrayList<>();
             for (int cx = playerChunkX - radius; cx <= playerChunkX + radius; cx++) {
                 for (int cz = playerChunkZ - radius; cz <= playerChunkZ + radius; cz++) {
-                    if (!mc.world.getChunkManager().isChunkLoaded(cx, cz)) continue;
-                    WorldChunk chunk = mc.world.getChunkManager().getWorldChunk(cx, cz, false);
+                    if (!mc.level.getChunkManager().isChunkLoaded(cx, cz)) continue;
+                    WorldChunk chunk = mc.level.getChunkManager().getWorldChunk(cx, cz, false);
                     if (chunk == null) continue;
 
                     for (BlockEntity tile : chunk.getBlockEntities().values()) {
@@ -229,9 +229,9 @@ public class StructureHelper extends Module {
                 }
             }
 
-            for (net.minecraft.entity.Entity entity : mc.world.getEntities()) {
+            for (net.minecraft.entity.Entity entity : mc.level.getEntities()) {
                 int seconds;
-                if (entity instanceof ArmorStandEntity) {
+                if (entity instanceof ArmorStand) {
                     seconds = parseTimerFromEntity(entity);
                 } else if (entity instanceof DisplayEntity.TextDisplayEntity) {
                     seconds = parseTimerFromTextDisplay(entity);
@@ -240,7 +240,7 @@ public class StructureHelper extends Module {
                 }
                 if (seconds < 0) continue;
 
-                Vec3d entityPos = entity.getLerpedPos(1.0f);
+                Vec3 entityPos = entity.getLerpedPos(1.0f);
                 BlockPos nearest = findNearestChest(loadedChests, entityPos);
                 if (nearest != null) {
 
@@ -271,7 +271,7 @@ public class StructureHelper extends Module {
 
     @EventInit
     private void onRender2D(EventScreenPre event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
         if (!showHologram.get()) return;
         if (chestCache.isEmpty()) return;
 
@@ -302,8 +302,8 @@ public class StructureHelper extends Module {
                 }
             }
 
-            Vec3d holoPos = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.4, pos.getZ() + 0.5);
-            Vec3d screen = Mathf.worldSpaceToScreenSpace(holoPos);
+            Vec3 holoPos = new Vec3(pos.getX() + 0.5, pos.getY() + 1.4, pos.getZ() + 0.5);
+            Vec3 screen = Mathf.worldSpaceToScreenSpace(holoPos);
             if (screen.z <= 0 || screen.z >= 1) continue;
             if (!Float.isFinite((float) screen.x) || !Float.isFinite((float) screen.y)) continue;
 
@@ -311,7 +311,7 @@ public class StructureHelper extends Module {
             float sx = (float) screen.x * scale;
             float sy = (float) screen.y * scale;
 
-            TextRenderer.TextMetrics metrics = renderer.measureText(font, text, 25);
+            Font.TextMetrics metrics = renderer.measureText(font, text, 25);
             float padH = 6f, padV = 3f;
             float tagW = metrics.width + padH * 2;
             float tagH = metrics.height + padV * 2;
@@ -339,8 +339,8 @@ public class StructureHelper extends Module {
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
-        if (mc.world == null) return false;
-        return mc.world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
+        if (mc.level == null) return false;
+        return mc.level.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
     }
 
     private int getColorByEntry(ChestEntry en, boolean loaded) {
@@ -358,7 +358,7 @@ public class StructureHelper extends Module {
     }
 
     private int parseTimerFromEntity(net.minecraft.entity.Entity entity) {
-        if (!(entity instanceof ArmorStandEntity)) return -1;
+        if (!(entity instanceof ArmorStand)) return -1;
         return parseTimeString(stripFormatting(entity.getName().getString()));
     }
 
@@ -386,7 +386,7 @@ public class StructureHelper extends Module {
         return -1;
     }
 
-    private BlockPos findNearestChest(List<BlockPos> chests, Vec3d holoPos) {
+    private BlockPos findNearestChest(List<BlockPos> chests, Vec3 holoPos) {
         BlockPos nearest = null;
         double minDist = Double.MAX_VALUE;
         for (BlockPos pos : chests) {
@@ -401,7 +401,7 @@ public class StructureHelper extends Module {
         return nearest;
     }
 
-    private void renderChestBox(Immediate immediate, Matrix4f matrix, BlockPos pos, int color, Vec3d cameraPos) {
+    private void renderChestBox(Immediate immediate, Matrix4f matrix, BlockPos pos, int color, Vec3 cameraPos) {
         double minX = pos.getX() - cameraPos.x;
         double minY = pos.getY() - cameraPos.y;
         double minZ = pos.getZ() - cameraPos.z;

@@ -2,22 +2,22 @@ package vesence.utils.render.math.animation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 
 @Environment(EnvType.CLIENT)
 public class AnimationMath {
    public static double deltaTime() {
-      return MinecraftClient.getInstance().getCurrentFps() > 0 ? 1.0 / MinecraftClient.getInstance().getCurrentFps() : 1.0;
+      return Minecraft.getInstance().getCurrentFps() > 0 ? 1.0 / Minecraft.getInstance().getCurrentFps() : 1.0;
    }
 
    public static float fast(float end, float start, float multiple) {
-      return (1.0F - MathHelper.clamp((float)(deltaTime() * multiple), 0.0F, 1.0F)) * end
-         + MathHelper.clamp((float)(deltaTime() * multiple), 0.0F, 1.0F) * start;
+      return (1.0F - Mth.clamp((float)(deltaTime() * multiple), 0.0F, 1.0F)) * end
+         + Mth.clamp((float)(deltaTime() * multiple), 0.0F, 1.0F) * start;
    }
 
    public static float animation(float animation, float target, float speedTarget) {
-      float dif = (target - animation) / Math.max((float)MinecraftClient.getInstance().getCurrentFps(), 5.0F) * 15.0F;
+      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getCurrentFps(), 5.0F) * 15.0F;
       if (dif > 0.0F) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);
@@ -60,11 +60,11 @@ public class AnimationMath {
    }
 
    public static float Move(float from, float to, float minstep, float maxstep, float factor) {
-      float f = (to - from) * MathHelper.clamp(factor, 0.0F, 1.0F);
+      float f = (to - from) * Mth.clamp(factor, 0.0F, 1.0F);
       if (f < 0.0F) {
-         f = MathHelper.clamp(f, -maxstep, -minstep);
+         f = Mth.clamp(f, -maxstep, -minstep);
       } else {
-         f = MathHelper.clamp(f, minstep, maxstep);
+         f = Mth.clamp(f, minstep, maxstep);
       }
 
       return Math.abs(f) > Math.abs(to - from) ? to : from + f;

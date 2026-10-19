@@ -3,12 +3,12 @@ package vesence.mixin;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.util.ObjectAllocator;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -37,7 +37,7 @@ public class WorldRendererMixin {
    @Inject(method = "render", at = @At("HEAD"))
    private void vesence$chunksAnimationHead(
            ObjectAllocator allocator,
-           RenderTickCounter tickCounter,
+           DeltaTracker tickCounter,
            boolean renderBlockOutline,
            Camera camera,
            Matrix4f positionMatrix,
@@ -59,7 +59,7 @@ public class WorldRendererMixin {
    @Inject(method = { "render" }, at = { @At("RETURN") })
    private void publishWorldRenderEvent(
            ObjectAllocator allocator,
-           RenderTickCounter tickCounter,
+           DeltaTracker tickCounter,
            boolean renderBlockOutline,
            Camera camera,
            Matrix4f positionMatrix,
@@ -88,7 +88,7 @@ public class WorldRendererMixin {
       } catch (Exception ignored) {
       }
 
-      // Custom World → Размытие мира: depth-masked fog blur поверх готового мира.
+      // Custom Level → Размытие мира: depth-masked fog blur поверх готового мира.
       try {
          vesence.module.impl.visuals.Ambience ambience = vesence.module.impl.visuals.Ambience.getInstance();
          if (ambience != null && ambience.isBlurEnabled()) {
@@ -97,7 +97,7 @@ public class WorldRendererMixin {
       } catch (Exception ignored) {
       }
 
-      MatrixStack stack = new MatrixStack();
+      PoseStack stack = new PoseStack();
       Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
       stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));
 
@@ -105,26 +105,26 @@ public class WorldRendererMixin {
       vesence.utils.other.Mathf.lastModMat.identity();
       vesence.utils.other.Mathf.lastWorldSpaceMatrix.set(positionMatrix);
 
-      MinecraftClient client = MinecraftClient.getInstance();
+      Minecraft client = Minecraft.getInstance();
       if (client != null) {
          GameRenderer gameRenderer = client.gameRenderer;
          if (gameRenderer != null && camera != null) {
-            GlState.Snapshot snapshot = GlState.push();
-            vesence.utils.render.world.WorldRenderer worldRenderer = null;
+            GlState.Snapshot snapshot = GlState.pushPose();
+            vesence.utils.render.world.WorldRenderer levelRenderer = null;
 
             try {
-               worldRenderer = vesence.utils.render.world.WorldRenderer.begin(client, tickCounter, camera,
+               levelRenderer = vesence.utils.render.world.WorldRenderer.begin(client, tickCounter, camera,
                        positionMatrix, projectionMatrix);
-               float frameDepth = worldRenderer.tickDelta();
+               float frameDepth = levelRenderer.tickDelta();
 
                try {
-                  EventManager.call(new WorldRenderEvent(client, gameRenderer, worldRenderer, frameDepth));
+                  EventManager.call(new WorldRenderEvent(client, gameRenderer, levelRenderer, frameDepth));
                } finally {
-                  if (worldRenderer != null) {
+                  if (levelRenderer != null) {
                      try {
-                        worldRenderer.flush();
+                        levelRenderer.flush();
                      } finally {
-                        worldRenderer.close();
+                        levelRenderer.close();
                      }
                   }
                }
@@ -140,7 +140,7 @@ public class WorldRendererMixin {
    /**
     * Shader ESP: пока модуль включён, гасим ванильную отрисовку entity-outline фреймбуфера
     * (обычно это цветная обводка светящихся сущностей). Сам силуэт в этот фреймбуфер всё равно
-    * рендерится (мы форсим его через MinecraftClient.hasOutline), а пост-обработку
+    * рендерится (мы форсим его через Minecraft.hasOutline), а пост-обработку
     * (свечение/заливка) делает модуль в HUD-фазе, читая этот фреймбуфер как маску.
     */
    @Inject(method = "drawEntityOutlinesFramebuffer", at = @At("HEAD"), cancellable = true)

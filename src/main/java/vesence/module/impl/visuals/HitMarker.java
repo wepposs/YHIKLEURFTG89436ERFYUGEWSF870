@@ -9,18 +9,18 @@ import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.BufferAllocator;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.render.MultiBufferSource;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
 import vesence.event.player.AttackEvent;
@@ -42,7 +42,7 @@ import vesence.utils.render.ColorUtil;
 @Environment(EnvType.CLIENT)
 public class HitMarker extends Module {
 
-    private static final Identifier CROSS_TEXTURE = Identifier.of("vesence", "textures/cross/cross.png");
+    private static final ResourceLocation CROSS_TEXTURE = ResourceLocation.of("vesence", "textures/cross/cross.png");
 
     public final SliderSetting size = new SliderSetting("Размер", 0.5, 0.1, 2.0, 0.05);
     public final SliderSetting fadeInTime = new SliderSetting("Время появления", 100.0, 50.0, 500.0, 10.0);
@@ -52,13 +52,13 @@ public class HitMarker extends Module {
     public final BooleanSetting scale = new BooleanSetting("Анимация масштаба", true);
 
     private final ArrayList<HitMarkerData> hitMarkers = new ArrayList<>();
-    private BufferAllocator markerAllocator = null;
+    private ByteBufferBuilder markerAllocator = null;
 
     // Additive (glow) и обычный translucent пайплайны
     private static final RenderPipeline MARKER_GLOW_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/hitmarker_glow"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/hitmarker_glow"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
@@ -66,18 +66,18 @@ public class HitMarker extends Module {
                     .build());
     private static final RenderPipeline MARKER_NORMAL_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/hitmarker_normal"))
-                    .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/hitmarker_normal"))
+                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
                     .withCull(false)
                     .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                     .withDepthWrite(false)
                     .withBlend(BlendFunction.TRANSLUCENT)
                     .build());
-    private static final RenderLayer MARKER_GLOW_LAYER = RenderLayer.of(
+    private static final RenderType MARKER_GLOW_LAYER = RenderType.of(
             "vesence_hitmarker_glow",
             RenderSetup.builder(MARKER_GLOW_PIPELINE).expectedBufferSize(4096).translucent()
                     .texture("Sampler0", CROSS_TEXTURE).build());
-    private static final RenderLayer MARKER_NORMAL_LAYER = RenderLayer.of(
+    private static final RenderType MARKER_NORMAL_LAYER = RenderType.of(
             "vesence_hitmarker_normal",
             RenderSetup.builder(MARKER_NORMAL_PIPELINE).expectedBufferSize(4096).translucent()
                     .texture("Sampler0", CROSS_TEXTURE).build());
@@ -97,7 +97,7 @@ public class HitMarker extends Module {
 
     @EventInit
     public void onAttack(AttackEvent event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
         Entity target = event.getTarget();
         if (target == null) return;
         synchronized (this.hitMarkers) {
@@ -110,29 +110,29 @@ public class HitMarker extends Module {
         }
     }
 
-    private Vec3d resolveHitPosition(Entity attacker, Entity target) {
-        Vec3d fallback = new Vec3d(target.getX(), target.getY() + target.getHeight() / 2.0, target.getZ());
+    private Vec3 resolveHitPosition(Entity attacker, Entity target) {
+        Vec3 fallback = new Vec3(target.getX(), target.getY() + target.getHeight() / 2.0, target.getZ());
         if (attacker == null) return fallback;
-        Vec3d eyePos = attacker.getCameraPosVec(1.0F);
-        Vec3d lookVec = attacker.getRotationVec(1.0F);
-        Vec3d targetCenter = target.getBoundingBox().getCenter();
+        Vec3 eyePos = attacker.getCameraPosVec(1.0F);
+        Vec3 lookVec = attacker.getRotationVec(1.0F);
+        Vec3 targetCenter = target.getBoundingBox().getCenter();
         double distance = Math.max(eyePos.distanceTo(targetCenter) + 1.0, 6.0);
-        Vec3d reachPos = eyePos.add(lookVec.multiply(distance));
-        Optional<Vec3d> hitPos = target.getBoundingBox().raycast(eyePos, reachPos);
+        Vec3 reachPos = eyePos.add(lookVec.multiply(distance));
+        Optional<Vec3> hitPos = target.getBoundingBox().raycast(eyePos, reachPos);
         return hitPos.isPresent() ? hitPos.get() : eyePos.add(lookVec.multiply(eyePos.distanceTo(targetCenter)));
     }
 
     @EventInit
     public void onRender3D(EventRender3D e) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         synchronized (this.hitMarkers) {
             this.hitMarkers.removeIf(HitMarkerData::isDead);
         }
         if (this.hitMarkers.isEmpty()) return;
 
-        MatrixStack matrices = e.getMatrixStack();
-        Vec3d camera = mc.gameRenderer.getCamera().getCameraPos();
+        PoseStack matrices = e.getMatrixStack();
+        Vec3 camera = mc.gameRenderer.getCamera().getCameraPos();
 
         ArrayList<HitMarkerData> renderList;
         synchronized (this.hitMarkers) {
@@ -144,14 +144,14 @@ public class HitMarker extends Module {
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
 
-        RenderLayer layer = this.glow.get() ? MARKER_GLOW_LAYER : MARKER_NORMAL_LAYER;
+        RenderType layer = this.glow.get() ? MARKER_GLOW_LAYER : MARKER_NORMAL_LAYER;
 
-        BufferAllocator alloc = markerAllocator;
+        ByteBufferBuilder alloc = markerAllocator;
         if (alloc == null) {
-            alloc = new BufferAllocator(65536);
+            alloc = new ByteBufferBuilder(65536);
             markerAllocator = alloc;
         }
-        VertexConsumerProvider.Immediate immediate = VertexConsumerProvider.immediate(alloc);
+        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(alloc);
         try {
             VertexConsumer buffer = immediate.getBuffer(layer);
             for (HitMarkerData marker : renderList) {
@@ -161,24 +161,24 @@ public class HitMarker extends Module {
                 double x = marker.position.x - camera.x;
                 double y = marker.position.y - camera.y;
                 double z = marker.position.z - camera.z;
-                matrices.push();
+                matrices.pushPose();
                 matrices.translate((float) x, (float) y, (float) z);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
 
                 float currentSize = (float) (double) this.size.get();
                 if (this.scale.get()) {
                     currentSize *= marker.getScaleMultiplier();
                 }
 
-                Matrix4f matrix = matrices.peek().getPositionMatrix();
+                Matrix4f matrix = matrices.last().getPositionMatrix();
                 float half = currentSize / 2.0F;
                 int alphaInt = (int) (alpha * 255.0F);
                 buffer.vertex(matrix, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, alphaInt);
                 buffer.vertex(matrix, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, alphaInt);
                 buffer.vertex(matrix, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, alphaInt);
                 buffer.vertex(matrix, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, alphaInt);
-                matrices.pop();
+                matrices.popPose();
             }
             immediate.draw();
         } finally {
@@ -187,13 +187,13 @@ public class HitMarker extends Module {
     }
 
     static class HitMarkerData {
-        Vec3d position;
+        Vec3 position;
         long birthTime;
         long fadeInTime;
         long displayTime;
         long fadeOutTime;
 
-        HitMarkerData(Vec3d position, long birthTime, long fadeInTime, long displayTime, long fadeOutTime) {
+        HitMarkerData(Vec3 position, long birthTime, long fadeInTime, long displayTime, long fadeOutTime) {
             this.position = position;
             this.birthTime = birthTime;
             this.fadeInTime = fadeInTime;

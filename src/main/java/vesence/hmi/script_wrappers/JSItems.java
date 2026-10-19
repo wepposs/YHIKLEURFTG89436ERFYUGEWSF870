@@ -1,14 +1,14 @@
 package vesence.hmi.script_wrappers;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.registry.Registries;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 public class JSItems {
     public Item get(String name) {
-        Identifier id = Identifier.of((String)name);
-        return (Item)Registries.ITEM.get(id);
+        ResourceLocation id = ResourceLocation.of((String)name);
+        return (Item)BuiltInRegistries.ITEM.get(id);
     }
 
     public String checkItemName(ItemStack item) {

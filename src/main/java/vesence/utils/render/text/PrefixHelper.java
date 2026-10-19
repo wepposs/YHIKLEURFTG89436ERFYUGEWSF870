@@ -3,8 +3,8 @@ package vesence.utils.render.text;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -65,7 +65,7 @@ public final class PrefixHelper {
         return ch == null ? null : PREFIX_MAP.get(ch);
     }
 
-    public static net.minecraft.util.Identifier getDonatTexture(String ch) {
+    public static net.minecraft.util.ResourceLocation getDonatTexture(String ch) {
         String replacement = getReplacement(ch);
         if (replacement == null) {
             return null;
@@ -74,10 +74,10 @@ public final class PrefixHelper {
         if (!DONAT_TEXTURES.contains(file)) {
             return null;
         }
-        return net.minecraft.util.Identifier.of("vesence", "textures/donat/" + file + ".png");
+        return net.minecraft.util.ResourceLocation.of("vesence", "textures/donat/" + file + ".png");
     }
 
-    public static net.minecraft.util.Identifier findDonatTexture(String raw) {
+    public static net.minecraft.util.ResourceLocation findDonatTexture(String raw) {
         if (raw == null || raw.isEmpty()) {
             return null;
         }
@@ -89,8 +89,8 @@ public final class PrefixHelper {
         return null;
     }
 
-    public static Text translate(Text component) {
-        if (component == null) return Text.empty();
+    public static Component translate(Component component) {
+        if (component == null) return Component.empty();
 
         String string = component.getString();
         boolean hasPrefix = false;
@@ -102,7 +102,7 @@ public final class PrefixHelper {
         }
         if (!hasPrefix) return component;
 
-        MutableText result = Text.empty();
+        MutableText result = Component.empty();
         component.visit((style, segment) -> {
             translateSegment(segment, style, result);
             return java.util.Optional.empty();
@@ -120,7 +120,7 @@ public final class PrefixHelper {
             String replacement = PREFIX_MAP.get(ch);
             if (replacement != null) {
 
-                result.append(Text.literal(replacement).setStyle(style));
+                result.append(Component.literal(replacement).setStyle(style));
                 i += cpLen;
             } else {
 
@@ -134,7 +134,7 @@ public final class PrefixHelper {
                 }
                 String text = segment.substring(start, i);
                 if (!text.isEmpty()) {
-                    result.append(Text.literal(text).setStyle(style));
+                    result.append(Component.literal(text).setStyle(style));
                 }
             }
         }

@@ -1,18 +1,18 @@
 package vesence.module.impl.visuals.particular;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 public class EnderBubbleParticle extends BillboardParticle {
-    protected EnderBubbleParticle(ClientWorld world, double x, double y, double z, double motionX, double motionY, double motionZ, SpriteProvider provider) {
+    protected EnderBubbleParticle(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.setSprite(provider.getSprite(this.random));
         this.setBoundingBoxSpacing(0.02F, 0.02F);
@@ -45,7 +45,7 @@ public class EnderBubbleParticle extends BillboardParticle {
         }
 
         if (expired && ParticularEffects.isEnabled()) {
-            Particle bubble = MinecraftClient.getInstance().particleManager.addParticle(ParticularParticles.ENDER_BUBBLE_POP, this.x, this.y, this.z, 0.0D, 0.0D, 0.0D);
+            Particle bubble = Minecraft.getInstance().particleManager.addParticle(ParticularParticles.ENDER_BUBBLE_POP, this.x, this.y, this.z, 0.0D, 0.0D, 0.0D);
             if (bubble != null) {
                 bubble.scale(this.scale * 20.0F);
             }
@@ -58,14 +58,14 @@ public class EnderBubbleParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new EnderBubbleParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.provider);
         }
     }

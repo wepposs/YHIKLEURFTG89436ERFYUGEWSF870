@@ -3,16 +3,16 @@ package vesence.module.impl.visuals.particular;
 import net.minecraft.client.particle.BillboardParticle;
 import net.minecraft.client.particle.ParticleFactory;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SpriteProvider;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.math.random.Random;
 
 public class CascadeParticle extends BillboardParticle {
-    private final SpriteProvider provider;
+    private final SpriteSet provider;
 
-    protected CascadeParticle(ClientWorld world, double x, double y, double z, SpriteProvider provider) {
+    protected CascadeParticle(ClientLevel world, double x, double y, double z, SpriteSet provider) {
         super(world, x, y, z, provider.getSprite(world.getRandom()));
         this.provider = provider;
         this.maxAge = 9;
@@ -20,7 +20,7 @@ public class CascadeParticle extends BillboardParticle {
         this.gravityStrength = 0.4F;
         this.velocityX = this.random.nextDouble() * 0.25D - 0.125D;
         this.velocityZ = this.random.nextDouble() * 0.25D - 0.125D;
-        this.setSprite(provider.getSprite(this.age, this.maxAge));
+        this.setSprite(provider.getSprite(this.tickCount, this.maxAge));
         this.removeIfInsideSolidBlock();
     }
 
@@ -32,7 +32,7 @@ public class CascadeParticle extends BillboardParticle {
         }
         this.removeIfInsideSolidBlock();
         if (this.isAlive()) {
-            this.setSprite(this.provider.getSprite(this.age, this.maxAge));
+            this.setSprite(this.provider.getSprite(this.tickCount, this.maxAge));
         }
     }
 
@@ -50,14 +50,14 @@ public class CascadeParticle extends BillboardParticle {
     }
 
     public static class Factory implements ParticleFactory<SimpleParticleType> {
-        private final SpriteProvider provider;
+        private final SpriteSet provider;
 
-        public Factory(SpriteProvider provider) {
+        public Factory(SpriteSet provider) {
             this.provider = provider;
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
+        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
             return new CascadeParticle(world, x, y, z, this.provider);
         }
     }

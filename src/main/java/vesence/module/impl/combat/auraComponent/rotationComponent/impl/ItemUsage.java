@@ -3,14 +3,14 @@ package vesence.module.impl.combat.auraComponent.rotationComponent.impl;
 import lombok.Generated;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.Packet;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.packet.c2s.play.ClientStatusC2SPacket;
 import net.minecraft.network.packet.c2s.play.ClientStatusC2SPacket.Mode;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.server.dialog.action.Action;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
-import net.minecraft.util.Hand;
+import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.module.impl.combat.auraComponent.rotationComponent.Component;
@@ -30,7 +30,7 @@ public class ItemUsage extends Component implements IMinecraft {
       Objects.requireNonNull(var10000);
       Object var2 = var10000;
       switch (var2) {
-         case PlayerActionC2SPacket player when player.getAction().equals(Action.RELEASE_USE_ITEM):
+         case ServerboundPlayerActionPacket player when player.getAction().equals(Action.RELEASE_USE_ITEM):
             this.releaseItem = true;
             break;
          case ClientStatusC2SPacket status when status.getMode().equals(Mode.PERFORM_RESPAWN):
@@ -46,9 +46,9 @@ public class ItemUsage extends Component implements IMinecraft {
       }
    }
 
-   public void useHand(Hand hand) {
+   public void useHand(InteractionHand hand) {
       if (this.releaseItem) {
-         mc.interactionManager.interactItem(mc.player, hand);
+         mc.gameMode.interactItem(mc.player, hand);
          this.releaseItem = false;
       }
 

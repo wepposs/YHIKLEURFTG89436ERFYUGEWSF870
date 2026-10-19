@@ -5,14 +5,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.util.InputUtil;
 
 @Environment(EnvType.CLIENT)
 public class KeyUtil {
    public static final Map<String, Integer> keyMap = new HashMap<>();
    public static final Map<Integer, String> reverseKeyMap = new HashMap<>();
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+   public static Minecraft mc = Minecraft.getInstance();
 
    public static boolean isKeyDown(int keyCode) {
       return InputUtil.isKeyPressed(mc.getWindow(), keyCode);

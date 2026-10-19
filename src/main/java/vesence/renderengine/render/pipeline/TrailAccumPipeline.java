@@ -13,11 +13,11 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.gl.GpuSampler;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -27,16 +27,16 @@ import java.nio.ByteBuffer;
 import java.util.OptionalInt;
 
 public class TrailAccumPipeline {
-    private static final Identifier PIPELINE_ID = Identifier.of("vesence", "pipeline/trail_accum");
-    private static final Identifier VERTEX_SHADER = Identifier.of("vesence", "core/trail_accum");
-    private static final Identifier FRAGMENT_SHADER = Identifier.of("vesence", "core/trail_accum");
+    private static final ResourceLocation PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/trail_accum");
+    private static final ResourceLocation VERTEX_SHADER = ResourceLocation.of("vesence", "core/trail_accum");
+    private static final ResourceLocation FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/trail_accum");
     private static final BlendFunction REPLACE_BLEND = new BlendFunction(SourceFactor.ONE, DestFactor.ZERO, SourceFactor.ONE, DestFactor.ZERO);
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
         RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
             .withLocation(PIPELINE_ID)
             .withVertexShader(VERTEX_SHADER)
             .withFragmentShader(FRAGMENT_SHADER)
-            .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
             .withUniform("TrailAccumData", UniformType.UNIFORM_BUFFER)
             .withSampler("PrevTrailSampler")
             .withSampler("CurrentMaskSampler")

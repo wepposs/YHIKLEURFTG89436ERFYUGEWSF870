@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.projectile.FireworkRocketEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.FireworkRocketEntity;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -19,10 +19,10 @@ public class FireworkRocketEntityMixin {
     @ModifyVariable(
             method = "tick",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/entity/LivingEntity;setVelocity(Lnet/minecraft/util/math/Vec3d;)V"),
+                    target = "Lnet/minecraft/entity/LivingEntity;setVelocity(Lnet/minecraft/util/math/Vec3;)V"),
             ordinal = 0
     )
-    private Vec3d modifyFireworkBoost(Vec3d original) {
+    private Vec3 modifyFireworkBoost(Vec3 original) {
         if (!Vesence.isModInitialized()) {
             return original;
         }

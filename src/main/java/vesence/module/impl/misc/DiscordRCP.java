@@ -2,9 +2,9 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.gui.screen.world.SelectWorldScreen;
+import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -182,13 +182,13 @@ public class DiscordRCP extends Module {
 
     private ClientState detectState() {
         try {
-            if (mc.player != null && mc.world != null) {
+            if (mc.player != null && mc.level != null) {
                 return mc.getCurrentServerEntry() != null
                         ? ClientState.IN_GAME
                         : ClientState.SINGLEPLAYER;
             }
 
-            var screen = mc.currentScreen;
+            var screen = mc.screen;
 
             if (screen == null) {
                 return ClientState.LOADING;

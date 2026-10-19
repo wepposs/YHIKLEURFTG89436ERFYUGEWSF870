@@ -1,7 +1,7 @@
 package vesence.mixin;
 
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,13 +17,13 @@ public abstract class ItemEntityGravityMixin {
         if (item.getEntityWorld() == null || !item.getEntityWorld().isClient()) {
             return;
         }
-        if (item.isOnGround()) {
+        if (item.onGround()) {
             item.setNoGravity(true);
-            Vec3d velocity = item.getVelocity();
+            Vec3 velocity = item.getDeltaMovement();
             double vx = Math.abs(velocity.x) <= STOP_EPSILON ? 0.0 : velocity.x * 0.9;
             double vz = Math.abs(velocity.z) <= STOP_EPSILON ? 0.0 : velocity.z * 0.9;
             double vy = velocity.y > 0.0 || Math.abs(velocity.y) <= 0.06 ? 0.0 : velocity.y * 0.5;
-            item.setVelocity(vx, vy, vz);
+            item.setDeltaMovement(vx, vy, vz);
             return;
         }
         if (item.hasNoGravity()) {

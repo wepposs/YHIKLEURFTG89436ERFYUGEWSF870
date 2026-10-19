@@ -8,7 +8,7 @@ import vesence.event.player.EventRotation;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.combat.auraComponent.GCDUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.Component;
-import vesence.renderengine.utils.MathHelper;
+import vesence.renderengine.utils.Mth;
 import vesence.utils.player.PlayerUtil;
 
 /**
@@ -88,7 +88,7 @@ public class URotations extends Component {
    public void onEvent(EventRender3D event) {
       if (mc.player != null && isRotating()) {
          // Тело доворачиваем только визуально и только от applied-ротации.
-         mc.player.bodyYaw = PlayerUtil.calculateCorrectYawOffset(mc.player.getYaw());
+         mc.player.bodyYaw = PlayerUtil.calculateCorrectYawOffset(mc.player.getYRot());
       }
    }
 
@@ -115,14 +115,14 @@ public class URotations extends Component {
          return;
       }
 
-      float t = net.minecraft.util.math.MathHelper.clamp(event.getPartialTicks(), 0.0F, 1.0F);
+      float t = net.minecraft.util.math.Mth.clamp(event.getPartialTicks(), 0.0F, 1.0F);
 
       // В третьем лице камерой занимается InterpolateF5 (Cinematic Camera),
       // лезть туда вторым сглаживанием нельзя — они будут драться.
       if (mc.options.getPerspective().isFirstPerson()) {
          // wrapDegrees-aware lerp: иначе на переходе через ±180° камера рвётся.
-         event.setYaw(net.minecraft.util.math.MathHelper.lerpAngleDegrees(t, previousAppliedYaw, appliedYaw));
-         event.setPitch(net.minecraft.util.math.MathHelper.lerp(t, previousAppliedPitch, appliedPitch));
+         event.setYRot(net.minecraft.util.math.Mth.lerpAngleDegrees(t, previousAppliedYaw, appliedYaw));
+         event.setXRot(net.minecraft.util.math.Mth.lerp(t, previousAppliedPitch, appliedPitch));
       }
 
       // Модель головы интерполируется парой headYaw/lastHeadYaw, а ваниль в самом
@@ -193,19 +193,19 @@ public class URotations extends Component {
       }
 
       Rotation current = new Rotation(mc.player);
-      float yawDelta = MathHelper.wrapDegrees(targetRotation.yaw - current.yaw);
+      float yawDelta = Mth.wrapDegrees(targetRotation.yaw - current.yaw);
       float pitchDelta = targetRotation.pitch - current.pitch;
       float total = (float) Math.hypot(Math.abs(yawDelta), Math.abs(pitchDelta));
 
       if (total < 1.0E-4F) {
          // Шага нет: фиксируем «предыдущее» на текущем, иначе кадровый lerp
          // начнёт каждый тик пропиливать путь заново и камера будет дёргаться.
-         previousAppliedYaw = mc.player.getYaw();
-         previousAppliedPitch = mc.player.getPitch();
+         previousAppliedYaw = mc.player.getYRot();
+         previousAppliedPitch = mc.player.getXRot();
          previousHeadYaw = mc.player.headYaw;
          hasPrevious = true;
-         appliedYaw = mc.player.getYaw();
-         appliedPitch = mc.player.getPitch();
+         appliedYaw = mc.player.getYRot();
+         appliedPitch = mc.player.getXRot();
          idleTicks = 0;
          return true;
       }
@@ -214,8 +214,8 @@ public class URotations extends Component {
       float capYaw = Math.abs(yawDelta / total) * Math.abs(yawSpeed);
       float capPitch = Math.abs(pitchDelta / total) * Math.abs(pitchSpeed);
 
-      float appliedYawStep = MathHelper.clamp(yawDelta, -capYaw, capYaw);
-      float appliedPitchStep = MathHelper.clamp(pitchDelta, -capPitch, capPitch);
+      float appliedYawStep = Mth.clamp(yawDelta, -capYaw, capYaw);
+      float appliedPitchStep = Mth.clamp(pitchDelta, -capPitch, capPitch);
 
       // GCD-снап ровно один раз, на applied-delta.
       float snappedYawStep = GCDUtil.getSensitivity(appliedYawStep);
@@ -226,21 +226,21 @@ public class URotations extends Component {
       snappedYawStep = enforceMinStep(snappedYawStep, appliedYawStep);
       snappedPitchStep = enforceMinStep(snappedPitchStep, appliedPitchStep);
 
-      float newYaw = mc.player.getYaw() + snappedYawStep;
-      float newPitch = MathHelper.clamp(mc.player.getPitch() + snappedPitchStep, -90.0F, 90.0F);
+      float newYaw = mc.player.getYRot() + snappedYawStep;
+      float newPitch = Mth.clamp(mc.player.getXRot() + snappedPitchStep, -90.0F, 90.0F);
 
       // Кадровая интерполяция на рендере должна знать, ОТКУДА приехали. Ваниль в
       // конце тика сама делает lastYaw = yaw / lastHeadYaw = headYaw / lastPitch =
       // pitch, и тогда lerp(last, current, tickProgress) вырождается в константу —
       // именно поэтому камера дёргается 20 раз в секунду. Возвращаем «предыдущие»
       // углы обратно: это клиентские поля только для рендера, в пакеты не идут.
-      previousAppliedYaw = mc.player.getYaw();
-      previousAppliedPitch = mc.player.getPitch();
+      previousAppliedYaw = mc.player.getYRot();
+      previousAppliedPitch = mc.player.getXRot();
       previousHeadYaw = mc.player.headYaw;
       hasPrevious = true;
 
-      mc.player.setYaw(newYaw);
-      mc.player.setPitch(newPitch);
+      mc.player.setYRot(newYaw);
+      mc.player.setXRot(newPitch);
 
       // silent: bodyYaw (renderYawOffset) не трогаем — иначе тело развернётся.
       // headYaw держим на цели только на тике удара.

@@ -5,8 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Hand;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.InteractionHand;
 import vesence.event.Event;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -14,7 +14,7 @@ import vesence.event.Event;
 @Getter
 @Setter
 public class HandAnimationEvent extends Event {
-   MatrixStack matrices;
-   Hand hand;
+   PoseStack matrices;
+   InteractionHand hand;
    float swingProgress;
 }

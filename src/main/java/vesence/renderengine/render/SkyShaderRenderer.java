@@ -13,13 +13,13 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.UniformType;
+import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.util.ResourceLocation;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -65,7 +65,7 @@ public final class SkyShaderRenderer {
             "Спектр", "Кровавая луна", "Изумруд"
     };
 
-    private static final Identifier SKY_VSH = Identifier.of("vesence", "core/sky/sky_fullscreen");
+    private static final ResourceLocation SKY_VSH = ResourceLocation.of("vesence", "core/sky/sky_fullscreen");
 
     // Небо рисуется поверх содержимого буфера с учётом собственной альфы, чтобы
     // туман (см. fsh) мог плавно смешиваться. Обычно альфа=1 → полная замена.
@@ -111,13 +111,13 @@ public final class SkyShaderRenderer {
     private RenderPipeline getSkyPipeline(String shaderName) {
         if (skyPipelines.containsKey(shaderName)) return skyPipelines.get(shaderName);
         try {
-            Identifier fsh = Identifier.of("vesence", "core/sky/" + shaderName);
+            ResourceLocation fsh = ResourceLocation.of("vesence", "core/sky/" + shaderName);
             RenderPipeline p = RenderPipelines.register(
                     RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
-                            .withLocation(Identifier.of("vesence", "pipeline/" + shaderName + "_g" + pipelineGeneration))
+                            .withLocation(ResourceLocation.of("vesence", "pipeline/" + shaderName + "_g" + pipelineGeneration))
                             .withVertexShader(SKY_VSH)
                             .withFragmentShader(fsh)
-                            .withVertexFormat(VertexFormats.EMPTY, VertexFormat.DrawMode.TRIANGLES)
+                            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
                             .withUniform("SkyData", UniformType.UNIFORM_BUFFER)
                             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                             .withDepthWrite(false)
@@ -159,9 +159,9 @@ public final class SkyShaderRenderer {
      */
     public boolean render(String mode, Camera camera, float speed, float intensity,
                           boolean fogEnabled, int fogColorRgb, float fogBlend) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null || mc.world == null || camera == null) return false;
-        Framebuffer mainFb = mc.getFramebuffer();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || camera == null) return false;
+        RenderTarget mainFb = mc.getMainRenderTarget();
         if (mainFb == null || mainFb.getColorAttachment() == null) return false;
 
         int w = mainFb.textureWidth;
@@ -173,8 +173,8 @@ public final class SkyShaderRenderer {
         if (skyPipeline == null) return false;
 
         float time = (float) (System.currentTimeMillis() - startTime) / 1000.0F * speed;
-        float camYaw = camera.getYaw();
-        float camPitch = camera.getPitch();
+        float camYaw = camera.getYRot();
+        float camPitch = camera.getXRot();
         float fov = mc.options.getFov().getValue().floatValue();
 
         float fr = ((fogColorRgb >> 16) & 0xFF) / 255.0f;

@@ -2,15 +2,15 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.scores.Team;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import vesence.Vesence;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.impl.misc.NameProtect;
@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
  * <p>Сохранена вся логика источника:
  * <ul>
  *   <li>{@link #resolveSidebarObjective} — team-color-aware выбор sidebar-objective
- *       (как ванильный {@code InGameHud.renderScoreboardSidebar});</li>
+ *       (как ванильный {@code Gui.renderScoreboardSidebar});</li>
  *   <li>{@link #resolveNameText} — {@code Team.decorateName} (реальный текст лежит
  *       в prefix/suffix команды owner-а строки);</li>
  *   <li>{@link #buildLayout} с кэшем 50 мс;</li>
@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>символы с MSDF-глифом → гладкий шрифт клиента ({@link Renderer2D#text},
  *       аналог suisse в relevant);</li>
- *   <li>символы рамки/баров ({@link #isFrameFallback}: Box Drawing U+2500..257F
+ *   <li>символы рамки/баров ({@link #isFrameFallback}: AABB Drawing U+2500..257F
  *       и ❚ U+275A), которых НЕТ в MSDF-атласе, → рисуются ГЛАДКИМ шрифтом Arial
  *       ({@link FrameFont}) через {@code Renderer2D.drawImage} — тот же TTF Arial,
  *       что и в relevant, но каждый глиф кэшируется в свою текстуру (в 1.21.11 нет
@@ -144,9 +144,9 @@ public class ScoreboardElement extends HudElement {
     // ── рендер ────────────────────────────────────────────────────────────
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || mc.player == null) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) {
             boundsW = 0.0F;
             boundsH = 0.0F;
             return;
@@ -200,7 +200,7 @@ public class ScoreboardElement extends HudElement {
 
             // ── Строки ───────────────────────────────────────────────────
             //   Делим строку на «ведущую рамку» (псевдографика в начале) и
-            //   «тело». Рамку (Box Drawing) рисуем слева ванильным шрифтом,
+            //   «тело». Рамку (AABB Drawing) рисуем слева ванильным шрифтом,
             //   тело — ПО ЦЕНТРУ панели. Порт splitLeadingDecor из relevant.
             for (String line : layout.lines) {
                 String[] split = splitLeadingDecor(line);
@@ -262,8 +262,8 @@ public class ScoreboardElement extends HudElement {
     /**
      * Порт {@code ScoreboardHud.drawMixed}: разбивает {@code text} на «runs» —
      * символы с MSDF-глифом рисуются {@link Renderer2D#text} (гладкий шрифт
-     * клиента), символы рамки ({@link #isFrameFallback}, Box Drawing/бары)
-     * дорисовываются ВАНИЛЬНЫМ шрифтом MC через {@link DrawContext} (у него
+     * клиента), символы рамки ({@link #isFrameFallback}, AABB Drawing/бары)
+     * дорисовываются ВАНИЛЬНЫМ шрифтом MC через {@link GuiGraphics} (у него
      * есть эти глифы), а прочий не-рисуемый мусор — ПРОПУСКАЕТСЯ (как в relevant).
      * Возвращает новый {@code x} (курсор).
      */
@@ -323,7 +323,7 @@ public class ScoreboardElement extends HudElement {
     /**
      * Можно ли символ (отсутствующий в MSDF-атласе) дорисовать ванильным
      * шрифтом. Порт {@code ScoreboardHud.isFrameFallback}: ТОЛЬКО символы
-     * рамки/баров — Box Drawing (U+2500..257F) и bar-dingbat ❚ (U+275A).
+     * рамки/баров — AABB Drawing (U+2500..257F) и bar-dingbat ❚ (U+275A).
      * Остальное без глифа — декоративный мусор, его не рисуем.
      */
     private static boolean isFrameFallback(char c) {
@@ -386,13 +386,13 @@ public class ScoreboardElement extends HudElement {
         if (cache != null && now - lastCacheMs < 50L) return cache;
         lastCacheMs = now;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
             cache = null;
             return null;
         }
 
-        ScoreboardObjective obj = resolveSidebarObjective(mc.world.getScoreboard(), mc);
+        ScoreboardObjective obj = resolveSidebarObjective(mc.level.getScoreboard(), mc);
         if (obj == null) {
             cache = null;
             return null;
@@ -410,7 +410,7 @@ public class ScoreboardElement extends HudElement {
                 .limit(MAX_LINES)
                 .map(entry -> stripDecorative(applyNameProtect(LegacyTextHelper.extractRaw(resolveNameText(sb, entry)))))
                 // Фильтр как в relevant: пустые строки (в т.ч. «только цвет-код») —
-                // визуальные отступы между секциями. Рамка (Box Drawing U+2500..257F)
+                // визуальные отступы между секциями. Рамка (AABB Drawing U+2500..257F)
                 // СОХРАНЯЕТСЯ и дорисовывается ванильным шрифтом (см. drawMixed).
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toList());
@@ -495,14 +495,14 @@ public class ScoreboardElement extends HudElement {
         return new String[]{lead, body};
     }
 
-    /** Символ из блоков псевдографики (Box Drawing / Block / Geometric / dingbat). */
+    /** Символ из блоков псевдографики (AABB Drawing / Block / Geometric / dingbat). */
     private static boolean isPseudographic(char c) {
         return (c >= 0x2500 && c <= 0x25FF) || (c >= 0x2700 && c <= 0x27BF);
     }
 
     /**
      * Декоративный «квадратик»-tofu (серверный маркер/иконка): оставляем
-     * обычный текст (&lt; U+2500) и Box Drawing (U+2500..257F, рамка), всё
+     * обычный текст (&lt; U+2500) и AABB Drawing (U+2500..257F, рамка), всё
      * прочее (Block/Geometric/Dingbats/суррогаты/PUA) — режем.
      */
     private static boolean isDecorativeSquare(char c) {
@@ -517,7 +517,7 @@ public class ScoreboardElement extends HudElement {
 
     /**
      * Убирает декоративный мусор и литеральные §-коды, сохраняя {@code &#rrggbb}
-     * цвет-коды и Box Drawing рамку. Порт {@code ScoreboardHud.stripDecorative}.
+     * цвет-коды и AABB Drawing рамку. Порт {@code ScoreboardHud.stripDecorative}.
      */
     private static String stripDecorative(String s) {
         if (s == null || s.isEmpty()) return "";
@@ -572,18 +572,18 @@ public class ScoreboardElement extends HudElement {
 
     /**
      * Решает, какой sidebar-objective показать. Повторяет логику ванильного
-     * {@code InGameHud.renderScoreboardSidebar}: если у команды игрока есть
+     * {@code Gui.renderScoreboardSidebar}: если у команды игрока есть
      * цвет (≠ RESET) — берём TEAM_&lt;color&gt; слот, иначе — общий SIDEBAR.
      */
-    private ScoreboardObjective resolveSidebarObjective(Scoreboard scoreboard, MinecraftClient mc) {
+    private ScoreboardObjective resolveSidebarObjective(Scoreboard scoreboard, Minecraft mc) {
         if (scoreboard == null) return null;
         ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
         if (mc.player == null) return sidebar;
 
         Team team = scoreboard.getScoreHolderTeam(mc.player.getName().getString());
         if (team != null) {
-            Formatting color = team.getColor();
-            if (color != null && color != Formatting.RESET) {
+            ChatFormatting color = team.getColor();
+            if (color != null && color != ChatFormatting.RESET) {
                 ScoreboardDisplaySlot slot = ScoreboardDisplaySlot.fromFormatting(color);
                 if (slot != null) {
                     ScoreboardObjective teamObj = scoreboard.getObjectiveForSlot(slot);
@@ -598,9 +598,9 @@ public class ScoreboardElement extends HudElement {
      * Реальный текст строки лежит в prefix/suffix команды owner-а —
      * {@code Team.decorateName}. Без этого owner пустой и контент пропадает.
      */
-    private Text resolveNameText(Scoreboard scoreboard, ScoreboardEntry entry) {
-        Text base = entry.name();
-        if (base == null) base = Text.empty();
+    private Component resolveNameText(Scoreboard scoreboard, ScoreboardEntry entry) {
+        Component base = entry.name();
+        if (base == null) base = Component.empty();
 
         String owner = entry.owner();
         Team ownerTeam = owner != null ? scoreboard.getScoreHolderTeam(owner) : null;

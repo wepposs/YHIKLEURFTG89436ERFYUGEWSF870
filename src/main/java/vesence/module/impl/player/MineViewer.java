@@ -8,12 +8,12 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.decoration.ArmorStandEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2fStack;
 
 import vesence.event.EventInit;
@@ -27,7 +27,7 @@ import vesence.utils.other.Mathf;
 import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontRegistry;
-import vesence.utils.render.text.TextRenderer;
+import vesence.utils.render.text.Font;
 
 /**
  * Полный порт модуля MineViewer из harmony (xd.harm.modules.impl.player.MineViewer)
@@ -43,14 +43,14 @@ import vesence.utils.render.text.TextRenderer;
  * раскладка карточки) перенесена 1-в-1. Адаптации под vesence:
  * <ul>
  *   <li>{@code EventUpdate}(тик) -> {@link EventUpdate}; {@code EventDisplay}(HUD)
- *       -> {@link EventScreenPre} (fires на InGameHud.render HEAD).</li>
+ *       -> {@link EventScreenPre} (fires на Gui.render HEAD).</li>
  *   <li>{@code Fonts.sfbold} -> {@link FontRegistry#SF_BOLD}; {@code KawaseBlur} ->
  *       {@link Renderer2D#blur}; {@code RenderUtility.drawRoundedRect(Outline)} ->
  *       {@link Renderer2D#drawSquircle}/{@code drawSquircleOutline};
  *       {@code ColorUtils} -> {@link ColorUtil}; {@code Theme.MainColor} ->
  *       {@link Renderer2D.ColorUtil#getClientColor()}.</li>
  *   <li>Иконка «B» из icons_client заменена на реальную иконку кирки
- *       ({@link Items#DIAMOND_PICKAXE}) через {@link DrawContext#drawItem} —
+ *       ({@link Items#DIAMOND_PICKAXE}) через {@link GuiGraphics#drawItem} —
  *       надёжно и по смыслу (шахта). Размеры шрифтов пересчитаны под vesence-скейл.</li>
  * </ul>
  */
@@ -119,8 +119,8 @@ public class MineViewer extends Module {
         }
 
         cachedArmorStands.clear();
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof ArmorStandEntity && entity.hasCustomName()) {
+        for (Entity entity : mc.level.getEntities()) {
+            if (entity instanceof ArmorStand && entity.hasCustomName()) {
                 String name = normalizeStandText(entity.getCustomName().getString());
                 if (isAutoMineStand(name) || isValidTimeText(name) || isValidLevelText(name)) {
                     cachedArmorStands.add(entity);
@@ -144,7 +144,7 @@ public class MineViewer extends Module {
         String levelText = "";
         boolean foundData = false;
 
-        if (mc.world != null && mc.player != null) {
+        if (mc.level != null && mc.player != null) {
             Entity[] entities = findNearestEntities();
             if (entities[0] != null && entities[0].getCustomName() != null) {
                 timeText = entities[0].getCustomName().getString();
@@ -179,7 +179,7 @@ public class MineViewer extends Module {
     }
 
     private boolean shouldRenderOverlay() {
-        return mc.world != null && mc.player != null && mc.currentScreen == null;
+        return mc.level != null && mc.player != null && mc.screen == null;
     }
 
     private void updateAnimation() {
@@ -211,7 +211,7 @@ public class MineViewer extends Module {
         double minLevelDistance = Double.MAX_VALUE;
 
         for (Entity entity : cachedArmorStands) {
-            Text customNameComponent = entity.getCustomName();
+            Component customNameComponent = entity.getCustomName();
             if (customNameComponent == null) {
                 continue;
             }
@@ -226,7 +226,7 @@ public class MineViewer extends Module {
         }
 
         for (Entity entity : cachedArmorStands) {
-            Text customNameComponent = entity.getCustomName();
+            Component customNameComponent = entity.getCustomName();
             if (customNameComponent == null) {
                 continue;
             }
@@ -291,7 +291,7 @@ public class MineViewer extends Module {
                 || LEGENDARY_RARITY_PATTERN.matcher(normalized).find();
     }
 
-    private void drawAutoMineInfo(Renderer2D renderer, DrawContext drawContext, int vw, float guiScale, String timeText, String levelText) {
+    private void drawAutoMineInfo(Renderer2D renderer, GuiGraphics drawContext, int vw, float guiScale, String timeText, String levelText) {
         float easedProgress = easeOutCubic(animationProgress);
         float pulse = (float) (Math.sin(pulseProgress * 4.2f) * 0.5f + 0.5f);
 
@@ -300,8 +300,8 @@ public class MineViewer extends Module {
         RarityStyle rarity = getRarityStyle(rarityText);
         String safeTime = displayTime.isEmpty() ? "--:--" : displayTime;
 
-        TextRenderer.TextMetrics mT = renderer.measureText(FontRegistry.SF_BOLD, safeTime, TIME_SIZE);
-        TextRenderer.TextMetrics mR = renderer.measureText(FontRegistry.SF_BOLD, rarityText, RARITY_SIZE);
+        Font.TextMetrics mT = renderer.measureText(FontRegistry.SF_BOLD, safeTime, TIME_SIZE);
+        Font.TextMetrics mR = renderer.measureText(FontRegistry.SF_BOLD, rarityText, RARITY_SIZE);
         float textWidth = Math.max(mT.width, mR.width);
         float contentH = mT.height + LINE_GAP + mR.height;
 
@@ -339,7 +339,7 @@ public class MineViewer extends Module {
                 ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int) (14 * easedProgress)), 0.5f);
     }
 
-    private void drawItemIcon(DrawContext drawContext, ItemStack stack, float x, float y, float size, float guiScale) {
+    private void drawItemIcon(GuiGraphics drawContext, ItemStack stack, float x, float y, float size, float guiScale) {
         float s = size / (16.0f * guiScale);
         Matrix3x2fStack matrices = drawContext.getMatrices();
         matrices.pushMatrix();

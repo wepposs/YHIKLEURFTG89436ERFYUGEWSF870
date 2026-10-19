@@ -2,8 +2,8 @@ package vesence.module.impl.visuals.elements;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.BorderRadius;
@@ -34,16 +34,16 @@ public class    CoordsElement extends HudElement {
         heightAnim.set(30);
     }
 
-    private float getBps(MinecraftClient mc) {
+    private float getBps(Minecraft mc) {
         if (mc.player == null) return 0f;
-        double dx = mc.player.getVelocity().x;
-        double dz = mc.player.getVelocity().z;
+        double dx = mc.player.getDeltaMovement().x;
+        double dz = mc.player.getDeltaMovement().z;
         return Math.round((float)(Math.sqrt(dx * dx + dz * dz) * 20f) * 10f) / 10f;
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+        Minecraft mc = Minecraft.getInstance();
         int bx = mc.player != null ? (int) Math.floor(mc.player.getX()) : 0;
         int by = mc.player != null ? (int) Math.floor(mc.player.getY()) : 0;
         int bz = mc.player != null ? (int) Math.floor(mc.player.getZ()) : 0;
@@ -139,7 +139,7 @@ public class    CoordsElement extends HudElement {
 
     @Override
     public float getWidth(Renderer2D renderer, FontObject font) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         int bx = mc.player != null ? (int) Math.floor(mc.player.getX()) : 0;
         int by = mc.player != null ? (int) Math.floor(mc.player.getY()) : 0;
         int bz = mc.player != null ? (int) Math.floor(mc.player.getZ()) : 0;

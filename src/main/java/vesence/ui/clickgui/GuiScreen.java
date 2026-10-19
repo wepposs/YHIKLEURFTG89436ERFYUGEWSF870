@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.module.api.Category;
 import vesence.module.api.Module;
 import vesence.module.Theme;
@@ -26,7 +26,7 @@ import vesence.utils.render.math.animation.impl.EaseInOutQuad;
 
 @Environment(EnvType.CLIENT)
 public class GuiScreen {
-   public static MinecraftClient mc = MinecraftClient.getInstance();
+   public static Minecraft mc = Minecraft.getInstance();
    public static Animation mainAnimation = new EaseInOutQuad(200, 1.0);
    public static Animation categoryAnimation = new EaseInOutQuad(500, 1.0);
    public static Animation moduleAnimation = new EaseInOutQuad(500, 1.0);

@@ -4,11 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.screen.slot.ClickType;
 import vesence.event.EventInit;
 import vesence.event.impl.ClickSlotEvent;
 import vesence.event.impl.EventPacket;
@@ -62,9 +62,9 @@ public class LockSlot extends Module {
          return;
       }
 
-      if (event.getPacket() instanceof PlayerActionC2SPacket packet) {
-         PlayerActionC2SPacket.Action action = packet.getAction();
-         if ((action == PlayerActionC2SPacket.Action.DROP_ITEM || action == PlayerActionC2SPacket.Action.DROP_ALL_ITEMS)
+      if (event.getPacket() instanceof ServerboundPlayerActionPacket packet) {
+         ServerboundPlayerActionPacket.Action action = packet.getAction();
+         if ((action == ServerboundPlayerActionPacket.Action.DROP_ITEM || action == ServerboundPlayerActionPacket.Action.DROP_ALL_ITEMS)
                && isLockedHotbarSlot(mc.player.getInventory().getSelectedSlot())) {
             event.cancel();
          }
@@ -73,15 +73,15 @@ public class LockSlot extends Module {
 
    @EventInit
    public void onClickSlot(ClickSlotEvent event) {
-      if (!this.enable || mc.player == null || event.getActionType() != SlotActionType.THROW) {
+      if (!this.enable || mc.player == null || event.getActionType() != ClickType.THROW) {
          return;
       }
 
-      if (event.getSlotId() < 0 || event.getSlotId() >= mc.player.currentScreenHandler.slots.size()) {
+      if (event.getSlotId() < 0 || event.getSlotId() >= mc.player.containerMenu.slots.size()) {
          return;
       }
 
-      Slot slot = mc.player.currentScreenHandler.getSlot(event.getSlotId());
+      Slot slot = mc.player.containerMenu.getSlot(event.getSlotId());
       if (!(slot.inventory instanceof PlayerInventory)) {
          return;
       }
@@ -124,7 +124,7 @@ public class LockSlot extends Module {
       float bestDamage = -1.0F;
 
       for (int slot = 0; slot < 9; slot++) {
-         ItemStack stack = mc.player.getInventory().getStack(slot);
+         ItemStack stack = mc.player.getInventory().getItem(slot);
          if (!stack.isIn(ItemTags.SWORDS)) {
             continue;
          }

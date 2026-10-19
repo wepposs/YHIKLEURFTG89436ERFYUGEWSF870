@@ -2,7 +2,7 @@ package vesence.ui.clickgui.compact;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import vesence.Vesence;
 import vesence.module.api.Category;
 import vesence.module.api.Module;
@@ -88,7 +88,7 @@ public class CompactGuiRender {
     }
 
     public static void render(Renderer2D renderer, int mouseX, int mouseY, float mainAlpha) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
 
         if (client == null) {
             return;

@@ -2,11 +2,11 @@ package vesence.module.impl.combat.rotation;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.util.Mth;
+import net.minecraft.util.math.Vector2f;
+import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.auraComponent.Attack;
 import vesence.module.impl.combat.auraComponent.RayTraceUtil;
 import vesence.module.impl.combat.auraComponent.UBoxPoints;
@@ -53,12 +53,12 @@ public class UHolyWorldRotation {
     private static long reactionEnd = 0;
     private static long accelStart = 0;
     private static int lastTargetId = -1;
-    private static Vec2f lastTargetRot = Vec2f.ZERO;
+    private static Vector2f lastTargetRot = Vector2f.ZERO;
     private static long rayTraceLostTime = -1;
     private static boolean inOvershoot = false;
     private static long overshootEnd = 0;
-    private static Vec2f overshootDelta = Vec2f.ZERO;
-    private static Vec2f overshootVel = Vec2f.ZERO;
+    private static Vector2f overshootDelta = Vector2f.ZERO;
+    private static Vector2f overshootVel = Vector2f.ZERO;
     private static long nextOvershootChance = 0;
     private static boolean inPreHit = false;
     private static long preHitEnd = 0;
@@ -68,46 +68,46 @@ public class UHolyWorldRotation {
     private static float flickBurstStr = 0;
     private static boolean inMicro = false;
     private static long microEnd = 0;
-    private static Vec2f microDelta = Vec2f.ZERO;
+    private static Vector2f microDelta = Vector2f.ZERO;
     private static int microCount = 0;
     private static long nextMicro = 0;
     private static boolean inHesitation = false;
     private static long hesEnd = 0;
-    private static Vec2f hesDelta = Vec2f.ZERO;
+    private static Vector2f hesDelta = Vector2f.ZERO;
     private static boolean inWobble = false;
     private static long wobbleEnd = 0;
-    private static Vec2f wobbleDelta = Vec2f.ZERO;
-    private static Vec2f wobbleVel = Vec2f.ZERO;
+    private static Vector2f wobbleDelta = Vector2f.ZERO;
+    private static Vector2f wobbleVel = Vector2f.ZERO;
     private static boolean inMouseLift = false;
     private static long mouseLiftEnd = 0;
-    private static Vec2f mouseLiftDelta = Vec2f.ZERO;
+    private static Vector2f mouseLiftDelta = Vector2f.ZERO;
     private static boolean inCorrection = false;
     private static long correctionEnd = 0;
-    private static Vec2f correctionDelta = Vec2f.ZERO;
+    private static Vector2f correctionDelta = Vector2f.ZERO;
     private static boolean inDoubleCheck = false;
     private static long doubleCheckEnd = 0;
-    private static Vec2f doubleCheckDelta = Vec2f.ZERO;
-    private static Vec2f mouseVel = Vec2f.ZERO;
-    private static Vec2f mouseAccel = Vec2f.ZERO;
+    private static Vector2f doubleCheckDelta = Vector2f.ZERO;
+    private static Vector2f mouseVel = Vector2f.ZERO;
+    private static Vector2f mouseAccel = Vector2f.ZERO;
     private static float mouseMass = 1.0f;
     private static float mouseSpring = 0.0f;
     private static float mouseDamping = 0.0f;
     private static float stictionThreshold = 0.0f;
     private static float tremorPhase = 0.0f;
-    private static Vec2f tremorOffset = Vec2f.ZERO;
-    private static Vec2f tremorVelocity = Vec2f.ZERO;
-    private static Vec3d perceivedTargetPos = Vec3d.ZERO;
-    private static Vec2f perceivedTargetRot = Vec2f.ZERO;
+    private static Vector2f tremorOffset = Vector2f.ZERO;
+    private static Vector2f tremorVelocity = Vector2f.ZERO;
+    private static Vec3 perceivedTargetPos = Vec3.ZERO;
+    private static Vector2f perceivedTargetRot = Vector2f.ZERO;
     private static long cognitiveLag = 0;
     private static float fatigue = 0.0f;
     private static long lastFatigueTick = 0;
     private static float stress = 0.0f;
     private static long lastStressUpdate = 0;
     private static float arousal = 0.5f;
-    private static Vec2f noisePos = Vec2f.ZERO;
-    private static Vec2f noiseVel = Vec2f.ZERO;
+    private static Vector2f noisePos = Vector2f.ZERO;
+    private static Vector2f noiseVel = Vector2f.ZERO;
     private static float noiseAccum = 0.0f;
-    private static Vec2f brownianNoise = Vec2f.ZERO;
+    private static Vector2f brownianNoise = Vector2f.ZERO;
     private static final float[] yawHist = new float[8];
     private static final float[] pitchHist = new float[8];
     private static int histIdx = 0;
@@ -140,7 +140,7 @@ public class UHolyWorldRotation {
         if (target == null || mc.player == null) return;
 
         long now = System.currentTimeMillis();
-        long tick = mc.player.age;
+        long tick = mc.player.tickCount;
 
         if (now > nextEmotionCheck) {
             nextEmotionCheck = now + 8000 + cryptoRand.nextInt(12000);
@@ -181,28 +181,28 @@ public class UHolyWorldRotation {
             return;
         }
 
-        Vec3d point = UBoxPoints.getOrganicPoint(target);
-        Vec2f base = UBoxPoints.getVanillaRotate(point);
+        Vec3 point = UBoxPoints.getOrganicPoint(target);
+        Vector2f base = UBoxPoints.getVanillaRotate(point);
 
-        Vec3d vel = UBoxPoints.getWanderWorldVel();
+        Vec3 vel = UBoxPoints.getWanderWorldVel();
         double eSpeed = vel.length();
         float predErr = (1.0f - currentProfile.predict) * 0.5f + stress * 0.1f;
         float predMult = 0.8f + (float)(gaussian(fastRand) * predErr * 0.15);
-        predMult = MathHelper.clamp(predMult, 0.3f, 1.4f);
+        predMult = Mth.clamp(predMult, 0.3f, 1.4f);
 
-        base = new Vec2f(
+        base = new Vector2f(
                 base.x + (float)(vel.x * predMult * (0.85 + gaussian(fastRand) * 0.1)),
                 base.y + (float)(vel.y * predMult * (0.65 + gaussian(fastRand) * 0.08))
         );
 
-        Vec2f breath = getBreath(now, eSpeed);
-        Vec2f strafe = getStrafe(target);
-        Vec2f hurt = getHurt();
-        Vec2f panic = getPanic(target);
-        Vec2f tremor = getTremor();
-        Vec2f brownian = getBrownian();
+        Vector2f breath = getBreath(now, eSpeed);
+        Vector2f strafe = getStrafe(target);
+        Vector2f hurt = getHurt();
+        Vector2f panic = getPanic(target);
+        Vector2f tremor = getTremor();
+        Vector2f brownian = getBrownian();
 
-        Vec2f raw = new Vec2f(
+        Vector2f raw = new Vector2f(
                 base.x
                         + (inOvershoot ? overshootDelta.x : overshootVel.x)
                         + tremor.x
@@ -234,23 +234,23 @@ public class UHolyWorldRotation {
                         + (inCorrection ? correctionDelta.y : 0)
                         + (inDoubleCheck ? doubleCheckDelta.y : 0)
         );
-        raw = new Vec2f(raw.x, MathHelper.clamp(raw.y, -90.0f, 90.0f));
+        raw = new Vector2f(raw.x, Mth.clamp(raw.y, -90.0f, 90.0f));
 
         // ТЗ: в окне атаки ротация чистая. Здесь jitter набирается из десятка
         // независимых источников (тремор, броуновский шум, дыхание, паника,
         // wobble...) — в окне атаки все они снимаются, остаётся голый аим-поинт,
         // иначе удар уходит с шумом ровно в тик удара.
         if (URotationMath.inAttackWindow()) {
-            raw = new Vec2f(base.x, MathHelper.clamp(base.y, -90.0f, 90.0f));
+            raw = new Vector2f(base.x, Mth.clamp(base.y, -90.0f, 90.0f));
         }
 
-        float yawD = MathHelper.wrapDegrees(raw.x - mc.player.getYaw());
-        float pitchD = MathHelper.wrapDegrees(raw.y - mc.player.getPitch());
+        float yawD = Mth.wrapDegrees(raw.x - mc.player.getYRot());
+        float pitchD = Mth.wrapDegrees(raw.y - mc.player.getXRot());
         float angDist = (float) Math.sqrt(yawD * yawD + pitchD * pitchD);
 
         float fDist = attackDist + rotateDist + 0.1f;
         boolean ray = RayTraceUtil.rayTraceSingleEntity(
-                mc.player.getYaw(), mc.player.getPitch(), attackDist + fDist, target
+                mc.player.getYRot(), mc.player.getXRot(), attackDist + fDist, target
         );
 
         float speed = calcNeuroSpeed(yawD, pitchD, angDist, ray, now, eSpeed, target, attackDist, fDist);
@@ -296,8 +296,8 @@ public class UHolyWorldRotation {
             pitchSpd *= dzFactor;
         }
 
-        yawSpd = MathHelper.clamp(yawSpd, 0.05f, MAX_YAW);
-        pitchSpd = MathHelper.clamp(pitchSpd, 0.05f, MAX_PITCH);
+        yawSpd = Mth.clamp(yawSpd, 0.05f, MAX_YAW);
+        pitchSpd = Mth.clamp(pitchSpd, 0.05f, MAX_PITCH);
 
         yawSpd = neuroMotorCurve(yawSpd, yawD);
         pitchSpd = neuroMotorCurve(pitchSpd, pitchD);
@@ -305,7 +305,7 @@ public class UHolyWorldRotation {
         yawSpd = adaptiveHistorySmooth(yawSpd, yawHist, 0.15f + currentProfile.smooth * 0.15f);
         pitchSpd = adaptiveHistorySmooth(pitchSpd, pitchHist, 0.18f + currentProfile.smooth * 0.12f);
 
-        Vec2f physics = applyMouseBiophysics(yawD, pitchD, yawSpd, pitchSpd);
+        Vector2f physics = applyMouseBiophysics(yawD, pitchD, yawSpd, pitchSpd);
         yawSpd = physics.x;
         pitchSpd = physics.y;
 
@@ -329,12 +329,12 @@ public class UHolyWorldRotation {
             pitchMove *= 0.2f;
         }
 
-        float fYaw = mc.player.getYaw() + yawMove * yDir;
-        float fPitch = MathHelper.clamp(mc.player.getPitch() + pitchMove * pDir, -90.0f, 90.0f);
+        float fYaw = mc.player.getYRot() + yawMove * yDir;
+        float fPitch = Mth.clamp(mc.player.getXRot() + pitchMove * pDir, -90.0f, 90.0f);
 
-        Vec2f snap = humanGCDv2(fYaw, fPitch, yawSpd, pitchSpd, angDist);
+        Vector2f snap = humanGCDv2(fYaw, fPitch, yawSpd, pitchSpd, angDist);
         fYaw = snap.x;
-        fPitch = MathHelper.clamp(snap.y, -90.0f, 90.0f);
+        fPitch = Mth.clamp(snap.y, -90.0f, 90.0f);
 
         Rotation rot = new Rotation(fYaw, fPitch);
         float yRet = 18.0f + fastRand.nextFloat() * 14.0f;
@@ -361,11 +361,11 @@ public class UHolyWorldRotation {
         if (ray) {
             if (mc.player.distanceTo(target) > 0.5f) {
                 boolean small = RayTraceUtil.rayTraceSmallHitBox(
-                        mc.player.getYaw(), mc.player.getPitch(), fDist, target
+                        mc.player.getYRot(), mc.player.getXRot(), fDist, target
                 );
 
                 if (!small) {
-                    float prox = MathHelper.clamp(1.0f - (angDist / 35.0f), 0.0f, 1.0f);
+                    float prox = Mth.clamp(1.0f - (angDist / 35.0f), 0.0f, 1.0f);
                     float ease = prox * prox * (3.0f - 2.0f * prox);
                     ease = ease * 0.7f + (float)Math.sin(ease * Math.PI) * 0.3f; // Добавляем "пружинность"
                     base = Mathf.randomValue(18.0f, 30.0f) + ease * Mathf.randomValue(8.0f, 22.0f);
@@ -387,16 +387,16 @@ public class UHolyWorldRotation {
                 float t = (float) since / accel;
                 t = t * t * (3.0f - 2.0f * t);
                 t = t * 1.1f - 0.05f;
-                t = MathHelper.clamp(t, 0.0f, 1.0f);
+                t = Mth.clamp(t, 0.0f, 1.0f);
                 base = Mathf.randomValue(35.0f, 50.0f) * t;
             } else {
                 base = lastYawSpd + (float)gaussian(fastRand) * 4.0f;
-                base = MathHelper.clamp(base, 24.0f, 55.0f);
+                base = Mth.clamp(base, 24.0f, 55.0f);
             }
         }
 
         long onTarget = now - accelStart;
-        float momT = MathHelper.clamp(onTarget / 450.0f, 0.0f, 1.0f);
+        float momT = Mth.clamp(onTarget / 450.0f, 0.0f, 1.0f);
         float momentum = 1.0f + (float)(Math.log1p(momT * 2.0) / Math.log(3.0)) * 0.6f;
 
         float distCurve;
@@ -413,7 +413,7 @@ public class UHolyWorldRotation {
         base *= momentum * distCurve;
 
         if (eSpeed > 0.008) {
-            float boost = MathHelper.clamp((float)(eSpeed * 2.5), 0.0f, 0.25f);
+            float boost = Mth.clamp((float)(eSpeed * 2.5), 0.0f, 0.25f);
             base *= (1.0f + boost * (1.0f + currentProfile.aggro * 0.5f));
         }
         if (eSpeed > 0.3) {
@@ -432,10 +432,10 @@ public class UHolyWorldRotation {
 
         if (inAttentionBlink) base *= 0.3f;
 
-        return MathHelper.clamp(base, 0.05f, MAX_YAW);
+        return Mth.clamp(base, 0.05f, MAX_YAW);
     }
 
-    private static Vec2f applyMouseBiophysics(float yawD, float pitchD, float yawSpd, float pitchSpd) {
+    private static Vector2f applyMouseBiophysics(float yawD, float pitchD, float yawSpd, float pitchSpd) {
         float targetYawVel = Math.signum(yawD) * yawSpd;
         float targetPitchVel = Math.signum(pitchD) * pitchSpd;
 
@@ -443,15 +443,15 @@ public class UHolyWorldRotation {
         float pitchStiction = Math.abs(targetPitchVel) < stictionThreshold ? 0.3f : 1.0f;
 
         float inertia = 0.15f + currentProfile.inertia * 0.35f;
-        mouseVel = new Vec2f(
+        mouseVel = new Vector2f(
                 mouseVel.x + (targetYawVel * yawStiction - mouseVel.x) * inertia,
                 mouseVel.y + (targetPitchVel * pitchStiction - mouseVel.y) * inertia
         );
 
         float damping = 0.88f + currentProfile.smooth * 0.08f;
-        mouseVel = new Vec2f(mouseVel.x * damping, mouseVel.y * damping);
+        mouseVel = new Vector2f(mouseVel.x * damping, mouseVel.y * damping);
 
-        mouseAccel = new Vec2f(
+        mouseAccel = new Vector2f(
                 mouseAccel.x + (mouseVel.x - mouseAccel.x) * 0.1f,
                 mouseAccel.y + (mouseVel.y - mouseAccel.y) * 0.1f
         );
@@ -459,7 +459,7 @@ public class UHolyWorldRotation {
         float finalYaw = Math.abs(mouseVel.x + mouseAccel.x * 0.4f);
         float finalPitch = Math.abs(mouseVel.y + mouseAccel.y * 0.4f);
 
-        return new Vec2f(finalYaw, finalPitch);
+        return new Vector2f(finalYaw, finalPitch);
     }
 
     private static void updateMousePhysicsParams() {
@@ -483,30 +483,30 @@ public class UHolyWorldRotation {
         float tx = (float)(Math.sin(t * 1.0) * 0.5 + Math.sin(t * 2.3) * 0.3 + Math.sin(t * 4.7) * 0.2);
         float ty = (float)(Math.cos(t * 1.1) * 0.5 + Math.cos(t * 2.7) * 0.3 + Math.cos(t * 5.1) * 0.2);
 
-        tremorVelocity = new Vec2f(
+        tremorVelocity = new Vector2f(
                 (tremorVelocity.x + (tx * amp - tremorOffset.x) * 0.15f) * 0.7f,
                 (tremorVelocity.y + (ty * amp - tremorOffset.y) * 0.15f) * 0.7f
         );
-        tremorOffset = new Vec2f(
+        tremorOffset = new Vector2f(
                 tremorOffset.x + tremorVelocity.x,
                 tremorOffset.y + tremorVelocity.y
         );
     }
 
-    private static Vec2f getTremor() {
+    private static Vector2f getTremor() {
         return tremorOffset;
     }
 
     private static void updateBrownianNoise(long now) {
         float brScale = 0.002f + fatigue * 0.003f;
-        brownianNoise = new Vec2f(
+        brownianNoise = new Vector2f(
                 brownianNoise.x + (float)gaussian(fastRand) * brScale,
                 brownianNoise.y + (float)gaussian(fastRand) * brScale * 0.7f
         );
-        brownianNoise = new Vec2f(brownianNoise.x * 0.98f, brownianNoise.y * 0.98f);
+        brownianNoise = new Vector2f(brownianNoise.x * 0.98f, brownianNoise.y * 0.98f);
     }
 
-    private static Vec2f getBrownian() {
+    private static Vector2f getBrownian() {
         return brownianNoise;
     }
 
@@ -514,12 +514,12 @@ public class UHolyWorldRotation {
         long targetLag = (long)(150 + currentProfile.reaction * 100 + fastRand.nextInt(80));
         cognitiveLag = targetLag;
 
-        Vec3d currentPos = target.getEntityPos();
-        if (perceivedTargetPos.equals(Vec3d.ZERO)) {
+        Vec3 currentPos = target.getEntityPos();
+        if (perceivedTargetPos.equals(Vec3.ZERO)) {
             perceivedTargetPos = currentPos;
         } else {
             float lerp = 0.3f + currentProfile.predict * 0.4f;
-            perceivedTargetPos = new Vec3d(
+            perceivedTargetPos = new Vec3(
                     lerp(perceivedTargetPos.x, currentPos.x, lerp),
                     lerp(perceivedTargetPos.y, currentPos.y, lerp),
                     lerp(perceivedTargetPos.z, currentPos.z, lerp)
@@ -567,7 +567,7 @@ public class UHolyWorldRotation {
     private static void updateEmotion(long now) {
         if (emotionBlend < 1.0f) {
             long dt = now - emotionShiftTime;
-            emotionBlend = MathHelper.clamp(dt / 2000.0f, 0.0f, 1.0f);
+            emotionBlend = Mth.clamp(dt / 2000.0f, 0.0f, 1.0f);
             emotionBlend = emotionBlend * emotionBlend * (3.0f - 2.0f * emotionBlend); // smoothstep
         }
     }
@@ -596,7 +596,7 @@ public class UHolyWorldRotation {
             regenProfile();
         }
 
-        float t = MathHelper.clamp((now - profileShiftTime) / 3000.0f, 0.0f, 1.0f);
+        float t = Mth.clamp((now - profileShiftTime) / 3000.0f, 0.0f, 1.0f);
         t = t * t * (3.0f - 2.0f * t);
 
         currentProfile.aggro = lerp(currentProfile.aggro, targetProfile.aggro, t);
@@ -617,11 +617,11 @@ public class UHolyWorldRotation {
             if (now > overshootEnd) {
                 inOvershoot = false;
                 nextOvershootChance = now + 500 + fastRand.nextInt(2000);
-                overshootVel = new Vec2f(overshootDelta.x * 0.15f, overshootDelta.y * 0.15f);
+                overshootVel = new Vector2f(overshootDelta.x * 0.15f, overshootDelta.y * 0.15f);
             }
         } else {
             overshootVel = overshootVel.multiply(0.8f + currentProfile.smooth * 0.12f);
-            if (overshootVel.length() < 0.01f) overshootVel = Vec2f.ZERO;
+            if (overshootVel.length() < 0.01f) overshootVel = Vector2f.ZERO;
 
             if (now > nextOvershootChance && fastRand.nextFloat() < (0.06f + currentProfile.overshoot * 0.1f)) {
                 inOvershoot = true;
@@ -629,8 +629,8 @@ public class UHolyWorldRotation {
                 float dx = fastRand.nextBoolean() ? 1 : -1;
                 float dy = fastRand.nextBoolean() ? 1 : -1;
                 float amp = 0.8f + currentProfile.overshoot * 2.5f;
-                float distFactor = MathHelper.clamp(lastTargetRot.length() / 20.0f, 0.5f, 2.0f);
-                overshootDelta = new Vec2f(
+                float distFactor = Mth.clamp(lastTargetRot.length() / 20.0f, 0.5f, 2.0f);
+                overshootDelta = new Vector2f(
                         dx * (0.5f + fastRand.nextFloat() * amp) * distFactor,
                         dy * (0.4f + fastRand.nextFloat() * amp * 0.7f) * distFactor
                 );
@@ -674,7 +674,7 @@ public class UHolyWorldRotation {
         float dx = fastRand.nextBoolean() ? 1 : -1;
         float dy = fastRand.nextBoolean() ? 1 : -1;
         float amp = 0.1f + currentProfile.tremor * 0.4f;
-        microDelta = new Vec2f(
+        microDelta = new Vector2f(
                 dx * (0.08f + fastRand.nextFloat() * amp * 1.2f),
                 dy * (0.06f + fastRand.nextFloat() * amp * 0.6f)
         );
@@ -689,7 +689,7 @@ public class UHolyWorldRotation {
             } else {
                 float t = now / 50.0f;
                 float i = 0.12f + currentProfile.tremor * 0.35f;
-                hesDelta = new Vec2f(
+                hesDelta = new Vector2f(
                         (float)(Math.sin(t * 2.7) * Math.cos(t * 1.9) * Math.sin(t * 0.7) * i),
                         (float)(Math.cos(t * 3.5) * Math.sin(t * 2.1) * Math.cos(t * 1.3) * i * 0.5f)
                 );
@@ -711,8 +711,8 @@ public class UHolyWorldRotation {
         if (inWobble) {
             if (now > wobbleEnd) {
                 inWobble = false;
-                wobbleDelta = Vec2f.ZERO;
-                wobbleVel = Vec2f.ZERO;
+                wobbleDelta = Vector2f.ZERO;
+                wobbleVel = Vector2f.ZERO;
                 return;
             }
             float t = now / 70.0f;
@@ -720,11 +720,11 @@ public class UHolyWorldRotation {
             float tx = (float)(Math.sin(t * 2.3) * Math.cos(t * 1.1) * amp + Math.sin(t * 5.7) * amp * 0.3);
             float ty = (float)(Math.cos(t * 2.9) * Math.sin(t * 1.5) * amp * 0.5f + Math.cos(t * 6.1) * amp * 0.2);
 
-            wobbleVel = new Vec2f(
+            wobbleVel = new Vector2f(
                     (wobbleVel.x + (tx - wobbleDelta.x) * 0.05f) * 0.7f,
                     (wobbleVel.y + (ty - wobbleDelta.y) * 0.05f) * 0.7f
             );
-            wobbleDelta = new Vec2f(
+            wobbleDelta = new Vector2f(
                     wobbleDelta.x + wobbleVel.x,
                     wobbleDelta.y + wobbleVel.y
             );
@@ -739,7 +739,7 @@ public class UHolyWorldRotation {
         if (fastRand.nextFloat() < 0.0005f) {
             inMouseLift = true;
             mouseLiftEnd = now + 12 + fastRand.nextInt(40);
-            mouseLiftDelta = new Vec2f(
+            mouseLiftDelta = new Vector2f(
                     (fastRand.nextFloat() - 0.5f) * 2.5f,
                     (fastRand.nextFloat() - 0.5f) * 1.8f
             );
@@ -750,7 +750,7 @@ public class UHolyWorldRotation {
         if (inCorrection) {
             if (now > correctionEnd) {
                 inCorrection = false;
-                correctionDelta = Vec2f.ZERO;
+                correctionDelta = Vector2f.ZERO;
             }
             return;
         }
@@ -760,7 +760,7 @@ public class UHolyWorldRotation {
             float dx = fastRand.nextBoolean() ? 1 : -1;
             float dy = fastRand.nextBoolean() ? 1 : -1;
             float amp = 0.3f + currentProfile.micro * 0.8f;
-            correctionDelta = new Vec2f(
+            correctionDelta = new Vector2f(
                     dx * (0.2f + fastRand.nextFloat() * amp),
                     dy * (0.15f + fastRand.nextFloat() * amp * 0.7f)
             );
@@ -771,7 +771,7 @@ public class UHolyWorldRotation {
         if (inDoubleCheck) {
             if (now > doubleCheckEnd) {
                 inDoubleCheck = false;
-                doubleCheckDelta = Vec2f.ZERO;
+                doubleCheckDelta = Vector2f.ZERO;
             }
             return;
         }
@@ -780,7 +780,7 @@ public class UHolyWorldRotation {
             doubleCheckEnd = now + 60 + fastRand.nextInt(100);
             float angle = fastRand.nextFloat() * (float)(Math.PI * 2);
             float dist = 0.3f + fastRand.nextFloat() * 0.8f;
-            doubleCheckDelta = new Vec2f(
+            doubleCheckDelta = new Vector2f(
                     (float)Math.cos(angle) * dist,
                     (float)Math.sin(angle) * dist * 0.6f
             );
@@ -819,9 +819,9 @@ public class UHolyWorldRotation {
         inDoubleCheck = false;
         inAttentionBlink = false;
         rayTraceLostTime = -1L;
-        mouseVel = Vec2f.ZERO;
-        mouseAccel = Vec2f.ZERO;
-        brownianNoise = Vec2f.ZERO;
+        mouseVel = Vector2f.ZERO;
+        mouseAccel = Vector2f.ZERO;
+        brownianNoise = Vector2f.ZERO;
 
         updateMousePhysicsParams();
 
@@ -831,10 +831,10 @@ public class UHolyWorldRotation {
     }
 
     private static void doReactionPhase(LivingEntity target, float aDist, float rDist, long now) {
-        Vec3d p = UBoxPoints.getOrganicPoint(target);
-        Vec2f b = UBoxPoints.getVanillaRotate(p);
-        float yd = MathHelper.wrapDegrees(b.x - mc.player.getYaw());
-        float pd = MathHelper.wrapDegrees(b.y - mc.player.getPitch());
+        Vec3 p = UBoxPoints.getOrganicPoint(target);
+        Vector2f b = UBoxPoints.getVanillaRotate(p);
+        float yd = Mth.wrapDegrees(b.x - mc.player.getYRot());
+        float pd = Mth.wrapDegrees(b.y - mc.player.getXRot());
 
         float progress = 1.0f - ((float)(reactionEnd - now) / (reactionEnd - accelStart + 1));
         progress = progress * progress * (3.0f - 2.0f * progress);
@@ -849,25 +849,25 @@ public class UHolyWorldRotation {
         ym += (float)gaussian(fastRand) * tremor;
         pm += (float)gaussian(fastRand) * tremor * 0.6f;
 
-        float fy = mc.player.getYaw() + ym;
-        float fp = MathHelper.clamp(mc.player.getPitch() + pm, -90.0f, 90.0f);
-        Vec2f s = humanGCDv2(fy, fp, sp, sp * 0.7f, (float)Math.sqrt(yd*yd + pd*pd));
+        float fy = mc.player.getYRot() + ym;
+        float fp = Mth.clamp(mc.player.getXRot() + pm, -90.0f, 90.0f);
+        Vector2f s = humanGCDv2(fy, fp, sp, sp * 0.7f, (float)Math.sqrt(yd*yd + pd*pd));
         URotations.update(new Rotation(s.x, s.y), sp, sp * 0.75f, 14.0f, 12.0f, 0, 15, false);
     }
 
-    private static Vec2f humanGCDv2(float yaw, float pitch, float yawSpd, float pitchSpd, float angDist) {
+    private static Vector2f humanGCDv2(float yaw, float pitch, float yawSpd, float pitchSpd, float angDist) {
         float g = getGCD();
-        if (g < 0.001f) return new Vec2f(yaw, pitch);
+        if (g < 0.001f) return new Vector2f(yaw, pitch);
 
-        float speedFactor = MathHelper.clamp((yawSpd + pitchSpd) / 60.0f, 0.5f, 1.5f);
-        float distFactor = MathHelper.clamp(angDist / 45.0f, 0.8f, 1.2f);
+        float speedFactor = Mth.clamp((yawSpd + pitchSpd) / 60.0f, 0.5f, 1.5f);
+        float distFactor = Mth.clamp(angDist / 45.0f, 0.8f, 1.2f);
         float fatigueFactor = 1.0f + fatigue * 0.3f;
 
         float gy = g * speedFactor * distFactor * fatigueFactor * (0.9f + fastRand.nextFloat() * 0.2f);
         float gp = g * speedFactor * distFactor * fatigueFactor * (0.85f + fastRand.nextFloat() * 0.15f);
 
         if (fastRand.nextFloat() < 0.08f + stress * 0.05f) {
-            return new Vec2f(yaw, pitch);
+            return new Vector2f(yaw, pitch);
         }
 
         float ry = yaw % gy;
@@ -875,7 +875,7 @@ public class UHolyWorldRotation {
         float ey = (fastRand.nextFloat() - 0.5f) * gy * 0.25f;
         float ep = (fastRand.nextFloat() - 0.5f) * gp * 0.2f;
 
-        return new Vec2f(yaw - ry + ey, pitch - rp + ep);
+        return new Vector2f(yaw - ry + ey, pitch - rp + ep);
     }
 
     private static float getGCD() {
@@ -885,7 +885,7 @@ public class UHolyWorldRotation {
     }
 
     private static float neuroMotorCurve(float speed, float delta) {
-        float norm = MathHelper.clamp(Math.abs(delta) / 25.0f, 0.0f, 1.0f);
+        float norm = Mth.clamp(Math.abs(delta) / 25.0f, 0.0f, 1.0f);
         float easeIn = norm * norm;
         float easeOut = 1.0f - (1.0f - norm) * (1.0f - norm);
         float blend = 0.4f + currentProfile.smooth * 0.3f;
@@ -900,13 +900,13 @@ public class UHolyWorldRotation {
         avg /= hist.length;
 
         float diff = Math.abs(cur - avg);
-        float adapt = MathHelper.clamp(diff / 20.0f, 0.0f, 1.0f);
+        float adapt = Mth.clamp(diff / 20.0f, 0.0f, 1.0f);
         float finalF = f * (1.0f - adapt * 0.5f) + fastRand.nextFloat() * 0.04f;
 
         return avg + (cur - avg) * finalF;
     }
 
-    private static Vec2f getBreath(long now, double speed) {
+    private static Vector2f getBreath(long now, double speed) {
         float phase = now / (900.0f - currentProfile.smooth * 250.0f);
         float y = (float)(Math.sin(phase) * Math.cos(phase * 0.317) * 0.18);
         float p = (float)(Math.sin(phase * 0.618) * 0.1);
@@ -920,33 +920,33 @@ public class UHolyWorldRotation {
         }
         y *= (1.0f + fatigue * 0.25f);
         p *= (1.0f + fatigue * 0.2f);
-        return new Vec2f(y, p);
+        return new Vector2f(y, p);
     }
 
-    private static Vec2f getStrafe(LivingEntity target) {
-        if (mc.player.distanceTo(target) >= 3.5f) return Vec2f.ZERO;
-        Vec3d v = mc.player.getVelocity();
+    private static Vector2f getStrafe(LivingEntity target) {
+        if (mc.player.distanceTo(target) >= 3.5f) return Vector2f.ZERO;
+        Vec3 v = mc.player.getDeltaMovement();
         float dist = mc.player.distanceTo(target);
-        float mult = MathHelper.clamp(1.0f - dist / 3.5f, 0.0f, 1.0f);
-        return new Vec2f((float)(-v.x * 2.0f * mult), (float)(v.z * 0.25f * mult));
+        float mult = Mth.clamp(1.0f - dist / 3.5f, 0.0f, 1.0f);
+        return new Vector2f((float)(-v.x * 2.0f * mult), (float)(v.z * 0.25f * mult));
     }
 
-    private static Vec2f getHurt() {
+    private static Vector2f getHurt() {
         int h = mc.player.hurtTime;
-        if (h <= 0) return Vec2f.ZERO;
+        if (h <= 0) return Vector2f.ZERO;
         float i = h / 10.0f;
         inPreHit = false;
-        return new Vec2f(
+        return new Vector2f(
                 (fastRand.nextFloat() - 0.5f) * 2.0f * i,
                 (fastRand.nextFloat() - 0.5f) * 1.4f * i
         );
     }
 
-    private static Vec2f getPanic(LivingEntity target) {
-        if (stress < 0.15f) return Vec2f.ZERO;
+    private static Vector2f getPanic(LivingEntity target) {
+        if (stress < 0.15f) return Vector2f.ZERO;
         float t = System.currentTimeMillis() / 220.0f;
         float amp = stress * 0.3f;
-        return new Vec2f(
+        return new Vector2f(
                 (float)(Math.sin(t * 4.5) * amp + Math.sin(t * 11.3) * amp * 0.3),
                 (float)(Math.cos(t * 3.9) * amp * 0.5f + Math.cos(t * 9.7) * amp * 0.2)
         );
@@ -959,13 +959,13 @@ public class UHolyWorldRotation {
         float targetStress = 0.0f;
         if (mc.player.getHealth() < 10.0f) targetStress += 0.2f;
         if (mc.player.getHealth() < 5.0f) targetStress += 0.25f;
-        if (target instanceof PlayerEntity && mc.player.distanceTo(target) < 3.0f) targetStress += 0.2f;
+        if (target instanceof Player && mc.player.distanceTo(target) < 3.0f) targetStress += 0.2f;
         if (mc.player.hurtTime > 0) targetStress += 0.15f;
-        if (!RayTraceUtil.rayTraceSingleEntity(mc.player.getYaw(), mc.player.getPitch(), 6.0f, target)) {
+        if (!RayTraceUtil.rayTraceSingleEntity(mc.player.getYRot(), mc.player.getXRot(), 6.0f, target)) {
             targetStress += 0.1f; // Стресс от потери цели
         }
 
-        targetStress = MathHelper.clamp(targetStress, 0.0f, 0.8f);
+        targetStress = Mth.clamp(targetStress, 0.0f, 0.8f);
         stress += (targetStress - stress) * 0.05f;
     }
 
@@ -978,15 +978,15 @@ public class UHolyWorldRotation {
         if (tick - lastFatigueTick > 40) {
             lastFatigueTick = tick;
             if (lastTargetId != -1) {
-                fatigue = MathHelper.clamp(fatigue + 0.005f, 0f, 0.5f);
+                fatigue = Mth.clamp(fatigue + 0.005f, 0f, 0.5f);
             } else {
-                fatigue = MathHelper.clamp(fatigue - 0.012f, 0f, 0.5f);
+                fatigue = Mth.clamp(fatigue - 0.012f, 0f, 0.5f);
             }
         }
     }
 
     private static float swingCd() {
-        return MathHelper.clamp(
+        return Mth.clamp(
                 (float) mc.player.handSwingTicks / (8.0f + fastRand.nextFloat() * 5.0f),
                 0.0f, 1.0f
         );
@@ -1006,28 +1006,28 @@ public class UHolyWorldRotation {
     }
 
     private static float lerp(float a, float b, float t) {
-        return a + (b - a) * MathHelper.clamp(t, 0.0f, 1.0f);
+        return a + (b - a) * Mth.clamp(t, 0.0f, 1.0f);
     }
 
     private static double lerp(double a, double b, double t) {
-        return a + (b - a) * MathHelper.clamp(t, 0.0, 1.0);
+        return a + (b - a) * Mth.clamp(t, 0.0, 1.0);
     }
 
     public static void state() {
         rayTraceLostTime = -1L;
         lastYawSpd = 0;
         lastPitchSpd = 0;
-        mouseVel = Vec2f.ZERO;
-        mouseAccel = Vec2f.ZERO;
+        mouseVel = Vector2f.ZERO;
+        mouseAccel = Vector2f.ZERO;
         inOvershoot = false;
         nextOvershootChance = 0;
-        overshootVel = Vec2f.ZERO;
-        overshootDelta = Vec2f.ZERO;
+        overshootVel = Vector2f.ZERO;
+        overshootDelta = Vector2f.ZERO;
         inPreHit = false;
         preHitEnd = 0;
         preHitStr = 1.0f;
-        tremorOffset = Vec2f.ZERO;
-        tremorVelocity = Vec2f.ZERO;
+        tremorOffset = Vector2f.ZERO;
+        tremorVelocity = Vector2f.ZERO;
         tremorPhase = 0;
         lastTargetId = -1;
         inFlickBurst = false;
@@ -1036,34 +1036,34 @@ public class UHolyWorldRotation {
         inMicro = false;
         microCount = 0;
         nextMicro = 0;
-        microDelta = Vec2f.ZERO;
+        microDelta = Vector2f.ZERO;
         inHesitation = false;
         hesEnd = 0;
-        hesDelta = Vec2f.ZERO;
+        hesDelta = Vector2f.ZERO;
         inWobble = false;
         wobbleEnd = 0;
-        wobbleDelta = Vec2f.ZERO;
-        wobbleVel = Vec2f.ZERO;
+        wobbleDelta = Vector2f.ZERO;
+        wobbleVel = Vector2f.ZERO;
         fatigue = 0f;
         lastFatigueTick = 0;
         stress = 0f;
         lastStressUpdate = 0;
         arousal = 0.5f;
-        noisePos = Vec2f.ZERO;
-        noiseVel = Vec2f.ZERO;
+        noisePos = Vector2f.ZERO;
+        noiseVel = Vector2f.ZERO;
         noiseAccum = 0;
         mouseLiftEnd = 0;
-        mouseLiftDelta = Vec2f.ZERO;
+        mouseLiftDelta = Vector2f.ZERO;
         inCorrection = false;
         correctionEnd = 0;
-        correctionDelta = Vec2f.ZERO;
+        correctionDelta = Vector2f.ZERO;
         inDoubleCheck = false;
         doubleCheckEnd = 0;
-        doubleCheckDelta = Vec2f.ZERO;
+        doubleCheckDelta = Vector2f.ZERO;
         inAttentionBlink = false;
         nextAttentionBlink = 0;
-        brownianNoise = Vec2f.ZERO;
-        perceivedTargetPos = Vec3d.ZERO;
+        brownianNoise = Vector2f.ZERO;
+        perceivedTargetPos = Vec3.ZERO;
         histIdx = 0;
         for (int i = 0; i < yawHist.length; i++) {
             yawHist[i] = 0;

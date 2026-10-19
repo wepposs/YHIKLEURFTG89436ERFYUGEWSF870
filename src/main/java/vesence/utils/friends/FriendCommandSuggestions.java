@@ -2,8 +2,8 @@ package vesence.utils.friends;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.network.PlayerListEntry;
 import vesence.utils.commands.suggestions.AbstractSubCommandSuggestions;
 import vesence.utils.commands.suggestions.CommandSuggestions;
@@ -74,8 +74,8 @@ public final class FriendCommandSuggestions extends AbstractSubCommandSuggestion
    }
 
    private static List<CommandSuggestions.SuggestionEntry> buildOnlinePlayerEntries(String partialArgument) {
-      MinecraftClient mc = MinecraftClient.getInstance();
-      ClientPlayNetworkHandler nh = mc.getNetworkHandler();
+      Minecraft mc = Minecraft.getInstance();
+      ClientPacketListener nh = mc.getConnection();
       if (nh == null) {
          return List.of();
       }

@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +21,7 @@ public class NoRenderGameRendererMixin {
    }
 
    @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"), cancellable = true)
-   private void onTiltViewWhenHurt(net.minecraft.client.util.math.MatrixStack matrices, float tickDelta, CallbackInfo ci) {
+   private void onTiltViewWhenHurt(net.minecraft.client.util.math.PoseStack matrices, float tickDelta, CallbackInfo ci) {
       if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Тряску камеры")) {
          ci.cancel();
       }

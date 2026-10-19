@@ -1,10 +1,10 @@
 package vesence.module.impl.visuals.particular;
 
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
-import net.minecraft.particle.SimpleParticleType;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.util.ResourceLocation;
 
 public final class ParticularParticles {
     public static final String MOD_ID = "particular";
@@ -40,6 +40,6 @@ public final class ParticularParticles {
     }
 
     private static SimpleParticleType register(String name, boolean alwaysShow) {
-        return Registry.register(Registries.PARTICLE_TYPE, Identifier.of(MOD_ID, name), FabricParticleTypes.simple(alwaysShow));
+        return Registry.register(BuiltInRegistries.PARTICLE_TYPE, ResourceLocation.of(MOD_ID, name), FabricParticleTypes.simple(alwaysShow));
     }
 }

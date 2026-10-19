@@ -7,7 +7,7 @@ import net.fabricmc.api.Environment;
 import vesence.renderengine.providers.GlBackend;
 
 @Environment(EnvType.CLIENT)
-public final class TextRenderer {
+public final class Font {
    private static final float[] IDENTITY_TRANSFORM = new float[]{1.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, 0.0F, 1.0F};
    private final GlBackend backend;
    private final MsdfFont font;
@@ -38,7 +38,7 @@ public final class TextRenderer {
             }
          };
 
-   public TextRenderer(GlBackend backend, MsdfFont font) {
+   public Font(GlBackend backend, MsdfFont font) {
       this.backend = Objects.requireNonNull(backend, "backend");
       this.font = Objects.requireNonNull(font, "font");
    }
