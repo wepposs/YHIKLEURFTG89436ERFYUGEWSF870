@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.EnvType;
@@ -15,18 +14,16 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.entity.projectile.PersistentProjectileEntity;
-import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
@@ -51,29 +48,35 @@ import vesence.renderengine.render.Renderer2D;
 import vesence.utils.other.Mathf;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontRegistry;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 @IModule(name = "Projectile", description = "Траектория снарядов: жемчуг, стрелы, трезубец, предметы", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class Projectile extends Module {
 
-   private static final ResourceLocation BLOOM_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
+   private static final Identifier BLOOM_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
 
    private static final RenderPipeline BLOOM_PIPELINE = RenderPipelines.register(
-         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-               .withLocation(ResourceLocation.of("vesence", "projectile_bloom"))
-               .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+               .withLocation(Identifier.fromNamespaceAndPath("vesence", "projectile_bloom"))
+               .withVertexShader("core/position_tex_color")
+               .withFragmentShader("core/position_tex_color")
+               .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+               .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)               .withPrimitiveTopology(PrimitiveTopology.QUADS)
                .withCull(false)
-               .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-               .withDepthWrite(false)
-               .withBlend(BlendFunction.LIGHTNING)
+               .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+               .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                .build());
-   private static final RenderType BLOOM_LAYER = RenderType.of(
+   private static final RenderType BLOOM_LAYER = RenderType.create(
          "projectile_bloom",
          RenderSetup.builder(BLOOM_PIPELINE)
-               .expectedBufferSize(8192)
-               .translucent()
-               .texture("Sampler0", BLOOM_TEXTURE)
-               .build());
+               
+               
+               .withTexture("Sampler0", BLOOM_TEXTURE)
+               .createRenderSetup());
 
    private final SliderSetting size = new SliderSetting("Размер", 1.2F, 0.6F, 2.4F, 0.1F, false);
    private final BooleanSetting pearls = new BooleanSetting("Жемчуг", true);
@@ -106,20 +109,20 @@ public class Projectile extends Module {
       lastCameraRotation.set(event.getCameraRotation());
 
       PoseStack matrices = event.getMatrixStack();
-      Camera camera = mc.gameRenderer.getCamera();
-      Vec3 cameraPos = camera.getCameraPos();
-      Quaternionf cameraRotation = camera.getRotation();
+      Camera camera = mc.gameRenderer.mainCamera();
+      Vec3 cameraPos = camera.position();
+      Quaternionf cameraRotation = camera.rotation();
       float tickDelta = event.getTickDelta();
 
       if (allocator == null) {
          allocator = new ByteBufferBuilder(262144);
-         immediate = MultiBufferSource.immediate(allocator);
+         immediate = new Immediate();
       }
 
       try {
-         AABB searchBox = mc.player.getBoundingBox().expand(128.0D);
+         AABB searchBox = mc.player.getBoundingBox().inflate(128.0D);
 
-         for (Entity entity : mc.level.getEntitiesByClass(Entity.class, searchBox, this::shouldTrack)) {
+         for (Entity entity : mc.level.getEntitiesOfClass(Entity.class, searchBox, this::shouldTrack)) {
             ProjectileType type = this.classify(entity);
             if (type == null) continue;
 
@@ -153,8 +156,8 @@ public class Projectile extends Module {
 
                   matrices.pushPose();
                   matrices.translate(interp.x, interp.y, interp.z);
-                  matrices.multiply(cameraRotation);
-                  Matrix4f matrix = matrices.last().getPositionMatrix();
+                  matrices.rotate(cameraRotation);
+                  Matrix4f matrix = matrices.last().pose();
                   addBloomQuad(buffer, matrix, -quadSize, -quadSize, quadSize * 2.0F, quadSize * 2.0F, r, g, b, a);
                   matrices.popPose();
                }
@@ -229,7 +232,7 @@ public class Projectile extends Module {
    }
 
    private void DrawContextDraw(EventScreen event, ItemStack stack, float cx, float cy, float iconSize, float guiScale, float alpha) {
-      net.minecraft.client.gui.GuiGraphics ctx = event.drawContext();
+      net.minecraft.client.gui.GuiGraphicsExtractor ctx = event.drawContext();
       if (ctx == null) return;
 
       float scaledCx = cx / guiScale;
@@ -237,11 +240,11 @@ public class Projectile extends Module {
 
       float itemScale = (iconSize / guiScale) / 16.0F;
 
-      ctx.getMatrices().pushMatrix();
-      ctx.getMatrices().translate(scaledCx, scaledCy);
-      ctx.getMatrices().scale(itemScale, itemScale);
-      ctx.drawItem(stack, -8, -8);
-      ctx.getMatrices().popMatrix();
+      ctx.pose().pushMatrix();
+      ctx.pose().translate(scaledCx, scaledCy);
+      ctx.pose().scale(itemScale, itemScale);
+      ctx.item(stack, -8, -8);
+      ctx.pose().popMatrix();
    }
 
    @Override
@@ -277,13 +280,13 @@ public class Projectile extends Module {
    }
 
    private ProjectileType classify(Entity entity) {
-      if (entity instanceof EnderPearlEntity) {
+      if (entity instanceof ThrownEnderpearl) {
          return pearls.get() ? ProjectileType.PEARL : null;
       }
-      if (entity instanceof net.minecraft.entity.projectile.TridentEntity) {
+      if (entity instanceof net.minecraft.world.entity.projectile.arrow.ThrownTrident) {
          return tridents.get() ? ProjectileType.PROJECTILE : null;
       }
-      if (entity instanceof PersistentProjectileEntity) {
+      if (entity instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow) {
          return arrows.get() ? ProjectileType.PROJECTILE : null;
       }
       if (entity instanceof ItemEntity) {
@@ -299,7 +302,7 @@ public class Projectile extends Module {
       if (type == ProjectileType.PEARL) {
          return new ItemStack(Items.ENDER_PEARL);
       }
-      if (entity instanceof net.minecraft.entity.projectile.TridentEntity) {
+      if (entity instanceof net.minecraft.world.entity.projectile.arrow.ThrownTrident) {
          return new ItemStack(Items.TRIDENT);
       }
       return new ItemStack(Items.ARROW);
@@ -308,10 +311,10 @@ public class Projectile extends Module {
    private static void addBloomQuad(VertexConsumer buffer, Matrix4f matrix, float x, float y, float w, float h, int r, int g, int b, int a) {
       float x2 = x + w;
       float y2 = y + h;
-      buffer.vertex(matrix, x, y, 0).texture(0, 0).color(r, g, b, a);
-      buffer.vertex(matrix, x, y2, 0).texture(0, 1).color(r, g, b, a);
-      buffer.vertex(matrix, x2, y2, 0).texture(1, 1).color(r, g, b, a);
-      buffer.vertex(matrix, x2, y, 0).texture(1, 0).color(r, g, b, a);
+      buffer.addVertex(matrix, x, y, 0).setUv(0, 0).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x, y2, 0).setUv(0, 1).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x2, y2, 0).setUv(1, 1).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x2, y, 0).setUv(1, 0).setColor(r, g, b, a);
    }
 
    private Vec3 worldToScreen(Vec3 worldPos) {
@@ -335,8 +338,8 @@ public class Projectile extends Module {
       float ndcY = clip.y / w;
       float ndcZ = clip.z / w;
 
-      float scaledWidth = mc.getWindow().getScaledWidth();
-      float scaledHeight = mc.getWindow().getScaledHeight();
+      float scaledWidth = mc.getWindow().getGuiScaledWidth();
+      float scaledHeight = mc.getWindow().getGuiScaledHeight();
       float screenX = (ndcX * 0.5F + 0.5F) * scaledWidth;
       float screenY = (1.0F - (ndcY * 0.5F + 0.5F)) * scaledHeight;
 
@@ -359,9 +362,9 @@ public class Projectile extends Module {
    private List<Vec3> simulate(Entity entity, ProjectileType type, float tickDelta) {
       List<Vec3> points = new ArrayList<>();
       Vec3 pos = new Vec3(
-            Mth.lerp(tickDelta, entity.lastX, entity.getX()),
-            Mth.lerp(tickDelta, entity.lastY, entity.getY()),
-            Mth.lerp(tickDelta, entity.lastZ, entity.getZ()));
+            Mth.lerp(tickDelta, entity.xo, entity.getX()),
+            Mth.lerp(tickDelta, entity.yo, entity.getY()),
+            Mth.lerp(tickDelta, entity.zo, entity.getZ()));
       Vec3 motion = entity.getDeltaMovement();
       points.add(pos);
 
@@ -377,30 +380,30 @@ public class Projectile extends Module {
          Vec3 lastPos = pos;
          Vec3 nextPos = pos.add(motion);
 
-         BlockHitResult hit = mc.level.raycast(new ClipContext(
+         BlockHitResult hit = mc.level.clip(new ClipContext(
                lastPos,
                nextPos,
-               ClipContext.ShapeType.COLLIDER,
-               ClipContext.FluidHandling.NONE,
+               ClipContext.Block.COLLIDER,
+               ClipContext.Fluid.NONE,
                mc.player));
 
          if (hit.getType() == HitResult.Type.BLOCK) {
-            points.add(hit.getPos());
+            points.add(hit.getLocation());
             break;
          }
 
          points.add(nextPos);
          pos = nextPos;
 
-         boolean inWater = mc.level.getBlockState(BlockPos.ofFloored(pos)).isOf(Blocks.WATER);
+         boolean inWater = mc.level.getBlockState(BlockPos.containing(pos)).is(Blocks.WATER);
          double drag = inWater ? waterDrag : airDrag;
-         motion = motion.multiply(drag).subtract(0.0, gravity, 0.0);
+         motion = motion.scale(drag).subtract(0.0, gravity, 0.0);
 
-         if (type == ProjectileType.ITEM && Math.abs(motion.y) < 1.0E-3 && motion.horizontalLengthSquared() < 1.0E-4) {
+         if (type == ProjectileType.ITEM && Math.abs(motion.y) < 1.0E-3 && motion.horizontalDistanceSqr() < 1.0E-4) {
             break;
          }
 
-         if (pos.y <= mc.level.getBottomY()) break;
+         if (pos.y <= mc.level.getMinY()) break;
       }
 
       return points;
@@ -438,13 +441,13 @@ public class Projectile extends Module {
          float dt = Math.max(0.0F, Math.min(100.0F, now - this.lastSmoothTime));
          this.lastSmoothTime = now;
 
-         if (this.smoothPos == null || this.smoothPos.squaredDistanceTo(target) > 64.0) {
+         if (this.smoothPos == null || this.smoothPos.distanceToSqr(target) > 64.0) {
             this.smoothPos = target;
             return this.smoothPos;
          }
 
          double factor = 1.0 - Math.exp(-dt / 55.0);
-         this.smoothPos = this.smoothPos.add(target.subtract(this.smoothPos).multiply(factor));
+         this.smoothPos = this.smoothPos.add(target.subtract(this.smoothPos).scale(factor));
          return this.smoothPos;
       }
    }

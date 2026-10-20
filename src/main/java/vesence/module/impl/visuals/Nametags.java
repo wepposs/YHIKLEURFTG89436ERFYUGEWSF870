@@ -9,42 +9,39 @@ import java.util.UUID;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.PlayerSkinDrawer;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.render.entity.PlayerEntityRenderer;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.component.DataComponentTypes;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.WaterAnimalEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.fish.WaterAnimal;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.entity.player.SkinTextures;
+import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -72,6 +69,9 @@ import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.text.RichTextUtil;
 import vesence.utils.render.text.Font;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 @IModule(name = "Nametags", description = "Неймтеги и боксы сущностей (порт EntityESP)", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -187,7 +187,7 @@ public class Nametags extends Module {
         final boolean isFriend;
         final float health;
         final float maxHealth;
-        final SkinTextures skin;
+        final PlayerSkin skin;
         final List<ItemStack> armor;
         final ItemStack mainHand;
         final ItemStack offHand;
@@ -200,7 +200,7 @@ public class Nametags extends Module {
 
         CachedTag(int entityId, TagType type, float screenX, float screenY, float footY, boolean onScreen,
                   String nameText, String hpText, boolean showHp, boolean isFriend, float health, float maxHealth,
-                  SkinTextures skin, List<ItemStack> armor, ItemStack mainHand, ItemStack offHand, ItemStack itemStack, int itemCount) {
+                  PlayerSkin skin, List<ItemStack> armor, ItemStack mainHand, ItemStack offHand, ItemStack itemStack, int itemCount) {
             this.entityId = entityId;
             this.type = type;
             this.screenX = screenX;
@@ -247,7 +247,7 @@ public class Nametags extends Module {
     }
 
     private boolean isTabOpen() {
-        return hideOnTab.get() && mc.options != null && mc.options.playerListKey != null && mc.options.playerListKey.isPressed();
+        return hideOnTab.get() && mc.options != null && mc.options.keyPlayerList != null && mc.options.keyPlayerList.isDown();
     }
 
     @EventInit
@@ -271,13 +271,13 @@ public class Nametags extends Module {
             render3DBoxes(event, tickDelta);
         }
 
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof ArmorStand) continue;
-            if (entity == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
+            if (entity == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
             if (entity == mc.player && !targetSelf.get()) continue;
             if (!matchesTarget(entity)) continue;
 
-            Vec3 lerped = entity.getLerpedPos(tickDelta);
+            Vec3 lerped = entity.getPosition(tickDelta);
 
             if (entity instanceof ItemEntity itemEntity) {
                 if (!elementTags.get()) continue;
@@ -296,8 +296,8 @@ public class Nametags extends Module {
             LivingEntity living = (LivingEntity) entity;
             if (hideNaked.get() && living instanceof Player pl && isNaked(pl)) continue;
 
-            float heightOffset = living.getHeight() + HEAD_OFFSET;
-            if (living.isSneaking()) heightOffset -= 0.25f;
+            float heightOffset = living.getBbHeight() + HEAD_OFFSET;
+            if (living.isCrouching()) heightOffset -= 0.25f;
             Vec3 headPos = new Vec3(lerped.x, lerped.y + heightOffset, lerped.z);
             Vec3 footPos = new Vec3(lerped.x, lerped.y - 0.1, lerped.z);
             Vec3 sp = project(headPos);
@@ -307,7 +307,7 @@ public class Nametags extends Module {
             float bMinX = 0, bMinY = 0, bMaxX = 0, bMaxY = 0;
             boolean hasBox = false;
             if (needs2DBox) {
-                AABB box = living.getBoundingBox().offset(lerped.subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
+                AABB box = living.getBoundingBox().move(lerped.subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
                 bMinX = Float.MAX_VALUE; bMinY = Float.MAX_VALUE; bMaxX = -Float.MAX_VALUE; bMaxY = -Float.MAX_VALUE;
                 Vec3[] corners = {
                     new Vec3(box.minX, box.minY, box.minZ), new Vec3(box.maxX, box.minY, box.minZ),
@@ -335,7 +335,7 @@ public class Nametags extends Module {
             float hp = living.getHealth() + living.getAbsorptionAmount();
             float maxHp = living.getMaxHealth() + living.getAbsorptionAmount();
             boolean isFriend = isPlayer && FriendStorage.isFriend(plainName);
-            SkinTextures skin = (living instanceof AbstractClientPlayer acp) ? acp.getSkin() : null;
+            PlayerSkin skin = (living instanceof AbstractClientPlayer acp) ? acp.getSkin() : null;
 
             List<ItemStack> armorList = new ArrayList<>();
             ItemStack mainHand = ItemStack.EMPTY, offHand = ItemStack.EMPTY;
@@ -343,7 +343,7 @@ public class Nametags extends Module {
                 Player player = (Player) living;
                 if (elementArmor.get()) {
                     for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-                        ItemStack piece = player.getEquippedStack(slot);
+                        ItemStack piece = player.getItemBySlot(slot);
                         if (!piece.isEmpty()) armorList.add(piece);
                     }
                 }
@@ -358,7 +358,7 @@ public class Nametags extends Module {
                     armorList, mainHand, offHand, ItemStack.EMPTY, 0);
             tag.boxMinX = bMinX; tag.boxMinY = bMinY; tag.boxMaxX = bMaxX; tag.boxMaxY = bMaxY; tag.hasBox = hasBox;
             if (isPlayer) {
-                tag.uuid = ((Player) living).getUuid();
+                tag.uuid = ((Player) living).getUUID();
                 if (rememberBonusItems.get()) {
                     updateRememberedItems((Player) living, now);
                     tag.remembered = rememberedItems.get(tag.uuid);
@@ -374,7 +374,7 @@ public class Nametags extends Module {
 
         Renderer2D renderer = event.renderer();
         FontObject font = FontRegistry.SF_MEDIUM;
-        GuiGraphics drawContext = event.drawContext();
+        GuiGraphicsExtractor drawContext = event.drawContext();
         float guiScale = (float) Mathf.getScaleFactor();
         int vw = event.viewportWidth();
         int vh = event.viewportHeight();
@@ -422,7 +422,7 @@ public class Nametags extends Module {
      * предметы в руках — своими ректами снизу либо у ног. Справа от имени — полоса
      * запомненных талисманов/сфер.
      */
-    private void drawLivingTag(Renderer2D renderer, FontObject font, GuiGraphics drawContext, CachedTag tag, float guiScale, int vw, int vh) {
+    private void drawLivingTag(Renderer2D renderer, FontObject font, GuiGraphicsExtractor drawContext, CachedTag tag, float guiScale, int vw, int vh) {
         if (!elementTags.get()) {
             drawHandItems(renderer, font, tag, tag.screenY + 4, guiScale, vw, vh);
             return;
@@ -457,11 +457,14 @@ public class Nametags extends Module {
             float headGuiX = (tagX + PAD_H) / guiScale;
             float headGuiY = (tagY + (tagH - HEAD_SIZE) / 2f) / guiScale;
             renderer.flush();
-            org.joml.Matrix3x2fStack matrices = drawContext.getMatrices();
+            org.joml.Matrix3x2fStack matrices = drawContext.pose();
             matrices.pushMatrix();
             matrices.translate(headGuiX, headGuiY);
             matrices.scale(s, s);
-            PlayerSkinDrawer.draw(drawContext, tag.skin, 0, 0, 8);
+            // TODO(port26): PlayerSkinDrawer удалён в 26.3 — лицо рисуем blit'ом региона скина + слой шляпы.
+            net.minecraft.resources.Identifier skinTex = tag.skin.body().texturePath();
+            drawContext.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, skinTex, 0, 0, 8.0F, 8.0F, 8, 8, 64, 64);
+            drawContext.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, skinTex, 0, 0, 40.0F, 8.0F, 8, 8, 64, 64);
             matrices.popMatrix();
         }
 
@@ -489,7 +492,7 @@ public class Nametags extends Module {
      * центру, с индикацией прочности. Иконки MC 1.21.11 рисуются отложенным
      * GUI-пассом, поэтому фон-рект коммитим (flush) до иконок.
      */
-    private void drawArmorRow(Renderer2D renderer, GuiGraphics drawContext, CachedTag tag, float tagY, float guiScale, int vw, int vh) {
+    private void drawArmorRow(Renderer2D renderer, GuiGraphicsExtractor drawContext, CachedTag tag, float tagY, float guiScale, int vw, int vh) {
         if (tag.screenX < -50 || tag.screenX > vw + 50 || tagY < -50 || tagY > vh + 50) return;
 
         int count = tag.armor.size();
@@ -511,13 +514,13 @@ public class Nametags extends Module {
 
         float rowLeft = tag.screenX - rowW / 2f;
         float iconTop = bgY + ARMOR_PAD_V;
-        org.joml.Matrix3x2fStack matrices = drawContext.getMatrices();
+        org.joml.Matrix3x2fStack matrices = drawContext.pose();
         for (int i = 0; i < count; i++) {
             float iconLeft = rowLeft + i * spacing;
             matrices.pushMatrix();
             matrices.translate(iconLeft / guiScale, iconTop / guiScale);
             matrices.scale(s, s);
-            drawContext.drawItem(tag.armor.get(i), 0, 0);
+            drawContext.item(tag.armor.get(i), 0, 0);
             if (armorDurability.get()) drawDurabilityBar(drawContext, tag.armor.get(i));
             matrices.popMatrix();
         }
@@ -529,7 +532,7 @@ public class Nametags extends Module {
      * «сколько назад видели» (mm:ss, до 10 минут). Иконки MC 1.21.11 рисуются
      * отложенным GUI-пассом, поэтому слот-фон коммитим (flush) до иконок.
      */
-    private void drawRememberedItems(Renderer2D renderer, GuiGraphics drawContext, FontObject font, CachedTag tag, float startX, float topY, float guiScale) {
+    private void drawRememberedItems(Renderer2D renderer, GuiGraphicsExtractor drawContext, FontObject font, CachedTag tag, float startX, float topY, float guiScale) {
         List<RememberedItem> items = tag.remembered;
         if (items == null || items.isEmpty()) return;
         long now = System.currentTimeMillis();
@@ -551,8 +554,8 @@ public class Nametags extends Module {
         }
         renderer.flush();
 
-        // 2) Иконки (GuiGraphics) поверх своих слотов.
-        org.joml.Matrix3x2fStack matrices = drawContext.getMatrices();
+        // 2) Иконки (GuiGraphicsExtractor) поверх своих слотов.
+        org.joml.Matrix3x2fStack matrices = drawContext.pose();
         float s = iconPx / (16f * guiScale);
         for (int i = 0; i < count; i++) {
             RememberedItem it = items.get(i);
@@ -560,7 +563,7 @@ public class Nametags extends Module {
             matrices.pushMatrix();
             matrices.translate((sx + pad) / guiScale, (topY + pad) / guiScale);
             matrices.scale(s, s);
-            drawContext.drawItem(it.stack, 0, 0);
+            drawContext.item(it.stack, 0, 0);
             matrices.popMatrix();
         }
     }
@@ -570,21 +573,21 @@ public class Nametags extends Module {
     /** Талисман/сфера = тотем бессмертия или голова игрока с зачаром/глинтом/именем/лором. */
     private boolean isRememberableBonusItem(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return false;
-        if (stack.isOf(Items.TOTEM_OF_UNDYING)) {
-            return stack.hasGlint() || stack.hasEnchantments();
+        if (stack.is(Items.TOTEM_OF_UNDYING)) {
+            return stack.hasFoil() || stack.isEnchanted();
         }
-        if (stack.isOf(Items.PLAYER_HEAD)) {
-            return stack.hasGlint() || stack.hasEnchantments()
-                    || stack.get(DataComponentTypes.CUSTOM_NAME) != null
-                    || stack.get(DataComponentTypes.LORE) != null;
+        if (stack.is(Items.PLAYER_HEAD)) {
+            return stack.hasFoil() || stack.isEnchanted()
+                    || stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME) != null
+                    || stack.get(net.minecraft.core.component.DataComponents.LORE) != null;
         }
         return false;
     }
 
     /** Ключ для дедупликации: id предмета + его компоненты (чтобы разные талисманы различались). */
     private String getRememberedItemKey(ItemStack stack) {
-        ResourceLocation id = BuiltInRegistries.ITEM.getId(stack.getItem());
-        return id + "|" + String.valueOf(stack.getComponentChanges());
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id + "|" + String.valueOf(stack.getComponentsPatch());
     }
 
     private void updateRememberedItems(Player player, long now) {
@@ -594,7 +597,7 @@ public class Nametags extends Module {
 
     private void rememberHeldItem(Player player, ItemStack stack, long now) {
         if (!isRememberableBonusItem(stack)) return;
-        UUID uuid = player.getUuid();
+        UUID uuid = player.getUUID();
         String key = getRememberedItemKey(stack);
         List<RememberedItem> items = rememberedItems.computeIfAbsent(uuid, k -> new ArrayList<>(REMEMBERED_MAX + 1));
         for (RememberedItem it : items) {
@@ -634,14 +637,14 @@ public class Nametags extends Module {
             return entity == mc.player ? targetSelf.get() : targetPlayers.get();
         }
         if (entity instanceof ItemEntity) return targetItems.get();
-        if (entity instanceof AnimalEntity || entity instanceof WaterAnimalEntity) return targetAnimals.get();
-        if (entity instanceof MobEntity) return targetMobs.get();
+        if (entity instanceof Animal || entity instanceof WaterAnimal) return targetAnimals.get();
+        if (entity instanceof net.minecraft.world.entity.Mob) return targetMobs.get();
         return false;
     }
 
     private static boolean isNaked(Player player) {
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            if (!player.getEquippedStack(slot).isEmpty()) return false;
+            if (!player.getItemBySlot(slot).isEmpty()) return false;
         }
         return true;
     }
@@ -652,7 +655,7 @@ public class Nametags extends Module {
         if (isPlayer && NameProtect.isEnabled()) {
             String profile = living instanceof Player p && p.getGameProfile() != null ? p.getGameProfile().name() : null;
             String plain = living.getName().getString();
-            String scoreboard = living.getNameForScoreboard();
+            String scoreboard = living.getScoreboardName();
             String fake = NameProtect.getReplaced(plain);
             if (profile != null && !profile.isEmpty()) raw = raw.replace(profile, NameProtect.getReplaced(profile));
             if (scoreboard != null && !scoreboard.isEmpty()) raw = raw.replace(scoreboard, NameProtect.getReplaced(scoreboard));
@@ -749,10 +752,10 @@ public class Nametags extends Module {
         return y + h + HAND_GAP;
     }
 
-    private static void drawDurabilityBar(GuiGraphics ctx, ItemStack stack) {
-        if (stack == null || stack.isEmpty() || !stack.isItemBarVisible()) return;
-        int barStep = stack.getItemBarStep();
-        int barColor = stack.getItemBarColor();
+    private static void drawDurabilityBar(GuiGraphicsExtractor ctx, ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.isBarVisible()) return;
+        int barStep = stack.getBarWidth();
+        int barColor = stack.getBarColor();
         int bx = 2, by = 13;
         ctx.fill(bx, by, bx + 13, by + 2, 0xFF000000);
         ctx.fill(bx, by, bx + barStep, by + 1, 0xFF000000 | barColor);
@@ -852,43 +855,45 @@ public class Nametags extends Module {
     }
 
     private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(ResourceLocation.of("vesence", "nametags_lines"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
-            .withCull(false).withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false).withBlend(BlendFunction.LIGHTNING).build());
+        RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "nametags_lines"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)            .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
+            .withCull(false).withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false)).withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING)).build());
     private static final RenderPipeline ESP_QUADS_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(ResourceLocation.of("vesence", "nametags_quads"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
-            .withCull(false).withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false).withBlend(BlendFunction.LIGHTNING).build());
-    private static final RenderType ESP_LINES_LAYER = RenderType.of("nametags_lines",
-        RenderSetup.builder(ESP_LINES_PIPELINE).expectedBufferSize(2048).translucent().build());
-    private static final RenderType ESP_QUADS_LAYER = RenderType.of("nametags_quads",
-        RenderSetup.builder(ESP_QUADS_PIPELINE).expectedBufferSize(2048).translucent().build());
+        RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "nametags_quads"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)            .withPrimitiveTopology(PrimitiveTopology.QUADS)
+            .withCull(false).withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false)).withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING)).build());
+    private static final RenderType ESP_LINES_LAYER = RenderType.create("nametags_lines",
+        RenderSetup.builder(ESP_LINES_PIPELINE).createRenderSetup());
+    private static final RenderType ESP_QUADS_LAYER = RenderType.create("nametags_quads",
+        RenderSetup.builder(ESP_QUADS_PIPELINE).createRenderSetup());
 
 
 
     private void render3DBoxes(EventRender3D event, float tickDelta) {
         PoseStack matrices = event.getMatrixStack();
-        Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 camPos = mc.gameRenderer.mainCamera().position();
         if (boxAllocator == null) {
             boxAllocator = new ByteBufferBuilder(262144);
         }
-        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(boxAllocator);
-        final Matrix4f frameMatrix = matrices.last().getPositionMatrix();
+        Immediate immediate = new Immediate();
+        final Matrix4f frameMatrix = matrices.last().pose();
         try {
-            for (Entity entity : mc.level.getEntities()) {
+            for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof ArmorStand) continue;
-                if (entity == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
+                if (entity == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
                 if (entity == mc.player && !targetSelf.get()) continue;
                 if (!matchesTarget(entity)) continue;
                 if (!(entity instanceof LivingEntity living)) continue;
                 if (hideNaked.get() && living instanceof Player pl && isNaked(pl)) continue;
 
-                AABB box = living.getBoundingBox().offset(living.getLerpedPos(tickDelta).subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
-                if (box.expand(0.05).contains(camPos)) continue;
+                AABB box = living.getBoundingBox().move(living.getPosition(tickDelta).subtract(new Vec3(living.getX(), living.getY(), living.getZ())));
+                if (box.inflate(0.05).contains(camPos)) continue;
 
                 int colorInt = baseBoxColor(living instanceof Player && FriendStorage.isFriend(living.getName().getString()));
                 float r = ((colorInt >> 16) & 0xFF) / 255f, g = ((colorInt >> 8) & 0xFF) / 255f, b = (colorInt & 0xFF) / 255f;
@@ -903,7 +908,7 @@ public class Nametags extends Module {
 
                 VertexConsumer q = immediate.getBuffer(ESP_QUADS_LAYER);
                 float a = boxOutlineAlpha.get().intValue() / 255f;
-                float dist = (float) Math.sqrt(camPos.squaredDistanceTo(box.getCenter()));
+                float dist = (float) Math.sqrt(camPos.distanceToSqr(box.getCenter()));
                 float thick = box3DLineThickness.get().floatValue() * 0.0015f * Math.max(1f, dist);
                 edges(q, frameMatrix, (float)minX,(float)minY,(float)minZ,(float)maxX,(float)maxY,(float)maxZ, r,g,b,a, thick);
             }
@@ -914,12 +919,12 @@ public class Nametags extends Module {
     }
 
     private static void fillBox(VertexConsumer q, Matrix4f m, float minX, float minY, float minZ, float maxX, float maxY, float maxZ, float r, float g, float b, float a) {
-        q.vertex(m,minX,minY,minZ).color(r,g,b,a); q.vertex(m,maxX,minY,minZ).color(r,g,b,a); q.vertex(m,maxX,minY,maxZ).color(r,g,b,a); q.vertex(m,minX,minY,maxZ).color(r,g,b,a);
-        q.vertex(m,minX,maxY,minZ).color(r,g,b,a); q.vertex(m,minX,maxY,maxZ).color(r,g,b,a); q.vertex(m,maxX,maxY,maxZ).color(r,g,b,a); q.vertex(m,maxX,maxY,minZ).color(r,g,b,a);
-        q.vertex(m,minX,minY,maxZ).color(r,g,b,a); q.vertex(m,maxX,minY,maxZ).color(r,g,b,a); q.vertex(m,maxX,maxY,maxZ).color(r,g,b,a); q.vertex(m,minX,maxY,maxZ).color(r,g,b,a);
-        q.vertex(m,minX,minY,minZ).color(r,g,b,a); q.vertex(m,minX,maxY,minZ).color(r,g,b,a); q.vertex(m,maxX,maxY,minZ).color(r,g,b,a); q.vertex(m,maxX,minY,minZ).color(r,g,b,a);
-        q.vertex(m,minX,minY,minZ).color(r,g,b,a); q.vertex(m,minX,minY,maxZ).color(r,g,b,a); q.vertex(m,minX,maxY,maxZ).color(r,g,b,a); q.vertex(m,minX,maxY,minZ).color(r,g,b,a);
-        q.vertex(m,maxX,minY,minZ).color(r,g,b,a); q.vertex(m,maxX,maxY,minZ).color(r,g,b,a); q.vertex(m,maxX,maxY,maxZ).color(r,g,b,a); q.vertex(m,maxX,minY,maxZ).color(r,g,b,a);
+        q.addVertex(m,minX,minY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,minY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,minY,maxZ).setColor(r,g,b,a); q.addVertex(m,minX,minY,maxZ).setColor(r,g,b,a);
+        q.addVertex(m,minX,maxY,minZ).setColor(r,g,b,a); q.addVertex(m,minX,maxY,maxZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,maxZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,minZ).setColor(r,g,b,a);
+        q.addVertex(m,minX,minY,maxZ).setColor(r,g,b,a); q.addVertex(m,maxX,minY,maxZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,maxZ).setColor(r,g,b,a); q.addVertex(m,minX,maxY,maxZ).setColor(r,g,b,a);
+        q.addVertex(m,minX,minY,minZ).setColor(r,g,b,a); q.addVertex(m,minX,maxY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,minY,minZ).setColor(r,g,b,a);
+        q.addVertex(m,minX,minY,minZ).setColor(r,g,b,a); q.addVertex(m,minX,minY,maxZ).setColor(r,g,b,a); q.addVertex(m,minX,maxY,maxZ).setColor(r,g,b,a); q.addVertex(m,minX,maxY,minZ).setColor(r,g,b,a);
+        q.addVertex(m,maxX,minY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,minZ).setColor(r,g,b,a); q.addVertex(m,maxX,maxY,maxZ).setColor(r,g,b,a); q.addVertex(m,maxX,minY,maxZ).setColor(r,g,b,a);
     }
 
     private static void edges(VertexConsumer q, Matrix4f m, float minX, float minY, float minZ, float maxX, float maxY, float maxZ, float r, float g, float b, float a, float t) {

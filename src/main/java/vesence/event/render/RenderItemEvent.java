@@ -28,9 +28,9 @@ public class RenderItemEvent extends Event {
 
    public boolean isRightHand() {
       if (mc != null && mc.player != null) {
-         net.minecraft.util.Arm mainArm = mc.player.getMainArm();
-         boolean isMainHandRight = (mainArm == net.minecraft.util.Arm.RIGHT && this.hand == InteractionHand.MAIN_HAND);
-         boolean isOffHandRight = (mainArm == net.minecraft.util.Arm.LEFT && this.hand == InteractionHand.OFF_HAND);
+         net.minecraft.world.entity.HumanoidArm mainArm = mc.player.getMainArm();
+         boolean isMainHandRight = (mainArm == net.minecraft.world.entity.HumanoidArm.RIGHT && this.hand == InteractionHand.MAIN_HAND);
+         boolean isOffHandRight = (mainArm == net.minecraft.world.entity.HumanoidArm.LEFT && this.hand == InteractionHand.OFF_HAND);
          return isMainHandRight || isOffHandRight;
       }
       return this.hand == InteractionHand.MAIN_HAND;

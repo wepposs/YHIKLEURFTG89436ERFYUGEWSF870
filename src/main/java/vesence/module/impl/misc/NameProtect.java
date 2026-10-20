@@ -11,11 +11,11 @@ import java.util.regex.Pattern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ProfileComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -157,8 +157,8 @@ public class NameProtect extends Module {
         }
         String replacement = np.getReplacementName();
         Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.getSession() != null) {
-            input = np.replaceIgnoreCase(input, mc.getSession().getUsername(), replacement);
+        if (mc != null && mc.getUser() != null) {
+            input = np.replaceIgnoreCase(input, mc.getUser().getName(), replacement);
         }
         if (np.hideFriends.get()) {
             for (String friend : FriendStorage.getFriends()) {
@@ -178,14 +178,14 @@ public class NameProtect extends Module {
 
     /**
      * Полный патч строки для рендера: имя+друзья, затем грифер- и серверные слова.
-     * Вызывается из GuiGraphics-миксина (глобальный текст: чат, actionbar и т.д.).
+     * Вызывается из GuiGraphicsExtractor-миксина (глобальный текст: чат, actionbar и т.д.).
      */
     public String patch(String text) {
         if (!this.shouldPatch()) {
             return text;
         }
         String replacement = this.getReplacementName();
-        String out = this.replaceIgnoreCase(text, mc.getSession().getUsername(), replacement);
+        String out = this.replaceIgnoreCase(text, mc.getUser().getName(), replacement);
         if (this.hideFriends.get()) {
             for (String friend : FriendStorage.getFriends()) {
                 out = this.replaceIgnoreCase(out, friend, replacement);
@@ -206,7 +206,7 @@ public class NameProtect extends Module {
             return text;
         } else {
             String replacement = this.getReplacementName();
-            Component output = ReplaceUtils.replace(text, mc.getSession().getUsername(), replacement);
+            Component output = ReplaceUtils.replace(text, mc.getUser().getName(), replacement);
             if (this.hideFriends.get()) {
                 for (String friend : FriendStorage.getFriends()) {
                     output = ReplaceUtils.replace(output, friend, replacement);
@@ -368,9 +368,9 @@ public class NameProtect extends Module {
      * Строит предмет-замену для сферы: голова игрока {@code holder} (PLAYER_HEAD
      * с его GameProfile). Кэшируем по UUID. {@code null}, если неприменимо.
      */
-    public ItemStack buildHeadReplacement(net.minecraft.entity.player.Player holder) {
+    public ItemStack buildHeadReplacement(net.minecraft.world.entity.player.Player holder) {
         if (holder == null) return null;
-        UUID uuid = holder.getUuid();
+        UUID uuid = holder.getUUID();
         if (uuid == null) return null;
         HeadStack cached = HEAD_STACK_CACHE.get(uuid);
         if (cached != null && cached.stack != null) {
@@ -378,7 +378,7 @@ public class NameProtect extends Module {
         }
         try {
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
-            head.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(holder.getGameProfile()));
+            head.set(DataComponents.PROFILE, ResolvableProfile.createResolved(holder.getGameProfile()));
             HeadStack hs = new HeadStack();
             hs.stack = head;
             HEAD_STACK_CACHE.put(uuid, hs);
@@ -439,10 +439,10 @@ public class NameProtect extends Module {
     private static Component rebuildRedToWhite(Component node) {
         Style style = node.getStyle();
         TextColor color = style.getColor();
-        if (color != null && isRedColor(color.getRgb() & 0xFFFFFF)) {
+        if (color != null && isRedColor(color.getValue() & 0xFFFFFF)) {
             style = style.withColor(TextColor.fromRgb(WHITE_RGB));
         }
-        MutableText rebuilt = MutableText.of(node.getContent()).setStyle(style);
+        MutableComponent rebuilt = MutableComponent.create(node.getContents()).setStyle(style);
         for (Component sibling : node.getSiblings()) {
             rebuilt.append(rebuildRedToWhite(sibling));
         }

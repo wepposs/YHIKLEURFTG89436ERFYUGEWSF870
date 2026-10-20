@@ -36,22 +36,22 @@ public class ItemRelease extends Module {
 
         if (bow.get()) {
             if (mc.player.getMainHandItem().getItem() instanceof BowItem && mc.player.isUsingItem()
-                    && mc.player.getItemUseTime() >= delay.get().floatValue()) {
-                mc.gameMode.stopUsingItem(mc.player);
+                    && mc.player.getTicksUsingItem() >= delay.get().floatValue()) {
+                mc.gameMode.releaseUsingItem(mc.player);
             }
         }
 
         if (трезубец.get()) {
             if (mc.player.getMainHandItem().getItem() instanceof TridentItem && mc.player.isUsingItem()
-                    && mc.player.getItemUseTime() >= 10) {
-                mc.gameMode.stopUsingItem(mc.player);
+                    && mc.player.getTicksUsingItem() >= 10) {
+                mc.gameMode.releaseUsingItem(mc.player);
             }
         }
 
         if (арбалет.get()) {
             if (mc.player.getMainHandItem().getItem() instanceof CrossbowItem && mc.player.isUsingItem()
-                    && mc.player.getItemUseTime() >= 25) {
-                mc.gameMode.stopUsingItem(mc.player);
+                    && mc.player.getTicksUsingItem() >= 25) {
+                mc.gameMode.releaseUsingItem(mc.player);
             }
         }
     }

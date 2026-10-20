@@ -3,7 +3,7 @@ package vesence.module.impl.visuals.elements;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import vesence.Vesence;
 import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.Hud;
@@ -84,7 +84,7 @@ public class WatermarkElement extends HudElement {
 
     @Override
     public void render(Renderer2D renderer, FontObject font,
-                       int screenWidth, int screenHeight, GuiGraphics ctx) {
+                       int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
 
         Minecraft mc = Minecraft.getInstance();
 
@@ -95,7 +95,7 @@ public class WatermarkElement extends HudElement {
                 ? mc.player.getGameProfile().name()
                 : System.getProperty("user.name");
 
-        String fps      = Integer.toString(mc.getCurrentFps());
+        String fps      = Integer.toString(mc.getFps());
         String time     = LocalTime.now().format(TIME_FORMAT);
         String position = playerPosition(mc);
         String bps      = String.format(Locale.ROOT, "%.1f", updateAndGetBps(mc));
@@ -346,7 +346,7 @@ public class WatermarkElement extends HudElement {
 
     private static String playerPing(Minecraft mc) {
         if (mc.player == null || mc.getConnection() == null) return "0";
-        var entry = mc.getConnection().getPlayerListEntry(mc.player.getUuid());
+        var entry = mc.getConnection().getPlayerInfo(mc.player.getUUID());
         return entry == null ? "0" : Integer.toString(entry.getLatency());
     }
 

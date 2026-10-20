@@ -44,7 +44,7 @@ public final class FloatingWindowManager {
         for (FloatingWindow window : windows) if (type.isInstance(window)) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        Vec3 pos = mc.player.getCameraPosVec(1.0f).add(mc.player.getRotationVec(1.0f).multiply(3.0));
+        Vec3 pos = mc.player.getEyePosition(1.0f).add(mc.player.getViewVector(1.0f).scale(3.0));
         windows.add(factory.apply(pos));
     }
 

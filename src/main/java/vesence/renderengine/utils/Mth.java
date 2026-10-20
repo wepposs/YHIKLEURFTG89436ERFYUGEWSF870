@@ -87,7 +87,7 @@ public class Mth {
 
    public static int calc(int value) {
       Window mainWindow = Minecraft.getInstance().getWindow();
-      return (int)((double)value * mainWindow.getScaleFactor() / scale);
+      return (int)((double)value * (double) mainWindow.getGuiScale() / scale);
    }
 
    public static double fastInvSqrt(double number) {
@@ -121,9 +121,9 @@ public class Mth {
    }
 
    public static double getBps(Entity e) {
-      double prevZ = e.getZ() - e.lastZ;
-      double prevX = e.getX() - e.lastX;
-      double prevY = e.getY() - e.lastY;
+      double prevZ = e.getZ() - e.zo;
+      double prevX = e.getX() - e.xo;
+      double prevY = e.getY() - e.yo;
       double lastDist = Math.sqrt(prevX * prevX + prevZ * prevZ + prevY * prevY);
       return lastDist * 15.3571428571;
    }
@@ -287,7 +287,7 @@ public class Mth {
    }
 
    public static double deltaTime() {
-      return Minecraft.getInstance().getCurrentFps() > 0 ? 1.0 / Minecraft.getInstance().getCurrentFps() : 1.0;
+      return Minecraft.getInstance().getFps() > 0 ? 1.0 / Minecraft.getInstance().getFps() : 1.0;
    }
 
    public static double clamp(double value, double min, double max) {

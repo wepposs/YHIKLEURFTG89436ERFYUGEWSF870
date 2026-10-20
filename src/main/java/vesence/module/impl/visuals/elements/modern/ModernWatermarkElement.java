@@ -3,7 +3,7 @@ package vesence.module.impl.visuals.elements.modern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
@@ -58,16 +58,16 @@ public class ModernWatermarkElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         int theme = Renderer2D.ColorUtil.getClientColor();
         Minecraft mc = Minecraft.getInstance();
 
         String ping = (mc.getConnection() != null && mc.player != null
-                && mc.getConnection().getPlayerListEntry(mc.player.getUuid()) != null)
-                ? String.valueOf(mc.getConnection().getPlayerListEntry(mc.player.getUuid()).getLatency())
+                && mc.getConnection().getPlayerInfo(mc.player.getUUID()) != null)
+                ? String.valueOf(mc.getConnection().getPlayerInfo(mc.player.getUUID()).getLatency())
                 : "0 ms";
         String user = System.getProperty("user.name");
-        String fps = "FPS: " + ColorFormat.color(theme) + mc.getCurrentFps();
+        String fps = "FPS: " + ColorFormat.color(theme) + mc.getFps();
 
         float w1 = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, user, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
         float w2 = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, fps, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
@@ -132,9 +132,9 @@ public class ModernWatermarkElement extends HudElement {
                 "Ping: " + ColorFormat.color(theme) + ping, textColor, -0.15f);
 
         // ── Нижний рект: ip сервера / время ПК ──
-        String ip = (mc.getCurrentServerEntry() != null && mc.getCurrentServerEntry().address != null)
-                ? mc.getCurrentServerEntry().address
-                : (mc.getServer() != null ? "Singleplayer" : "-");
+        String ip = (mc.getCurrentServer() != null && mc.getCurrentServer().ip != null)
+                ? mc.getCurrentServer().ip
+                : (mc.getSingleplayerServer() != null ? "Singleplayer" : "-");
         String time = new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date());
 
         float wip   = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, ip, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;

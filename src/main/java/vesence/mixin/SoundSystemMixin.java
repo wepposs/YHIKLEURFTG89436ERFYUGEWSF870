@@ -4,9 +4,9 @@ import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.client.sound.SoundSystem.PlayResult;
-import net.minecraft.client.sound.Channel.SourceManager;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundEngine.PlayResult;
+import net.minecraft.client.sounds.ChannelAccess.ChannelHandle;
 import net.minecraft.sounds.SoundSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,10 +19,10 @@ import vesence.module.impl.visuals.NoRender;
 import vesence.ui.MainScreen;
 
 @Environment(EnvType.CLIENT)
-@Mixin({SoundSystem.class})
+@Mixin({SoundEngine.class})
 public abstract class SoundSystemMixin {
    @Shadow
-   private Map<SoundInstance, SourceManager> sources;
+   private Map<SoundInstance, ChannelHandle> instanceToChannel;
 
    @Shadow
    public abstract void stop(SoundInstance sound);
@@ -47,8 +47,8 @@ public abstract class SoundSystemMixin {
     @Inject(method = "tick(Z)V", at = @At("HEAD"))
     private void vesence$stopMutedPlayingSounds(boolean paused, CallbackInfo ci) {
         try {
-            if (sources.isEmpty()) return;
-            for (SoundInstance playing : new java.util.ArrayList<>(sources.keySet())) {
+            if (instanceToChannel.isEmpty()) return;
+            for (SoundInstance playing : new java.util.ArrayList<>(instanceToChannel.keySet())) {
                 if (NoRender.shouldMute(playing)) {
                     stop(playing);
                 }
@@ -64,14 +64,14 @@ public abstract class SoundSystemMixin {
      * обычная игровая музыка.
      */
     @Inject(
-        method = "getAdjustedVolume(Lnet/minecraft/client/sound/SoundInstance;)F",
+        method = "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F",
         at = @At("RETURN"),
         cancellable = true
     )
     private void vesence$muteMenuMusic(SoundInstance sound, CallbackInfoReturnable<Float> cir) {
         try {
             if (MainScreen.isMenuMusicActive()
-                    && sound != null && sound.getCategory() == SoundSource.MUSIC) {
+                    && sound != null && sound.getSource() == SoundSource.MUSIC) {
                 cir.setReturnValue(0.0F);
             }
         } catch (Throwable ignored) {

@@ -2,7 +2,7 @@ package vesence.utils.bind;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -123,14 +123,14 @@ public final class BindCommand implements Command {
    }
 
    private void handleList(CommandContext context) {
-      MutableText builder = Component.literal("Binds: ");
+      MutableComponent builder = Component.literal("Binds: ");
       boolean any = false;
       List<Module> modules = Vesence.get.manager.getModules();
       for (int i = 0; i < modules.size(); i++) {
          Module module = modules.get(i);
          if (module.bind == -1) continue;
          if (any) builder = builder.append(Component.literal(" | "));
-         MutableText entry = Component.literal(module.name + " [" + KeyUtil.getKey(module.bind) + "]")
+         MutableComponent entry = Component.literal(module.name + " [" + KeyUtil.getKey(module.bind) + "]")
             .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(Renderer2D.ColorUtil.getClientColor())));
          builder = builder.append(entry);
          any = true;

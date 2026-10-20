@@ -1,30 +1,31 @@
 package vesence.module.impl.visuals.attributes;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.entity.EntityPose;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Шея — раскрытый «воротник» ящера (gecko frill), прикреплённый к голове
@@ -39,33 +40,35 @@ public final class AttributesNeck {
 
     /** Мембрана воротника — translucent цветные треугольники. */
     private static final RenderPipeline MEMBRANE_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_neck_membrane"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/attributes_neck_membrane"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
 
-    private static final RenderType MEMBRANE_LAYER = RenderType.of(
+    private static final RenderType MEMBRANE_LAYER = RenderType.create(
             "vesence_attributes_neck_membrane",
-            RenderSetup.builder(MEMBRANE_PIPELINE).expectedBufferSize(16384).translucent().build());
+            RenderSetup.builder(MEMBRANE_PIPELINE).createRenderSetup());
 
     /** Каркас (спицы + контур) — цветные линии. */
     private static final RenderPipeline LINES_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_neck_lines"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/attributes_neck_lines"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
 
-    private static final RenderType LINES_LAYER = RenderType.of(
+    private static final RenderType LINES_LAYER = RenderType.create(
             "vesence_attributes_neck_lines",
-            RenderSetup.builder(LINES_PIPELINE).expectedBufferSize(8192).translucent().build());
+            RenderSetup.builder(LINES_PIPELINE).createRenderSetup());
 
     private final Attributes parent;
     private final Minecraft mc = Minecraft.getInstance();
@@ -81,23 +84,23 @@ public final class AttributesNeck {
     public void onRender3D(EventRender3D event) {
         if (mc.player == null || mc.level == null) return;
         Player player = mc.player;
-        if (player == mc.player && mc.options.getPerspective().isFirstPerson()) return;
+        if (player == mc.player && mc.options.getCameraType().isFirstPerson()) return;
         if (!player.isAlive() || player.isInvisible()) return;
-        EntityPose pose = player.getPose();
-        if (pose == EntityPose.SWIMMING || player.isInSwimmingPose() || player.isGliding()) return;
+        net.minecraft.world.entity.Pose pose = player.getPose();
+        if (pose == net.minecraft.world.entity.Pose.SWIMMING || player.hasPose(net.minecraft.world.entity.Pose.SWIMMING) || player.isFallFlying()) return;
 
         float tickDelta = event.getTickDelta();
         Vec3 cameraPos = event.getCameraPos();
         PoseStack matrices = event.getMatrixStack();
 
-        Vec3 pos = player.getLerpedPos(tickDelta);
+        Vec3 pos = player.getPosition(tickDelta);
         double px = pos.x - cameraPos.x;
         double py = pos.y - cameraPos.y;
         double pz = pos.z - cameraPos.z;
 
-        float headYaw = Mth.lerpAngleDegrees(tickDelta, player.lastHeadYaw, player.headYaw);
-        float pitch = player.getPitch(tickDelta);
-        float headBaseY = player.isSneaking() ? 1.27F : 1.50F;
+        float headYaw = Mth.rotLerp(tickDelta, player.yHeadRotO, player.yHeadRot);
+        float pitch = player.getViewXRot(tickDelta);
+        float headBaseY = player.isCrouching() ? 1.27F : 1.50F;
         float headBaseZ = 0.0F;
         float scale = 1.0F;
 
@@ -107,20 +110,20 @@ public final class AttributesNeck {
 
         matrices.pushPose();
         matrices.translate(px, py, pz);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - headYaw));
+        matrices.rotate(Axis.YP.rotationDegrees(180.0F - headYaw));
         matrices.translate(0.0F, headBaseY, headBaseZ);
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pitch));
+        matrices.rotate(Axis.XP.rotationDegrees(-pitch));
         matrices.scale(scale, scale, scale);
         // Наклон всей плоскости веера назад на 35°.
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(35.0F));
-        Matrix4f matrix = matrices.last().getPositionMatrix();
+        matrices.rotate(Axis.XP.rotationDegrees(35.0F));
+        Matrix4f matrix = matrices.last().pose();
         matrices.popPose();
 
         Vec3[] rightContour = computeGeckoFrillContour(+1.0F, 1.0F);
         Vec3[] leftContour = computeGeckoFrillContour(-1.0F, 1.0F);
 
         if (this.allocator == null) this.allocator = new ByteBufferBuilder(32768);
-        Immediate immediate = MultiBufferSource.immediate(this.allocator);
+        Immediate immediate = new Immediate();
 
         // Мембрана (theme-цвет, alpha-градиент от центра к краям).
         VertexConsumer membraneBuf = immediate.getBuffer(MEMBRANE_LAYER);
@@ -193,13 +196,13 @@ public final class AttributesNeck {
             int a1 = (int) ((1.0 - p1.distanceTo(origin) / maxDist) * 90.0 + 30.0);
             int a2 = (int) ((1.0 - p2.distanceTo(origin) / maxDist) * 90.0 + 30.0);
 
-            buffer.vertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).color(r, g, b, aOrigin);
-            buffer.vertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z).color(r, g, b, a1);
-            buffer.vertex(matrix, (float) p2.x, (float) p2.y, (float) p2.z).color(r, g, b, a2);
+            buffer.addVertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).setColor(r, g, b, aOrigin);
+            buffer.addVertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z).setColor(r, g, b, a1);
+            buffer.addVertex(matrix, (float) p2.x, (float) p2.y, (float) p2.z).setColor(r, g, b, a2);
             // Обратная сторона.
-            buffer.vertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).color(r, g, b, aOrigin);
-            buffer.vertex(matrix, (float) p2.x, (float) p2.y, (float) p2.z).color(r, g, b, a2);
-            buffer.vertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z).color(r, g, b, a1);
+            buffer.addVertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).setColor(r, g, b, aOrigin);
+            buffer.addVertex(matrix, (float) p2.x, (float) p2.y, (float) p2.z).setColor(r, g, b, a2);
+            buffer.addVertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z).setColor(r, g, b, a1);
         }
     }
 
@@ -216,8 +219,8 @@ public final class AttributesNeck {
             int idx = 1 + f * stride;
             if (idx >= contour.length) break;
             Vec3 tip = contour[idx];
-            buffer.vertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).color(r, g, b, a);
-            buffer.vertex(matrix, (float) tip.x, (float) tip.y, (float) tip.z).color(r, g, b, (int) (a * 0.55F));
+            buffer.addVertex(matrix, (float) origin.x, (float) origin.y, (float) origin.z).setColor(r, g, b, a);
+            buffer.addVertex(matrix, (float) tip.x, (float) tip.y, (float) tip.z).setColor(r, g, b, (int) (a * 0.55F));
         }
     }
 
@@ -232,8 +235,8 @@ public final class AttributesNeck {
         for (int i = 0; i < contour.length; i++) {
             Vec3 cur = contour[i];
             Vec3 next = contour[(i + 1) % contour.length];
-            buffer.vertex(matrix, (float) cur.x, (float) cur.y, (float) cur.z).color(r, g, b, a);
-            buffer.vertex(matrix, (float) next.x, (float) next.y, (float) next.z).color(r, g, b, a);
+            buffer.addVertex(matrix, (float) cur.x, (float) cur.y, (float) cur.z).setColor(r, g, b, a);
+            buffer.addVertex(matrix, (float) next.x, (float) next.y, (float) next.z).setColor(r, g, b, a);
         }
     }
 

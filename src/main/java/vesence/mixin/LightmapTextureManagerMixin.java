@@ -2,32 +2,27 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.renderer.LightmapRenderStateExtractor;
+import net.minecraft.client.renderer.state.LightmapRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import vesence.Vesence;
 import vesence.module.impl.visuals.FullBright;
 
+// 26.3: Lightmap.update() удалён — яркость считается в LightmapRenderStateExtractor.extract,
+// результат лежит в LightmapRenderState.brightness.
 @Environment(EnvType.CLIENT)
-@Mixin({LightmapTextureManager.class})
+@Mixin({LightmapRenderStateExtractor.class})
 public class LightmapTextureManagerMixin {
-   @Redirect(
-      method = {"update"},
-      at = @At(
-         value = "INVOKE",
-         target = "Ljava/lang/Double;floatValue()F",
-         ordinal = 1
-      )
-   )
-   private float getGammaValue(Double instance) {
+   @Inject(method = {"extract"}, at = {@At("RETURN")})
+   private void vesence$forceGamma(LightmapRenderState state, float delta, CallbackInfo ci) {
       if (Vesence.get != null && Vesence.get.manager != null) {
          FullBright module = Vesence.get.manager.get(FullBright.class);
          if (module != null && module.enable && module.mode.is("Р“Р°РјРјР°")) {
-            return 200.0F;
+            state.brightness = 200.0F;
          }
       }
-
-      return instance.floatValue();
    }
 }

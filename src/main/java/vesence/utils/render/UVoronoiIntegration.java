@@ -13,7 +13,7 @@ import org.joml.Matrix4f;
  *
  * <p>В оригинале каждый полигон рисовался отдельным {@code Tessellator.begin/draw}
  * в режиме {@code TRIANGLE_FAN}/{@code DEBUG_LINE_STRIP}. В immediate-mode все
- * вершины одного {@link net.minecraft.client.render.RenderType} попадают в общий
+ * вершины одного {@link net.minecraft.client.renderer.RenderType} попадают в общий
  * буфер, поэтому несколько fan'ов «слиплись» бы в один. Чтобы этого избежать:
  * <ul>
  *   <li>заливка триангулируется (fan → треугольники {@code v0,vi,vi+1}) и пишется
@@ -175,19 +175,19 @@ public class UVoronoiIntegration {
         int g = ColorUtil.green(color);
         int b = ColorUtil.blue(color);
         if (matrix != null) {
-            buffer.vertex(matrix, posVec.x, posVec.y, 0.0f)
-                    .color(r, g, b, alpha)
-                    .texture(u, v)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0f, 0.0f, 1.0f);
+            buffer.addVertex(matrix, posVec.x, posVec.y, 0.0f)
+                    .setColor(r, g, b, alpha)
+                    .setUv(u, v)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0f, 0.0f, 1.0f);
         } else {
-            buffer.vertex(posVec.x, posVec.y, 0.0f)
-                    .color(r, g, b, alpha)
-                    .texture(u, v)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0f, 0.0f, 1.0f);
+            buffer.addVertex(posVec.x, posVec.y, 0.0f)
+                    .setColor(r, g, b, alpha)
+                    .setUv(u, v)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0f, 0.0f, 1.0f);
         }
     }
 
@@ -203,9 +203,9 @@ public class UVoronoiIntegration {
         int g = ColorUtil.green(color);
         int b = ColorUtil.blue(color);
         if (matrix != null) {
-            buffer.vertex(matrix, posVec.x, posVec.y, 0.0f).color(r, g, b, alpha);
+            buffer.addVertex(matrix, posVec.x, posVec.y, 0.0f).setColor(r, g, b, alpha);
         } else {
-            buffer.vertex(posVec.x, posVec.y, 0.0f).color(r, g, b, alpha);
+            buffer.addVertex(posVec.x, posVec.y, 0.0f).setColor(r, g, b, alpha);
         }
     }
 

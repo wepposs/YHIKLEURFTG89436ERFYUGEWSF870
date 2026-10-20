@@ -38,16 +38,16 @@ public class NoDelay extends Module {
         }
 
         if (bubbles.get()) {
-            net.minecraft.item.ItemStack main = mc.player.getMainHandItem();
-            net.minecraft.item.ItemStack off = mc.player.getOffhandItem();
+            net.minecraft.world.item.ItemStack main = mc.player.getMainHandItem();
+            net.minecraft.world.item.ItemStack off = mc.player.getOffhandItem();
             if (main.getItem() instanceof ExperienceBottleItem || off.getItem() instanceof ExperienceBottleItem) {
                 mcAccessor.setItemUseCooldown(0);
             }
         }
 
         if (blocks.get()) {
-            net.minecraft.item.ItemStack main = mc.player.getMainHandItem();
-            net.minecraft.item.ItemStack off = mc.player.getOffhandItem();
+            net.minecraft.world.item.ItemStack main = mc.player.getMainHandItem();
+            net.minecraft.world.item.ItemStack off = mc.player.getOffhandItem();
             if (main.getItem() instanceof BlockItem || off.getItem() instanceof BlockItem) {
                 mcAccessor.setItemUseCooldown(0);
             }

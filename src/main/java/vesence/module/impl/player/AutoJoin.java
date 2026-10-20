@@ -5,9 +5,9 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.item.Items;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
-import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.InteractionHand;
 import vesence.Vesence;
 import vesence.event.EventInit;
@@ -68,13 +68,13 @@ public class AutoJoin extends Module {
         if (!this.enable) return;
         if (mc.player == null || mc.level == null) return;
 
-        if (mc.screen == null) {
+        if (mc.gui.screen() == null) {
             waitingForPage = -1;
             if (mc.player.tickCount < 3) {
                 useCompass();
             }
-        } else if (mc.player.containerMenu instanceof GenericContainerScreenHandler chest) {
-            String title = mc.screen.getTitle().getString();
+        } else if (mc.player.containerMenu instanceof ChestMenu chest) {
+            String title = mc.gui.screen().getTitle().getString();
 
             if (mode.is("ReallyWorld") && title.contains(REALLYWORLD_GRIEF_MENU_TITLE)) {
                 handleReallyWorldChest(chest, title);
@@ -84,7 +84,7 @@ public class AutoJoin extends Module {
             for (int i = 0; i < chest.slots.size(); i++) {
                 String slotName;
                 try {
-                    slotName = chest.getSlot(i).getItem().getName().getString();
+                    slotName = chest.getSlot(i).getItem().getHoverName().getString();
                 } catch (Exception ignored) {
                     continue;
                 }
@@ -93,14 +93,14 @@ public class AutoJoin extends Module {
                     int numberGrief = griefSelection.get().intValue();
                     if (slotName.contains("ГРИФЕРСКОЕ ВЫЖИВАНИЕ") || slotName.contains("ГРИФ #" + numberGrief + " (1.16.5+)")) {
                         if (timerUtil.finished(speed.get().intValue())) {
-                            mc.gameMode.clickSlot(chest.syncId, i, 0, ClickType.PICKUP, mc.player);
+                            mc.gameMode.handleContainerInput(chest.containerId, i, 0, ContainerInput.PICKUP, mc.player);
                             timerUtil.reset();
                         }
                     }
                 } else if (mode.is("Spooky дуэли")) {
                     if (slotName.contains("Дуэли")) {
                         if (timerUtil.finished(speed.get().intValue())) {
-                            mc.gameMode.clickSlot(chest.syncId, i, 0, ClickType.PICKUP, mc.player);
+                            mc.gameMode.handleContainerInput(chest.containerId, i, 0, ContainerInput.PICKUP, mc.player);
                             timerUtil.reset();
                         }
                     }
@@ -114,7 +114,7 @@ public class AutoJoin extends Module {
         if (!this.enable) return;
         if (event.getType() == EventPacket.Type.RECEIVE) {
             Packet<?> packet = event.getPacket();
-            if (packet instanceof GameMessageS2CPacket chat) {
+            if (packet instanceof ClientboundSystemChatPacket chat) {
                 String message = chat.content().getString();
                 if (message.contains("К сожалению сервер переполнен") ||
                     message.contains("Подождите 20 секунд!") ||
@@ -125,7 +125,7 @@ public class AutoJoin extends Module {
         }
     }
 
-    private void handleReallyWorldChest(GenericContainerScreenHandler chest, String title) {
+    private void handleReallyWorldChest(ChestMenu chest, String title) {
         int currentPage = extractCurrentPage(title);
         if (currentPage == -1) {
             return;
@@ -150,7 +150,7 @@ public class AutoJoin extends Module {
             if (!timerUtil.finished(speed.get().intValue())) return;
 
             int pageButtonSlot = currentPage < targetPage ? NEXT_PAGE_SLOT : PREVIOUS_PAGE_SLOT;
-            mc.gameMode.clickSlot(chest.syncId, pageButtonSlot, 0, ClickType.PICKUP, mc.player);
+            mc.gameMode.handleContainerInput(chest.containerId, pageButtonSlot, 0, ContainerInput.PICKUP, mc.player);
             waitingForPage = currentPage < targetPage ? currentPage + 1 : currentPage - 1;
             pageSwitchWatch.reset();
             timerUtil.reset();
@@ -158,7 +158,7 @@ public class AutoJoin extends Module {
         }
 
         if (timerUtil.finished(speed.get().intValue())) {
-            mc.gameMode.clickSlot(chest.syncId, targetSlot, 0, ClickType.PICKUP, mc.player);
+            mc.gameMode.handleContainerInput(chest.containerId, targetSlot, 0, ContainerInput.PICKUP, mc.player);
             timerUtil.reset();
         }
     }
@@ -170,14 +170,14 @@ public class AutoJoin extends Module {
             if (mc.player.getInventory().getItem(i).getItem() == Items.COMPASS) {
                 int currentSlot = mc.player.getInventory().getSelectedSlot();
                 mc.player.getInventory().setSelectedSlot(i);
-                mc.getConnection().sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
+                mc.getConnection().send(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
                 mc.player.getInventory().setSelectedSlot(currentSlot);
                 return;
             }
         }
 
-        if (mc.player.getStackInHand(InteractionHand.OFF_HAND).getItem() == Items.COMPASS) {
-            mc.getConnection().sendPacket(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
+        if (mc.player.getItemInHand(InteractionHand.OFF_HAND).getItem() == Items.COMPASS) {
+            mc.getConnection().send(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, 0, mc.player.getYRot(), mc.player.getXRot()));
         }
     }
 

@@ -3,7 +3,6 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.DeltaTracker;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,8 +19,11 @@ public class SaturationGameRendererMixin {
     @Unique
     private SaturationPipeline saturationPipeline;
 
-    @Inject(method = "render", at = @At("HEAD"))
-    private void onBeforeHudRender(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+    // TODO(port26): Gui.render(GuiGraphics, DeltaTracker) removed in 26.3; HUD state is now
+    // extracted in Gui.extractRenderState(DeltaTracker, boolean, boolean) and flushed later by
+    // GuiRenderer.render(). Hooking extractRenderState HEAD preserves the "before HUD" semantics.
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void onBeforeHudRender(DeltaTracker tickCounter, boolean a, boolean b, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (!Ambience.isEnabled() || !Ambience.changeSaturation.get()) return;
         if (mc.player == null || mc.level == null) return;

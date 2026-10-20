@@ -2,8 +2,8 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -14,26 +14,26 @@ import vesence.event.EventManager;
 import vesence.event.impl.HandledScreenEvent;
 
 @Environment(EnvType.CLIENT)
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenMixin {
 
     @Shadow
-    protected Slot focusedSlot;
+    protected Slot hoveredSlot;
 
     @Shadow
-    public int backgroundWidth;
+    public int imageWidth;
 
     @Shadow
-    public int backgroundHeight;
+    public int imageHeight;
 
     @Shadow
-    protected int x;
+    protected int leftPos;
 
     @Shadow
-    protected int y;
+    protected int topPos;
 
-    @Inject(method = "render", at = @At("RETURN"))
-    private void onRender(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        EventManager.call(new HandledScreenEvent(context, focusedSlot, backgroundWidth, backgroundHeight, this.x, this.y));
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void onRender(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        EventManager.call(new HandledScreenEvent(context, hoveredSlot, imageWidth, imageHeight, this.leftPos, this.topPos));
     }
 }

@@ -4,12 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.event.EventInit;
 import vesence.event.EventManager;
 import vesence.event.render.RenderEvent;
@@ -49,20 +49,18 @@ public class GuiClient extends Screen {
             @EventInit
             public void onRender(RenderEvent event) {
                Minecraft client = event.client();
-               if (client != null && client.screen instanceof GuiClient) {
-                  double[] mouseX = new double[1];
-                  double[] mouseY = new double[1];
+               if (client != null && client.gui.screen() instanceof GuiClient) {
+                  // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...)
                   if (client.getWindow() != null) {
-                     GLFW.glfwGetCursorPos(client.getWindow().getHandle(), mouseX, mouseY);
-                     if (client.mouse != null) {
-                        client.mouse.unlockCursor();
+                     if (client.mouseHandler != null) {
+                        client.mouseHandler.releaseMouse();
                      }
                   }
 
-                  int mouseXInt = (int)mouseX[0];
-                  int mouseYInt = (int)mouseY[0];
-                  GuiGraphics drawContext = null;
-                  GuiRender.render(event.renderer(), drawContext, mouseXInt, mouseYInt, client.getRenderTickCounter().getDynamicDeltaTicks());
+                  int mouseXInt = (int) client.mouseHandler.xpos();
+                  int mouseYInt = (int) client.mouseHandler.ypos();
+                  GuiGraphicsExtractor drawContext = null;
+                  GuiRender.render(event.renderer(), drawContext, mouseXInt, mouseYInt, client.getDeltaTracker().getGameTimeDeltaPartialTick(true));
                }
             }
          });
@@ -70,16 +68,16 @@ public class GuiClient extends Screen {
    }
 
    @Override
-   public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+   public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
    }
 
    @Override
-   public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+   public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
 
    }
 
    @Override
-   public boolean mouseClicked(Click click, boolean bl) {
+   public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean bl) {
       Renderer2D renderer = Vesence.getRenderer();
       if (renderer != null) {
          int scaledX = (int) click.x();
@@ -92,14 +90,14 @@ public class GuiClient extends Screen {
    }
 
    @Override
-   public boolean mouseReleased(Click click) {
+   public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent click) {
       GuiMouseReleased.mouseReleased();
       vesence.ui.clickgui.compact.CompactModuleWindow.onRelease();
       return super.mouseReleased(click);
    }
 
    @Override
-   public boolean mouseDragged(Click click, double pDragX, double pDragY) {
+   public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent click, double pDragX, double pDragY) {
       if (CompactGuiClick.mouseDragged((int) click.x(), (int) click.y(), click.button())) {
          return true;
       }
@@ -118,22 +116,22 @@ public class GuiClient extends Screen {
    }
 
    @Override
-   public boolean keyPressed(KeyInput input) {
-      if (CompactGuiClick.keyPressed(input.key(), input.scancode(), input.modifiers())) {
+   public boolean keyPressed(net.minecraft.client.input.KeyEvent input) {
+      if (CompactGuiClick.keyPressed(input.key(), input.keycode(), 0)) {
          return true;
       }
-      if (GuiKeyPressed.keyPressed(input.key(), input.scancode(), input.modifiers())) {
+      if (GuiKeyPressed.keyPressed(input.key(), input.keycode(), 0)) {
          return true;
       }
       return super.keyPressed(input);
    }
 
    @Override
-   public boolean charTyped(CharInput input) {
-      if (CompactGuiClick.charTyped((char)input.codepoint(), input.modifiers())) {
+   public boolean charTyped(net.minecraft.client.input.CharacterEvent input) {
+      if (CompactGuiClick.charTyped((char)input.codepoint(), 0)) {
          return true;
       }
-      if (GuiCharTyped.charTyped((char)input.codepoint(), input.modifiers())) {
+      if (GuiCharTyped.charTyped((char)input.codepoint(), 0)) {
          return true;
       }
       return super.charTyped(input);
@@ -145,7 +143,7 @@ public class GuiClient extends Screen {
    }
 
    @Override
-   public void close() {
+   public void onClose() {
       MovementManager.getInstance().unlockMovement("Search");
       MovementManager.getInstance().unlockMovement("StringSetting");
       GuiScreen.activeSearch = false;
@@ -164,7 +162,7 @@ public class GuiClient extends Screen {
       MovementManager.getInstance().unlockMovement("SliderEdit");
       vesence.ui.clickgui.compact.CompactGuiScreen.unfreezeScale();
       this.saveGuiState();
-      super.close();
+      onClose();
    }
 
    /**
@@ -203,13 +201,13 @@ public class GuiClient extends Screen {
    public void tick() {
       super.tick();
       if (GuiScreen.exit && (float)GuiScreen.alphaPC.getValue() <= 0.01F) {
-         this.close();
+         onClose();
          GuiScreen.exit = false;
       }
    }
 
    @Override
-   public boolean shouldPause() {
+   public boolean isPauseScreen() {
       return false;
    }
 
@@ -218,8 +216,8 @@ public class GuiClient extends Screen {
       super.init();
       GuiInit.init();
       Minecraft client = Minecraft.getInstance();
-      if (client != null && client.mouse != null) {
-         client.mouse.unlockCursor();
+      if (client != null && client.mouseHandler != null) {
+         client.mouseHandler.releaseMouse();
       }
 
       java.util.List<Category> mainCats = new java.util.ArrayList<>();
@@ -229,8 +227,8 @@ public class GuiClient extends Screen {
       GuiScreen.categories = mainCats.toArray(new Category[0]);
       GuiScreen.width = GuiScreen.categories.length * GuiScreen.panelWidth + (GuiScreen.categories.length - 1) * GuiScreen.panelGap;
       GuiScreen.height = GuiScreen.panelHeight;
-      GuiScreen.x = client.getWindow().getScaledWidth() / 2.0F - GuiScreen.width / 2.0F;
-      GuiScreen.y = client.getWindow().getScaledHeight() / 2.0F - GuiScreen.height / 2.0F;
+      GuiScreen.x = client.getWindow().getGuiScaledWidth() / 2.0F - GuiScreen.width / 2.0F;
+      GuiScreen.y = client.getWindow().getGuiScaledHeight() / 2.0F - GuiScreen.height / 2.0F;
       GuiScreen.mainAnimation.reset();
 
       if (Vesence.get.guiManager != null) {

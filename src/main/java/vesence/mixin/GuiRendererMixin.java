@@ -1,6 +1,5 @@
 package vesence.mixin;
 
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.render.GuiRenderer;
@@ -12,7 +11,7 @@ import vesence.Vesence;
 import vesence.module.impl.misc.BetterMinecraft;
 
 /**
- * In 1.21.11 every {@link net.minecraft.client.gui.GuiGraphics} draw call (item textures, widget
+ * In 1.21.11 every {@link net.minecraft.client.gui.GuiGraphicsExtractor} draw call (item textures, widget
  * textures, screen background blur) is recorded into a {@code GuiRenderState} and only painted to
  * the framebuffer here, when {@link GuiRenderer#render} flushes that state. Our raw-GL renderer
  * draws immediately during the record phase, so it always ends up underneath the vanilla GUI.
@@ -24,8 +23,9 @@ import vesence.module.impl.misc.BetterMinecraft;
 @Mixin(GuiRenderer.class)
 public abstract class GuiRendererMixin {
 
-   @Inject(method = "render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V", at = @At("RETURN"), require = 0, expect = 0)
-   private void vesence$renderPostGuiOverlays(GpuBufferSlice fogBuffer, CallbackInfo ci) {
+   // TODO(port26): GuiRenderer.render()V no longer takes a GpuBufferSlice in 26.3
+   @Inject(method = "render()V", at = @At("RETURN"), require = 0, expect = 0)
+   private void vesence$renderPostGuiOverlays(CallbackInfo ci) {
       if (Vesence.isModInitialized()) {
          BetterMinecraft.renderPostGuiOverlays();
       }

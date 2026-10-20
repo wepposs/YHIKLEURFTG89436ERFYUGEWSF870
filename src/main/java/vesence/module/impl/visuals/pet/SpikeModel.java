@@ -12,14 +12,14 @@ import java.util.Optional;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Порт xd.harm.modules.models.spike.SpikeModel — JSON-меш Спайка с клип-
@@ -29,8 +29,8 @@ import org.joml.Quaternionf;
 public class SpikeModel {
 
    public static final RenderType LAYER = PetRender.meshLayer(
-      "vesence_pet_spike", ResourceLocation.of("vesence", "textures/pet/spike.png"));
-   private static final ResourceLocation MODEL_LOCATION = ResourceLocation.of("vesence", "pet/spike_mesh.json");
+      "vesence_pet_spike", Identifier.fromNamespaceAndPath("vesence", "textures/pet/spike.png"));
+   private static final Identifier MODEL_LOCATION = Identifier.fromNamespaceAndPath("vesence", "pet/spike_mesh.json");
    private static final float MODEL_SCALE = 1.18F;
 
    private final Minecraft mc = Minecraft.getInstance();
@@ -52,7 +52,7 @@ public class SpikeModel {
    private float walkCycleProgress;
    private long lastAnimationTimeNanos;
 
-   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, SpikeBrain brain) {
+   public void render(PoseStack matrixStack, Immediate vertexConsumers, float partialTicks, SpikeBrain brain) {
       ensureLoaded();
       if (failed || nodes.isEmpty()) {
          return;
@@ -121,12 +121,12 @@ public class SpikeModel {
 
       matrixStack.pushPose();
       matrixStack.translate(sideShift, bob - 0.01 * 10.0F, 0.0D);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(smoothedYaw));
+      matrixStack.rotate(Axis.YP.rotationDegrees(smoothedYaw));
       matrixStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
       matrixStack.translate(-centerX, -minY, -centerZ);
       matrixStack.translate(centerX, 0.0F, centerZ);
-      matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(bodyRoll));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(bodyPitch));
+      matrixStack.rotate(Axis.ZP.rotationDegrees(bodyRoll));
+      matrixStack.rotate(Axis.XP.rotationDegrees(bodyPitch));
       matrixStack.translate(-centerX, 0.0F, -centerZ);
 
       AnimationPose pose = new AnimationPose(idleCycle, animationTime, walkAnimationTime, walkBlend, idleBlend, smoothedHeadYaw, smoothedHeadPitch,
@@ -149,7 +149,7 @@ public class SpikeModel {
       ModelNode node = nodes.get(nodeIndex);
       matrixStack.pushPose();
       matrixStack.translate(node.translation[0], node.translation[1], node.translation[2]);
-      matrixStack.multiply(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
+      matrixStack.rotate(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
       if (!isUnitScale(node.scale)) {
          matrixStack.scale(node.scale[0], node.scale[1], node.scale[2]);
       }
@@ -174,38 +174,38 @@ public class SpikeModel {
       if ("chest".equals(nodeName)) {
          float breathe = (float) Math.sin(pose.idleCycle * 0.22F) * 0.018F * pose.idleBlend;
          matrixStack.translate(0.0D, breathe * 0.01F, 0.0D);
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.shoulderSway * 0.06F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(breathe + pose.walkBlend * 0.04F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.shoulderSway * 0.06F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(breathe + pose.walkBlend * 0.04F));
          return;
       }
       if ("left_leg".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearLeftSwing * 0.82F));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pose.hipSway * 0.25F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearLeftSwing * 0.82F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-pose.hipSway * 0.25F));
          return;
       }
       if ("right_leg".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearRightSwing * 0.82F));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.hipSway * 0.25F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearRightSwing * 0.82F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.hipSway * 0.25F));
          return;
       }
       if ("left_arm".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-78.0F + pose.earFlop + pose.shoulderSway * 0.25F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontLeftSwing * 0.42F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-78.0F + pose.earFlop + pose.shoulderSway * 0.25F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontLeftSwing * 0.42F));
          return;
       }
       if ("right_arm".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(78.0F - pose.earFlop - pose.shoulderSway * 0.25F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontRightSwing * 0.42F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(78.0F - pose.earFlop - pose.shoulderSway * 0.25F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontRightSwing * 0.42F));
          return;
       }
       if ("left_polearm".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-7.0F + pose.frontLeftFoot * 0.08F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontLeftFoot * 0.18F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-7.0F + pose.frontLeftFoot * 0.08F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontLeftFoot * 0.18F));
          return;
       }
       if ("right_polearm".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(7.0F - pose.frontRightFoot * 0.08F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontRightFoot * 0.18F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(7.0F - pose.frontRightFoot * 0.08F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontRightFoot * 0.18F));
       }
    }
 
@@ -229,7 +229,7 @@ public class SpikeModel {
             walk == null ? null : walk.rotation,
             pose.walkBlend);
       if (rotation != null) {
-         matrixStack.multiply(new Quaternionf(rotation[0], rotation[1], rotation[2], rotation[3]));
+         matrixStack.rotate(new Quaternionf(rotation[0], rotation[1], rotation[2], rotation[3]));
       }
       return true;
    }
@@ -361,7 +361,7 @@ public class SpikeModel {
             failed = true;
             return;
          }
-         try (InputStream stream = resource.get().getInputStream();
+         try (InputStream stream = resource.get().open();
               InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             parse(JsonParser.parseReader(reader).getAsJsonObject());
             loaded = true;
@@ -608,7 +608,7 @@ public class SpikeModel {
    }
 
    private void renderTriangles(PoseStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
-      Matrix4f matrix = matrixStack.last().getPositionMatrix();
+      Matrix4f matrix = matrixStack.last().pose();
       for (MeshTriangle triangle : triangles) {
          putVertex(buffer, matrix, triangle.a);
          putVertex(buffer, matrix, triangle.b);
@@ -617,7 +617,7 @@ public class SpikeModel {
    }
 
    private void putVertex(VertexConsumer buffer, Matrix4f matrix, MeshVertex vertex) {
-      buffer.vertex(matrix, vertex.x, vertex.y, vertex.z).texture(vertex.u, vertex.v).color(255, 255, 255, 255);
+      buffer.addVertex(matrix, vertex.x, vertex.y, vertex.z).setUv(vertex.u, vertex.v).setColor(255, 255, 255, 255);
    }
 
    private static final class ModelAnimation {

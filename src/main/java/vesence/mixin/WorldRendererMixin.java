@@ -1,15 +1,15 @@
 package vesence.mixin;
 
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.util.ObjectAllocator;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,63 +27,42 @@ import vesence.module.impl.visuals.ChunksAnimation;
 import vesence.renderengine.render.Renderer2D;
 
 @Environment(EnvType.CLIENT)
-@Mixin({ WorldRenderer.class })
+@Mixin({ LevelRenderer.class })
 public class WorldRendererMixin {
 
-   /**
-    * ChunksAnimation: смещаем positionMatrix (view) по Y в начале рендера —
-    * это сдвигает весь мир вверх/вниз, давая эффект "мир появляется".
-    */
-   @Inject(method = "render", at = @At("HEAD"))
-   private void vesence$chunksAnimationHead(
-           ObjectAllocator allocator,
-           DeltaTracker tickCounter,
-           boolean renderBlockOutline,
-           Camera camera,
-           Matrix4f positionMatrix,
-           Matrix4f basicProjectionMatrix,
-           Matrix4f projectionMatrix,
-           GpuBufferSlice fog,
-           Vector4f fogColor,
-           boolean shouldRenderSky,
-           CallbackInfo ci) {
-      ChunksAnimation anim = ChunksAnimation.INSTANCE;
-      if (anim != null && anim.enable) {
-         float offset = anim.computeOffsetY();
-         if (offset != 0.0F) {
-            positionMatrix.translate(0.0F, offset, 0.0F);
-         }
-      }
-   }
+   // TODO(port26): LevelRenderer.render больше не принимает view/projection Matrix4f и DeltaTracker —
+   // в 26.3 матрицы живут в CameraRenderState и строятся внутри. Смещение positionMatrix для
+   // ChunksAnimation (эффект «мир появляется») на этом хуке больше невозможно — vanilla-матрицы
+   // недоступны как аргументы; нужен отдельный хук в месте сборки view-матрицы.
+   // @Inject(method = "render", at = @At("HEAD")) — ChunksAnimation offset stubbed (see TODO above).
 
    @Inject(method = { "render" }, at = { @At("RETURN") })
    private void publishWorldRenderEvent(
-           ObjectAllocator allocator,
-           DeltaTracker tickCounter,
+           GraphicsResourceAllocator allocator,
            boolean renderBlockOutline,
-           Camera camera,
-           Matrix4f positionMatrix,
-           Matrix4f basicProjectionMatrix,
-           Matrix4f projectionMatrix,
+           net.minecraft.client.renderer.state.level.CameraRenderState cameraState,
            GpuBufferSlice fog,
            Vector4f fogColor,
            boolean shouldRenderSky,
+           boolean renderSky,
            CallbackInfo ci) {
-      // Убираем ChunksAnimation смещение перед отправкой EventRender3D,
-      // чтобы модули (SkeletonESP, TargetESP и т.д.) работали в корректных координатах.
-      ChunksAnimation anim = ChunksAnimation.INSTANCE;
-      if (anim != null && anim.enable) {
-         float offset = anim.computeOffsetY();
-         if (offset != 0.0F) {
-            positionMatrix.translate(0.0F, -offset, 0.0F);
-         }
+      // 26.3: восстанавливаем эквиваленты старых аргументов из CameraRenderState / Minecraft.
+      Minecraft mc = Minecraft.getInstance();
+      DeltaTracker tickCounter = mc.getDeltaTracker();
+      Camera camera = mc.gameRenderer != null ? mc.gameRenderer.mainCamera() : null;
+      // positionMatrix (view) = viewRotation * translate(-cameraPos), как в старом LevelRenderer.render.
+      Matrix4f positionMatrix = new Matrix4f(cameraState.viewRotationMatrix);
+      if (cameraState.pos != null) {
+         positionMatrix.translate((float) -cameraState.pos.x, (float) -cameraState.pos.y, (float) -cameraState.pos.z);
       }
+      Matrix4f basicProjectionMatrix = cameraState.projectionMatrix;
+      Matrix4f projectionMatrix = cameraState.projectionMatrix;
 
       // KillEffect: GPU depth-scan волны поверх мира (когда depth-буфер готов).
       try {
          vesence.module.impl.visuals.KillEffect killEffect = vesence.module.impl.visuals.KillEffect.INSTANCE;
          if (killEffect != null && killEffect.enable && camera != null) {
-            killEffect.renderScanWaves(new Matrix4f(basicProjectionMatrix), new Matrix4f(positionMatrix), camera.getCameraPos());
+            killEffect.renderScanWaves(new Matrix4f(basicProjectionMatrix), new Matrix4f(positionMatrix), camera.position());
          }
       } catch (Exception ignored) {
       }
@@ -99,7 +78,7 @@ public class WorldRendererMixin {
 
       PoseStack stack = new PoseStack();
       Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
-      stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));
+      stack.mulPose(new Matrix4f(basePositionMatrix));
 
       vesence.utils.other.Mathf.lastProjMat.set(basicProjectionMatrix);
       vesence.utils.other.Mathf.lastModMat.identity();
@@ -109,7 +88,7 @@ public class WorldRendererMixin {
       if (client != null) {
          GameRenderer gameRenderer = client.gameRenderer;
          if (gameRenderer != null && camera != null) {
-            GlState.Snapshot snapshot = GlState.pushPose();
+            GlState.Snapshot snapshot = GlState.push();
             vesence.utils.render.world.WorldRenderer levelRenderer = null;
 
             try {
@@ -133,7 +112,7 @@ public class WorldRendererMixin {
             }
          }
       }
-      EventManager.call(new EventRender3D(stack, tickCounter.getTickProgress(true), basicProjectionMatrix, camera));
+      EventManager.call(new EventRender3D(stack, tickCounter.getGameTimeDeltaPartialTick(true), basicProjectionMatrix, camera));
       EntityFramebufferCaptureManager.getInstance().endFrame();
    }
 
@@ -143,7 +122,7 @@ public class WorldRendererMixin {
     * рендерится (мы форсим его через Minecraft.hasOutline), а пост-обработку
     * (свечение/заливка) делает модуль в HUD-фазе, читая этот фреймбуфер как маску.
     */
-   @Inject(method = "drawEntityOutlinesFramebuffer", at = @At("HEAD"), cancellable = true)
+   @Inject(method = "blitEntityOutline", at = @At("HEAD"), cancellable = true) // TODO(port26): drawEntityOutlinesFramebuffer → blitEntityOutline in 26.3
    private void vesence$suppressVanillaEntityOutline(CallbackInfo ci) {
       vesence.module.impl.visuals.ShaderESP esp = vesence.module.impl.visuals.ShaderESP.INSTANCE;
       if (esp != null && esp.enable) {

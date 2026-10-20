@@ -10,7 +10,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.BlockView;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.util.RandomSource;
+import com.mojang.math.Axis;
 
 /**
  * Контроллер слежения локального питомца за игроком. Перенесён из RelevantPremiumpp4
@@ -26,7 +28,7 @@ public final class CustomPetFollowerController {
     private static final double TARGET_REACHED_DISTANCE = 0.9;
 
     private final Minecraft mc = Minecraft.getInstance();
-    private final net.minecraft.util.math.random.Random random = net.minecraft.util.math.random.Random.create();
+    private final net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create();
 
     private CustomPetEntity pet;
     private Vec3 roamTarget;
@@ -43,7 +45,7 @@ public final class CustomPetFollowerController {
     }
 
     public void tick(Player player, CustomPetVariant variant, float scale) {
-        if (player == null || player.getEntityWorld() == null || this.mc.level == null) {
+        if (player == null || player.level() == null || this.mc.level == null) {
             this.reset();
             return;
         }
@@ -73,7 +75,7 @@ public final class CustomPetFollowerController {
     }
 
     private void ensurePet(Player player, CustomPetVariant variant) {
-        if (this.pet != null && this.pet.getEntityWorld() == this.mc.level && !this.pet.isRemoved()) {
+        if (this.pet != null && this.pet.level() == this.mc.level && !this.pet.isRemoved()) {
             this.pet.setPetVariant(variant);
             return;
         }
@@ -97,13 +99,13 @@ public final class CustomPetFollowerController {
             return;
         }
         this.pet.setPetVariant(variant);
-        Vec3 current = this.pet.getEntityPos();
+        Vec3 current = this.pet.position();
         Vec3 groundedCurrent = this.snapCurrentToGround(current, player.getY());
-        Vec3 playerPos = player.getEntityPos();
-        double playerDistanceSqr = current.squaredDistanceTo(playerPos);
+        Vec3 playerPos = player.position();
+        double playerDistanceSqr = current.distanceToSqr(playerPos);
         double playerDistance = Math.sqrt(playerDistanceSqr);
-        double playerHorizontalSpeed = player.getDeltaMovement().horizontalLength();
-        boolean airbornePlayer = player.isGliding() || player.getAbilities().flying;
+        double playerHorizontalSpeed = player.getDeltaMovement().horizontalDistance();
+        boolean airbornePlayer = player.isFallFlying() || player.getAbilities().flying;
         boolean playerMovingFast = playerHorizontalSpeed > 0.17 || Math.abs(player.getDeltaMovement().y) > 0.08;
         boolean shouldFollowPlayer = playerDistanceSqr > 25.0 || playerMovingFast && playerDistanceSqr > 9.610000000000001;
         boolean rainy = this.isRainingAbove(current);
@@ -162,7 +164,7 @@ public final class CustomPetFollowerController {
             if (this.airSmoothedTarget == null) {
                 this.airSmoothedTarget = current;
             }
-            double smoothing = Math.clamp(0.07 + player.getDeltaMovement().length() * (player.isGliding() ? 0.025 : 0.05) + Math.max(0.0, playerDistance - 1.5) * 0.012, 0.07, player.isGliding() ? 0.2 : 0.28);
+            double smoothing = Math.clamp(0.07 + player.getDeltaMovement().length() * (player.isFallFlying() ? 0.025 : 0.05) + Math.max(0.0, playerDistance - 1.5) * 0.012, 0.07, player.isFallFlying() ? 0.2 : 0.28);
             this.roamTarget = this.airSmoothedTarget = this.airSmoothedTarget.lerp(desiredAirTarget, smoothing);
         } else if (shouldFollowPlayer) {
             this.airHoverOffset = null;
@@ -200,7 +202,7 @@ public final class CustomPetFollowerController {
                     return;
                 }
                 this.followSide = this.random.nextBoolean() ? 1 : -1;
-                boolean closeRange = current.squaredDistanceTo(playerPos) > 16.0 || player.getDeltaMovement().horizontalLengthSquared() > 0.04;
+                boolean closeRange = current.distanceToSqr(playerPos) > 16.0 || player.getDeltaMovement().horizontalDistanceSqr() > 0.04;
                 this.roamTarget = this.pickRoamTarget(player, closeRange);
             }
         }
@@ -215,19 +217,19 @@ public final class CustomPetFollowerController {
         double totalDistance = toDesired.length();
         if (airbornePlayer) {
             boolean forceCatchup;
-            MobEffectInstance speedEffect = player.getStatusEffect(MobEffects.SPEED);
+            MobEffectInstance speedEffect = player.getEffect(MobEffects.SPEED);
             int speedLevel = speedEffect != null ? speedEffect.getAmplifier() + 1 : 0;
             double playerSpeed = player.getDeltaMovement().length();
-            double stopDistance = player.isGliding() ? 0.82 : 0.48;
-            double startDistance = player.isGliding() ? 1.28 : 0.78;
+            double stopDistance = player.isFallFlying() ? 0.82 : 0.48;
+            double startDistance = player.isFallFlying() ? 1.28 : 0.78;
             forceCatchup = playerDistance > 4.0 || playerSpeed > 1.2 || playerHorizontalSpeed > 0.55;
             if (forceCatchup || totalDistance >= startDistance) {
                 this.airChasing = true;
             } else if (totalDistance <= stopDistance) {
                 this.airChasing = false;
             }
-            double speed = Math.clamp(0.22 + playerSpeed * (player.isGliding() ? 2.45 : 1.65) + Math.max(0.0, playerDistance - 1.0) * (player.isGliding() ? 0.24 : 0.18) + (double) speedLevel * 0.07 + (player.isSprinting() ? 0.08 : 0.0), 0.16, player.isGliding() ? (playerDistance > 18.0 ? 6.8 : (playerDistance > 12.0 ? 5.0 : (playerDistance > 7.0 ? 3.6 : 1.9))) : (playerDistance > 16.0 ? 3.2 : (playerDistance > 10.0 ? 2.4 : (playerDistance > 6.0 ? 1.55 : 0.95))));
-            double animationSpeed = Math.clamp(1.15 + Math.max(0.0, playerDistance - 1.2) * 0.22 + playerSpeed * (player.isGliding() ? 1.8 : 1.35) + (double) speedLevel * 0.16, 1.0, player.isGliding() ? 3.1 : 2.4);
+            double speed = Math.clamp(0.22 + playerSpeed * (player.isFallFlying() ? 2.45 : 1.65) + Math.max(0.0, playerDistance - 1.0) * (player.isFallFlying() ? 0.24 : 0.18) + (double) speedLevel * 0.07 + (player.isSprinting() ? 0.08 : 0.0), 0.16, player.isFallFlying() ? (playerDistance > 18.0 ? 6.8 : (playerDistance > 12.0 ? 5.0 : (playerDistance > 7.0 ? 3.6 : 1.9))) : (playerDistance > 16.0 ? 3.2 : (playerDistance > 10.0 ? 2.4 : (playerDistance > 6.0 ? 1.55 : 0.95))));
+            double animationSpeed = Math.clamp(1.15 + Math.max(0.0, playerDistance - 1.2) * 0.22 + playerSpeed * (player.isFallFlying() ? 1.8 : 1.35) + (double) speedLevel * 0.16, 1.0, player.isFallFlying() ? 3.1 : 2.4);
             this.pet.setBehavior(desired, speed, this.airChasing, false, true, animationSpeed);
             return;
         }
@@ -237,7 +239,7 @@ public final class CustomPetFollowerController {
             this.pet.setBehavior(groundedCurrent, 0.0, false, rainy, false, 1.0);
             return;
         }
-        MobEffectInstance speedEffect = player.getStatusEffect(MobEffects.SPEED);
+        MobEffectInstance speedEffect = player.getEffect(MobEffects.SPEED);
         int speedLevel = speedEffect != null ? speedEffect.getAmplifier() + 1 : 0;
         double speed = Math.clamp(0.055 + playerHorizontalSpeed * 0.31 + Math.max(0.0, playerDistance - 1.8) * 0.072 + (double) speedLevel * 0.028 + (player.isSprinting() ? 0.028 : 0.0), 0.045, playerDistance > 8.5 ? 0.52 : (playerDistance > 6.0 ? 0.42 : (playerDistance > 4.0 ? 0.31 : 0.22)));
         double animationSpeed = Math.clamp(1.0 + Math.max(0.0, playerDistance - 1.4) * 0.14 + playerHorizontalSpeed * 0.88 + (double) speedLevel * 0.12 + (player.isSprinting() ? 0.06 : 0.0), 0.95, 1.85);
@@ -248,22 +250,22 @@ public final class CustomPetFollowerController {
         if (this.roamTarget == null) {
             return true;
         }
-        if (this.roamTarget.squaredDistanceTo(player.getEntityPos()) > 36.0) {
+        if (this.roamTarget.distanceToSqr(player.position()) > 36.0) {
             return true;
         }
-        return current.squaredDistanceTo(player.getEntityPos()) > 25.0 && current.squaredDistanceTo(this.roamTarget) > 25.0;
+        return current.distanceToSqr(player.position()) > 25.0 && current.distanceToSqr(this.roamTarget) > 25.0;
     }
 
     private boolean isRainingAbove(Vec3 pos) {
         if (this.mc.level == null) {
             return false;
         }
-        return this.mc.level.hasRain(BlockPos.ofFloored(pos.x, pos.y + 1.1, pos.z));
+        return this.mc.level.isRainingAt(BlockPos.containing(pos.x, pos.y + 1.1, pos.z));
     }
 
     private Vec3 pickRoamTarget(Player player, boolean closeRange) {
         Vec3 motion = player.getDeltaMovement();
-        double baseAngle = motion.horizontalLengthSquared() > 0.0025 ? Math.atan2(motion.z, motion.x) : this.random.nextDouble() * 6.2831854820251465;
+        double baseAngle = motion.horizontalDistanceSqr() > 0.0025 ? Math.atan2(motion.z, motion.x) : this.random.nextDouble() * 6.2831854820251465;
         double angle = baseAngle + Mth.lerp(this.random.nextDouble(), -1.65, 1.65);
         double radius = closeRange ? Mth.lerp(this.random.nextDouble(), 1.6, 3.0) : Mth.lerp(this.random.nextDouble(), 2.5, 5.75);
         double x = player.getX() + Math.cos(angle) * radius;
@@ -281,11 +283,11 @@ public final class CustomPetFollowerController {
         }
         direction = direction.normalize();
         double leadDistance = Math.clamp(0.6 + playerHorizontalSpeed * 7.0 + Math.max(0.0, playerDistance - 3.0) * 0.35, 0.6, 3.0);
-        Vec3 predictedPlayerPos = player.getEntityPos().add(player.getDeltaMovement().multiply(leadDistance));
+        Vec3 predictedPlayerPos = player.position().add(player.getDeltaMovement().scale(leadDistance));
         double backOffset = playerDistance > 5.5 ? 0.65 : 1.45;
         double sideOffset = playerDistance > 5.5 ? 0.0 : 0.55 * (double) this.followSide;
         Vec3 side = new Vec3(-direction.z, 0.0, direction.x);
-        Vec3 followPos = predictedPlayerPos.subtract(direction.multiply(backOffset)).add(side.multiply(sideOffset));
+        Vec3 followPos = predictedPlayerPos.subtract(direction.scale(backOffset)).add(side.scale(sideOffset));
         double y = this.findGroundY(followPos.x, followPos.z, player.getY());
         return new Vec3(followPos.x, y, followPos.z);
     }
@@ -302,7 +304,7 @@ public final class CustomPetFollowerController {
         if (this.airFlightDirection == null || this.airFlightDirection.lengthSqr() < 1.0E-4) {
             this.airFlightDirection = desiredDirection;
         } else {
-            double directionSmoothing = player.isGliding() ? 0.14 : 0.26;
+            double directionSmoothing = player.isFallFlying() ? 0.14 : 0.26;
             this.airFlightDirection = this.airFlightDirection.lerp(desiredDirection, directionSmoothing);
             if (this.airFlightDirection.lengthSqr() < 1.0E-4) {
                 this.airFlightDirection = desiredDirection;
@@ -310,28 +312,28 @@ public final class CustomPetFollowerController {
         }
         Vec3 direction = this.airFlightDirection.normalize();
         Vec3 side = new Vec3(-direction.z, 0.0, direction.x);
-        boolean firstPerson = this.mc.options.getPerspective().isFirstPerson();
-        double sideOffset = (player.isGliding() ? 0.82 : 0.65) * (double) this.followSide;
-        double backOffset = (player.isGliding() ? 1.45 : 1.05) + Math.min(playerDistance * 0.08, player.isGliding() ? 0.55 : 0.35);
-        if (player.isGliding() && firstPerson) {
+        boolean firstPerson = this.mc.options.getCameraType().isFirstPerson();
+        double sideOffset = (player.isFallFlying() ? 0.82 : 0.65) * (double) this.followSide;
+        double backOffset = (player.isFallFlying() ? 1.45 : 1.05) + Math.min(playerDistance * 0.08, player.isFallFlying() ? 0.55 : 0.35);
+        if (player.isFallFlying() && firstPerson) {
             sideOffset *= 1.18;
             backOffset += 0.42;
         }
-        double liftOffset = player.isGliding() ? 0.2 : 0.45;
-        double leadDistance = Math.clamp(0.45 + playerHorizontalSpeed * (player.isGliding() ? 5.8 : 4.8) + Math.max(0.0, playerSpeed - 0.8) * (player.isGliding() ? 0.45 : 0.35), 0.45, player.isGliding() ? 2.8 : 1.6);
-        Vec3 predictedPlayerPos = player.getEntityPos().add(direction.multiply(leadDistance));
+        double liftOffset = player.isFallFlying() ? 0.2 : 0.45;
+        double leadDistance = Math.clamp(0.45 + playerHorizontalSpeed * (player.isFallFlying() ? 5.8 : 4.8) + Math.max(0.0, playerSpeed - 0.8) * (player.isFallFlying() ? 0.45 : 0.35), 0.45, player.isFallFlying() ? 2.8 : 1.6);
+        Vec3 predictedPlayerPos = player.position().add(direction.scale(leadDistance));
         double bob = Math.sin((double) (player.tickCount + this.followSide * 7) * 0.1) * 0.028;
-        return predictedPlayerPos.subtract(direction.multiply(backOffset)).add(side.multiply(sideOffset)).add(0.0, player.getY() - predictedPlayerPos.y + liftOffset + bob, 0.0);
+        return predictedPlayerPos.subtract(direction.scale(backOffset)).add(side.scale(sideOffset)).add(0.0, player.getY() - predictedPlayerPos.y + liftOffset + bob, 0.0);
     }
 
     private Vec3 computeAirIdleTarget(Player player) {
         Vec3 offset = this.airHoverOffset != null ? this.airHoverOffset : new Vec3(1.6 * (double) this.followSide, 0.35, 0.0);
         double bob = Math.sin((double) (player.tickCount + this.followSide * 7) * 0.085) * 0.09;
-        return player.getEntityPos().add(offset.x, offset.y + bob, offset.z);
+        return player.position().add(offset.x, offset.y + bob, offset.z);
     }
 
     private Vec3 pickAirHoverOffset(Player player, Vec3 current) {
-        Vec3 offset = current.subtract(player.getEntityPos());
+        Vec3 offset = current.subtract(player.position());
         Vec3 horizontal = new Vec3(offset.x, 0.0, offset.z);
         double horizontalLength = horizontal.length();
         if (horizontalLength < 0.9 || horizontalLength > 2.5) {
@@ -339,7 +341,7 @@ public final class CustomPetFollowerController {
             double radius = Mth.lerp(this.random.nextDouble(), 1.35, 1.95);
             return new Vec3(Math.cos(angle) * radius, Mth.lerp(this.random.nextDouble(), 0.28, 0.44), Math.sin(angle) * radius);
         }
-        Vec3 normalized = horizontal.normalize().multiply(Mth.clamp(horizontalLength, 1.25, 1.95));
+        Vec3 normalized = horizontal.normalize().scale(Mth.clamp(horizontalLength, 1.25, 1.95));
         double y = Mth.clamp(offset.y, 0.24, 0.46);
         return new Vec3(normalized.x, y, normalized.z);
     }
@@ -360,14 +362,14 @@ public final class CustomPetFollowerController {
         int blockX = Mth.floor(x);
         int blockZ = Mth.floor(z);
         int baseY = Mth.floor(fallbackY);
-        BlockPos.Mutable mutablePos = new BlockPos.Mutable(blockX, baseY + 2, blockZ);
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos(blockX, baseY + 2, blockZ);
         for (int y = baseY + 2; y >= baseY - 6; --y) {
             mutablePos.setY(y);
-            VoxelShape shape = this.mc.level.getBlockState(mutablePos).getCollisionShape((BlockView) this.mc.level, mutablePos);
+            VoxelShape shape = this.mc.level.getBlockState(mutablePos).getCollisionShape(this.mc.level, mutablePos);
             if (shape.isEmpty()) {
                 continue;
             }
-            return (double) y + shape.getMax(Direction.Axis.Y);
+            return (double) y + shape.max(Direction.Axis.Y);
         }
         return fallbackY;
     }

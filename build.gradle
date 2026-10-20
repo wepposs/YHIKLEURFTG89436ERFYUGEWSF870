@@ -19,6 +19,10 @@ loom {
 
     runConfigs.configureEach {
         vmArgs('-Xmx6G', '-Xms2G', '-XX:+UseG1GC')
+        if (System.getenv('VESENCE_SKYTEST') != null) {
+            programArgs('--quickPlaySingleplayer', 'skytest')
+            args('--quickPlaySingleplayer', 'skytest')
+        }
     }
 }
 
@@ -44,8 +48,8 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    compileOnly "org.projectlombok:lombok:1.18.34"
-    annotationProcessor "org.projectlombok:lombok:1.18.34"
+    compileOnly "org.projectlombok:lombok:1.18.48"
+    annotationProcessor "org.projectlombok:lombok:1.18.48"
 
     compileOnly "net.java.dev.jna:jna:5.15.0"
 
@@ -63,8 +67,8 @@ dependencies {
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.1"))
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1"))
 
-    implementation "maven.modrinth:geckolib:5.5"
-    include "maven.modrinth:geckolib:5.5"
+    implementation "maven.modrinth:geckolib:5.5.7"
+    include "maven.modrinth:geckolib:5.5.7"
 }
 
 processResources {

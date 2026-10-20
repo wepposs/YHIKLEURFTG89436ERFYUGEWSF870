@@ -127,7 +127,7 @@ public class EspShaderPipeline {
       }
       ensureResources(width, height);
 
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
       try {
          GL11.glDisable(GL11.GL_BLEND);
          GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -179,7 +179,7 @@ public class EspShaderPipeline {
       }
       ensureResources(width, height);
 
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
       try {
          GL11.glDisable(GL11.GL_BLEND);
          GL11.glDisable(GL11.GL_DEPTH_TEST);

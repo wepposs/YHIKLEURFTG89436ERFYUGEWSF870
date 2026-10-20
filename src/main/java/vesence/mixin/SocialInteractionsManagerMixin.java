@@ -7,7 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.network.SocialInteractionsManager;
+import net.minecraft.client.gui.screens.social.PlayerSocialManager;
+import net.minecraft.client.gui.screens.social.SocialInteractionsScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,7 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *   и запускаем настоящую проверку в daemon-потоке.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(SocialInteractionsManager.class)
+@Mixin(net.minecraft.client.gui.screens.social.PlayerSocialManager.class)
 public abstract class SocialInteractionsManagerMixin {
 
     /** Результат проверки UUID: true = muted, false = ok. */
@@ -44,7 +45,7 @@ public abstract class SocialInteractionsManagerMixin {
      */
     private static final ThreadLocal<Boolean> IS_ASYNC = new ThreadLocal<>();
 
-    @Inject(method = "isPlayerMuted", at = @At("HEAD"), cancellable = true,
+    @Inject(method = "shouldHideMessageFrom", at = @At("HEAD"), cancellable = true,
             require = 0, expect = 0)
     private void vesence$asyncIsPlayerMuted(UUID uuid, CallbackInfoReturnable<Boolean> cir) {
         // Если мы уже в нашем фоновом потоке — не перехватываем, пусть идёт оригинал.
@@ -61,11 +62,11 @@ public abstract class SocialInteractionsManagerMixin {
 
         // Запускаем фоновую проверку (только один раз на UUID).
         if (IN_FLIGHT.add(uuid)) {
-            final SocialInteractionsManager self = (SocialInteractionsManager) (Object) this;
+            final PlayerSocialManager self = (net.minecraft.client.gui.screens.social.PlayerSocialManager) (Object) this;
             Thread t = new Thread(() -> {
                 IS_ASYNC.set(Boolean.TRUE);
                 try {
-                    boolean muted = self.isPlayerMuted(uuid);
+                    boolean muted = self.shouldHideMessageFrom(uuid);
                     CACHE.put(uuid, muted);
                     cacheTs = System.currentTimeMillis();
                 } catch (Throwable ignored) {

@@ -3,11 +3,11 @@ package vesence.module.impl.misc;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
-import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -79,10 +79,10 @@ public class AutoDuel extends Module {
         }
 
         for (final String player : players) {
-            if (!sent.contains(player) && !player.equals(mc.getSession().getUsername())) {
+            if (!sent.contains(player) && !player.equals(mc.getUser().getName())) {
                 if (counter.finished(1000)) {
                     if (mc.player.connection != null) {
-                        mc.player.connection.sendChatMessage("/duel " + player);
+                        mc.player.connection.sendChat("/duel " + player);
                     }
                     sent.add(player);
                     counter.reset();
@@ -90,29 +90,29 @@ public class AutoDuel extends Module {
             }
         }
 
-        if (mc.player.containerMenu instanceof GenericContainerScreenHandler chest) {
-            if (mc.screen != null && mc.screen.getTitle().getString().contains("Выбор набора (1/1)")) {
+        if (mc.player.containerMenu instanceof ChestMenu chest) {
+            if (mc.gui.screen() != null && mc.gui.screen().getTitle().getString().contains("Выбор набора (1/1)")) {
                 if (counterChoice.finished(150)) {
                     int slotId = getKitSlotId();
                     if (slotId != -1 && mc.gameMode != null) {
-                        mc.gameMode.clickSlot(
-                            chest.syncId,
+                        mc.gameMode.handleContainerInput(
+                            chest.containerId,
                             slotId,
                             0,
-                            ClickType.QUICK_MOVE,
+                            ContainerInput.QUICK_MOVE,
                             mc.player
                         );
                     }
                     counterChoice.reset();
                 }
-            } else if (mc.screen != null && mc.screen.getTitle().getString().contains("Настройка поединка")) {
+            } else if (mc.gui.screen() != null && mc.gui.screen().getTitle().getString().contains("Настройка поединка")) {
                 if (counterTo.finished(150)) {
                     if (mc.gameMode != null) {
-                        mc.gameMode.clickSlot(
-                            chest.syncId,
+                        mc.gameMode.handleContainerInput(
+                            chest.containerId,
                             0,
                             0,
-                            ClickType.QUICK_MOVE,
+                            ContainerInput.QUICK_MOVE,
                             mc.player
                         );
                     }
@@ -126,7 +126,7 @@ public class AutoDuel extends Module {
     private void onPacket(EventPacket event) {
         if (event.getType() == EventPacket.Type.RECEIVE) {
             Packet<?> packet = event.getPacket();
-            if (packet instanceof GameMessageS2CPacket chat) {
+            if (packet instanceof ClientboundSystemChatPacket chat) {
                 final String text = chat.content().getString().toLowerCase();
                 if ((text.contains("начало") && text.contains("через") && text.contains("секунд!")) ||
                     (text.equals("дуэли » во время поединка запрещено использовать команды"))) {
@@ -155,7 +155,7 @@ public class AutoDuel extends Module {
         }
 
         List<String> players = new ArrayList<>();
-        for (PlayerListEntry entry : mc.getConnection().getPlayerList()) {
+        for (PlayerInfo entry : mc.getConnection().getOnlinePlayers()) {
             GameProfile profile = entry.getProfile();
             if (profile != null) {
                 String name = profile.name();

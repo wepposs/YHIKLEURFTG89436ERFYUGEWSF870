@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,29 +13,27 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.entity.projectile.ArrowEntity;
-import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
-import net.minecraft.entity.projectile.TridentEntity;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl;
+import net.minecraft.world.entity.projectile.arrow.ThrownTrident;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.RandomSource;
+import com.mojang.math.Axis;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import net.minecraft.world.Heightmap.Type;
-import net.minecraft.client.util.math.PoseStack.Entry;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
+import net.minecraft.world.level.levelgen.Heightmap.Types;
+import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -63,6 +60,10 @@ import vesence.utils.render.ColorUtil;
 import vesence.utils.render.animation.util.Animation;
 import vesence.utils.render.animation.util.Easings;
 import vesence.module.api.Module;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 @IModule(name = "Particles", description = "Кастомные частицы при попадании и ударах", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -134,16 +135,18 @@ public class Particles extends Module {
    private long lastUpdateTime = System.nanoTime();
    private static final String PIPELINE_NAMESPACE = "vesence";
    private static final RenderPipeline TEXTURED_QUADS_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "textures/world/textured_quads"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "textures/world/textured_quads"))
+                   .withVertexShader("core/position_tex_color")
+                   .withFragmentShader("core/position_tex_color")
+                   .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final ResourceLocation BLOOM_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
-   private static final ResourceLocation BLOOM_SOFT_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloomsample.png");
+   private static final Identifier BLOOM_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
+   private static final Identifier BLOOM_SOFT_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloomsample.png");
 
    public static TitleSetting glowTitle = new TitleSetting("Свечение");
    public static BooleanSetting glowEnabled = new BooleanSetting("Свечение", true);
@@ -155,10 +158,10 @@ public class Particles extends Module {
            .hidden(() -> !glowEnabled.get());
 
    private static final Map<ParticleType, RenderType> RENDER_LAYER_CACHE = new ConcurrentHashMap<>();
-   private static final Random CACHED_RANDOM = Random.create();
+   private static final RandomSource CACHED_RANDOM = RandomSource.create();
    // Переиспользуемые BlockPos (рендер/тик — один поток), чтобы не аллоцировать на каждую проверку блока.
-   private static final BlockPos.Mutable SHARED_SOLID_POS = new BlockPos.Mutable();
-   private static final BlockPos.Mutable SHARED_AIR_POS = new BlockPos.Mutable();
+   private static final BlockPos.MutableBlockPos SHARED_SOLID_POS = new BlockPos.MutableBlockPos();
+   private static final BlockPos.MutableBlockPos SHARED_AIR_POS = new BlockPos.MutableBlockPos();
    private static RenderType cachedBloomLayer = null;
    private static RenderType cachedBloomSoftLayer = null;
    private final List<Particle> targetParticles = new ArrayList<>();
@@ -186,8 +189,8 @@ public class Particles extends Module {
    /** Проверка «блок сплошной» без аллокации BlockPos (значение идентично PlayerUtil.isBlockSolid). */
    static boolean isSolidAt(double x, double y, double z) {
       if (Module.mc.level == null) return false;
-      BlockPos.Mutable p = SHARED_SOLID_POS.set(Mth.floor(x), Mth.floor(y), Mth.floor(z));
-      return Module.mc.level.getBlockState(p).isFullCube(Module.mc.level, p);
+      BlockPos.MutableBlockPos p = SHARED_SOLID_POS.set(Mth.floor(x), Mth.floor(y), Mth.floor(z));
+      return Module.mc.level.getBlockState(p).isCollisionShapeFullBlock(Module.mc.level, p);
    }
 
    public Particles() {
@@ -291,8 +294,8 @@ public class Particles extends Module {
       if (events.get("Атаке")) {
          if (particleBase.is("2")) {
             boolean lowestAndRotates = particleMode2.is("Dollar") || particleMode2.is("Bitcoin");
-            float w = target.getWidth() / 2.0F;
-            float h = target.getHeight();
+            float w = target.getBbWidth() / 2.0F;
+            float h = target.getBbHeight();
             int count = attackCount2.get().intValue();
             for (int i = 0; i < count; i++) {
                Vec3 vec = new Vec3(target.getX(), target.getY(), target.getZ()).add(
@@ -309,7 +312,7 @@ public class Particles extends Module {
          for (int i = 0; i < count; i++) {
             this.spawnParticle(
                     this.targetParticles,
-                    new Vec3(target.getX(), target.getY() + Mathf.randomValue(0.0F, target.getHeight()), target.getZ()),
+                    new Vec3(target.getX(), target.getY() + Mathf.randomValue(0.0F, target.getBbHeight()), target.getZ()),
                     new Vec3(
                             Mathf.randomValue(-1.0F, 1.0F) * attackSpeed.get() * 10,
                             Mathf.randomValue(-1.0F, 1.0F) * attackSpeed.get() * 10,
@@ -342,7 +345,7 @@ public class Particles extends Module {
 
                      Vec3 pos = new Vec3(
                              popEntity.getX() + Mth.nextDouble(CACHED_RANDOM, -0.3, 0.3),
-                             popEntity.getY() + popEntity.getHeight() / 2 + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
+                             popEntity.getY() + popEntity.getBbHeight() / 2 + Mth.nextDouble(CACHED_RANDOM, -0.2, 0.2),
                              popEntity.getZ() + Mth.nextDouble(CACHED_RANDOM, -0.3, 0.3)
                      );
                      Vec3 velocity = new Vec3(
@@ -372,12 +375,12 @@ public class Particles extends Module {
             return;
          }
 
-         for (Entity entity : mc.level.getEntities()) {
-            if ((entity instanceof EnderPearlEntity || entity instanceof ArrowEntity || entity instanceof TridentEntity)
-                    && (!(entity instanceof TridentEntity trident) || !trident.onGround())) {
-               boolean isMoving = entity.lastX != entity.getX()
-                       || entity.lastY != entity.getY()
-                       || entity.lastZ != entity.getZ();
+         for (Entity entity : mc.level.entitiesForRendering()) {
+            if ((entity instanceof ThrownEnderpearl || entity instanceof net.minecraft.world.entity.projectile.arrow.Arrow || entity instanceof net.minecraft.world.entity.projectile.arrow.ThrownTrident)
+                    && (!(entity instanceof net.minecraft.world.entity.projectile.arrow.ThrownTrident trident) || !trident.onGround())) {
+               boolean isMoving = entity.xo != entity.getX()
+                       || entity.yo != entity.getY()
+                       || entity.zo != entity.getZ();
                if (isMoving) {
                   Vec3 pos = new Vec3(entity.getX(), entity.getY(), entity.getZ());
 
@@ -429,13 +432,13 @@ public class Particles extends Module {
             for (int i = 0; i < count; i++) {
                Vec3 additional = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ())
                        .add(Mathf.randomValue((float) (-r), (float) r), 0.0, Mathf.randomValue((float) (-r), (float) r));
-               BlockPos topPos = mc.level.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
+               BlockPos topPos = mc.level.getHeightmapPos(Types.MOTION_BLOCKING, BlockPos.containing(additional));
                double x = topPos.getX() + Mathf.randomValue(0.0F, 1.0F);
                double z = topPos.getZ() + Mathf.randomValue(0.0F, 1.0F);
-               double y = mc.player.getY() + Mathf.randomValue(mc.player.getHeight(), (float) r);
+               double y = mc.player.getY() + Mathf.randomValue(mc.player.getBbHeight(), (float) r);
                Vec3 spawnPos = new Vec3(x, y, z);
 
-               while (!mc.level.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.level.getTopYInclusive()) {
+               while (!mc.level.isEmptyBlock(BlockPos.containing(spawnPos)) && spawnPos.y < (mc.level.getMinY() + mc.level.getHeight() - 1)) {
                   spawnPos = spawnPos.add(0.0, 1.0, 0.0);
                }
 
@@ -448,13 +451,13 @@ public class Particles extends Module {
             for (int i = 0; i < count; i++) {
                Vec3 additional = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ())
                        .add(Mathf.randomValue((float) (-r), (float) r), 0.0, Mathf.randomValue((float) (-r), (float) r));
-               BlockPos topPos = mc.level.getTopPosition(Type.MOTION_BLOCKING, BlockPos.ofFloored(additional));
+               BlockPos topPos = mc.level.getHeightmapPos(Types.MOTION_BLOCKING, BlockPos.containing(additional));
                double x = topPos.getX() + Mathf.randomValue(0.0F, 1.0F);
                double z = topPos.getZ() + Mathf.randomValue(0.0F, 1.0F);
-               double y = mc.player.getY() + Mathf.randomValue(mc.player.getHeight(), (float) r);
+               double y = mc.player.getY() + Mathf.randomValue(mc.player.getBbHeight(), (float) r);
                Vec3 spawnPos = new Vec3(x, y, z);
 
-               while (!mc.level.isAir(BlockPos.ofFloored(spawnPos)) && spawnPos.y < mc.level.getTopYInclusive()) {
+               while (!mc.level.isEmptyBlock(BlockPos.containing(spawnPos)) && spawnPos.y < (mc.level.getMinY() + mc.level.getHeight() - 1)) {
                   spawnPos = spawnPos.add(0.0, 1.0, 0.0);
                }
 
@@ -488,8 +491,8 @@ public class Particles extends Module {
    public void onEvent(EventPacket event) {
       if (!this.enable) return;
       if (events.get("Тотем") && event.getType() == EventPacket.Type.RECEIVE) {
-         if (event.getPacket() instanceof EntityStatusS2CPacket statusPacket) {
-            if (statusPacket.getStatus() == 35) {
+         if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundEntityEventPacket statusPacket) {
+            if (statusPacket.getEventId() == 35) {
                Entity entity = statusPacket.getEntity(mc.level);
                if (entity != null) {
                   totemPopTime = System.currentTimeMillis();
@@ -503,13 +506,13 @@ public class Particles extends Module {
    @EventInit
    public void onEvent(EventRender3D event) {
       PoseStack matrix = event.getMatrixStack();
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       long now = System.nanoTime();
       double deltaTime = (now - this.lastUpdateTime) / 1.0E9;
       this.lastUpdateTime = now;
 
       // Кэш значений на кадр — устраняет боксинг Double и повторные вызовы на каждую частицу.
-      this.frameCamRot.set(mc.gameRenderer.getCamera().getRotation());
+      this.frameCamRot.set(mc.gameRenderer.mainCamera().rotation());
       this.frameGlow = glowEnabled.get();
       this.frameGlowLight = glowLighting.get();
       this.frameGlowRadius = glowRadius.get().floatValue();
@@ -520,15 +523,15 @@ public class Particles extends Module {
          case "Star" -> ParticleType.VEGA_STAR;
          default -> ParticleType.VEGA_DOLLAR;
       };
-      this.framePartialTicks = mc.getRenderTickCounter().getDynamicDeltaTicks();
+      this.framePartialTicks = mc.getDeltaTracker().getGameTimeDeltaTicks();
 
       if (allocator == null) {
          allocator = new ByteBufferBuilder(2097152);
-         immediate = MultiBufferSource.immediate(allocator);
+         immediate = new Immediate();
       }
 
       try {
-         Matrix4f base = matrix.last().getPositionMatrix();
+         Matrix4f base = matrix.last().pose();
 
          if (!particleBase.is("2")) {
             double friction = Math.pow(0.999, deltaTime * 60.0);
@@ -617,21 +620,21 @@ public class Particles extends Module {
       return RENDER_LAYER_CACHE.computeIfAbsent(
               type,
               t -> {
-                 ResourceLocation texture = t.texture();
-                 return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+                 Identifier texture = t.texture();
+                 return RenderType.create(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).withTexture("Sampler0", texture).createRenderSetup());
               });
    }
 
    private RenderType bloomLayer() {
       if (cachedBloomLayer == null) {
-         cachedBloomLayer = RenderType.of(BLOOM_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_TEXTURE).build());
+         cachedBloomLayer = RenderType.create(BLOOM_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).withTexture("Sampler0", BLOOM_TEXTURE).createRenderSetup());
       }
       return cachedBloomLayer;
    }
 
    private RenderType bloomSoftLayer() {
       if (cachedBloomSoftLayer == null) {
-         cachedBloomSoftLayer = RenderType.of(BLOOM_SOFT_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", BLOOM_SOFT_TEXTURE).build());
+         cachedBloomSoftLayer = RenderType.create(BLOOM_SOFT_TEXTURE.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).withTexture("Sampler0", BLOOM_SOFT_TEXTURE).createRenderSetup());
       }
       return cachedBloomSoftLayer;
    }
@@ -782,10 +785,10 @@ public class Particles extends Module {
       int b = color & 0xFF;
       float x2 = x + width;
       float y2 = y + height;
-      buffer.vertex(matrix, x, y, 0.0F).color(r, g, b, alpha).texture(0.0F, 1.0F);
-      buffer.vertex(matrix, x2, y, 0.0F).color(r, g, b, alpha).texture(1.0F, 1.0F);
-      buffer.vertex(matrix, x2, y2, 0.0F).color(r, g, b, alpha).texture(1.0F, 0.0F);
-      buffer.vertex(matrix, x, y2, 0.0F).color(r, g, b, alpha).texture(0.0F, 0.0F);
+      buffer.addVertex(matrix, x, y, 0.0F).setColor(r, g, b, alpha).setUv(0.0F, 1.0F);
+      buffer.addVertex(matrix, x2, y, 0.0F).setColor(r, g, b, alpha).setUv(1.0F, 1.0F);
+      buffer.addVertex(matrix, x2, y2, 0.0F).setColor(r, g, b, alpha).setUv(1.0F, 0.0F);
+      buffer.addVertex(matrix, x, y2, 0.0F).setColor(r, g, b, alpha).setUv(0.0F, 0.0F);
    }
 
    @Override
@@ -999,11 +1002,11 @@ public class Particles extends Module {
          }
 
          if (mc.level != null) {
-            boolean collideX = !mc.level.isAir(SHARED_AIR_POS.set(
+            boolean collideX = !mc.level.isEmptyBlock(SHARED_AIR_POS.set(
                     Mth.floor(this.posX + this.motionX * 2.0F), Mth.floor(this.posY - this.motionY + 0.1), Mth.floor(this.posZ)));
-            boolean collideY = !mc.level.isAir(SHARED_AIR_POS.set(
+            boolean collideY = !mc.level.isEmptyBlock(SHARED_AIR_POS.set(
                     Mth.floor(this.posX), Mth.floor(this.posY + this.motionY * 2.0F), Mth.floor(this.posZ)));
-            boolean collideZ = !mc.level.isAir(SHARED_AIR_POS.set(
+            boolean collideZ = !mc.level.isEmptyBlock(SHARED_AIR_POS.set(
                     Mth.floor(this.posX), Mth.floor(this.posY - this.motionY + 0.1), Mth.floor(this.posZ + this.motionZ * 2.0F)));
 
             if (this.motionY != 0.0F) {
@@ -1042,16 +1045,16 @@ public class Particles extends Module {
       VEGA_BITCOIN("vega_bitcoin", true),
       VEGA_STAR("vega_star", true);
 
-      private final ResourceLocation texture;
+      private final Identifier texture;
       private final boolean rotatable;
 
       private ParticleType(String name, boolean rotatable) {
-         this.texture = ResourceLocation.of("vesence", "textures/world/" + name + ".png");
+         this.texture = Identifier.fromNamespaceAndPath("vesence", "textures/world/" + name + ".png");
          this.rotatable = rotatable;
       }
 
       @Generated
-      public ResourceLocation texture() {
+      public Identifier texture() {
          return this.texture;
       }
 

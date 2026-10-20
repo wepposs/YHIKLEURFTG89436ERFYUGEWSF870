@@ -2,20 +2,20 @@ package vesence.event.impl;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.inventory.Slot;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
 public class HandledScreenEvent extends Event {
-   private final GuiGraphics drawContext;
+   private final GuiGraphicsExtractor drawContext;
    private final Slot slotHover;
    private final int backgroundWidth;
    private final int backgroundHeight;
    private final int screenX;
    private final int screenY;
 
-   public HandledScreenEvent(GuiGraphics drawContext, Slot slotHover, int backgroundWidth, int backgroundHeight, int screenX, int screenY) {
+   public HandledScreenEvent(GuiGraphicsExtractor drawContext, Slot slotHover, int backgroundWidth, int backgroundHeight, int screenX, int screenY) {
       this.drawContext = drawContext;
       this.slotHover = slotHover;
       this.backgroundWidth = backgroundWidth;
@@ -24,7 +24,7 @@ public class HandledScreenEvent extends Event {
       this.screenY = screenY;
    }
 
-   public GuiGraphics getDrawContext() { return drawContext; }
+   public GuiGraphicsExtractor getDrawContext() { return drawContext; }
    public Slot getSlotHover() { return slotHover; }
    public int getBackgroundWidth() { return backgroundWidth; }
    public int getBackgroundHeight() { return backgroundHeight; }

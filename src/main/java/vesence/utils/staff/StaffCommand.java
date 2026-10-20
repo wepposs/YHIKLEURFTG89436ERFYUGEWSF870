@@ -2,7 +2,7 @@ package vesence.utils.staff;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -113,11 +113,11 @@ public final class StaffCommand implements Command {
             return;
         }
 
-        MutableText builder = Component.literal("Staff (" + staff.size() + "): ");
+        MutableComponent builder = Component.literal("Staff (" + staff.size() + "): ");
 
         int i = 0;
         for (String s : staff) {
-            MutableText nameText = Component.literal(s);
+            MutableComponent nameText = Component.literal(s);
             nameText = nameText.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(Renderer2D.ColorUtil.getClientColor())));
             builder = builder.append(nameText);
 

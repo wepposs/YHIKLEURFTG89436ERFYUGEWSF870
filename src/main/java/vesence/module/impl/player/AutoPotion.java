@@ -2,8 +2,8 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.PotionContentsComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -80,11 +80,11 @@ public class AutoPotion extends Module {
       for (int i = 0; i < 9; i++) {
          ItemStack stack = mc.player.getInventory().getItem(i);
 
-         if (stack.isOf(Items.SPLASH_POTION)) {
-            PotionContentsComponent potionComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
+         if (stack.is(Items.SPLASH_POTION)) {
+            PotionContents potionComponent = stack.get(DataComponents.POTION_CONTENTS);
             if (potionComponent != null) {
-               for (MobEffectInstance effect : potionComponent.getEffects()) {
-                  if (effect.getEffectType() == type.effect) {
+               for (MobEffectInstance effect : potionComponent.getAllEffects()) {
+                  if (effect.getEffect() == type.effect) {
                      return i;
                   }
                }
@@ -95,7 +95,7 @@ public class AutoPotion extends Module {
    }
 
    private boolean hasEffect(Holder<MobEffect> effect) {
-      return mc.player != null && mc.player.hasStatusEffect(effect);
+      return mc.player != null && mc.player.hasEffect(effect);
    }
 
    private boolean canBuff(PotionType type) {
@@ -135,7 +135,7 @@ public class AutoPotion extends Module {
             }
 
             if (selectedSlot != -1) {
-               mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(selectedSlot));
+               mc.getConnection().send(new ServerboundSetCarriedItemPacket(selectedSlot));
             }
 
             timer.reset();
@@ -151,7 +151,7 @@ public class AutoPotion extends Module {
 
          if (throwTicks > 10) {
             if (selectedSlot != -1) {
-               mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(selectedSlot));
+               mc.getConnection().send(new ServerboundSetCarriedItemPacket(selectedSlot));
             }
             isActive = false;
             throwTicks = 0;
@@ -174,9 +174,9 @@ public class AutoPotion extends Module {
       int slot = findPotionSlot(type);
       if (slot == -1) return;
 
-      mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(slot));
+      mc.getConnection().send(new ServerboundSetCarriedItemPacket(slot));
 
-      mc.getConnection().sendPacket(
+      mc.getConnection().send(
          new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, mc.player.getYRot(), 90f));
    }
 }

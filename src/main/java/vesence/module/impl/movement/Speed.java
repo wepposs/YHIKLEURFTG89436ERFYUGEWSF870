@@ -3,7 +3,7 @@ package vesence.module.impl.movement;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -70,7 +70,7 @@ public class Speed extends Module {
           double bestSq = Double.MAX_VALUE;
           double maxRangeSq = 0.2F;
 
-          for (Entity ent : mc.level.getEntities()) {
+          for (Entity ent : mc.level.entitiesForRendering()) {
              if (ent != mc.player) {
 
                 double dx = ent.getX() - mc.player.getX();
@@ -85,24 +85,24 @@ public class Speed extends Module {
 
            if (nearest != null) {
               double[] dir = this.getDirectionToPoint(new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ()), new Vec3(nearest.getX(), nearest.getY(), nearest.getZ()), finalSpeed);
-              mc.player.addVelocity(dir[0], 0.0, dir[1]);
+              mc.player.push(dir[0], 0.0, dir[1]);
            }
         }
 
         if (mode.is("GrimGlide")) {
-            if (mc.player.onGround() && mc.options.jumpKey.isPressed()) {
+            if (mc.player.onGround() && mc.options.keyJump.isDown()) {
                 double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
                 Vec3 vel = mc.player.getDeltaMovement();
                 mc.player.setDeltaMovement(vel.add(xt * 0.4, 0.42, zt * 0.4));
-            } else if (!mc.player.onGround() && !mc.player.isGliding()) {
+            } else if (!mc.player.onGround() && !mc.player.isFallFlying()) {
                 Vec3 vel = mc.player.getDeltaMovement();
                 double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
-                Vec3 add = new Vec3(xt, 0, zt).multiply(0.02);
-                if (mc.player.input.hasForwardMovement() || mc.options.leftKey.isPressed() || mc.options.rightKey.isPressed()) {
+                Vec3 add = new Vec3(xt, 0, zt).scale(0.02);
+                if (mc.player.input.hasForwardImpulse() || mc.options.keyLeft.isDown() || mc.options.keyRight.isDown()) {
                    mc.player.setDeltaMovement(vel.add(add.x, 0, add.z));
                 }
                 if (mc.player.getDeltaMovement().y > 0) {
@@ -140,15 +140,15 @@ public class Speed extends Module {
           return;
       }
 
-      if (!MoveUtil.isMoving() || mc.player.isSneaking()) {
+      if (!MoveUtil.isMoving() || mc.player.isShiftKeyDown()) {
           this.releaseJump();
           return;
       }
 
       if (autoJump.get()
-              && !mc.player.isTouchingWater()
+              && !mc.player.isInWater()
               && !mc.player.isInLava()
-              && !mc.player.isClimbing()) {
+              && !mc.player.onClimbable()) {
           this.holdJump();
       } else {
           this.releaseJump();
@@ -164,7 +164,7 @@ public class Speed extends Module {
              zt = 0.0;
           }
 
-          mc.player.addVelocityInternal(new Vec3(xt * boost, 0.0D, zt * boost));
+          mc.player.addDeltaMovement(new Vec3(xt * boost, 0.0D, zt * boost));
 
           lastBoostVelocity = mc.player.getDeltaMovement();
           lastBoostAmount = boost;
@@ -174,15 +174,15 @@ public class Speed extends Module {
    private void holdJump() {
       if (!holdingJump) {
          holdingJump = true;
-         playerJumpWasPressed = mc.options.jumpKey.isPressed();
+         playerJumpWasPressed = mc.options.keyJump.isDown();
       }
-      mc.options.jumpKey.setPressed(true);
+      mc.options.keyJump.setDown(true);
    }
 
    private void releaseJump() {
       if (holdingJump) {
          holdingJump = false;
-         mc.options.jumpKey.setPressed(playerJumpWasPressed);
+         mc.options.keyJump.setDown(playerJumpWasPressed);
       }
    }
 
@@ -210,7 +210,7 @@ public class Speed extends Module {
       if (!this.enable || !mode.is("RW TEST")) return;
       if (mc.player == null) return;
 
-      if (!e.isSend() && e.getPacket() instanceof PlayerPositionLookS2CPacket) {
+      if (!e.isSend() && e.getPacket() instanceof ClientboundPlayerPositionPacket) {
           setbackCooldown = 10;
           setbackCount++;
 
@@ -228,9 +228,8 @@ public class Speed extends Module {
    private void debugMessage(String message) {
       if (mc.player == null) return;
       try {
-          mc.player.sendMessage(
-                  net.minecraft.text.Component.literal("[Speed] " + message),
-                  false
+          mc.player.sendSystemMessage(
+                  net.minecraft.network.chat.Component.literal("[Speed] " + message)
           );
       } catch (Throwable ignored) {
       }

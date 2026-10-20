@@ -1,8 +1,8 @@
 package vesence.utils.player;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.player.PlayerAbilities;
-import net.minecraft.network.packet.c2s.play.UpdatePlayerAbilitiesC2SPacket;
+import net.minecraft.world.entity.player.Abilities;
+import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
 import vesence.utils.network.NetworkUtils;
 
 /*
@@ -39,11 +39,11 @@ public final class FlyExempt {
     }
 
     private static void send(Minecraft mc) {
-        PlayerAbilities abilities = new PlayerAbilities();
+        Abilities abilities = new Abilities();
         abilities.invulnerable = mc.player.getAbilities().invulnerable;
         abilities.flying = true;
-        abilities.allowFlying = mc.player.getAbilities().allowFlying;
-        abilities.creativeMode = mc.player.getAbilities().creativeMode;
-        NetworkUtils.sendSilentPacket(new UpdatePlayerAbilitiesC2SPacket(abilities));
+        abilities.mayfly = mc.player.getAbilities().mayfly;
+        abilities.instabuild = mc.player.getAbilities().instabuild;
+        NetworkUtils.sendSilentPacket(new ServerboundPlayerAbilitiesPacket(abilities));
     }
 }

@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.dialog.Input;
 import net.minecraft.client.player.LocalPlayer;
@@ -26,7 +26,7 @@ import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookU
 @Mixin({ LocalPlayer.class })
 public abstract class ClientPlayerEntityMixin {
    @Shadow
-   protected Input input;
+   public net.minecraft.client.player.ClientInput input;
 
    @Inject(method = { "tick" }, at = { @At("HEAD") })
    private void onTickHead(CallbackInfo ci) {
@@ -34,14 +34,14 @@ public abstract class ClientPlayerEntityMixin {
    }
 
    @Redirect(method = {
-           "tickMovementInput" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/LocalPlayer;getPitch()F"))
+           "applyInput" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getXRot()F"))
    private float redirectRenderPitchUpdate(LocalPlayer instance) {
-      return FreeLookUtil.active ? Minecraft.getInstance().gameRenderer.getCamera().getXRot()
+      return FreeLookUtil.active ? Minecraft.getInstance().gameRenderer.mainCamera().xRot()
               : instance.getXRot();
    }
 
-   @ModifyExpressionValue(method = { "applyMovementSpeedFactors" }, at = {
-           @At(value = "INVOKE", target = "Lnet/minecraft/client/network/LocalPlayer;isUsingItem()Z") })
+   // TODO(port26): в 26.3 нет applyMovementSpeedFactors — замедление при использовании
+   // инлайнится в LivingEntity.travel. Нужен новый хук там.
    private boolean usingItemHook(boolean original) {
       if (original) {
          UsingItemEvent event = new UsingItemEvent((byte) 1);
@@ -55,12 +55,12 @@ public abstract class ClientPlayerEntityMixin {
    }
 
    @Redirect(method = {
-           "tickMovementInput" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/LocalPlayer;getYaw()F"))
+           "applyInput" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getYRot()F"))
    private float redirectRenderYawUpdate(LocalPlayer instance) {
-      return FreeLookUtil.active ? Minecraft.getInstance().gameRenderer.getCamera().getYRot() : instance.getYRot();
+      return FreeLookUtil.active ? Minecraft.getInstance().gameRenderer.mainCamera().yRot() : instance.getYRot();
    }
 
-   @Inject(method = { "tickMovement" }, at = { @At("HEAD") })
+   @Inject(method = { "aiStep" }, at = { @At("HEAD") })
    private void onUpdateWalkingPlayer(CallbackInfo ci) {
       LocalPlayer player = (LocalPlayer) (Object) this;
       if (player != null) {
@@ -76,29 +76,28 @@ public abstract class ClientPlayerEntityMixin {
                  null);
          EventManager.call(eventPre);
          if (!eventPre.isCancelled()) {
-            if (eventPre.getYRot() != player.getYRot() || eventPre.getXRot() != player.getXRot()) {
-               player.setYRot(eventPre.getYRot());
-               player.setXRot(eventPre.getXRot());
+            if (eventPre.getYaw() != player.getYRot() || eventPre.getPitch() != player.getXRot()) {
+               player.setYRot(eventPre.getYaw());
+               player.setXRot(eventPre.getPitch());
             }
 
             if (eventPre.getPosX() != player.getX() || eventPre.getPosY() != player.getY()
                     || eventPre.getPosZ() != player.getZ()) {
-               player.refreshPositionAndAngles(eventPre.getPosX(), eventPre.getPosY(), eventPre.getPosZ(),
-                       eventPre.getYRot(), eventPre.getXRot());
+               player.absSnapTo(eventPre.getPosX(), eventPre.getPosY(), eventPre.getPosZ(),
+                       eventPre.getYaw(), eventPre.getPitch());
             }
 
-            if (eventPre.onGround() != player.onGround()) {
-               player.setOnGround(eventPre.onGround());
+            if (eventPre.isOnGround() != player.onGround()) {
+               player.setOnGround(eventPre.isOnGround());
             }
          }
       }
    }
 
-   @Redirect(method = {
-           "applyMovementSpeedFactors" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/Vector2f;multiply(F)Lnet/minecraft/util/math/Vector2f;", ordinal = 1))
+   // TODO(port26): точка applyMovementSpeedFactors удалена в 26.3 — хук SlowWalking отключён.
    private Vector2f preventSlowdownMultiply(Vector2f vec, float multiplier) {
       LocalPlayer player = (LocalPlayer) (Object) this;
-      if (multiplier == 0.2F && player.isUsingItem() && !player.hasVehicle()) {
+      if (multiplier == 0.2F && player.isUsingItem() && !player.isPassenger()) {
          float moveForward = vec.y;
          float moveStrafe = vec.x;
          SlowWalkingEvent event = new SlowWalkingEvent(moveForward, moveStrafe);
@@ -109,10 +108,10 @@ public abstract class ClientPlayerEntityMixin {
          }
       }
 
-      return vec.multiply(multiplier);
+      return vec.mul(multiplier);
    }
 
-   @Inject(method = "pushOutOfBlocks", at = @At("HEAD"), cancellable = true)
+   @Inject(method = "moveTowardsClosestSpace", at = @At("HEAD"), cancellable = true)
    private void onPushOutOfBlocks(double x, double z, CallbackInfo ci) {
       if (!vesence.Vesence.isModInitialized()) return;
       vesence.module.impl.movement.NoPush noPush = vesence.module.impl.movement.NoPush.getInstance();

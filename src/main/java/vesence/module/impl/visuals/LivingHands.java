@@ -2,7 +2,7 @@ package vesence.module.impl.visuals;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -33,7 +33,7 @@ public class LivingHands extends Module {
    private final SliderSetting offY = new SliderSetting("Второстепенная рука Y", 0.0, -1.0, 1.0, 0.01);
    private final SliderSetting offZ = new SliderSetting("Второстепенная рука Z", 0.0, -1.0, 1.0, 0.01);
 
-   private final BindSettings inspectKey = new BindSettings("Клавиша осмотра", GLFW.GLFW_KEY_C);
+   private final BindSettings inspectKey = new BindSettings("Клавиша осмотра", InputConstants.KEY_C);
 
    public LivingHands() {
       INSTANCE = this;
@@ -74,6 +74,6 @@ public class LivingHands extends Module {
    public static double getOffZ() { return INSTANCE == null ? 0.0 : INSTANCE.offZ.get(); }
 
    public static int getInspectKey() {
-      return INSTANCE == null ? GLFW.GLFW_KEY_C : INSTANCE.inspectKey.key;
+      return INSTANCE == null ? InputConstants.KEY_C : INSTANCE.inspectKey.key;
    }
 }

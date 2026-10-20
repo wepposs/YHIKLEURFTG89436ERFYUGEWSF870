@@ -5,13 +5,13 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.block.TrapdoorBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.entity.vehicle.AbstractMinecartEntity;
-import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.world.entity.vehicle.minecart.AbstractMinecart;
+import net.minecraft.world.entity.vehicle.boat.Boat;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import vesence.Vesence;
@@ -90,20 +90,20 @@ public class NoInteract extends Module {
       }
 
       if (e.getPacket() instanceof ServerboundUseItemOnPacket packet) {
-         net.minecraft.util.math.BlockPos pos = packet.getBlockHitResult().getBlockPos();
-         net.minecraft.block.Block block = mc.level.getBlockState(pos).getBlock();
+         net.minecraft.core.BlockPos pos = packet.hitResult().getBlockPos();
+         net.minecraft.world.level.block.Block block = mc.level.getBlockState(pos).getBlock();
          if (shouldBlock(block)) {
             e.cancel();
          }
       } else if (e.getPacket() instanceof ServerboundInteractPacket packet) {
-         if (packet.isPlayerSneaking()) return;
+         if (packet.usingSecondaryAction()) return;
 
-         if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == net.minecraft.util.hit.HitResult.Type.ENTITY) {
-             Entity targetEntity = ((net.minecraft.util.hit.EntityHitResult) mc.crosshairTarget).getEntity();
+         if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+             Entity targetEntity = ((net.minecraft.world.phys.EntityHitResult) mc.hitResult).getEntity();
              if (targetEntity != null) {
-                 if (minecarts.get() && targetEntity instanceof AbstractMinecartEntity) {
+                 if (minecarts.get() && targetEntity instanceof net.minecraft.world.entity.vehicle.minecart.AbstractMinecart) {
                      e.cancel();
-                 } else if (boats.get() && targetEntity instanceof BoatEntity) {
+                 } else if (boats.get() && targetEntity instanceof net.minecraft.world.entity.vehicle.boat.Boat) {
                      e.cancel();
                  }
              }
@@ -130,7 +130,7 @@ public class NoInteract extends Module {
       if (beacons.get() && block == Blocks.BEACON) return true;
       if (beds.get() && block instanceof BedBlock) return true;
       if (doors.get() && block instanceof DoorBlock) return true;
-      if (trapdoors.get() && block instanceof TrapdoorBlock) return true;
+      if (trapdoors.get() && block instanceof net.minecraft.world.level.block.TrapDoorBlock) return true;
       if (buttons.get() && block instanceof ButtonBlock) return true;
       if (levers.get() && block == Blocks.LEVER) return true;
       if (noteBlock.get() && block == Blocks.NOTE_BLOCK) return true;

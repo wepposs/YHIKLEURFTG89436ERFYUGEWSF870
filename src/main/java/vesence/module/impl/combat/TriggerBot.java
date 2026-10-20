@@ -62,11 +62,11 @@ public class TriggerBot extends Module {
         if (mc.player == null || mc.level == null) {
             return;
         }
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             return;
         }
 
-        HitResult hitResult = mc.crosshairTarget;
+        HitResult hitResult = mc.hitResult;
         if (hitResult == null || hitResult.getType() != HitResult.Type.ENTITY) {
             return;
         }
@@ -82,7 +82,7 @@ public class TriggerBot extends Module {
 
         target = livingTarget;
 
-        if (mc.player.getAttackCooldownProgress(0.0f) < 1.0f) {
+        if (mc.player.getAttackStrengthScale(0.0f) < 1.0f) {
             return;
         }
 
@@ -91,15 +91,15 @@ public class TriggerBot extends Module {
         boolean isVanillaCrit = mc.player.fallDistance > 0.0F
                              && mc.player.getDeltaMovement().y < 0.0
                              && !mc.player.onGround()
-                             && !mc.player.isClimbing()
-                             && !mc.player.isTouchingWater()
+                             && !mc.player.onClimbable()
+                             && !mc.player.isInWater()
                              && !mc.player.isInLava()
-                             && !mc.player.hasVehicle()
-                             && !mc.player.hasStatusEffect(MobEffects.BLINDNESS);
+                             && !mc.player.isPassenger()
+                             && !mc.player.hasEffect(MobEffects.BLINDNESS);
 
         if (smartCrits.get()) {
             boolean isJumpingUp = !mc.player.onGround() && mc.player.getDeltaMovement().y >= 0.0;
-            boolean canCritEnvironment = !mc.player.isTouchingWater() && !mc.player.isInLava() && !mc.player.isClimbing() && !mc.player.hasVehicle();
+            boolean canCritEnvironment = !mc.player.isInWater() && !mc.player.isInLava() && !mc.player.onClimbable() && !mc.player.isPassenger();
 
             if (isJumpingUp && canCritEnvironment) {
                 shouldAttack = false;
@@ -126,14 +126,14 @@ public class TriggerBot extends Module {
         if (isPlayer && !targets.get("Голые")) {
             Player player = (Player) entity;
             boolean hasArmor = false;
-            net.minecraft.entity.EquipmentSlot[] armorSlots = new net.minecraft.entity.EquipmentSlot[]{
-                net.minecraft.entity.EquipmentSlot.HEAD,
-                net.minecraft.entity.EquipmentSlot.CHEST,
-                net.minecraft.entity.EquipmentSlot.LEGS,
-                net.minecraft.entity.EquipmentSlot.FEET
+            net.minecraft.world.entity.EquipmentSlot[] armorSlots = new net.minecraft.world.entity.EquipmentSlot[]{
+                net.minecraft.world.entity.EquipmentSlot.HEAD,
+                net.minecraft.world.entity.EquipmentSlot.CHEST,
+                net.minecraft.world.entity.EquipmentSlot.LEGS,
+                net.minecraft.world.entity.EquipmentSlot.FEET
             };
-            for (net.minecraft.entity.EquipmentSlot slot : armorSlots) {
-                if (!player.getEquippedStack(slot).isEmpty()) {
+            for (net.minecraft.world.entity.EquipmentSlot slot : armorSlots) {
+                if (!player.getItemBySlot(slot).isEmpty()) {
                     hasArmor = true;
                     break;
                 }

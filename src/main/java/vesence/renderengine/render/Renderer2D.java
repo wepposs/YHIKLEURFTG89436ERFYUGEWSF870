@@ -1,6 +1,5 @@
 package vesence.renderengine.render;
 
-import com.mojang.blaze3d.opengl.GlStateManager;
 import java.awt.Color;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -8,14 +7,14 @@ import java.util.*;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.GameRenderer;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -147,9 +146,9 @@ public final class Renderer2D {
       }
    }
 
-   public void begin(GuiGraphics context) {
+   public void begin(GuiGraphicsExtractor context) {
       if (context != null) {
-         this.begin(mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight());
+         this.begin(mc.getWindow().getWidth(), mc.getWindow().getHeight());
       }
    }
 
@@ -433,16 +432,16 @@ public final class Renderer2D {
    }
 
    public static int getMcFramebufferTex() {
-      if (mc == null || mc.getMainRenderTarget() == null) return 0;
+      if (mc == null || mc.gameRenderer.mainRenderTarget() == null) return 0;
       try {
-         var view = mc.getMainRenderTarget().getColorAttachmentView();
+         var view = mc.gameRenderer.mainRenderTarget().getColorTextureView();
          if (view != null && !view.isClosed()) {
             var tex = view.texture();
-            if (tex instanceof GlTexture glTex) return glTex.getGlId();
+            if (tex instanceof GlTexture glTex) return glTex.glId();
          }
       } catch (Exception ignored) {}
       try {
-         if (mc.getMainRenderTarget().getColorAttachment() instanceof GlTexture glTex) return glTex.getGlId();
+         if (mc.gameRenderer.mainRenderTarget().getColorTexture() instanceof GlTexture glTex) return glTex.glId();
       } catch (Exception ignored) {}
       return 0;
    }
@@ -527,13 +526,13 @@ public final class Renderer2D {
       this.drawImage(texture, x, y, w, h, -1, false, rounding);
    }
 
-   private static final Map<ResourceLocation, Integer> imageTextureCache = new HashMap<>();
+   private static final Map<Identifier, Integer> imageTextureCache = new HashMap<>();
 
-   private static final java.util.Set<ResourceLocation> textureManagerBacked = new java.util.HashSet<>();
+   private static final java.util.Set<Identifier> textureManagerBacked = new java.util.HashSet<>();
 
-   private static final Map<ResourceLocation, Integer> textureManagerConfigured = new HashMap<>();
+   private static final Map<Identifier, Integer> textureManagerConfigured = new HashMap<>();
 
-   private int resolveTextureId(ResourceLocation identifier) {
+   private int resolveTextureId(Identifier identifier) {
 
       if (identifier.getPath().endsWith(".png")) {
          int live = resolveFromTextureManager(identifier);
@@ -564,7 +563,7 @@ public final class Renderer2D {
       try {
          var resource = mc.getResourceManager().getResource(identifier);
          if (resource.isPresent()) {
-            InputStream is = resource.get().getInputStream();
+            InputStream is = resource.get().open();
             int texId = uploadImageToGl(is);
             if (texId > 0) {
                imageTextureCache.put(identifier, texId);
@@ -592,13 +591,13 @@ public final class Renderer2D {
       return 0;
    }
 
-   private int resolveFromTextureManager(ResourceLocation identifier) {
+   private int resolveFromTextureManager(Identifier identifier) {
       try {
          var tex = mc.getTextureManager().getTexture(identifier);
          if (tex != null) {
-            var view = tex.getGlTextureView();
-            if (view != null && view.texture() instanceof net.minecraft.client.texture.GlTexture glTex) {
-               int id = glTex.getGlId();
+            var view = tex.getTextureView();
+            if (view != null && view.texture() instanceof com.mojang.renderpearl.backend.opengl.GlTexture glTex) {
+               int id = glTex.glId();
                if (id > 0) {
                   return id;
                }
@@ -664,7 +663,7 @@ public final class Renderer2D {
       return texId;
    }
 
-   public void drawImage(ResourceLocation identifier, float x, float y, float w, float h) {
+   public void drawImage(Identifier identifier, float x, float y, float w, float h) {
       int texId = this.resolveTextureId(identifier);
       if (texId > 0) {
          this.drawImage(texId, x, y, w, h);
@@ -674,17 +673,17 @@ public final class Renderer2D {
       }
    }
 
-   public void drawImage(ResourceLocation identifier, float x, float y, float w, float h, int tintRgba) {
+   public void drawImage(Identifier identifier, float x, float y, float w, float h, int tintRgba) {
       int texId = this.resolveTextureId(identifier);
       if (texId > 0) this.drawImage(texId, x, y, w, h, tintRgba);
    }
 
-   public void drawImage(ResourceLocation identifier, float x, float y, float w, float h, int tintRgba, boolean flipVertically) {
+   public void drawImage(Identifier identifier, float x, float y, float w, float h, int tintRgba, boolean flipVertically) {
       int texId = this.resolveTextureId(identifier);
       if (texId > 0) this.drawImage(texId, x, y, w, h, tintRgba, flipVertically);
    }
 
-   public void drawImage(ResourceLocation identifier, float x, float y, float w, float h, int tintRgba, boolean flipVertically, float rounding) {
+   public void drawImage(Identifier identifier, float x, float y, float w, float h, int tintRgba, boolean flipVertically, float rounding) {
       int texId = this.resolveTextureId(identifier);
       if (texId > 0) this.drawImage(texId, x, y, w, h, tintRgba, flipVertically, rounding);
    }
@@ -787,7 +786,7 @@ public final class Renderer2D {
       if (this.clipStack.isEmpty()) {
          applied = incoming;
       } else {
-         Renderer2D.ClipState current = this.clipStack.last();
+         Renderer2D.ClipState current = this.clipStack.peek();
          applied = Renderer2D.ClipState.intersect(current, incoming);
       }
 
@@ -798,11 +797,11 @@ public final class Renderer2D {
    public void popClipRect() {
       this.ensureFrame();
       if (!this.clipStack.isEmpty()) {
-         this.clipStack.popPose();
+         this.clipStack.pop();
          if (this.clipStack.isEmpty()) {
             this.backend.setScissorEnabled(false);
          } else {
-            this.applyClipState(this.clipStack.last());
+            this.applyClipState(this.clipStack.peek());
          }
       }
    }
@@ -820,7 +819,7 @@ public final class Renderer2D {
    }
 
    private void beginPipelineClip() {
-      Renderer2D.ClipState c = this.clipStack.last();
+      Renderer2D.ClipState c = this.clipStack.peek();
       if (c == null || c.w() <= 0 || c.h() <= 0) {
          return;
       }
@@ -1115,7 +1114,7 @@ public final class Renderer2D {
       int modulatedColor = this.modulateColor(color);
       float modulatedGlobalAlpha = globalAlpha * this.currentAlphaMultiplier();
       this.ensureLiquidGlassInitialized();
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
 
       try {
          this.liquidGlassShader.use();
@@ -1207,20 +1206,20 @@ public final class Renderer2D {
 
    public void drawSkyShader(PoseStack matrices, Camera camera, int shaderIndex) {
       this.ensureSkyShaderInitialized();
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
       try {
          ShaderProgram active = this.skyShader;
          if (shaderIndex == 1) active = this.skyShaderStorm;
          else if (shaderIndex == 2) active = this.skyShaderSunset;
          active.use();
 
-         int width = mc.getWindow().getFramebufferWidth();
-         int height = mc.getWindow().getFramebufferHeight();
+         int width = mc.getWindow().getWidth();
+         int height = mc.getWindow().getHeight();
 
          float time = (float)(System.currentTimeMillis() % 1000000L) / 1000.0F;
-         float yaw = camera.getYRot();
-         float pitch = camera.getXRot();
-         float fov = mc.options.getFov().getValue().floatValue();
+         float yaw = camera.yRot();
+         float pitch = camera.xRot();
+         float fov = mc.options.fov().get().floatValue();
          float focal = (float) (1.0 / (2.0 * Math.tan(Math.toRadians(fov / 2.0))));
 
          int color = vesence.renderengine.render.Renderer2D.ColorUtil.getClientColor();
@@ -1333,8 +1332,8 @@ public final class Renderer2D {
       this.ensureOrbBgInitialized();
       if (shaderIndex == 1) this.ensureOrbBg2Initialized();
 
-      int width = mc.getWindow().getFramebufferWidth();
-      int height = mc.getWindow().getFramebufferHeight();
+      int width = mc.getWindow().getWidth();
+      int height = mc.getWindow().getHeight();
       int halfW = Math.max(1, width / 2);
       int halfH = Math.max(1, height / 2);
 
@@ -1359,7 +1358,7 @@ public final class Renderer2D {
       float mx = (float)(Math.sin(time * 0.05) * 0.2 + 0.5) * halfW;
       float my = (float)(Math.cos(time * 0.03) * 0.1 + 0.5) * halfH;
 
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
       try {
          GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, this.orbBgFbo);
          GL11.glViewport(0, 0, halfW, halfH);
@@ -1493,7 +1492,7 @@ public final class Renderer2D {
       GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.previewVbo);
       GL15.glBufferSubData(GL15.GL_ARRAY_BUFFER, 0L, vertices);
 
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
       try {
 
          GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, this.shaderPreviewFbo[si]);
@@ -1556,7 +1555,7 @@ public final class Renderer2D {
       }
 
       this.ensureRainInitialized();
-      GlState.Snapshot state = GlState.pushPose();
+      GlState.Snapshot state = GlState.push();
 
       try {
          this.rainShader.use();
@@ -1989,26 +1988,26 @@ public final class Renderer2D {
 
    public static void setupRender(boolean bloom) {
       if (bloom) {
-         GlStateManager._enableBlend();
+         GL11.glEnable(GL11.GL_BLEND);
          GL11.glBlendFunc(770, 771);
-         GlStateManager._disableCull();
-         GlStateManager._blendFuncSeparate(770, 771, 1, 0);
-         GlStateManager._colorMask(true, true, true, true);
+         GL11.glDisable(GL11.GL_CULL_FACE);
+         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+         GL11.glColorMask(true, true, true, true);
       } else {
-         GlStateManager._colorMask(true, true, true, true);
-         GlStateManager._enableBlend();
+         GL11.glColorMask(true, true, true, true);
+         GL11.glEnable(GL11.GL_BLEND);
       }
    }
 
    public static void endRender(boolean bloom) {
       if (bloom) {
-         GlStateManager._colorMask(true, true, true, true);
-         GlStateManager._blendFuncSeparate(770, 771, 1, 0);
-         GlStateManager._enableCull();
-         GlStateManager._disableBlend();
+         GL11.glColorMask(true, true, true, true);
+         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+         GL11.glEnable(GL11.GL_CULL_FACE);
+         GL11.glDisable(GL11.GL_BLEND);
       } else {
-         GlStateManager._colorMask(true, true, true, true);
-         GlStateManager._enableBlend();
+         GL11.glColorMask(true, true, true, true);
+         GL11.glEnable(GL11.GL_BLEND);
       }
    }
 
@@ -2077,7 +2076,7 @@ public final class Renderer2D {
 
    public void popRotation() {
       this.ensureFrame();
-      this.transformStack.popPose();
+      this.transformStack.pop();
    }
 
    public void pushTranslation(float tx, float ty) {
@@ -2087,7 +2086,7 @@ public final class Renderer2D {
 
    public void popTransform() {
       this.ensureFrame();
-      this.transformStack.popPose();
+      this.transformStack.pop();
    }
 
    public void pushScale(float scale) {
@@ -2124,7 +2123,7 @@ public final class Renderer2D {
 
    public void popScale() {
       this.ensureFrame();
-      this.transformStack.popPose();
+      this.transformStack.pop();
    }
 
    public void pushAlpha(float alpha) {
@@ -2139,10 +2138,10 @@ public final class Renderer2D {
    public void popAlpha() {
       this.ensureFrame();
       if (this.alphaStack.size() > 1) {
-         this.alphaStack.popPose();
+         this.alphaStack.pop();
       }
 
-      Float top = this.alphaStack.last();
+      Float top = this.alphaStack.peek();
       this.cachedAlpha = top == null ? 1.0F : top;
    }
 
@@ -2155,7 +2154,7 @@ public final class Renderer2D {
    public void popFontWeight() {
       this.ensureFrame();
       if (!this.fontWeightStack.isEmpty()) {
-         this.fontWeight = this.fontWeightStack.popPose();
+         this.fontWeight = this.fontWeightStack.pop();
       } else {
          this.fontWeight = 0.0f;
       }
@@ -2645,7 +2644,7 @@ public final class Renderer2D {
 
    public static void setupOrientationMatrix(PoseStack matrix, double x, double y, double z) {
       Camera camera = mc.getEntityRenderDispatcher().camera;
-      Vec3 renderPos = camera.getCameraPos();
+      Vec3 renderPos = camera.position();
       matrix.translate(x - renderPos.x, y - renderPos.y, z - renderPos.z);
    }
 
@@ -2657,19 +2656,19 @@ public final class Renderer2D {
       if (camera == null) {
          return new Vector2d(0.0, 0.0);
       } else {
-         Vec3 cameraPosition = camera.getCameraPos();
-         Quaternionf cameraRotation = new Quaternionf(camera.getRotation());
+         Vec3 cameraPosition = camera.position();
+         Quaternionf cameraRotation = new Quaternionf(camera.rotation());
          cameraRotation.conjugate();
          Vector3f relativePosition = new Vector3f(
                  (float) (cameraPosition.x - x), (float) (cameraPosition.y - y), (float) (cameraPosition.z - z));
          relativePosition.rotate(cameraRotation);
-         float tickDelta = mc.getRenderTickCounter().getDynamicDeltaTicks();
-         if ((Boolean) mc.options.getBobView().getValue()
+         float tickDelta = mc.getDeltaTracker().getGameTimeDeltaTicks();
+         if ((Boolean) mc.options.bobView().get()
                  && mc.getCameraEntity() instanceof Player playerEntity) {
             float walkedDistance = 0.0f;
             float deltaDistance = 0.0f;
             float interpolatedDistance = -(walkedDistance + deltaDistance * tickDelta);
-            float cameraYaw = camera.getYRot();
+            float cameraYaw = camera.yRot();
             float bobAngleX = Math.abs((float) Math.cos(interpolatedDistance * (float) Math.PI - 0.2F) * cameraYaw)
                     * 5.0F;
             Quaternionf bobQuaternionX = new Quaternionf().rotateAxis((float) Math.toRadians(bobAngleX),
@@ -2702,19 +2701,19 @@ public final class Renderer2D {
             if (cachedGetFovMethod != null) {
                fieldOfView = (Double) cachedGetFovMethod.invoke(mc.gameRenderer, camera, tickDelta, true);
             } else {
-               fieldOfView = (double) ((Integer) mc.options.getFov().getValue()).intValue();
+               fieldOfView = (double) mc.options.fov().get().intValue();
             }
          } catch (Exception var22) {
-            double fovSetting = (double) ((Integer) mc.options.getFov().getValue()).intValue();
+            double fovSetting = (double) mc.options.fov().get().intValue();
             fieldOfView = fovSetting;
          }
 
-         float halfHeight = mc.getWindow().getScaledHeight() / 2.0F;
+         float halfHeight = mc.getWindow().getGuiScaledHeight() / 2.0F;
          float scaleFactor = halfHeight / (relativePosition.z() * (float) Math.tan(Math.toRadians(fieldOfView / 2.0)));
          return relativePosition.z() < 0.0F
                  ? new Vector2d(
-                 -relativePosition.x() * scaleFactor + mc.getWindow().getScaledWidth() / 2,
-                 mc.getWindow().getScaledHeight() / 2 - relativePosition.y() * scaleFactor)
+                 -relativePosition.x() * scaleFactor + mc.getWindow().getGuiScaledWidth() / 2,
+                 mc.getWindow().getGuiScaledHeight() / 2 - relativePosition.y() * scaleFactor)
                  : null;
       }
    }

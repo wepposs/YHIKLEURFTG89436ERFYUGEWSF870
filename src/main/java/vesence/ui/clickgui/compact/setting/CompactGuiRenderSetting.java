@@ -27,7 +27,7 @@ import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.utils.KeyUtil;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class CompactGuiRenderSetting {
@@ -35,7 +35,7 @@ public class CompactGuiRenderSetting {
     public static HashMap<String, Animation2> modeAnimations = new HashMap<>();
     public static HashMap<String, Animation2> multiBoolAnimations = new HashMap<>();
 
-    private static final ResourceLocation HUE_TEXTURE = ResourceLocation.of("vesence", "textures/gui/hue.png");
+    private static final Identifier HUE_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/gui/hue.png");
 
     public static final float C_HUE_PREVIEW_H = 10f;
     public static final float C_HUE_CONTENT_TOP = 14f;

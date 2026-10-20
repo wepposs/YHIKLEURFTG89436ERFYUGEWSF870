@@ -234,9 +234,9 @@ public final class URotationMath {
         AABB box = target.getBoundingBox();
         Vec3 eye = mc.player.getEyePosition();
         Vec3 center = box.getCenter();
-        double halfX = box.getLengthX() * 0.5;
-        double halfZ = box.getLengthZ() * 0.5;
-        double height = box.getLengthY();
+        double halfX = box.getXsize() * 0.5;
+        double halfZ = box.getZsize() * 0.5;
+        double height = box.getYsize();
 
         Vec3 best = null;
         double bestDist = Double.MAX_VALUE;
@@ -318,9 +318,9 @@ public final class URotationMath {
             return true;
         }
         Vec3 eye = mc.player.getEyePosition();
-        return RayTraceUtil.traceBlock(eye, point, net.minecraft.world.ClipContext.ShapeType.COLLIDER,
-                net.minecraft.world.ClipContext.FluidHandling.NONE)
-                .getPos().squaredDistanceTo(eye) >= dist * dist - 1.0E-4;
+        return RayTraceUtil.traceBlock(eye, point, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE)
+                .getLocation().distanceToSqr(eye) >= dist * dist - 1.0E-4;
     }
 
     /** Ротация на точку из позиции глаз. */

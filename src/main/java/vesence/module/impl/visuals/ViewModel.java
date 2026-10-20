@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import vesence.event.EventInit;
 import vesence.event.render.HandOffsetEvent;
 import vesence.event.render.ItemTransformEvent;
@@ -67,7 +67,7 @@ public class ViewModel extends Module {
       if (!this.enable || !this.shouldApply()) {
          return;
       }
-      if (this.onlyItems.get() && e.getItem().isEmpty()) {
+      if (this.onlyItems.get() && e.getStack().isEmpty()) {
          return;
       }
       boolean main = e.getHand().equals(InteractionHand.MAIN_HAND);
@@ -85,7 +85,7 @@ public class ViewModel extends Module {
       if (!this.enable || !this.shouldApply()) {
          return;
       }
-      if (this.onlyItems.get() && e.getItem().isEmpty()) {
+      if (this.onlyItems.get() && e.getStack().isEmpty()) {
          return;
       }
       boolean main = e.getHand().equals(InteractionHand.MAIN_HAND);
@@ -94,9 +94,9 @@ public class ViewModel extends Module {
       float rx = (float) (main ? this.mainHandRotX.get() : this.offHandRotX.get()).doubleValue();
       float ry = (float) (main ? this.mainHandRotY.get() : this.offHandRotY.get()).doubleValue();
       float rz = (float) (main ? this.mainHandRotZ.get() : this.offHandRotZ.get()).doubleValue();
-      if (rx != 0.0F) matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(rx));
-      if (ry != 0.0F) matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(ry));
-      if (rz != 0.0F) matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rz));
+      if (rx != 0.0F) matrix.rotate(Axis.XP.rotationDegrees(rx));
+      if (ry != 0.0F) matrix.rotate(Axis.YP.rotationDegrees(ry));
+      if (rz != 0.0F) matrix.rotate(Axis.ZP.rotationDegrees(rz));
 
       float scale = (float) (main ? this.mainHandScale.get() : this.offHandScale.get()).doubleValue();
       if (scale != 1.0F) {

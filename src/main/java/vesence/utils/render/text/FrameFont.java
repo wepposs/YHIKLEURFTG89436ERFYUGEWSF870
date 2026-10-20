@@ -5,8 +5,8 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -27,11 +27,11 @@ import java.util.function.Supplier;
  * <p>Порт идеи RelevantPremiumpp4 ({@code Fonts.getSystemFont("Arial")} +
  * {@code MCFontRenderer/CFont}, TTF-фолбэк для рамки). Оригинал берёт РОВНО тот
  * же системный Arial (в нём есть блок AABB Drawing на всех платформах) и грузит
- * атлас через {@link NativeImageBackedTexture} — безопасный путь MC.
+ * атлас через {@link DynamicTexture} — безопасный путь MC.
  *
  * <p>Каждый нужный глиф рендерится AWT-шрифтом Arial (со сглаживанием) в
  * маленькую RGBA-текстуру (белый глиф на прозрачном), один раз, с кэшем, и
- * заливается в GL через {@link NativeImageBackedTexture} (как
+ * заливается в GL через {@link DynamicTexture} (как
  * {@link vesence.utils.render.ttf.TtfFont} и как {@code CFont} оригинала).
  *
  * <p>ВАЖНО: раньше здесь использовался сырой {@code glTexImage2D}, который
@@ -149,7 +149,7 @@ public final class FrameFont {
 
     /**
      * Заливает RGBA-глиф из {@link BufferedImage} в GL-текстуру ШТАТНЫМ путём MC
-     * ({@link NativeImageBackedTexture}) — тем же, что использует
+     * ({@link DynamicTexture}) — тем же, что использует
      * {@link vesence.utils.render.ttf.TtfFont} и {@code CFont} оригинала. Строки
      * копируются сверху вниз (как в MC/TtfFont), поэтому глиф рисуется без
      * переворота ({@code Renderer2D.drawImage(..., flipVertically=false)}).
@@ -160,20 +160,20 @@ public final class FrameFont {
         NativeImage nativeImage = new NativeImage(w, h, false);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                nativeImage.setColorArgb(x, y, img.getRGB(x, y));
+                nativeImage.setPixel(x, y, img.getRGB(x, y));
             }
         }
 
         String name = "frameglyph_" + COUNTER.incrementAndGet();
         final String nameFinal = name;
         Supplier<String> nameSupplier = () -> nameFinal;
-        NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, nativeImage);
+        DynamicTexture tex = new DynamicTexture(nameSupplier, nativeImage);
         tex.upload();
-        ResourceLocation id = ResourceLocation.of("vesence", "frameglyph/" + name);
-        Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
+        Identifier id = Identifier.fromNamespaceAndPath("vesence", "frameglyph/" + name);
+        Minecraft.getInstance().getTextureManager().register(id, tex);
 
-        if (tex.getGlTexture() instanceof GlTexture glTex) {
-            return glTex.getGlId();
+        if (tex.getTexture() instanceof GlTexture glTex) {
+            return glTex.glId();
         }
         return 0;
     }

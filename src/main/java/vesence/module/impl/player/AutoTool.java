@@ -3,8 +3,8 @@ package vesence.module.impl.player;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ToolComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import vesence.event.EventInit;
@@ -33,7 +33,7 @@ public class AutoTool extends Module {
    @EventInit
    public void onEvent(EventUpdate event) {
       if (mc.player != null && mc.level != null && mc.gameMode != null && !mc.player.isCreative()) {
-         if (mc.gameMode.isBreakingBlock()) {
+         if (mc.gameMode.isDestroying()) {
             if (this.previousSlot == -1) {
                this.previousSlot = mc.player.getInventory().getSelectedSlot();
             }
@@ -60,7 +60,7 @@ public class AutoTool extends Module {
    }
 
    private int findOptimalTool() {
-      if (mc.crosshairTarget instanceof BlockHitResult blockHitResult) {
+      if (mc.hitResult instanceof BlockHitResult blockHitResult) {
          BlockState blockState = mc.level.getBlockState(blockHitResult.getBlockPos());
          return this.findBestToolSlot(blockState);
       } else {
@@ -90,11 +90,11 @@ public class AutoTool extends Module {
     * defaultMiningSpeed (~1.0). Сравнение > 1.0 работает как в оригинале.
     */
    private static float getMiningSpeed(ItemStack stack, BlockState state) {
-      ToolComponent tool = stack.get(DataComponentTypes.TOOL);
+      net.minecraft.world.item.component.Tool tool = stack.get(DataComponents.TOOL);
       if (tool == null) {
          return 1.0F;
       }
-      return tool.getSpeed(state);
+      return tool.getMiningSpeed(state);
    }
 
    @Override

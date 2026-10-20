@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.util.PlayerInput;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.client.player.KeyboardInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,14 +18,14 @@ import vesence.event.player.EventInput;
 public abstract class KeyboardInputMixin {
 
    @Inject(method = { "tick" }, at = {
-           @At(value = "FIELD", target = "Lnet/minecraft/client/input/KeyboardInput;playerInput:Lnet/minecraft/util/PlayerInput;", opcode = 181, shift = Shift.AFTER) })
+           @At(value = "FIELD", target = "Lnet/minecraft/client/player/KeyboardInput;keyPresses:Lnet/minecraft/world/entity/player/Input;", opcode = 181, shift = Shift.AFTER) })
    private void onTickAfterPlayerInput(CallbackInfo ci) {
       KeyboardInput self = (KeyboardInput) (Object) this;
-      PlayerInput current = self.playerInput;
+      net.minecraft.world.entity.player.Input current = self.keyPresses;
 
       float f = getMovementMultiplier(current.forward(), current.backward());
       float g = getMovementMultiplier(current.left(), current.right());
-      EventInput inputEvent = new EventInput(f, g, current.jump(), current.sneak(), current.sprint(), 0.3);
+      EventInput inputEvent = new EventInput(f, g, current.jump(), current.shift(), current.sprint(), 0.3);
       EventManager.call(inputEvent);
 
       boolean forward = inputEvent.getForward() > 0.0F;
@@ -37,7 +37,7 @@ public abstract class KeyboardInputMixin {
          sprint = false;
       }
 
-      PlayerInput modifiedInput = new PlayerInput(
+      net.minecraft.world.entity.player.Input modifiedInput = new net.minecraft.world.entity.player.Input(
               forward,
               backward,
               left,
@@ -45,7 +45,7 @@ public abstract class KeyboardInputMixin {
               inputEvent.isJump(),
               inputEvent.isSneak(),
               sprint);
-      self.playerInput = modifiedInput;
+      self.keyPresses = modifiedInput;
    }
 
    @Unique

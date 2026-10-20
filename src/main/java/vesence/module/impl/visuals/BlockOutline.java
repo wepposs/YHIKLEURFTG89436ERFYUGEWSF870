@@ -1,9 +1,8 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.state.BlockState;
@@ -11,11 +10,10 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
@@ -31,6 +29,9 @@ import vesence.module.api.Module;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.renderengine.render.Renderer2D;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 @IModule(name = "Shader Outline", description = "Обводка блока с анимацией", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -47,28 +48,30 @@ public class BlockOutline extends Module {
     private boolean isBreaking = false;
 
     private static final RenderPipeline QUADS_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.POSITION_COLOR_SNIPPET })
-            .withLocation(ResourceLocation.of("vesence", "pipeline/blockoutline_quads"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+        RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.MATRICES_FOG_SNIPPET })
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/blockoutline_quads"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
-            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .build());
     private static final RenderPipeline LINES_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.POSITION_COLOR_SNIPPET })
-            .withLocation(ResourceLocation.of("vesence", "pipeline/blockoutline_lines"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+        RenderPipeline.builder(new RenderPipeline.Snippet[]{ RenderPipelines.MATRICES_FOG_SNIPPET })
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/blockoutline_lines"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)            .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
             .withCull(false)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
-            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .build());
 
-    private static final RenderType QUADS_LAYER = RenderType.of("blockoutline_quads",
-        RenderSetup.builder(QUADS_PIPELINE).expectedBufferSize(2097152).translucent().build());
-    private static final RenderType LINES_LAYER = RenderType.of("blockoutline_lines",
-        RenderSetup.builder(LINES_PIPELINE).expectedBufferSize(65536).translucent().build());
+    private static final RenderType QUADS_LAYER = RenderType.create("blockoutline_quads",
+        RenderSetup.builder(QUADS_PIPELINE).createRenderSetup());
+    private static final RenderType LINES_LAYER = RenderType.create("blockoutline_lines",
+        RenderSetup.builder(LINES_PIPELINE).createRenderSetup());
 
     public BlockOutline() {
         addSettings(breakEffect, breakSpeed);
@@ -84,15 +87,15 @@ public class BlockOutline extends Module {
     public void onRender3D(EventRender3D event) {
         if (!this.enable) return;
         if (mc.level == null || mc.player == null) return;
-        if (mc.crosshairTarget == null || mc.crosshairTarget.getType() != HitResult.Type.BLOCK) {
+        if (mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) {
             isBreaking = false;
             return;
         }
 
-        BlockHitResult blockHit = (BlockHitResult) mc.crosshairTarget;
+        BlockHitResult blockHit = (BlockHitResult) mc.hitResult;
         BlockPos blockPos = blockHit.getBlockPos();
 
-        boolean attacking = mc.options.attackKey.isPressed();
+        boolean attacking = mc.options.keyAttack.isDown();
         if (attacking) {
             if (lastBreakPos == null || !lastBreakPos.equals(blockPos)) {
                 lastBreakPos = blockPos;
@@ -104,11 +107,11 @@ public class BlockOutline extends Module {
         }
 
         BlockState state = mc.level.getBlockState(blockPos);
-        VoxelShape shape = state.getOutlineShape(mc.level, blockPos);
+        VoxelShape shape = state.getShape(mc.level, blockPos);
         if (shape.isEmpty()) return;
 
-        Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
-        AABB rawBB = shape.getBoundingBox();
+        Vec3 camPos = mc.gameRenderer.mainCamera().position();
+        AABB rawBB = shape.bounds();
         AABB bb = new AABB(
             rawBB.minX + blockPos.getX() - camPos.x - 0.002,
             rawBB.minY + blockPos.getY() - camPos.y - 0.002,
@@ -121,14 +124,14 @@ public class BlockOutline extends Module {
         int color = Renderer2D.ColorUtil.getClientColor();
 
         PoseStack matrices = event.getMatrixStack();
-        Matrix4f matrix = matrices.last().getPositionMatrix();
+        Matrix4f matrix = matrices.last().pose();
 
         ByteBufferBuilder allocator = blockOutlineAllocator;
         if (allocator == null) {
             allocator = new ByteBufferBuilder(2097152);
             blockOutlineAllocator = allocator;
         }
-        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(allocator);
+        Immediate immediate = new Immediate();
 
         try {
             VertexConsumer quadBuf = immediate.getBuffer(QUADS_LAYER);
@@ -174,22 +177,22 @@ public class BlockOutline extends Module {
         float x0 = (float)bb.minX, y0 = (float)bb.minY, z0 = (float)bb.minZ;
         float x1 = (float)bb.maxX, y1 = (float)bb.maxY, z1 = (float)bb.maxZ;
 
-        buf.vertex(m, x0, y0, z0).color(rB, gB, bB, aB);
-        buf.vertex(m, x1, y0, z0).color(rB, gB, bB, aB);
-        buf.vertex(m, x1, y0, z1).color(rB, gB, bB, aB);
-        buf.vertex(m, x0, y0, z1).color(rB, gB, bB, aB);
-        buf.vertex(m, x0, y1, z0).color(rT, gT, bT, aT);
-        buf.vertex(m, x0, y1, z1).color(rT, gT, bT, aT);
-        buf.vertex(m, x1, y1, z1).color(rT, gT, bT, aT);
-        buf.vertex(m, x1, y1, z0).color(rT, gT, bT, aT);
-        buf.vertex(m, x0, y0, z1).color(rB, gB, bB, aB); buf.vertex(m, x1, y0, z1).color(rB, gB, bB, aB);
-        buf.vertex(m, x1, y1, z1).color(rT, gT, bT, aT); buf.vertex(m, x0, y1, z1).color(rT, gT, bT, aT);
-        buf.vertex(m, x0, y0, z0).color(rB, gB, bB, aB); buf.vertex(m, x0, y1, z0).color(rT, gT, bT, aT);
-        buf.vertex(m, x1, y1, z0).color(rT, gT, bT, aT); buf.vertex(m, x1, y0, z0).color(rB, gB, bB, aB);
-        buf.vertex(m, x0, y0, z0).color(rB, gB, bB, aB); buf.vertex(m, x0, y0, z1).color(rB, gB, bB, aB);
-        buf.vertex(m, x0, y1, z1).color(rT, gT, bT, aT); buf.vertex(m, x0, y1, z0).color(rT, gT, bT, aT);
-        buf.vertex(m, x1, y0, z0).color(rB, gB, bB, aB); buf.vertex(m, x1, y1, z0).color(rT, gT, bT, aT);
-        buf.vertex(m, x1, y1, z1).color(rT, gT, bT, aT); buf.vertex(m, x1, y0, z1).color(rB, gB, bB, aB);
+        buf.addVertex(m, x0, y0, z0).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x1, y0, z0).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x1, y0, z1).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x0, y0, z1).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x0, y1, z0).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x0, y1, z1).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x1, y1, z1).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x1, y1, z0).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x0, y0, z1).setColor(rB, gB, bB, aB); buf.addVertex(m, x1, y0, z1).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x1, y1, z1).setColor(rT, gT, bT, aT); buf.addVertex(m, x0, y1, z1).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x0, y0, z0).setColor(rB, gB, bB, aB); buf.addVertex(m, x0, y1, z0).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x1, y1, z0).setColor(rT, gT, bT, aT); buf.addVertex(m, x1, y0, z0).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x0, y0, z0).setColor(rB, gB, bB, aB); buf.addVertex(m, x0, y0, z1).setColor(rB, gB, bB, aB);
+        buf.addVertex(m, x0, y1, z1).setColor(rT, gT, bT, aT); buf.addVertex(m, x0, y1, z0).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x1, y0, z0).setColor(rB, gB, bB, aB); buf.addVertex(m, x1, y1, z0).setColor(rT, gT, bT, aT);
+        buf.addVertex(m, x1, y1, z1).setColor(rT, gT, bT, aT); buf.addVertex(m, x1, y0, z1).setColor(rB, gB, bB, aB);
     }
 
     private void renderBreakWaves(VertexConsumer buf, Matrix4f m, AABB bb, int color, float timeSince, float speed) {
@@ -199,18 +202,18 @@ public class BlockOutline extends Module {
             if (wt > 1.0f) continue;
             float expand = wt * 0.3f;
             float alpha = (1.0f - wt);
-            AABB wb = bb.expand(expand);
+            AABB wb = bb.inflate(expand);
             float x0 = (float)wb.minX, y0 = (float)wb.minY, z0 = (float)wb.minZ;
             float x1 = (float)wb.maxX, y1 = (float)wb.maxY, z1 = (float)wb.maxZ;
             int a = (int)(alpha*255);
-            buf.vertex(m, x0, y0, z0).color(r, g, b, a); buf.vertex(m, x1, y0, z0).color(r, g, b, a);
-            buf.vertex(m, x1, y0, z0).color(r, g, b, a); buf.vertex(m, x1, y0, z1).color(r, g, b, a);
-            buf.vertex(m, x1, y0, z1).color(r, g, b, a); buf.vertex(m, x0, y0, z1).color(r, g, b, a);
-            buf.vertex(m, x0, y0, z1).color(r, g, b, a); buf.vertex(m, x0, y0, z0).color(r, g, b, a);
-            buf.vertex(m, x0, y1, z0).color(r, g, b, a); buf.vertex(m, x1, y1, z0).color(r, g, b, a);
-            buf.vertex(m, x1, y1, z0).color(r, g, b, a); buf.vertex(m, x1, y1, z1).color(r, g, b, a);
-            buf.vertex(m, x1, y1, z1).color(r, g, b, a); buf.vertex(m, x0, y1, z1).color(r, g, b, a);
-            buf.vertex(m, x0, y1, z1).color(r, g, b, a); buf.vertex(m, x0, y1, z0).color(r, g, b, a);
+            buf.addVertex(m, x0, y0, z0).setColor(r, g, b, a); buf.addVertex(m, x1, y0, z0).setColor(r, g, b, a);
+            buf.addVertex(m, x1, y0, z0).setColor(r, g, b, a); buf.addVertex(m, x1, y0, z1).setColor(r, g, b, a);
+            buf.addVertex(m, x1, y0, z1).setColor(r, g, b, a); buf.addVertex(m, x0, y0, z1).setColor(r, g, b, a);
+            buf.addVertex(m, x0, y0, z1).setColor(r, g, b, a); buf.addVertex(m, x0, y0, z0).setColor(r, g, b, a);
+            buf.addVertex(m, x0, y1, z0).setColor(r, g, b, a); buf.addVertex(m, x1, y1, z0).setColor(r, g, b, a);
+            buf.addVertex(m, x1, y1, z0).setColor(r, g, b, a); buf.addVertex(m, x1, y1, z1).setColor(r, g, b, a);
+            buf.addVertex(m, x1, y1, z1).setColor(r, g, b, a); buf.addVertex(m, x0, y1, z1).setColor(r, g, b, a);
+            buf.addVertex(m, x0, y1, z1).setColor(r, g, b, a); buf.addVertex(m, x0, y1, z0).setColor(r, g, b, a);
         }
     }
 }

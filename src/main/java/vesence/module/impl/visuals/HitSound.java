@@ -4,14 +4,14 @@ import java.util.UUID;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -39,28 +39,28 @@ public class HitSound extends Module {
     private static final long TOTEM_LINK_MS = 5000L;
 
     // ── Hit sounds ──
-    private static final SoundEvent MOAN_1 = SoundEvent.of(ResourceLocation.of("vesence", "moan1"));
-    private static final SoundEvent MOAN_2 = SoundEvent.of(ResourceLocation.of("vesence", "moan2"));
-    private static final SoundEvent MOAN_3 = SoundEvent.of(ResourceLocation.of("vesence", "moan3"));
-    private static final SoundEvent MOAN_4 = SoundEvent.of(ResourceLocation.of("vesence", "moan4"));
-    private static final SoundEvent METALLIC = SoundEvent.of(ResourceLocation.of("vesence", "metallic"));
-    private static final SoundEvent CRIME = SoundEvent.of(ResourceLocation.of("vesence", "crime"));
-    private static final SoundEvent BELL = SoundEvent.of(ResourceLocation.of("vesence", "bell"));
-    private static final SoundEvent KRIT = SoundEvent.of(ResourceLocation.of("vesence", "krit"));
-    private static final SoundEvent HIT1 = SoundEvent.of(ResourceLocation.of("vesence", "hit1"));
-    private static final SoundEvent HIT2 = SoundEvent.of(ResourceLocation.of("vesence", "hit2"));
+    private static final SoundEvent MOAN_1 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "moan1"));
+    private static final SoundEvent MOAN_2 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "moan2"));
+    private static final SoundEvent MOAN_3 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "moan3"));
+    private static final SoundEvent MOAN_4 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "moan4"));
+    private static final SoundEvent METALLIC = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "metallic"));
+    private static final SoundEvent CRIME = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "crime"));
+    private static final SoundEvent BELL = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "bell"));
+    private static final SoundEvent KRIT = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "krit"));
+    private static final SoundEvent HIT1 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "hit1"));
+    private static final SoundEvent HIT2 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "hit2"));
 
     // ── Kill sounds ──
-    private static final SoundEvent KILL1 = SoundEvent.of(ResourceLocation.of("vesence", "kill1"));
-    private static final SoundEvent KILL2 = SoundEvent.of(ResourceLocation.of("vesence", "kill2"));
-    private static final SoundEvent KILL3 = SoundEvent.of(ResourceLocation.of("vesence", "kill3"));
-    private static final SoundEvent KILL4 = SoundEvent.of(ResourceLocation.of("vesence", "kill4"));
-    private static final SoundEvent KILL5 = SoundEvent.of(ResourceLocation.of("vesence", "kill5"));
-    private static final SoundEvent KILL6 = SoundEvent.of(ResourceLocation.of("vesence", "kill6"));
+    private static final SoundEvent KILL1 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill1"));
+    private static final SoundEvent KILL2 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill2"));
+    private static final SoundEvent KILL3 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill3"));
+    private static final SoundEvent KILL4 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill4"));
+    private static final SoundEvent KILL5 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill5"));
+    private static final SoundEvent KILL6 = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "kill6"));
 
     // ── Totem sounds ──
-    private static final SoundEvent TOTEM_POP_ENEMY = SoundEvent.of(ResourceLocation.of("vesence", "totem_pop_enemy"));
-    private static final SoundEvent TOTEM_POP_SELF = SoundEvent.of(ResourceLocation.of("vesence", "totem_pop_self"));
+    private static final SoundEvent TOTEM_POP_ENEMY = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "totem_pop_enemy"));
+    private static final SoundEvent TOTEM_POP_SELF = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "totem_pop_self"));
 
     // ── Settings ──
     public final ModeSetting type = new ModeSetting("Тип звука",
@@ -109,8 +109,8 @@ public class HitSound extends Module {
     public void onPacket(EventPacket event) {
         if (event.getType() != EventPacket.Type.RECEIVE) return;
         if (mc.level == null) return;
-        if (event.getPacket() instanceof EntityStatusS2CPacket statusPacket) {
-            if (statusPacket.getStatus() == 35) {
+        if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundEntityEventPacket statusPacket) {
+            if (statusPacket.getEventId() == 35) {
                 Entity entity = statusPacket.getEntity(mc.level);
                 if (entity instanceof Player player) {
                     onTotemPop(player);
@@ -139,12 +139,12 @@ public class HitSound extends Module {
             return;
         }
 
-        Entity byId = mc.level.getEntityById(lastTarget.getId());
+        Entity byId = mc.level.getEntity(lastTarget.getId());
         boolean stillLoaded = byId == lastTarget;
 
         if (stillLoaded) {
-            lastTargetDistanceSq = mc.player.squaredDistanceTo(lastTarget);
-            boolean confirmedKill = lastTarget.isDead()
+            lastTargetDistanceSq = mc.player.distanceToSqr(lastTarget);
+            boolean confirmedKill = !lastTarget.isAlive()
                     || lastTarget.getHealth() <= 0.0F
                     || lastTarget.deathTime > 0;
             if (confirmedKill) {
@@ -175,11 +175,11 @@ public class HitSound extends Module {
 
         lastTarget = living;
         waitingForDeath = true;
-        lastTargetDistanceSq = mc.player.squaredDistanceTo(living);
+        lastTargetDistanceSq = mc.player.distanceToSqr(living);
         killWindowStart = System.currentTimeMillis();
 
         if (entity instanceof Player player) {
-            lastAttackedPlayerId = player.getUuid();
+            lastAttackedPlayerId = player.getUUID();
             lastAttackedPlayerAt = System.currentTimeMillis();
         }
 
@@ -238,12 +238,12 @@ public class HitSound extends Module {
         float vol = ((float) (double) totemVolume.get() / 100.0f) * TOTEM_SOUND_MULTIPLIER;
         if (vol <= 0f) return;
 
-        if (poppedPlayer == mc.player || poppedPlayer.getUuid().equals(mc.player.getUuid())) {
+        if (poppedPlayer == mc.player || poppedPlayer.getUUID().equals(mc.player.getUUID())) {
             if (selfTotemVoice.get()) playTotemSound(TOTEM_POP_SELF, vol);
             return;
         }
         if (!enemyTotemVoice.get()) return;
-        if (lastAttackedPlayerId == null || !lastAttackedPlayerId.equals(poppedPlayer.getUuid())) return;
+        if (lastAttackedPlayerId == null || !lastAttackedPlayerId.equals(poppedPlayer.getUUID())) return;
         if (System.currentTimeMillis() - lastAttackedPlayerAt > TOTEM_LINK_MS) return;
         playTotemSound(TOTEM_POP_ENEMY, vol);
     }
@@ -260,7 +260,7 @@ public class HitSound extends Module {
     }
 
     private void playTotemSound(SoundEvent sound, float vol) {
-        SoundInstance instance = PositionedSoundInstance.ui(sound, TOTEM_SOUND_PITCH, vol);
+        SoundInstance instance = SimpleSoundInstance.forUI(sound, TOTEM_SOUND_PITCH, vol);
         if (lastTotemSound != null) mc.getSoundManager().stop(lastTotemSound);
         lastTotemSound = instance;
         mc.getSoundManager().play(instance);
@@ -268,7 +268,7 @@ public class HitSound extends Module {
 
     private void playHitSound(SoundEvent sound, float pitch, float vol) {
         if (mc.getSoundManager() == null) return;
-        SoundInstance instance = PositionedSoundInstance.ui(sound, pitch, vol);
+        SoundInstance instance = SimpleSoundInstance.forUI(sound, pitch, vol);
         if (lastHitSound != null) mc.getSoundManager().stop(lastHitSound);
         lastHitSound = instance;
         mc.getSoundManager().play(instance);

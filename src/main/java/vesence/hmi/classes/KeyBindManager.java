@@ -1,18 +1,16 @@
 package vesence.hmi.classes;
 
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 
 public class KeyBindManager {
-    KeyBinding key;
+    KeyMapping key;
 
     public boolean isKeyPressed(int keyCode) {
         if (keyCode != 0) {
-            long windowHandle = Minecraft.getInstance().getWindow().getHandle();
-            return GLFW.glfwGetKey((long)windowHandle, (int)keyCode) == 1;
+            // TODO(port26): was GLFW.glfwGetKey(windowHandle, keyCode); 26.3 uses SDL scancodes
+            return InputConstants.isKeyDown(keyCode);
         }
         return false;
     }
 }
-

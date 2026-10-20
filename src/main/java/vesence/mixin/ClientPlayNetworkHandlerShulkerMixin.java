@@ -5,20 +5,21 @@ import java.util.Optional;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
-import net.minecraft.network.packet.s2c.play.InventoryS2CPacket;
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
-import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.RegistryOps;
-import net.minecraft.screen.ShulkerBoxScreenHandler;
-import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -33,7 +34,7 @@ import vesence.utils.shulker.ShulkerCache;
  * <p>Работает даже когда сервер обрезал компонент {@code minecraft:container}
  * у предмета — при любом взаимодействии с шалкером сервер вынужден прислать
  * содержимое (либо в NBT блок-сущности при загрузке чанка, либо в
- * InventoryS2CPacket при открытии). Данные из этих пакетов и есть настоящий
+ * ClientboundContainerSetContentPacket при открытии). Данные из этих пакетов и есть настоящий
  * контент — модуль потом отдаёт их по BlockPos.
  */
 @Environment(EnvType.CLIENT)
@@ -41,31 +42,31 @@ import vesence.utils.shulker.ShulkerCache;
 public abstract class ClientPlayNetworkHandlerShulkerMixin {
 
     /** BlockEntityUpdate шалкера → парсим Items из NBT, кладём в кеш. */
-    @Inject(method = "onBlockEntityUpdate", at = @At("TAIL"), require = 0, expect = 0)
-    private void vesence$shulkerViewerBlockEntityUpdate(BlockEntityUpdateS2CPacket packet, CallbackInfo ci) {
+    @Inject(method = "handleBlockEntityData", at = @At("TAIL"), require = 0, expect = 0)
+    private void vesence$shulkerViewerBlockEntityUpdate(ClientboundBlockEntityDataPacket packet, CallbackInfo ci) {
         try {
-            BlockEntityType<?> type = packet.getBlockEntityType();
-            if (type != BlockEntityType.SHULKER_BOX) return;
-            NbtCompound nbt = packet.getNbt();
+            BlockEntityType<?> type = packet.getType();
+            if (type != BlockEntityTypes.SHULKER_BOX) return;
+            CompoundTag nbt = packet.getTag();
             if (nbt == null) return;
             BlockPos pos = packet.getPos();
-            DefaultedList<ItemStack> items = readItemsFromNbt(nbt);
+            NonNullList<ItemStack> items = readItemsFromNbt(nbt);
             if (items != null) ShulkerCache.put(pos, items);
         } catch (Throwable ignored) {}
     }
 
-    /** Открыт инвентарь: если это ShulkerBoxScreenHandler — снимаем 27 слотов. */
-    @Inject(method = "onInventory", at = @At("TAIL"), require = 0, expect = 0)
-    private void vesence$shulkerViewerInventory(InventoryS2CPacket packet, CallbackInfo ci) {
+    /** Открыт инвентарь: если это ShulkerBoxMenu — снимаем 27 слотов. */
+    @Inject(method = "handleContainerContent", at = @At("TAIL"), require = 0, expect = 0)
+    private void vesence$shulkerViewerInventory(ClientboundContainerSetContentPacket packet, CallbackInfo ci) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.containerMenu == null) return;
-            if (packet.syncId() != mc.player.containerMenu.syncId) return;
-            if (!(mc.player.containerMenu instanceof ShulkerBoxScreenHandler)) return;
+            if (packet.containerId() != mc.player.containerMenu.containerId) return;
+            if (!(mc.player.containerMenu instanceof ShulkerBoxMenu)) return;
             BlockPos pos = ShulkerCache.getLastOpenedPos();
             if (pos == null) return;
-            List<ItemStack> contents = packet.contents();
-            DefaultedList<ItemStack> items = DefaultedList.ofSize(27, ItemStack.EMPTY);
+            List<ItemStack> contents = packet.items();
+            NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
             int n = Math.min(27, contents.size());
             for (int i = 0; i < n; i++) {
                 ItemStack stack = contents.get(i);
@@ -76,16 +77,16 @@ public abstract class ClientPlayNetworkHandlerShulkerMixin {
     }
 
     /** Обновление одного слота открытого шалкера — обновляем кеш. */
-    @Inject(method = "onScreenHandlerSlotUpdate", at = @At("TAIL"), require = 0, expect = 0)
-    private void vesence$shulkerViewerSlotUpdate(ScreenHandlerSlotUpdateS2CPacket packet, CallbackInfo ci) {
+    @Inject(method = "handleContainerSetSlot", at = @At("TAIL"), require = 0, expect = 0)
+    private void vesence$shulkerViewerSlotUpdate(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.player.containerMenu == null) return;
-            if (packet.getSyncId() != mc.player.containerMenu.syncId) return;
-            if (!(mc.player.containerMenu instanceof ShulkerBoxScreenHandler sbh)) return;
+            if (packet.getContainerId() != mc.player.containerMenu.containerId) return;
+            if (!(mc.player.containerMenu instanceof ShulkerBoxMenu sbh)) return;
             BlockPos pos = ShulkerCache.getLastOpenedPos();
             if (pos == null) return;
-            DefaultedList<ItemStack> items = DefaultedList.ofSize(27, ItemStack.EMPTY);
+            NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
             int n = Math.min(27, sbh.slots.size());
             for (int i = 0; i < n; i++) {
                 ItemStack stack = sbh.getSlot(i).getItem();
@@ -100,24 +101,24 @@ public abstract class ClientPlayNetworkHandlerShulkerMixin {
      * <pre>{Items:[{Slot:byte,id:string,count:int,components:{...}},...]}</pre>
      * Или с обёрткой BlockEntityTag (легаси / ViaVersion).
      */
-    private static DefaultedList<ItemStack> readItemsFromNbt(NbtCompound nbt) {
+    private static NonNullList<ItemStack> readItemsFromNbt(CompoundTag nbt) {
         if (nbt == null) return null;
-        NbtCompound holder = nbt;
-        NbtElement betRaw = nbt.get("BlockEntityTag");
-        if (betRaw instanceof NbtCompound bet) holder = bet;
-        NbtElement itemsRaw = holder.get("Items");
-        if (!(itemsRaw instanceof NbtList itemsList)) return null;
+        CompoundTag holder = nbt;
+        Tag betRaw = nbt.get("BlockEntityTag");
+        if (betRaw instanceof CompoundTag bet) holder = bet;
+        Tag itemsRaw = holder.get("Items");
+        if (!(itemsRaw instanceof ListTag itemsList)) return null;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return null;
-        DynamicRegistryManager registryManager = mc.level.getRegistryManager();
-        RegistryOps<NbtElement> ops = RegistryOps.of(NbtOps.INSTANCE, registryManager);
+        RegistryAccess registryManager = mc.level.registryAccess();
+        RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, registryManager);
 
-        DefaultedList<ItemStack> items = DefaultedList.ofSize(27, ItemStack.EMPTY);
+        NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
         boolean any = false;
         for (int i = 0; i < itemsList.size(); i++) {
-            NbtElement el = itemsList.get(i);
-            if (!(el instanceof NbtCompound entry)) continue;
+            Tag el = itemsList.get(i);
+            if (!(el instanceof CompoundTag entry)) continue;
             int slot = readSlot(entry);
             if (slot < 0 || slot >= 27) continue;
             Optional<ItemStack> parsed = ItemStack.CODEC.parse(ops, entry).result();
@@ -130,13 +131,13 @@ public abstract class ClientPlayNetworkHandlerShulkerMixin {
     }
 
     /** Slot может быть byte, int, short — читаем терпимо. */
-    private static int readSlot(NbtCompound entry) {
-        NbtElement slotEl = entry.get("Slot");
+    private static int readSlot(CompoundTag entry) {
+        Tag slotEl = entry.get("Slot");
         if (slotEl == null) return -1;
         try {
-            if (slotEl instanceof net.minecraft.nbt.NbtByte b) return b.byteValue() & 0xFF;
-            if (slotEl instanceof net.minecraft.nbt.NbtShort s) return s.shortValue() & 0xFFFF;
-            if (slotEl instanceof net.minecraft.nbt.NbtInt in) return in.intValue();
+            if (slotEl instanceof net.minecraft.nbt.ByteTag b) return b.byteValue() & 0xFF;
+            if (slotEl instanceof net.minecraft.nbt.ShortTag s) return s.shortValue() & 0xFFFF;
+            if (slotEl instanceof net.minecraft.nbt.IntTag in) return in.intValue();
         } catch (Throwable ignored) {}
         return -1;
     }

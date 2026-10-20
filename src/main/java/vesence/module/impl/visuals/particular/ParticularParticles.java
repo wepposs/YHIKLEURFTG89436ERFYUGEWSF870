@@ -4,7 +4,7 @@ import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.Registry;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class ParticularParticles {
     public static final String MOD_ID = "particular";
@@ -40,6 +40,6 @@ public final class ParticularParticles {
     }
 
     private static SimpleParticleType register(String name, boolean alwaysShow) {
-        return Registry.register(BuiltInRegistries.PARTICLE_TYPE, ResourceLocation.of(MOD_ID, name), FabricParticleTypes.simple(alwaysShow));
+        return Registry.register(BuiltInRegistries.PARTICLE_TYPE, Identifier.fromNamespaceAndPath(MOD_ID, name), FabricParticleTypes.simple(alwaysShow));
     }
 }

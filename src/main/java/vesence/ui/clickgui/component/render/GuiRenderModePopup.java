@@ -113,7 +113,7 @@ public class GuiRenderModePopup {
       for (String m : modeSetting.modes) {
          float mw = 0;
          try {
-            mw = net.minecraft.client.Minecraft.getInstance().font.getWidth(m);
+            mw = net.minecraft.client.Minecraft.getInstance().font.width(m);
          } catch (Exception e) {
             mw = m.length() * 7;
          }

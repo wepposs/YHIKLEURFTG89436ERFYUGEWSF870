@@ -1,12 +1,15 @@
 package vesence.module.impl.combat;
 
 import net.fabricmc.api.*;
-import net.minecraft.entity.*;
-import net.minecraft.entity.decoration.*;
-import net.minecraft.entity.mob.*;
-import net.minecraft.entity.passive.*;
-import net.minecraft.entity.player.*;
-import net.minecraft.util.math.*;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.cubemob.Slime;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.*;
 import vesence.event.player.*;
 import vesence.event.render.*;
@@ -73,7 +76,7 @@ public class AimAssist extends Module {
         float sw = event.viewportWidth() / 2.0f;
         float sh = event.viewportHeight() / 2.0f;
 
-        float gameFov = mc.options.getFov().getValue().floatValue();
+        float gameFov = mc.options.fov().get().floatValue();
         float moduleFov = fov.get().floatValue();
 
         float radius = (float) (Math.tan(Math.toRadians(moduleFov / 2.0)) / Math.tan(Math.toRadians(gameFov / 2.0)) * sh);
@@ -83,7 +86,7 @@ public class AimAssist extends Module {
 
     @EventInit
     public void onLook(EventLook event) {
-        if (!this.enable || mc.player == null || mc.level == null || mc.screen != null) {
+        if (!this.enable || mc.player == null || mc.level == null || mc.gui.screen() != null) {
             resetAssist();
             return;
         }
@@ -114,15 +117,15 @@ public class AimAssist extends Module {
         assistYaw += (desiredYaw - assistYaw) * smoothFactor;
         assistPitch += (desiredPitch - assistPitch) * smoothFactor;
 
-        event.setYRot(event.getYRot() + assistYaw);
-        event.setXRot(Mth.clamp(event.getXRot() + assistPitch, -90.0f, 90.0f));
+        event.setYaw(event.getYaw() + assistYaw);
+        event.setPitch(Mth.clamp(event.getPitch() + assistPitch, -90.0f, 90.0f));
     }
 
     private LivingEntity selectTarget() {
         LivingEntity best = null;
         double bestScore = Double.MAX_VALUE;
 
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity living) || !isValidTarget(living)) {
                 continue;
             }
@@ -156,7 +159,7 @@ public class AimAssist extends Module {
             return false;
         }
 
-        if (onlyVisible.get() && !mc.player.canSee(entity)) {
+        if (onlyVisible.get() && !mc.player.hasLineOfSight(entity)) {
             return false;
         }
 
@@ -172,13 +175,13 @@ public class AimAssist extends Module {
         if (player && !targets.get("Игроки")) {
             return false;
         }
-        if (player && !targets.get("Голые") && entity.getArmor() == 0) {
+        if (player && !targets.get("Голые") && entity.getArmorValue() == 0) {
             return false;
         }
         if (!player && !targets.get("Мобы")) {
             return false;
         }
-        if (!player && !(entity instanceof Monster || entity instanceof SlimeEntity || entity instanceof VillagerEntity || entity instanceof AnimalEntity)) {
+        if (!player && !(entity instanceof Monster || entity instanceof Slime || entity instanceof Villager || entity instanceof Animal)) {
             return false;
         }
         if (entity instanceof Player playerEntity && playerEntity.isCreative()) {

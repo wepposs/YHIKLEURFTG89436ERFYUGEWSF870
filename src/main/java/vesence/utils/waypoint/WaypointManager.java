@@ -176,11 +176,11 @@ public final class WaypointManager {
       FontObject font = FontRegistry.MONTSERRAT;
       float scale = (float) Mathf.getScaleFactor();
 
-      Camera camera = mc.gameRenderer.getCamera();
-      Vec3 camPos = camera.getCameraPos();
+      Camera camera = mc.gameRenderer.mainCamera();
+      Vec3 camPos = camera.position();
 
-      double yawRad = Math.toRadians(camera.getYRot());
-      double pitchRad = Math.toRadians(camera.getXRot());
+      double yawRad = Math.toRadians(camera.yRot());
+      double pitchRad = Math.toRadians(camera.xRot());
       double cosPitch = Math.cos(pitchRad);
       double fx = -Math.sin(yawRad) * cosPitch;
       double fy = -Math.sin(pitchRad);
@@ -188,7 +188,7 @@ public final class WaypointManager {
 
       double speedPerSec = BASE_WALK_SPEED_PER_SEC;
       try {
-         double attr = mc.player.getMovementSpeed();
+         double attr = mc.player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
          if (attr > 1.0E-4) {
             speedPerSec = BASE_WALK_SPEED_PER_SEC * (attr / DEFAULT_SPEED_ATTR);
          }
@@ -196,7 +196,7 @@ public final class WaypointManager {
       }
       if (speedPerSec < 0.5) speedPerSec = 0.5;
 
-      Vec3 playerPos = mc.player.getEntityPos();
+      Vec3 playerPos = mc.player.position();
 
       for (Waypoint w : waypoints) {
          Vec3 worldPos = new Vec3(w.x + 0.5, w.y + 0.5, w.z + 0.5);

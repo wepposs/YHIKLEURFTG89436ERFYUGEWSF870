@@ -10,7 +10,7 @@ public class NetworkUtils {
         boolean prev = SENDING.get();
         SENDING.set(true);
         try {
-            Minecraft.getInstance().getConnection().sendPacket(packet);
+            Minecraft.getInstance().getConnection().send(packet);
         } finally {
             SENDING.set(prev);
         }

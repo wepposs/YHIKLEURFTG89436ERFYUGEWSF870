@@ -3,16 +3,16 @@ package vesence.module.impl.misc;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.PotionContentsComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.entity.projectile.thrown.PotionEntity;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThrownPotion;
 import net.minecraft.core.Holder;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -74,9 +74,9 @@ public class PotionTracker extends Module {
       Set<Integer> currentPotions = new HashSet<>();
 
       double trackRadiusSq = TRACK_RADIUS * TRACK_RADIUS;
-      AABB searchBox = mc.player.getBoundingBox().expand(TRACK_RADIUS);
-      for (PotionEntity potionEntity : mc.level.getEntitiesByClass(PotionEntity.class, searchBox, Entity::isAlive)) {
-         if (mc.player.squaredDistanceTo(potionEntity) > trackRadiusSq) {
+      AABB searchBox = mc.player.getBoundingBox().inflate(TRACK_RADIUS);
+      for (AbstractThrownPotion potionEntity : mc.level.getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(AbstractThrownPotion.class), searchBox, Entity::isAlive)) {
+         if (mc.player.distanceToSqr(potionEntity) > trackRadiusSq) {
             continue;
          }
 
@@ -128,11 +128,11 @@ public class PotionTracker extends Module {
 
       List<PlayerHit> hits = new ArrayList<>();
 
-      for (Player player : mc.level.getPlayers()) {
+      for (Player player : mc.level.players()) {
          if (player == null || !player.isAlive()) {
             continue;
          }
-         if (!potionBox.contains(player.getEntityPos())) {
+         if (!potionBox.contains(player.position())) {
             continue;
          }
 
@@ -157,18 +157,18 @@ public class PotionTracker extends Module {
       }
    }
 
-   private PotionInfo getPotionInfo(PotionEntity potionEntity) {
-      PotionContentsComponent contents = potionEntity.getItem().get(DataComponentTypes.POTION_CONTENTS);
+   private PotionInfo getPotionInfo(AbstractThrownPotion potionEntity) {
+      PotionContents contents = potionEntity.getItem().get(DataComponents.POTION_CONTENTS);
 
       PotionInfo byEffects = this.getPotionInfo(contents);
       if (byEffects != null) {
          return byEffects;
       }
 
-      return this.getPotionInfo(potionEntity.getItem().getName().getString());
+      return this.getPotionInfo(potionEntity.getItem().getHoverName().getString());
    }
 
-   private PotionInfo getPotionInfo(PotionContentsComponent contents) {
+   private PotionInfo getPotionInfo(PotionContents contents) {
       if (contents == null || !contents.hasEffects()) {
          return null;
       }
@@ -198,9 +198,9 @@ public class PotionTracker extends Module {
       return null;
    }
 
-   private boolean hasEffect(PotionContentsComponent contents, Holder<MobEffect> effect, int amplifier) {
-      for (MobEffectInstance instance : contents.getEffects()) {
-         if (instance.getEffectType().equals(effect) && instance.getAmplifier() == amplifier) {
+   private boolean hasEffect(PotionContents contents, Holder<MobEffect> effect, int amplifier) {
+      for (MobEffectInstance instance : contents.getAllEffects()) {
+         if (instance.getEffect().equals(effect) && instance.getAmplifier() == amplifier) {
             return true;
          }
       }
@@ -237,7 +237,7 @@ public class PotionTracker extends Module {
       int themeStart = ColorUtil.fade(0);
       int themeEnd = ColorUtil.fade(90);
 
-      MutableText text = Component.literal("");
+      MutableComponent text = Component.literal("");
       text.append(this.gradientText("vesence", themeStart, themeEnd, true));
       text.append(Component.literal(" ⇒ ").setStyle(this.grayStyle()));
       text.append(Component.literal(playerName).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(PLAYER))));
@@ -245,11 +245,11 @@ public class PotionTracker extends Module {
       text.append(this.gradientText(potionInfo.displayName, potionInfo.startColor, potionInfo.endColor, true));
       text.append(Component.literal(" " + percent + "%").setStyle(this.grayStyle()));
 
-      mc.player.sendMessage(text, false);
+      mc.player.sendSystemMessage(text);
    }
 
-   private MutableText gradientText(String text, int startColor, int endColor, boolean bold) {
-      MutableText result = Component.literal("");
+   private MutableComponent gradientText(String text, int startColor, int endColor, boolean bold) {
+      MutableComponent result = Component.literal("");
 
       for (int i = 0; i < text.length(); i++) {
          float progress = text.length() <= 1 ? 0.0F : (float) i / (text.length() - 1);

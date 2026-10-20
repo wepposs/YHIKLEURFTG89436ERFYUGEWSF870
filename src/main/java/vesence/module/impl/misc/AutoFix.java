@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -37,8 +37,8 @@ public class AutoFix extends Module {
     @EventInit
     public void onMotion(EventMotion e) {
         if (!mode.is("Зелье")) return;
-        if (mc.screen != null) return;
-        if (!bind.isPressed()) return;
+        if (mc.gui.screen() != null) return;
+        if (!bind.isDown()) return;
         if (!isOnGroundSafe()) return;
 
         ItemStack fixItem = findFixItem();
@@ -47,21 +47,21 @@ public class AutoFix extends Module {
         int xpSlotInv = findXpBottleInventory();
         if (xpSlot == -1 && xpSlotInv == -1) return;
 
-        e.setXRot(90.0F);
+        e.setPitch(90.0F);
     }
 
     @EventInit
     public void onUpdate(EventUpdate e) {
         if (mode.is("Команда")) {
             if (System.currentTimeMillis() - lastUseTime >= 1000 && needsFix(mc.player.getMainHandItem())) {
-                mc.player.connection.sendChatMessage(name.get());
+                mc.player.connection.sendChat(name.get());
                 lastUseTime = System.currentTimeMillis();
             }
         }
 
         if (mode.is("Зелье")) {
-            if (mc.screen != null) return;
-            if (!bind.isPressed()) return;
+            if (mc.gui.screen() != null) return;
+            if (!bind.isDown()) return;
 
             ItemStack fixItem = findFixItem();
             if (!fixItem.isEmpty() && isOnGroundSafe()) {
@@ -69,12 +69,12 @@ public class AutoFix extends Module {
                     int xpSlot = findXpBottleHotbar();
                     if (xpSlot != -1) {
                         mc.player.getInventory().setSelectedSlot(xpSlot);
-                        mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
+                        mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
                         lastThrowTime = System.currentTimeMillis();
                     } else {
                         int xpSlotInv = findXpBottleInventory();
                         if (xpSlotInv != -1) {
-                            mc.gameMode.clickSlot(mc.player.containerMenu.syncId, xpSlotInv, 0, ClickType.PICKUP, mc.player);
+                            mc.gameMode.handleContainerInput(mc.player.containerMenu.containerId, xpSlotInv, 0, ContainerInput.PICKUP, mc.player);
                             lastThrowTime = System.currentTimeMillis();
                         }
                     }
@@ -84,44 +84,44 @@ public class AutoFix extends Module {
     }
 
     private boolean isOnGroundSafe() {
-        return mc.player.onGround() || mc.player.isClimbing() || mc.player.hasVehicle();
+        return mc.player.onGround() || mc.player.onClimbable() || mc.player.isPassenger();
     }
 
     private int findXpBottleHotbar() {
         for (int i = 0; i < 9; ++i) {
-            if (mc.player.getInventory().getItem(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
+            if (mc.player.getInventory().getItem(i).is(Items.EXPERIENCE_BOTTLE)) return i;
         }
         return -1;
     }
 
     private int findXpBottleInventory() {
         for (int i = 9; i < 36; ++i) {
-            if (mc.player.getInventory().getItem(i).isOf(Items.EXPERIENCE_BOTTLE)) return i;
+            if (mc.player.getInventory().getItem(i).is(Items.EXPERIENCE_BOTTLE)) return i;
         }
         return -1;
     }
 
     private boolean needsFix(ItemStack item) {
-        return item.isDamageable() && (item.getMaxDamage() - item.getDamage()) <= 3;
+        return item.isDamageableItem() && (item.getMaxDamage() - item.getDamageValue()) <= 3;
     }
 
     private ItemStack findFixItem() {
-        for (net.minecraft.entity.EquipmentSlot slot : net.minecraft.entity.EquipmentSlot.values()) {
-            ItemStack stack = mc.player.getEquippedStack(slot);
+        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+            ItemStack stack = mc.player.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
-            if (stack.isDamageable() && stack.getDamage() > 0 && hasMending(stack)) return stack;
+            if (stack.isDamageableItem() && stack.getDamageValue() > 0 && hasMending(stack)) return stack;
         }
         for (int i = 0; i < 36; ++i) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
-            if (stack.isDamageable() && stack.getDamage() > 0 && hasMending(stack)) return stack;
+            if (stack.isDamageableItem() && stack.getDamageValue() > 0 && hasMending(stack)) return stack;
         }
         return ItemStack.EMPTY;
     }
 
     private boolean hasMending(ItemStack stack) {
-        return stack.getEnchantments().getEnchantments().stream()
-                .anyMatch(e -> e.getIdAsString().contains("mending"));
+        return stack.getEnchantments().keySet().stream()
+                .anyMatch(e -> e.unwrapKey().map(k -> k.identifier().toString().contains("mending")).orElse(false));
     }
 
     private static AutoFix instance;

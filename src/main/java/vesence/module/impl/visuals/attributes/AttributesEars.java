@@ -2,11 +2,9 @@ package vesence.module.impl.visuals.attributes;
 
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.entity.EntityPose;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -14,6 +12,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Ушки — облако мягких glow-биллбордов из {@code bloom.png}. Привязаны к голове
@@ -61,13 +60,13 @@ public final class AttributesEars {
         PoseStack matrices = event.getMatrixStack();
 
         if (this.allocator == null) this.allocator = new ByteBufferBuilder(262144);
-        Immediate immediate = MultiBufferSource.immediate(this.allocator);
+        Immediate immediate = new Immediate();
         VertexConsumer buffer = immediate.getBuffer(AttributesTail.BLOOM_LAYER);
 
         boolean any = false;
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (!shouldRenderForPlayer(player)) continue;
-            if (player == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
+            if (player == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
             renderEars(player, tickDelta, matrices, cameraPos, buffer);
             any = true;
         }
@@ -83,17 +82,17 @@ public final class AttributesEars {
     private void renderEars(Player player, float tickDelta, PoseStack matrices, Vec3 cameraPos,
                             VertexConsumer buffer) {
         if (!player.isAlive() || player.isInvisible()) return;
-        EntityPose pose = player.getPose();
-        if (pose == EntityPose.SWIMMING || player.isInSwimmingPose() || player.isGliding()) return;
+        net.minecraft.world.entity.Pose pose = player.getPose();
+        if (pose == net.minecraft.world.entity.Pose.SWIMMING || player.hasPose(net.minecraft.world.entity.Pose.SWIMMING) || player.isFallFlying()) return;
 
-        Vec3 lerpPos = player.getLerpedPos(tickDelta);
+        Vec3 lerpPos = player.getPosition(tickDelta);
         double playerX = lerpPos.x;
         double playerY = lerpPos.y;
         double playerZ = lerpPos.z;
-        float headYaw = Mth.lerpAngleDegrees(tickDelta, player.lastHeadYaw, player.headYaw);
-        float pitch   = player.getPitch(tickDelta);
+        float headYaw = Mth.rotLerp(tickDelta, player.yHeadRotO, player.yHeadRot);
+        float pitch   = player.getViewXRot(tickDelta);
 
-        float neckY = player.isSneaking() ? NECK_Y_SNEAKING : NECK_Y_STANDING;
+        float neckY = player.isCrouching() ? NECK_Y_SNEAKING : NECK_Y_STANDING;
 
         int theme = parent.resolveThemeColor();
         int rT = (theme >> 16) & 0xFF;
@@ -111,8 +110,8 @@ public final class AttributesEars {
         float earTiltL = (twitchL > 0.92f) ? (twitchL - 0.92f) * 15.0f : 0.0f;
         float earTiltR = (twitchR > 0.92f) ? (twitchR - 0.92f) * 15.0f : 0.0f;
 
-        float camYaw = mc.gameRenderer.getCamera().getYRot();
-        float camPitch = mc.gameRenderer.getCamera().getXRot();
+        float camYaw = mc.gameRenderer.mainCamera().yRot();
+        float camPitch = mc.gameRenderer.mainCamera().xRot();
 
         // Левое ухо.
         renderEar(buffer, matrices, cameraPos, playerX, playerY, playerZ,
@@ -172,9 +171,9 @@ public final class AttributesEars {
                 localPoint.mul(m);
 
                 float whiteMix = Mth.clamp((p - 0.65f) * 3.0f, 0.0f, 1.0f);
-                int r = Mth.lerp(whiteMix, rT, rW);
-                int g = Mth.lerp(whiteMix, gT, gW);
-                int b = Mth.lerp(whiteMix, bT, bW);
+                int r = (int) Mth.lerp(whiteMix, rT, rW);
+                int g = (int) Mth.lerp(whiteMix, gT, gW);
+                int b = (int) Mth.lerp(whiteMix, bT, bW);
 
                 float size = Mth.lerp(p, SIZE_BASE, SIZE_TIP);
                 int alpha = (int)(BASE_ALPHA * (1.0f - 0.30f * p));

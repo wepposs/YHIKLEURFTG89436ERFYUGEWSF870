@@ -1,37 +1,31 @@
 package vesence.module.impl.combat;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.entity.mob.HostileEntity;
-import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TridentItem;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
@@ -50,6 +44,7 @@ import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotation
 import vesence.module.impl.visuals.custompet.CustomPetEntity;
 import vesence.utils.friends.FriendStorage;
 import vesence.utils.render.ColorUtil;
+import vesence.utils.render.world.WorldRenderLayers;
 
 /**
  * Полный порт модуля AimBot из RelevantPremiumpp4.
@@ -113,21 +108,12 @@ public class AimBot extends Module {
    private boolean holdingTrident = false;
 
    // ── Рендер прицела (порт под pipeline API 1.21.11, паттерн ContainerESP) ──
-   private static final ResourceLocation CROSSHAIR_TEXTURE = ResourceLocation.of("vesence", "textures/cross/hit.png");
-   private static final RenderPipeline CROSSHAIR_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "aimbot_crosshair"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
-         .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(BlendFunction.LIGHTNING)
-         .build());
-   private static final RenderType CROSSHAIR_LAYER = RenderType.of(
-      "aimbot_crosshair_layer",
-      RenderSetup.builder(CROSSHAIR_PIPELINE).expectedBufferSize(512).translucent().texture("Sampler0", CROSSHAIR_TEXTURE).build());
+   private static final Identifier CROSSHAIR_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/cross/hit.png");
+   // TODO(port26): старый кастомный RenderPipeline (POSITION_TEX_COLOR, no depth, LIGHTNING blend)
+   // заменён на слой из WorldRenderLayers (no-depth additive textured quads).
+   private static final RenderType CROSSHAIR_LAYER = WorldRenderLayers.TEXTURED_QUADS_NO_DEPTH_ADDITIVE(CROSSHAIR_TEXTURE);
    private ByteBufferBuilder allocator = null;
-   private Immediate immediate = null;
+   private ImmediateBuffers immediate = null;
 
    public AimBot() {
       INSTANCE = this;
@@ -164,10 +150,10 @@ public class AimBot extends Module {
       } else if (!entity.isAlive() || entity.getHealth() <= 0.0F) {
          return false;
       } else if (!(entity instanceof Player)) {
-         if (entity instanceof ZombieEntity) {
+         if (entity instanceof Zombie) {
             return this.targetTypes.get("Зомби");
          } else {
-            return entity instanceof HostileEntity ? this.targetTypes.get("Мобы") : false;
+            return entity instanceof Monster ? this.targetTypes.get("Мобы") : false;
          }
       } else if (!this.targetTypes.get("Игроки")) {
          return false;
@@ -178,7 +164,7 @@ public class AimBot extends Module {
          Player player = (Player)entity;
 
          for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            if (!player.getEquippedStack(slot).isEmpty()) {
+            if (!player.getItemBySlot(slot).isEmpty()) {
                hasArmor = true;
                break;
             }
@@ -194,9 +180,9 @@ public class AimBot extends Module {
 
    private LivingEntity findBestTarget() {
       List<LivingEntity> targets = new ArrayList<>();
-      AABB searchBox = mc.player.getBoundingBox().expand(this.range.get().floatValue());
+      AABB searchBox = mc.player.getBoundingBox().inflate(this.range.get().floatValue());
 
-      for (LivingEntity entity : mc.level.getEntitiesByClass(LivingEntity.class, searchBox, e -> true)) {
+      for (LivingEntity entity : mc.level.getEntitiesOfClass(LivingEntity.class, searchBox, e -> true)) {
          if (this.isValidTarget(entity)) {
             double dist = mc.player.distanceTo(entity);
             if (!(dist > this.range.get().floatValue())) {
@@ -348,9 +334,9 @@ public class AimBot extends Module {
 
       float partialTicks = event.getTickDelta();
       Vec3 targetPos = new Vec3(
-         Mth.lerp(partialTicks, this.target.lastRenderX, this.target.getX()),
-         Mth.lerp(partialTicks, this.target.lastRenderY, this.target.getY()) + this.target.getHeight() / 2.0,
-         Mth.lerp(partialTicks, this.target.lastRenderZ, this.target.getZ())
+         Mth.lerp(partialTicks, this.target.xOld, this.target.getX()),
+         Mth.lerp(partialTicks, this.target.yOld, this.target.getY()) + this.target.getBbHeight() / 2.0,
+         Mth.lerp(partialTicks, this.target.zOld, this.target.getZ())
       );
       Vec3 cameraPos = event.getCameraPos();
       PoseStack matrices = event.getMatrixStack();
@@ -360,26 +346,26 @@ public class AimBot extends Module {
 
       if (this.allocator == null) {
          this.allocator = new ByteBufferBuilder(262144);
-         this.immediate = MultiBufferSource.immediate(this.allocator);
+         this.immediate = new ImmediateBuffers(this.allocator);
       }
 
       try {
          matrices.pushPose();
          matrices.translate(renderX, renderY, renderZ);
-         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
+         matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+         matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
          float size = this.crosshairSize.get().floatValue() * 0.5F;
          int alpha = (int)(255.0F * this.aimProgress);
          int color = ColorUtil.theme(255);
          int r = color >> 16 & 0xFF;
          int g = color >> 8 & 0xFF;
          int b = color & 0xFF;
-         Matrix4f matrix = matrices.last().getPositionMatrix();
+         Matrix4f matrix = matrices.last().pose();
          VertexConsumer buffer = this.immediate.getBuffer(CROSSHAIR_LAYER);
-         buffer.vertex(matrix, -size, -size, 0.0F).texture(0.0F, 1.0F).color(r, g, b, alpha);
-         buffer.vertex(matrix, -size, size, 0.0F).texture(0.0F, 0.0F).color(r, g, b, alpha);
-         buffer.vertex(matrix, size, size, 0.0F).texture(1.0F, 0.0F).color(r, g, b, alpha);
-         buffer.vertex(matrix, size, -size, 0.0F).texture(1.0F, 1.0F).color(r, g, b, alpha);
+         buffer.addVertex(matrix, -size, -size, 0.0F).setUv(0.0F, 1.0F).setColor(r, g, b, alpha);
+         buffer.addVertex(matrix, -size, size, 0.0F).setUv(0.0F, 0.0F).setColor(r, g, b, alpha);
+         buffer.addVertex(matrix, size, size, 0.0F).setUv(1.0F, 0.0F).setColor(r, g, b, alpha);
+         buffer.addVertex(matrix, size, -size, 0.0F).setUv(1.0F, 1.0F).setColor(r, g, b, alpha);
          matrices.popPose();
          this.immediate.draw();
       } catch (Exception ex) {
@@ -396,6 +382,33 @@ public class AimBot extends Module {
 
    public LivingEntity getTarget() {
       return this.target;
+   }
+
+   // TODO(port26): MultiBufferSource.immediate удалён в 26.3; минимальная immediate-замена
+   // (как WorldRenderer.ImmediateBuffers): буферы по RenderType, draw() только собирает mesh.
+   private static final class ImmediateBuffers {
+      private final ByteBufferBuilder allocator;
+      private final Map<RenderType, BufferBuilder> buffers = new HashMap<>();
+
+      ImmediateBuffers(ByteBufferBuilder allocator) {
+         this.allocator = allocator;
+      }
+
+      VertexConsumer getBuffer(RenderType layer) {
+         return this.buffers.computeIfAbsent(layer,
+            l -> new BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
+      }
+
+      void draw() {
+         for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
+            MeshData meshData = entry.getValue().build();
+            if (meshData != null) {
+               // TODO(port26): реальная GPU-отправка требует RenderPass из frame graph
+               meshData.close();
+            }
+         }
+         this.buffers.clear();
+      }
    }
 
    @Override

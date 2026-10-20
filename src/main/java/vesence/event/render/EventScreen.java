@@ -4,7 +4,7 @@ import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import vesence.event.Event;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.text.FontObject;
@@ -16,9 +16,9 @@ public class EventScreen extends Event {
    private final FontObject defaultFont;
    private final int viewportWidth;
    private final int viewportHeight;
-   private final GuiGraphics drawContext;
+   private final GuiGraphicsExtractor drawContext;
 
-   public EventScreen(Minecraft client, Renderer2D renderer, FontObject defaultFont, int viewportWidth, int viewportHeight, GuiGraphics drawContext) {
+   public EventScreen(Minecraft client, Renderer2D renderer, FontObject defaultFont, int viewportWidth, int viewportHeight, GuiGraphicsExtractor drawContext) {
       this.client = Objects.requireNonNull(client, "client");
       this.renderer = Objects.requireNonNull(renderer, "renderer");
       this.defaultFont = Objects.requireNonNull(defaultFont, "defaultFont");
@@ -47,7 +47,7 @@ public class EventScreen extends Event {
       return this.viewportHeight;
    }
 
-   public GuiGraphics drawContext() {
+   public GuiGraphicsExtractor drawContext() {
       return this.drawContext;
    }
 }

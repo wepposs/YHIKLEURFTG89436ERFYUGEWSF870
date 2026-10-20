@@ -2,16 +2,16 @@ package vesence.module.impl.combat;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.AttributeModifiersComponent;
-import net.minecraft.component.type.LoreComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.network.chat.Component;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -78,7 +78,7 @@ public class AutoSwap extends Module {
     public final BindSettings swapBind =
             new BindSettings(
                     "Кнопка",
-                    GLFW.GLFW_KEY_UNKNOWN
+                    InputConstants.UNKNOWN.getValue()
             );
 
     public final BooleanSetting notify =
@@ -319,7 +319,7 @@ public class AutoSwap extends Module {
             }
 
             boolean canSwap =
-                    mc.screen == null;
+                    mc.gui.screen() == null;
 
             if (canSwap) {
                 performSwap(targetSlot);
@@ -564,14 +564,14 @@ public class AutoSwap extends Module {
                     mc.player.getInventory()
                             .getItem(i);
 
-            if (!stack.isOf(item)) {
+            if (!stack.is(item)) {
                 continue;
             }
 
             if (
                     totem &&
                             onlyEnchanted.get() &&
-                            !stack.hasGlint()
+                            !stack.hasFoil()
             ) {
                 continue;
             }
@@ -584,7 +584,7 @@ public class AutoSwap extends Module {
             if (
                     totem &&
                             !onlyEnchanted.get() &&
-                            stack.hasGlint()
+                            stack.hasFoil()
             ) {
                 continue;
             }
@@ -617,7 +617,7 @@ public class AutoSwap extends Module {
                         mc.player.getInventory()
                                 .getItem(i);
 
-                if (stack.isOf(item)) {
+                if (stack.is(item)) {
                     return i;
                 }
             }
@@ -650,7 +650,7 @@ public class AutoSwap extends Module {
                     mc.player.getInventory()
                             .getItem(i);
 
-            if (!stack.isOf(Items.PLAYER_HEAD)) {
+            if (!stack.is(Items.PLAYER_HEAD)) {
                 continue;
             }
 
@@ -669,7 +669,7 @@ public class AutoSwap extends Module {
         if (
                 stack == null ||
                         stack.isEmpty() ||
-                        !stack.isOf(Items.PLAYER_HEAD)
+                        !stack.is(Items.PLAYER_HEAD)
         ) {
             return false;
         }
@@ -691,7 +691,7 @@ public class AutoSwap extends Module {
 
         String name =
                 normalize(
-                        stack.getName()
+                        stack.getHoverName()
                                 .getString()
                 );
 
@@ -706,9 +706,9 @@ public class AutoSwap extends Module {
             ItemStack stack
     ) {
 
-        AttributeModifiersComponent modifiers =
+        ItemAttributeModifiers modifiers =
                 stack.get(
-                        DataComponentTypes
+                        DataComponents
                                 .ATTRIBUTE_MODIFIERS
                 );
 
@@ -717,13 +717,13 @@ public class AutoSwap extends Module {
         }
 
         for (
-                AttributeModifiersComponent.Entry entry :
+                ItemAttributeModifiers.Entry entry :
                 modifiers.modifiers()
         ) {
 
             if (
                     entry.slot()
-                            .matches(
+                            .test(
                                     EquipmentSlot.OFFHAND
                             )
             ) {
@@ -738,9 +738,9 @@ public class AutoSwap extends Module {
             ItemStack stack
     ) {
 
-        LoreComponent lore =
+        ItemLore lore =
                 stack.get(
-                        DataComponentTypes.LORE
+                        DataComponents.LORE
                 );
 
         if (lore == null) {
@@ -958,7 +958,7 @@ public class AutoSwap extends Module {
                     mc.player.getInventory()
                             .getItem(i);
 
-            if (stack.isOf(item)) {
+            if (stack.is(item)) {
 
                 ItemStack copy =
                         stack.copy();
@@ -1095,7 +1095,7 @@ public class AutoSwap extends Module {
         }
 
         if (
-                stack.isOf(
+                stack.is(
                         Items.PLAYER_HEAD
                 ) &&
                         target.is("FT/RW") &&
@@ -1106,8 +1106,8 @@ public class AutoSwap extends Module {
 
         return
                 "item:" +
-                        net.minecraft.registry.BuiltInRegistries.ITEM
-                                .getId(
+                        net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(
                                         stack.getItem()
                                 );
     }

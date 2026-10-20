@@ -12,14 +12,14 @@ import java.util.Optional;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Порт xd.harm.modules.models.cow.CowModel — JSON-меш-модель коровки с
@@ -29,8 +29,8 @@ import org.joml.Quaternionf;
 public class CowModel {
 
    public static final RenderType LAYER = PetRender.meshLayer(
-      "vesence_pet_cow", ResourceLocation.of("vesence", "textures/pet/cow.png"));
-   private static final ResourceLocation MODEL_LOCATION = ResourceLocation.of("vesence", "pet/cow_mesh.json");
+      "vesence_pet_cow", Identifier.fromNamespaceAndPath("vesence", "textures/pet/cow.png"));
+   private static final Identifier MODEL_LOCATION = Identifier.fromNamespaceAndPath("vesence", "pet/cow_mesh.json");
    private static final float MODEL_SCALE = 0.82F;
 
    private final Minecraft mc = Minecraft.getInstance();
@@ -49,7 +49,7 @@ public class CowModel {
    private float walkCycleProgress;
    private long lastAnimationTimeNanos;
 
-   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, CowBrain brain) {
+   public void render(PoseStack matrixStack, Immediate vertexConsumers, float partialTicks, CowBrain brain) {
       ensureLoaded();
       if (failed || nodes.isEmpty()) {
          return;
@@ -116,12 +116,12 @@ public class CowModel {
 
       matrixStack.pushPose();
       matrixStack.translate(sideShift, bob - 0.01 * 10.0F, 0.0D);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(smoothedYaw));
+      matrixStack.rotate(Axis.YP.rotationDegrees(smoothedYaw));
       matrixStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
       matrixStack.translate(-centerX, -minY, -centerZ);
       matrixStack.translate(centerX, 0.0F, centerZ);
-      matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(bodyRoll));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(bodyPitch));
+      matrixStack.rotate(Axis.ZP.rotationDegrees(bodyRoll));
+      matrixStack.rotate(Axis.XP.rotationDegrees(bodyPitch));
       matrixStack.translate(-centerX, 0.0F, -centerZ);
 
       AnimationPose pose = new AnimationPose(idleCycle, walkBlend, idleBlend, smoothedHeadYaw, smoothedHeadPitch,
@@ -144,7 +144,7 @@ public class CowModel {
       ModelNode node = nodes.get(nodeIndex);
       matrixStack.pushPose();
       matrixStack.translate(node.translation[0], node.translation[1], node.translation[2]);
-      matrixStack.multiply(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
+      matrixStack.rotate(new Quaternionf(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
       if (!isUnitScale(node.scale)) {
          matrixStack.scale(node.scale[0], node.scale[1], node.scale[2]);
       }
@@ -166,103 +166,103 @@ public class CowModel {
          float idleYaw = (float) Math.sin(pose.idleCycle * 0.24F + 0.3F) * 0.35F * pose.idleBlend;
          float idlePitch = (float) Math.cos(pose.idleCycle * 0.3F + 0.8F) * 0.22F * pose.idleBlend;
          float gaitLift = Math.abs(pose.frontLeftSwing) * 0.012F;
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-pose.headYaw * 0.92F + idleYaw + pose.spineYaw * 0.22F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-1.0F + pose.headPitch * 0.75F + idlePitch - gaitLift));
+         matrixStack.rotate(Axis.YP.rotationDegrees(-pose.headYaw * 0.92F + idleYaw + pose.spineYaw * 0.22F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(-1.0F + pose.headPitch * 0.75F + idlePitch - gaitLift));
          return;
       }
       if ("bone6".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pose.shoulderSway * 0.15F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontLeftSwing * 0.18F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-pose.shoulderSway * 0.15F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontLeftSwing * 0.18F));
          return;
       }
       if ("bone15".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.shoulderSway * 0.15F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontRightSwing * 0.18F));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.shoulderSway * 0.15F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontRightSwing * 0.18F));
          return;
       }
       if ("bone7".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pose.shoulderSway * 0.4F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontLeftSwing));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-pose.shoulderSway * 0.4F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontLeftSwing));
          return;
       }
       if ("bone18".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.shoulderSway * 0.4F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontRightSwing));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.shoulderSway * 0.4F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontRightSwing));
          return;
       }
       if ("bone8".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pose.frontLeftKnee));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.frontLeftFoot * 0.12F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(-pose.frontLeftKnee));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.frontLeftFoot * 0.12F));
          return;
       }
       if ("bone19".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-pose.frontRightKnee));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pose.frontRightFoot * 0.12F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(-pose.frontRightKnee));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-pose.frontRightFoot * 0.12F));
          return;
       }
       if ("bone12".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontLeftFoot));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontLeftFoot));
          return;
       }
       if ("bone16".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.frontRightFoot));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.frontRightFoot));
          return;
       }
       if ("bone9".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-pose.hipSway * 0.28F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearLeftSwing));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-pose.hipSway * 0.28F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearLeftSwing));
          return;
       }
       if ("bone20".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.hipSway * 0.28F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearRightSwing));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.hipSway * 0.28F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearRightSwing));
          return;
       }
       if ("bone10".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearLeftKnee));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearLeftKnee));
          return;
       }
       if ("bone21".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearRightKnee));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearRightKnee));
          return;
       }
       if ("bone11".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearLeftFoot));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearLeftFoot));
          return;
       }
       if ("bone24".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pose.rearRightFoot));
+         matrixStack.rotate(Axis.XP.rotationDegrees(pose.rearRightFoot));
          return;
       }
       if ("bone25".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(pose.tailBaseYaw));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.tailBaseRoll));
+         matrixStack.rotate(Axis.YP.rotationDegrees(pose.tailBaseYaw));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.tailBaseRoll));
          return;
       }
       if ("bone26".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(pose.tailTipYaw));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(pose.tailBaseRoll * 0.6F));
+         matrixStack.rotate(Axis.YP.rotationDegrees(pose.tailTipYaw));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(pose.tailBaseRoll * 0.6F));
          return;
       }
       if ("bone2".equals(nodeName)) {
          float breathe = (float) Math.sin(pose.idleCycle * 0.18F) * 0.05F * pose.idleBlend;
          matrixStack.translate(0.0D, (float) Math.sin(pose.idleCycle * 0.18F) * 0.00045F * pose.idleBlend, 0.0D);
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(pose.spineYaw * 0.18F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(breathe + pose.walkBlend * 0.05F));
+         matrixStack.rotate(Axis.YP.rotationDegrees(pose.spineYaw * 0.18F));
+         matrixStack.rotate(Axis.XP.rotationDegrees(breathe + pose.walkBlend * 0.05F));
          return;
       }
       if ("bone3".equals(nodeName)) {
          float torsoPulse = (float) Math.cos(pose.idleCycle * 0.2F + 0.5F) * 0.025F * pose.idleBlend;
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-pose.spineYaw));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(torsoPulse + pose.shoulderSway * 0.02F));
+         matrixStack.rotate(Axis.YP.rotationDegrees(-pose.spineYaw));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(torsoPulse + pose.shoulderSway * 0.02F));
          return;
       }
       if ("bone4".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-3.0F + pose.earFlop));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(-3.0F + pose.earFlop));
          return;
       }
       if ("bone14".equals(nodeName)) {
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(3.0F - pose.earFlop));
+         matrixStack.rotate(Axis.ZP.rotationDegrees(3.0F - pose.earFlop));
       }
    }
 
@@ -323,7 +323,7 @@ public class CowModel {
             failed = true;
             return;
          }
-         try (InputStream stream = resource.get().getInputStream();
+         try (InputStream stream = resource.get().open();
               InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             parse(JsonParser.parseReader(reader).getAsJsonObject());
             loaded = true;
@@ -514,7 +514,7 @@ public class CowModel {
    }
 
    private void renderTriangles(PoseStack matrixStack, VertexConsumer buffer, List<MeshTriangle> triangles) {
-      Matrix4f matrix = matrixStack.last().getPositionMatrix();
+      Matrix4f matrix = matrixStack.last().pose();
       for (MeshTriangle triangle : triangles) {
          putVertex(buffer, matrix, triangle.a);
          putVertex(buffer, matrix, triangle.b);
@@ -523,7 +523,7 @@ public class CowModel {
    }
 
    private void putVertex(VertexConsumer buffer, Matrix4f matrix, MeshVertex vertex) {
-      buffer.vertex(matrix, vertex.x, vertex.y, vertex.z).texture(vertex.u, vertex.v).color(255, 255, 255, 255);
+      buffer.addVertex(matrix, vertex.x, vertex.y, vertex.z).setUv(vertex.u, vertex.v).setColor(255, 255, 255, 255);
    }
 
    private static final class AnimationPose {

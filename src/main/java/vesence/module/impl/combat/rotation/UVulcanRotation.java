@@ -303,14 +303,14 @@ public final class UVulcanRotation {
     private static EntityHitResult raytraceEntity(float range, Rotation rotation) {
         if (mc.player == null || mc.level == null) return null;
 
-        Vec3 look = Vec3.fromPolar(rotation.pitch, rotation.yaw);
+        Vec3 look = Vec3.directionFromRotation(rotation.pitch, rotation.yaw);
         Vec3 eye = mc.player.getEyePosition();
-        Vec3 end = eye.add(look.multiply(range));
-        AABB box = mc.player.getBoundingBox().stretch(look.multiply(range)).expand(1.0);
+        Vec3 end = eye.add(look.scale(range));
+        AABB box = mc.player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0);
 
-        return ProjectileUtil.raycast(
+        return ProjectileUtil.getEntityHitResult(
                 mc.player, eye, end, box,
-                e -> e != mc.player && e.isAlive() && e.canHit(),
+                e -> e != mc.player && e.isAlive() && e.isPickable(),
                 range * range
         );
     }
@@ -321,13 +321,13 @@ public final class UVulcanRotation {
 
     private static boolean hasCollisionWith(Entity entity, float expand) {
         if (mc.player == null) return false;
-        return mc.player.getBoundingBox().expand(expand)
+        return mc.player.getBoundingBox().inflate(expand)
                 .intersects(entity.getBoundingBox());
     }
 
     private static Block getBlock(int dx, int dy, int dz) {
         if (mc.player == null || mc.level == null) return Blocks.AIR;
-        BlockPos pos = mc.player.getBlockPos().add(dx, dy, dz);
+        BlockPos pos = mc.player.blockPosition().offset(dx, dy, dz);
         return mc.level.getBlockState(pos).getBlock();
     }
 

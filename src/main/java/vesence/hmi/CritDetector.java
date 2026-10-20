@@ -29,13 +29,13 @@ public final class CritDetector {
         if (player == null) {
             return false;
         }
-        return player.getAttackCooldownProgress(0.5f) > 0.9f
+        return player.getAttackStrengthScale(0.5f) > 0.9f
                 && player.fallDistance > 0.0f
                 && !player.onGround()
-                && !player.isClimbing()
-                && !player.isTouchingWater()
-                && !player.hasStatusEffect(MobEffects.BLINDNESS)
-                && !player.hasVehicle()
+                && !player.onClimbable()
+                && !player.isInWater()
+                && !player.hasEffect(MobEffects.BLINDNESS)
+                && !player.isPassenger()
                 && !player.isSprinting()
                 && target instanceof LivingEntity;
     }

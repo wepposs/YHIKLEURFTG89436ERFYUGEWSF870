@@ -126,7 +126,7 @@ public class KawaseBlurPipeline {
         int levels = Math.max(1, Math.min(iterations, MAX_LEVELS));
         float off = Math.max(0.0f, offset);
 
-        GlState.Snapshot state = GlState.pushPose();
+        GlState.Snapshot state = GlState.push();
         try {
             GL11.glDisable(GL11.GL_BLEND);
             GL11.glDisable(GL11.GL_DEPTH_TEST);

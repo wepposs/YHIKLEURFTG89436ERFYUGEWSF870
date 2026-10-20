@@ -80,7 +80,7 @@ public final class WaypointCommand implements Command {
                   ctx.sendError("Игрок не найден — укажи координаты: .way add <name> <x> <y> <z>");
                   return;
                }
-               BlockPos pos = mc.player.getBlockPos();
+               BlockPos pos = mc.player.blockPosition();
                x = pos.getX();
                y = pos.getY();
                z = pos.getZ();

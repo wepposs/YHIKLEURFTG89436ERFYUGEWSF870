@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.option.Perspective;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
@@ -22,11 +22,11 @@ import vesence.utils.render.math.animation.anim.util.Easings;
  * смене перспективы.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(GameRenderer.class)
+@Mixin(Camera.class) // TODO(port26): GameRenderer#getFov removed in 26.3; FOV is computed per-frame by Camera#calculateFov
 public abstract class GameRendererAnimationFovMixin {
 
     @Unique
-    private Perspective vesence$lastPerspective;
+    private net.minecraft.client.CameraType vesence$lastPerspective;
 
     @Unique
     private AnimationUtils vesence$zoomAnim;
@@ -50,9 +50,8 @@ public abstract class GameRendererAnimationFovMixin {
         return vesence$perspAnim;
     }
 
-    @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
-    private void vesence$onGetFov(Camera camera, float tickDelta, boolean changingFov,
-                                  CallbackInfoReturnable<Float> cir) {
+    @Inject(method = "calculateFov", at = @At("RETURN"), cancellable = true)
+    private void vesence$onGetFov(float tickDelta, CallbackInfoReturnable<Float> cir) {
         Animations animations = Animations.getInstance();
         if (animations == null || !animations.enable) return;
 
@@ -62,7 +61,7 @@ public abstract class GameRendererAnimationFovMixin {
 
         if (animations.isCameraZoomEnabled()) {
             AnimationUtils zoom = vesence$ensureZoom();
-            boolean screenOpen = Minecraft.getInstance().screen != null;
+            boolean screenOpen = Minecraft.getInstance().gui.screen() != null;
             float target = screenOpen ? 0.95F : 1.0F;
             zoom.update(target);
             multiplier *= zoom.getValue();
@@ -70,7 +69,7 @@ public abstract class GameRendererAnimationFovMixin {
         }
 
         if (animations.isPerspectiveEnabled()) {
-            Perspective current = Minecraft.getInstance().options.getPerspective();
+            net.minecraft.client.CameraType current = Minecraft.getInstance().options.getCameraType();
             if (vesence$lastPerspective == null) {
                 vesence$lastPerspective = current;
             } else if (current != vesence$lastPerspective) {

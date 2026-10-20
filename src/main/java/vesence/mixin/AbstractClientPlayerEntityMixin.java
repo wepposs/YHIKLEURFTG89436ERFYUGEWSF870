@@ -2,10 +2,10 @@ package vesence.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.util.DefaultSkinHelper;
-import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.util.AssetInfo;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.core.ClientAsset;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +21,7 @@ import java.util.Optional;
 public abstract class AbstractClientPlayerEntityMixin {
 
     /** Deluxe NoRender: «Эффекты FOV» — множитель FOV всегда 1 (спринт/зелья не меняют FOV). */
-    @Inject(method = "getFovMultiplier", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getFieldOfViewModifier", at = @At("HEAD"), cancellable = true)
     private void vesence$noFovEffects(boolean firstPerson, float fovScale, CallbackInfoReturnable<Float> cir) {
         if (NoRender.isElementActive("Эффекты FOV")) {
             cir.setReturnValue(1.0F);
@@ -29,14 +29,14 @@ public abstract class AbstractClientPlayerEntityMixin {
     }
 
     @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
-    private void vesence$injectCape(CallbackInfoReturnable<SkinTextures> cir) {
+    private void vesence$injectCape(CallbackInfoReturnable<PlayerSkin> cir) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
         AbstractClientPlayer self = (AbstractClientPlayer) (Object) this;
         boolean isSelf = (self == mc.player);
 
-        SkinTextures result = cir.getReturnValue();
+        PlayerSkin result = cir.getReturnValue();
         if (result == null) return;
 
         boolean changed = false;
@@ -44,7 +44,7 @@ public abstract class AbstractClientPlayerEntityMixin {
         // Streamer Mode «Дефолтные скины»
         NameProtect np = NameProtect.getInstance();
         if (np != null && np.shouldForceDefaultSkins()) {
-            SkinTextures def = DefaultSkinHelper.getSkinTextures(self.getUuid());
+            PlayerSkin def = DefaultPlayerSkin.get(self.getUUID());
             if (def != null) {
                 result = def;
                 changed = true;
@@ -55,21 +55,21 @@ public abstract class AbstractClientPlayerEntityMixin {
         if (isSelf && Vesence.get != null && Vesence.get.manager != null) {
             Cape cape = Vesence.get.manager.get(Cape.class);
             if (cape != null && cape.enable) {
-                ResourceLocation capeTexture = cape.getCapeTexture();
-                ResourceLocation elytraTexture = cape.getElytraTexture();
+                Identifier capeTexture = cape.getCapeTexture();
+                Identifier elytraTexture = cape.getElytraTexture();
 
-                AssetInfo.TextureAssetInfo capeInfo =
-                        new AssetInfo.TextureAssetInfo(capeTexture, capeTexture);
-                AssetInfo.TextureAssetInfo elytraInfo =
-                        new AssetInfo.TextureAssetInfo(elytraTexture, elytraTexture);
+                ClientAsset.ResourceTexture capeInfo =
+                        new ClientAsset.ResourceTexture(capeTexture, capeTexture);
+                ClientAsset.ResourceTexture elytraInfo =
+                        new ClientAsset.ResourceTexture(elytraTexture, elytraTexture);
 
-                SkinTextures.SkinOverride override = SkinTextures.SkinOverride.create(
+                PlayerSkin.Patch patch = PlayerSkin.Patch.create(
                         Optional.empty(),
                         Optional.of(capeInfo),
                         Optional.of(elytraInfo),
                         Optional.empty()
                 );
-                result = result.withOverride(override);
+                result = result.with(patch);
                 changed = true;
             }
         }

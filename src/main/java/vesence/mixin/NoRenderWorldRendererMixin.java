@@ -2,34 +2,84 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import vesence.Vesence;
 import vesence.module.impl.visuals.NoRender;
 
+// TODO(port26): LevelRenderer#renderWeather/renderClouds removed in 26.3 — weather and clouds are
+// rendered by WeatherEffectRenderer/CloudRenderer, called from LevelRenderer#executeClassicTransparency
+// (and #executeOit on the OIT path). We wrap those call sites to keep the NoRender switches working.
 @Environment(EnvType.CLIENT)
-@Mixin(WorldRenderer.class)
+@Mixin(LevelRenderer.class)
 public class NoRenderWorldRendererMixin {
-   @Inject(method = "renderWeather", at = @At("HEAD"), cancellable = true)
-   private void onRenderWeather(CallbackInfo ci) {
-      if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Дождь")) {
-         ci.cancel();
-      }
+
+   private static boolean vesence$noRain() {
+      return Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Дождь");
    }
 
-   @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderClouds(CallbackInfo ci) {
+   private static boolean vesence$noClouds() {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
-      if (nr != null && nr.enable && NoRender.elements.get("Облака")) {
-         ci.cancel();
-      }
+      return nr != null && nr.enable && NoRender.elements.get("Облака");
    }
 
-   @Inject(method = "renderBlockEntities", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderBlockEntities(CallbackInfo ci) {
+   @WrapOperation(
+           method = "executeClassicTransparency",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/WeatherEffectRenderer;render(Lnet/minecraft/client/renderer/state/level/WeatherRenderState;Lcom/mojang/renderpearl/api/commands/RenderPass;)V"))
+   private void vesence$skipWeather(net.minecraft.client.renderer.WeatherEffectRenderer instance,
+                                    net.minecraft.client.renderer.state.level.WeatherRenderState state,
+                                    com.mojang.renderpearl.api.commands.RenderPass pass,
+                                    Operation<Void> original) {
+      if (vesence$noRain()) return;
+      original.call(instance, state, pass);
+   }
+
+   @WrapOperation(
+           method = "executeClassicTransparency",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CloudRenderer;render(Lnet/minecraft/client/CloudStatus;Lcom/mojang/renderpearl/api/commands/RenderPass;)V"))
+   private void vesence$skipClouds(net.minecraft.client.renderer.CloudRenderer instance,
+                                   net.minecraft.client.CloudStatus status,
+                                   com.mojang.renderpearl.api.commands.RenderPass pass,
+                                   Operation<Void> original) {
+      if (vesence$noClouds()) return;
+      original.call(instance, status, pass);
+   }
+
+   @WrapOperation(
+           method = "executeOit",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/WeatherEffectRenderer;renderOit(Lnet/minecraft/client/renderer/oit/OitStage;Lnet/minecraft/client/renderer/state/level/WeatherRenderState;Lcom/mojang/renderpearl/api/commands/RenderPass;)V"))
+   private void vesence$skipWeatherOit(net.minecraft.client.renderer.WeatherEffectRenderer instance,
+                                       net.minecraft.client.renderer.oit.OitStage stage,
+                                       net.minecraft.client.renderer.state.level.WeatherRenderState state,
+                                       com.mojang.renderpearl.api.commands.RenderPass pass,
+                                       Operation<Void> original) {
+      if (vesence$noRain()) return;
+      original.call(instance, stage, state, pass);
+   }
+
+   @WrapOperation(
+           method = "executeOit",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CloudRenderer;renderOit(Lnet/minecraft/client/CloudStatus;Lnet/minecraft/client/renderer/oit/OitStage;Lcom/mojang/renderpearl/api/textures/GpuTextureView;Lnet/minecraft/client/renderer/oit/OitRenderPassProvider$Parameters;)V"))
+   private void vesence$skipCloudsOit(net.minecraft.client.renderer.CloudRenderer instance,
+                                      net.minecraft.client.CloudStatus status,
+                                      net.minecraft.client.renderer.oit.OitStage stage,
+                                      com.mojang.renderpearl.api.textures.GpuTextureView textureView,
+                                      net.minecraft.client.renderer.oit.OitRenderPassProvider.Parameters params,
+                                      Operation<Void> original) {
+      if (vesence$noClouds()) return;
+      original.call(instance, status, stage, textureView, params);
+   }
+
+   @Inject(method = "submitBlockEntities", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderBlockEntities(com.mojang.blaze3d.vertex.PoseStack matrices,
+                                              net.minecraft.client.renderer.state.level.LevelRenderState state,
+                                              net.minecraft.client.renderer.SubmitNodeCollector collector,
+                                              CallbackInfo ci) {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
       if (nr != null && nr.enable && NoRender.elements.get("Блок-сущности")) {
          ci.cancel();

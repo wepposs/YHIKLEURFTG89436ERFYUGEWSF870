@@ -5,8 +5,8 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Items;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -81,8 +81,8 @@ public class UEnergySpookyRotation {
         if (mc.level == null) {
             return false;
         }
-        ScoreboardObjective objective = mc.level.getScoreboard()
-                .getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        net.minecraft.world.scores.Objective objective = mc.level.getScoreboard()
+                .getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR);
         if (objective == null) {
             return false;
         }
@@ -94,12 +94,12 @@ public class UEnergySpookyRotation {
     private static boolean critState() {
         return !mc.player.onGround() && (AttackAura.extraSettings.get("Умные криты")
                 || AttackAura.extraSettings.get("Смэш булавой")
-                || mc.player.getMainHandItem().isOf(Items.MACE));
+                || mc.player.getMainHandItem().is(Items.MACE));
     }
 
     /** Кулдаун почти готов (Deluxe: Class83#m1205(-30) без внутреннего таймера). */
     private static boolean cooldownReadySoon() {
-        return mc.player.getAttackCooldownProgress(2.0F) >= 0.9F;
+        return mc.player.getAttackStrengthScale(2.0F) >= 0.9F;
     }
 
     // ── Основной вариант (Class101#m1363) ────────────────────────────────────
@@ -125,7 +125,7 @@ public class UEnergySpookyRotation {
             deadZone = URotationMath.rand(0.4F, 0.9F);
         }
 
-        Vec3 camera = mc.player.getCameraPosVec(mc.getRenderTickCounter().getTickProgress(false));
+        Vec3 camera = mc.player.getEyePosition(mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
         Vec3 center = target.getBoundingBox().getCenter();
         boolean throughNonFull = AttackAura.misc.get("Бить через блоки")
                 && !Attack.clearLineOfSight(camera, center)
@@ -190,7 +190,8 @@ public class UEnergySpookyRotation {
                 * (1.0F - Mth.clamp(aimFatigue, 0.0F, 1.0F) * (crit ? 0.35F : 1.0F))
                 * (pulse ? 1.25F : 1.0F)
                 * (crit ? 3.2F : 1.0F)
-                * (mc.player.handSwingTicks > URotationMath.rand(0.2F, 0.4F) && !crit ? 0.5F : 1.0F);
+                // TODO(port26): поле handSwingTicks недоступно в 26.3, заменено на isSwinging()
+                * ((mc.player.isSwinging() ? 1 : 0) > URotationMath.rand(0.2F, 0.4F) && !crit ? 0.5F : 1.0F);
         float accelCap = accelCapBase * (pulse ? 4.0F : 1.0F) * (crit ? 2.6F : 1.0F);
 
         springYaw += Mth.clamp(
@@ -219,9 +220,9 @@ public class UEnergySpookyRotation {
 
     /** Class101#m1365: точка на высоте-фракции хитбокса со смещением. */
     private static Vec3 aimPoint(LivingEntity target, double frac, double offsetX, double offsetZ) {
-        return target.getEntityPos().add(offsetX,
-                Mth.clamp(target.getHeight() * frac, 0.1,
-                        Math.max(0.1, target.getHeight() - 0.1)),
+        return target.position().add(offsetX,
+                Mth.clamp(target.getBbHeight() * frac, 0.1,
+                        Math.max(0.1, target.getBbHeight() - 0.1)),
                 offsetZ);
     }
 
@@ -232,26 +233,26 @@ public class UEnergySpookyRotation {
         float curPitch = mc.player.getXRot();
         Vec3 eye = mc.player.getEyePosition();
         AABB box = target.getBoundingBox();
-        Vec3 prediction = new Vec3(target.getX() - target.lastRenderX, 0.0, target.getZ() - target.lastRenderZ)
+        Vec3 prediction = new Vec3(target.getX() - target.xOld, 0.0, target.getZ() - target.zOld)
                 .subtract(mc.player.getDeltaMovement().x, 0.0, mc.player.getDeltaMovement().z)
-                .multiply(1.5);
-        Vec3 aim = new Vec3(box.getCenter().x, box.minY + box.getLengthY() * 0.82, box.getCenter().z)
+                .scale(1.5);
+        Vec3 aim = new Vec3(box.getCenter().x, box.minY + box.getYsize() * 0.82, box.getCenter().z)
                 .add(prediction)
                 .subtract(eye);
         boolean veryClose = aim.x * aim.x + aim.z * aim.z < 0.03F;
         double horizDist = Math.max(0.05, Math.hypot(aim.x, aim.z));
         ThreadLocalRandom random = ThreadLocalRandom.current();
         float distFactor = (float) Mth.clamp(horizDist / 2.0, 0.7, 1.0);
-        Vec3 pitchAim = new Vec3(box.getCenter().x, box.minY + box.getLengthY() * 0.87, box.getCenter().z)
+        Vec3 pitchAim = new Vec3(box.getCenter().x, box.minY + box.getYsize() * 0.87, box.getCenter().z)
                 .subtract(eye);
         float yawDelta = veryClose ? 0.0F
                 : Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-aim.x, aim.z)) - curYaw);
         float pitchDelta = (float) (-Math.toDegrees(
                 Math.atan2(pitchAim.y, Math.max(0.7, Math.hypot(pitchAim.x, pitchAim.z))))) - curPitch;
-        float angularSize = (float) Math.toDegrees(Math.atan(box.getLengthX() * 0.5 / horizDist));
+        float angularSize = (float) Math.toDegrees(Math.atan(box.getXsize() * 0.5 / horizDist));
         boolean windowYaw = attack || cooldownReadySoon();
         boolean windowPitch = attack || cooldownReadySoon();
-        float cooldown = mc.player.getAttackCooldownProgress(0.5F);
+        float cooldown = mc.player.getAttackStrengthScale(0.5F);
         float wobbleScale = windowYaw ? 0.0F : 0.55F + 0.45F * cooldown + 0.2F;
         double time = System.currentTimeMillis() / 60.0;
         float wobbleYaw = ((float) (Math.cos(time * 0.7) + Math.sin(time * 1.7) * 0.5)
@@ -267,7 +268,7 @@ public class UEnergySpookyRotation {
         float maxStep = random.nextFloat(55.0F, 80.0F) * distFactor;
         float yawStep = Mth.clamp((yawDelta + wobbleYaw) * speedFactor, -maxStep, maxStep);
         if (attack && !box.contains(eye)
-                && box.raycast(eye, eye.add(direction(curYaw + yawStep, curPitch).multiply(range + 1.0)))
+                && box.clip(eye, eye.add(direction(curYaw + yawStep, curPitch).scale(range + 1.0)))
                         .isEmpty()) {
             yawStep = yawDelta;
         }

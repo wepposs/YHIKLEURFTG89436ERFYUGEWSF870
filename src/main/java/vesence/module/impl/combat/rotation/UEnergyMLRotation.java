@@ -81,7 +81,7 @@ public class UEnergyMLRotation {
         float newPitch = Mth.clamp(playerPitch + stepPitch, OUT_PITCH_MIN, OUT_PITCH_MAX);
 
         Rotation rot = new Rotation(newYaw, newPitch);
-        URotations.update(rot, ENGINE_SPEED, ENGINE_SPEED, 0.0F, 0.0F, 1, 1, mc.options.getPerspective().isFirstPerson());
+        URotations.update(rot, ENGINE_SPEED, ENGINE_SPEED, 0.0F, 0.0F, 1, 1, mc.options.getCameraType().isFirstPerson());
 
         float dy = (float) (mc.player.getDeltaMovement().y / SAMPLE_DIV_Y);
         float dx = (float) (mc.player.getDeltaMovement().x / SAMPLE_DIV_X);

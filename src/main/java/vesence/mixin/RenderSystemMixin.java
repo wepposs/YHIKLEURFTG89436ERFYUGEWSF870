@@ -4,7 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import com.mojang.blaze3d.platform.Window;
-import net.minecraft.client.util.tracy.TracyFrameCapturer;
+import com.mojang.blaze3d.TracyFrameCapture;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,13 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import vesence.Vesence;
 
 @Environment(EnvType.CLIENT)
-@Mixin({RenderSystem.class})
+@Mixin({Minecraft.class})
 public class RenderSystemMixin {
    @Inject(
-      method = {"flipFrame"},
+      method = {"renderFrame"},
       at = {@At("HEAD")}
    )
-   private static void flipFrame(Window window, TracyFrameCapturer capturer, CallbackInfo ci) {
+   private static void vesence$onRenderFrame(boolean tick, CallbackInfo ci) {
       Vesence.onRender();
    }
 }

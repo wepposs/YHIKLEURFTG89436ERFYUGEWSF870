@@ -1,21 +1,21 @@
 package vesence.module.impl.visuals.elements.modern;
 
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
-import net.minecraft.entity.player.SkinTextures;
+import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.GameMode;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.GameType;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
@@ -87,8 +87,8 @@ public class ModernStaffListElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
-        boolean chatOpen = Minecraft.getInstance().screen instanceof ChatScreen;
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
+        boolean chatOpen = Minecraft.getInstance().gui.screen() instanceof ChatScreen;
 
         for (RowState st : rows.values()) st.active = false;
         for (StaffInfo info : collectStaff()) {
@@ -225,17 +225,17 @@ public class ModernStaffListElement extends HudElement {
         try {
             ClientPacketListener nh = Minecraft.getInstance().getConnection();
             if (nh == null) return 0;
-            PlayerListEntry entry = nh.getPlayerListEntry(name);
+            PlayerInfo entry = nh.getPlayerInfo(name);
             if (entry == null) return 0;
-            SkinTextures tex = entry.getSkinTextures();
+            PlayerSkin tex = entry.getSkin();
             if (tex == null) return 0;
-            ResourceLocation skinId = tex.body().texturePath();
+            Identifier skinId = tex.body().texturePath();
             AbstractTexture at = Minecraft.getInstance().getTextureManager().getTexture(skinId);
             if (at == null) return 0;
-            GpuTextureView view = at.getGlTextureView();
+            GpuTextureView view = at.getTextureView();
             if (view == null) return 0;
             GpuTexture gpuTex = view.texture();
-            if (gpuTex instanceof GlTexture glTex) return glTex.getGlId();
+            if (gpuTex instanceof GlTexture glTex) return glTex.glId();
         } catch (Exception ignored) {}
         return 0;
     }
@@ -270,18 +270,18 @@ public class ModernStaffListElement extends HudElement {
         Map<String, StaffInfo> map = new LinkedHashMap<>();
         Scoreboard scoreboard = mc.level.getScoreboard();
 
-        for (PlayerListEntry e : mc.getConnection().getPlayerList()) {
+        for (PlayerInfo e : mc.getConnection().getOnlinePlayers()) {
             String nick = e.getProfile().name();
             if (!NAME_PATTERN.matcher(nick).matches()) continue;
 
-            Team team = scoreboard.getScoreHolderTeam(nick);
-            String prefix = team != null ? team.getPrefix().getString() : "";
-            String suffix = team != null ? team.getSuffix().getString() : "";
+            net.minecraft.world.scores.PlayerTeam team = scoreboard.getPlayersTeam(nick);
+            String prefix = team != null ? team.getPlayerPrefix().getString() : "";
+            String suffix = team != null ? team.getPlayerSuffix().getString() : "";
             String full = (prefix + nick + suffix).trim();
             String plain = cleanName(ColorFormat.strip(full)).toLowerCase(Locale.ROOT);
             if (!PREFIX_MATCHES.matcher(plain).matches() && !StaffStorage.isStaff(nick)) continue;
 
-            State state = e.getGameMode() == GameMode.SPECTATOR ? State.SPECTATOR : State.ONLINE;
+            State state = e.getGameMode() == GameType.SPECTATOR ? State.SPECTATOR : State.ONLINE;
             map.put(nick, new StaffInfo(nick, full, state));
         }
 

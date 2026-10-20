@@ -4,19 +4,19 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.widget.LockButtonWidget;
-import net.minecraft.client.gui.widget.ScrollableWidget;
+import net.minecraft.client.gui.components.LockIconButton;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.widget.TextWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.DeltaTracker;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.Arm;
-import net.minecraft.world.GameMode;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.level.GameType;
 import org.joml.Matrix3x2fStack;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
@@ -106,7 +106,7 @@ public class BetterMinecraft extends Module {
    }
 
    // Smooth-scroll state for scrollable widgets (settings lists, world/server lists, etc.).
-   private static final Map<ScrollableWidget, ScrollState> SCROLL_STATES = new WeakHashMap<>();
+   private static final Map<AbstractScrollArea, ScrollState> SCROLL_STATES = new WeakHashMap<>();
 
    private static final class ScrollState {
       double target;
@@ -118,7 +118,7 @@ public class BetterMinecraft extends Module {
    }
 
    /** Called from the scroll-wheel hook: accumulates the scroll onto the animation target. */
-   public static void addScrollDelta(ScrollableWidget widget, double delta, double currentScroll, int maxScroll) {
+   public static void addScrollDelta(AbstractScrollArea widget, double delta, double currentScroll, int maxScroll) {
       ScrollState state = SCROLL_STATES.get(widget);
       double base = state != null ? state.target : currentScroll;
       double target = Math.max(0.0, Math.min(maxScroll, base + delta));
@@ -130,12 +130,12 @@ public class BetterMinecraft extends Module {
       state.lastTime = System.currentTimeMillis();
    }
 
-   public static void clearScroll(ScrollableWidget widget) {
+   public static void clearScroll(AbstractScrollArea widget) {
       SCROLL_STATES.remove(widget);
    }
 
    /** Called every frame from the widget render hook: eases the scroll position toward the target. */
-   public static void tickSmoothScroll(ScrollableWidget widget) {
+   public static void tickSmoothScroll(AbstractScrollArea widget) {
       if (!smoothScrollEnabled()) {
          SCROLL_STATES.remove(widget);
          return;
@@ -148,15 +148,15 @@ public class BetterMinecraft extends Module {
       double dt = Math.min(0.1, (now - state.lastTime) / 1000.0);
       state.lastTime = now;
 
-      double cur = widget.getScrollY();
-      double target = Math.max(0.0, Math.min(widget.getMaxScrollY(), state.target));
+      double cur = widget.scrollAmount();
+      double target = Math.max(0.0, Math.min(widget.maxScrollAmount(), state.target));
       double factor = 1.0 - Math.exp(-dt * 16.0);
       double next = cur + (target - cur) * factor;
       if (Math.abs(target - next) < 0.4) {
          next = target;
          SCROLL_STATES.remove(widget);
       }
-      widget.setScrollY(next);
+      widget.setScrollAmount(next);
    }
 
    private static float lerp(float a, float b, float t) {
@@ -168,13 +168,13 @@ public class BetterMinecraft extends Module {
    private static int sharedFbo;
 
    private static int beginMainFramebuffer(Minecraft client) {
-      RenderTarget mainFb = client.getMainRenderTarget();
-      if (mainFb != null && mainFb.getColorAttachment() instanceof GlTexture glColor) {
+      RenderTarget mainFb = client.gameRenderer.mainRenderTarget();
+      if (mainFb != null && mainFb.getColorTexture() instanceof GlTexture glColor) {
          if (sharedFbo == 0) {
             sharedFbo = GL30.glGenFramebuffers();
          }
          GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, sharedFbo);
-         GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.getGlId(), 0);
+         GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
          GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
          if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
             return 0;
@@ -209,7 +209,7 @@ public class BetterMinecraft extends Module {
       if (!customHotBarEnabled() || client == null || client.player == null || client.gameMode == null || client.getWindow() == null) {
          return false;
       }
-      if (client.gameMode.getCurrentGameMode() == GameMode.SPECTATOR) {
+      if (client.gameMode.getPlayerMode() == net.minecraft.world.level.GameType.SPECTATOR) {
          return false;
       }
       return client.player.getVehicle() == null;
@@ -227,7 +227,7 @@ public class BetterMinecraft extends Module {
       return canRenderHotBar(client);
    }
 
-   public static boolean renderButton(GuiGraphics context, AbstractWidget widget) {
+   public static boolean renderButton(GuiGraphicsExtractor context, AbstractWidget widget) {
       return tryReplaceButton(widget);
    }
 
@@ -264,7 +264,7 @@ public class BetterMinecraft extends Module {
    }
 
    private static boolean isIconOnly(AbstractWidget widget) {
-      if (widget instanceof LockButtonWidget) {
+      if (widget instanceof net.minecraft.client.gui.components.LockIconButton) {
          return true;
       }
       String text = widget.getMessage() != null ? widget.getMessage().getString() : "";
@@ -286,15 +286,15 @@ public class BetterMinecraft extends Module {
          return;
       }
 
-      int fbW = client.getWindow().getFramebufferWidth();
-      int fbH = client.getWindow().getFramebufferHeight();
+      int fbW = client.getWindow().getScreenWidth();
+      int fbH = client.getWindow().getScreenHeight();
       if (fbW <= 0 || fbH <= 0) {
          hotbarCountsPending = false;
          PENDING_BUTTONS.clear();
          return;
       }
 
-      GlState.Snapshot snapshot = GlState.pushPose();
+      GlState.Snapshot snapshot = GlState.push();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -325,7 +325,7 @@ public class BetterMinecraft extends Module {
    }
 
    private static void drawHotBarCounts(Renderer2D renderer, Player player) {
-      PlayerInventory inv = player.getInventory();
+      net.minecraft.world.entity.player.Inventory inv = player.getInventory();
       for (int i = 0; i < 9; i++) {
          drawStackCount(renderer, inv.getItem(i), countsSlotStartX + i * countsStep, countsSlotY, countsSlotSize, countsFontSize, countsTextColor);
       }
@@ -333,14 +333,14 @@ public class BetterMinecraft extends Module {
    }
 
    private static void drawPendingButtons(Renderer2D renderer, Minecraft client) {
-      double scale = client.getWindow().getScaleFactor();
+      double scale = client.getWindow().getGuiScale();
       for (AbstractWidget widget : PENDING_BUTTONS) {
          if (widget == null) {
             continue;
          }
          if (widget instanceof AbstractSliderButton) {
             drawCustomSlider(renderer, widget, scale);
-         } else if (widget instanceof TextWidget) {
+         } else if (widget instanceof net.minecraft.client.gui.components.StringWidget) {
             drawCustomHeader(renderer, widget, scale);
          } else {
             drawCustomButton(renderer, widget, scale);
@@ -502,23 +502,23 @@ public class BetterMinecraft extends Module {
       renderer.text(FontRegistry.MONTSERRAT, valueX, cy + slide * (1f - tf), fontSize, anim.currentText, ColorUtil.replAlpha(color, ca));
    }
 
-   public static void renderCustomHotBar(GuiGraphics ctx, DeltaTracker tickCounter) {
+   public static void renderCustomHotBar(GuiGraphicsExtractor ctx, DeltaTracker tickCounter) {
       renderCustomHotBar(ctx, tickCounter, true);
    }
 
-   public static void renderCustomHotBar(GuiGraphics ctx, DeltaTracker tickCounter, boolean renderValues) {
+   public static void renderCustomHotBar(GuiGraphicsExtractor ctx, DeltaTracker tickCounter, boolean renderValues) {
       Minecraft client = Minecraft.getInstance();
       if (client == null || client.player == null || client.getWindow() == null) {
          return;
       }
 
-      int fbW = client.getWindow().getFramebufferWidth();
-      int fbH = client.getWindow().getFramebufferHeight();
+      int fbW = client.getWindow().getScreenWidth();
+      int fbH = client.getWindow().getScreenHeight();
       if (fbW <= 0 || fbH <= 0) {
          return;
       }
 
-      float scale = (float) client.getWindow().getScaleFactor();
+      float scale = (float) client.getWindow().getGuiScale();
       float sw = fbW;
       float sh = fbH;
 
@@ -539,14 +539,14 @@ public class BetterMinecraft extends Module {
       float slotY = panelY + 2f * scale;
 
       float offPanelSize = hotbarH;
-      boolean offLeft = client.player.getMainArm() == Arm.RIGHT;
+      boolean offLeft = client.player.getMainArm() == HumanoidArm.RIGHT;
       float offPanelX = offLeft ? (panelX - 27f * scale) : (panelX + hotbarW + 5f * scale);
       float offPanelY = panelY;
       float offSlotX = offPanelX + 2f * scale;
       float offSlotY = offPanelY + 2f * scale;
 
       Player player = client.player;
-      PlayerInventory inv = player.getInventory();
+      net.minecraft.world.entity.player.Inventory inv = player.getInventory();
 
       int theme = Renderer2D.ColorUtil.getClientColor();
       int panelColor = ColorUtil.getColor(0, 0, 0, 110);
@@ -563,11 +563,11 @@ public class BetterMinecraft extends Module {
       float absorptionPct = Math.min(1f, absorption / maxHp);
       currentHpAbsorptionPct = absorptionPct;
       currentHpHasAbsorption = absorption > 0f;
-      float foodPct = Math.min(1f, player.getHungerManager().getFoodLevel() / 20f);
-      float armorPct = Math.min(1f, player.getArmor() / 20f);
+      float foodPct = Math.min(1f, player.getFoodData().getFoodLevel() / 20f);
+      float armorPct = Math.min(1f, player.getArmorValue() / 20f);
       float xpPct = Math.max(0f, Math.min(1f, player.experienceProgress));
 
-      GlState.Snapshot snapshot = GlState.pushPose();
+      GlState.Snapshot snapshot = GlState.push();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -621,9 +621,9 @@ public class BetterMinecraft extends Module {
             float xpBarW = 182f * scale;
 
             if (renderValues) {
-               drawProgressBar(renderer, armorBarAnim, armorBarX, armorBarY, armorBarW, armorBarH, armorPct, ColorUtil.getColor(125, 180, 255, 145), "Броня", String.valueOf(player.getArmor()), barFont, textColor);
+               drawProgressBar(renderer, armorBarAnim, armorBarX, armorBarY, armorBarW, armorBarH, armorPct, ColorUtil.getColor(125, 180, 255, 145), "Броня", String.valueOf(player.getArmorValue()), barFont, textColor);
                drawProgressBar(renderer, hpBarAnim, hpBarX, hpBarY, hpBarW, barH, hpPct, ColorUtil.getColor(255, 110, 125, 155), "Здоровье", Math.round(hp) + " из " + Math.round(maxHp), barFont, textColor);
-               drawProgressBar(renderer, foodBarAnim, foodBarX, foodBarY, foodBarW, barH, foodPct, ColorUtil.getColor(255, 195, 110, 155), "Сытость", String.valueOf(player.getHungerManager().getFoodLevel()), barFont, textColor);
+               drawProgressBar(renderer, foodBarAnim, foodBarX, foodBarY, foodBarW, barH, foodPct, ColorUtil.getColor(255, 195, 110, 155), "Сытость", String.valueOf(player.getFoodData().getFoodLevel()), barFont, textColor);
                drawProgressBar(renderer, xpBarAnim, xpBarX, xpBarY, xpBarW, barH, xpPct, ColorUtil.getColor(120, 255, 150, 155), "", "", barFont, textColor);
                if (player.experienceLevel > 0) {
                   renderer.textCenter(FontRegistry.MONTSERRAT, centerX, xpBarY - 5.5f * scale, 15 * scale,
@@ -661,23 +661,23 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   public static void renderHeldItemNameOverlay(GuiGraphics ctx) {
+   public static void renderHeldItemNameOverlay(GuiGraphicsExtractor ctx) {
       Minecraft client = Minecraft.getInstance();
       if (!shouldRenderCustomHeldItemName(client) || client.player == null || client.getWindow() == null) {
          return;
       }
 
-      int fbW = client.getWindow().getFramebufferWidth();
-      int fbH = client.getWindow().getFramebufferHeight();
+      int fbW = client.getWindow().getScreenWidth();
+      int fbH = client.getWindow().getScreenHeight();
       if (fbW <= 0 || fbH <= 0) {
          return;
       }
 
-      float scale = (float) client.getWindow().getScaleFactor();
+      float scale = (float) client.getWindow().getGuiScale();
       float centerX = fbW * 0.5f;
       float baselineY = fbH - 81f * scale;
 
-      GlState.Snapshot snapshot = GlState.pushPose();
+      GlState.Snapshot snapshot = GlState.push();
       int tempFbo = 0;
       try {
          tempFbo = beginMainFramebuffer(client);
@@ -736,22 +736,22 @@ public class BetterMinecraft extends Module {
       }
    }
 
-   private static void drawItemStack(GuiGraphics ctx, ItemStack stack, float x, float y, float drawSize) {
+   private static void drawItemStack(GuiGraphicsExtractor ctx, ItemStack stack, float x, float y, float drawSize) {
       if (stack == null || stack.isEmpty()) {
          return;
       }
       Minecraft client = Minecraft.getInstance();
-      float guiScale = (float) client.getWindow().getScaleFactor();
+      float guiScale = (float) client.getWindow().getGuiScale();
       float cx = (x + drawSize * 0.5f) / guiScale;
       float cy = (y + drawSize * 0.5f) / guiScale;
       float scale = (drawSize / guiScale) / 16f;
 
-      Matrix3x2fStack matrices = ctx.getMatrices();
+      Matrix3x2fStack matrices = ctx.pose();
       matrices.pushMatrix();
       matrices.translate(cx, cy);
       matrices.scale(scale, scale);
       matrices.translate(-8f, -8f);
-      ctx.drawItem(stack, 0, 0);
+      ctx.item(stack, 0, 0);
       matrices.popMatrix();
    }
 
@@ -772,7 +772,7 @@ public class BetterMinecraft extends Module {
       int currentSlot = player.getInventory().getSelectedSlot();
       long now = System.currentTimeMillis();
 
-      if (currentSlot != heldItemTooltipSlot || !ItemStack.areItemsAndComponentsEqual(current, heldItemTooltipStack)) {
+      if (currentSlot != heldItemTooltipSlot || !ItemStack.isSameItemSameComponents(current, heldItemTooltipStack)) {
          heldItemTooltipSlot = currentSlot;
          heldItemTooltipStack = current.copy();
          if (!current.isEmpty()) {

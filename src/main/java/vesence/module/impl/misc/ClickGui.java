@@ -2,7 +2,7 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
@@ -14,7 +14,7 @@ import vesence.module.api.setting.impl.TitleSetting;
 import vesence.utils.render.utils.ClientSound;
 import vesence.utils.render.utils.SoundUtil;
 
-@IModule(name = "ClickGui", description = "Открывает ClickGui", category = Category.MISC, bind = GLFW.GLFW_KEY_RIGHT_SHIFT)
+@IModule(name = "ClickGui", description = "Открывает ClickGui", category = Category.MISC, bind = InputConstants.KEY_RSHIFT)
 @Environment(EnvType.CLIENT)
 public class ClickGui extends Module {
 

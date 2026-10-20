@@ -2,13 +2,13 @@ package vesence.hmi.script_wrappers;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 public class JSItems {
     public Item get(String name) {
-        ResourceLocation id = ResourceLocation.of((String)name);
-        return (Item)BuiltInRegistries.ITEM.get(id);
+        Identifier id = Identifier.parse(name);
+        return BuiltInRegistries.ITEM.get(id).map(net.minecraft.core.Holder.Reference::value).orElse(null);
     }
 
     public String checkItemName(ItemStack item) {

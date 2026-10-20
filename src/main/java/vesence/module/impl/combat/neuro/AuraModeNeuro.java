@@ -357,7 +357,7 @@ public class AuraModeNeuro {
             
             if (nearest.size() < 24) {
                 nearest.offer(new double[]{weight, sample.yawGain, sample.pitchGain, sample.yawStepAbs, sample.pitchStepAbs});
-            } else if (weight > nearest.last()[0]) {
+            } else if (weight > nearest.peek()[0]) {
                 nearest.poll();
                 nearest.offer(new double[]{weight, sample.yawGain, sample.pitchGain, sample.yawStepAbs, sample.pitchStepAbs});
             }
@@ -427,14 +427,14 @@ public class AuraModeNeuro {
     }
 
     private NeuroPoint calculateHitPoint(LivingEntity target, float yaw, float pitch, double reach, double expand) {
-        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
-        Vec3 rotVec = mc.player.getRotationVector(pitch, yaw);
-        Vec3 rayEnd = eyePos.add(rotVec.multiply(reach));
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        Vec3 rotVec = net.minecraft.world.phys.Vec3.directionFromRotation(pitch, yaw);
+        Vec3 rayEnd = eyePos.add(rotVec.scale(reach));
         
         AABB box = target.getBoundingBox();
-        AABB expandedBox = box.expand(expand);
+        AABB expandedBox = box.inflate(expand);
         
-        Vec3 hit = expandedBox.raycast(eyePos, rayEnd).orElse(null);
+        Vec3 hit = expandedBox.clip(eyePos, rayEnd).orElse(null);
         if (hit == null) {
             return null;
         }
@@ -443,18 +443,18 @@ public class AuraModeNeuro {
         double clampedY = Mth.clamp(hit.y, box.minY, box.maxY);
         double clampedZ = Mth.clamp(hit.z, box.minZ, box.maxZ);
 
-        float normX = (float) ((clampedX - box.minX) / Math.max(box.getLengthX(), 1.0E-4));
-        float normY = (float) ((clampedY - box.minY) / Math.max(box.getLengthY(), 1.0E-4));
-        float normZ = (float) ((clampedZ - box.minZ) / Math.max(box.getLengthZ(), 1.0E-4));
+        float normX = (float) ((clampedX - box.minX) / Math.max(box.getXsize(), 1.0E-4));
+        float normY = (float) ((clampedY - box.minY) / Math.max(box.getYsize(), 1.0E-4));
+        float normZ = (float) ((clampedZ - box.minZ) / Math.max(box.getZsize(), 1.0E-4));
 
         return new NeuroPoint(normX, normY, normZ);
     }
 
     private boolean canHitTarget(float yaw, float pitch, double reach, Entity target) {
-        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
-        Vec3 rotVec = mc.player.getRotationVector(pitch, yaw);
-        Vec3 rayEnd = eyePos.add(rotVec.multiply(reach));
-        return target.getBoundingBox().raycast(eyePos, rayEnd).isPresent();
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
+        Vec3 rotVec = net.minecraft.world.phys.Vec3.directionFromRotation(pitch, yaw);
+        Vec3 rayEnd = eyePos.add(rotVec.scale(reach));
+        return target.getBoundingBox().clip(eyePos, rayEnd).isPresent();
     }
 
     private void autoSave(NeuroSampler profile) {

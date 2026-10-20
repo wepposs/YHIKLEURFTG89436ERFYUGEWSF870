@@ -5,8 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.utils.other.IMinecraft;
 
 @Environment(EnvType.CLIENT)
@@ -31,7 +31,7 @@ public class MovementManager implements IMinecraft {
    public void unlockMovement(String moduleName) {
       if (mc.player != null && mc.player.isAlive() && mc.level != null) {
          this.lockRequests.remove(moduleName);
-         if (this.lockRequests.isEmpty() && mc.screen == null) {
+         if (this.lockRequests.isEmpty() && mc.gui.screen() == null) {
             this.setMovementKeys(true);
          }
       }
@@ -42,18 +42,18 @@ public class MovementManager implements IMinecraft {
    }
 
    private void setMovementKeys(boolean state) {
-      KeyBinding[] movementKeys = new KeyBinding[]{
-         mc.options.forwardKey,
-         mc.options.backKey,
-         mc.options.leftKey,
-         mc.options.rightKey,
-         mc.options.jumpKey,
-         mc.options.sprintKey
+      KeyMapping[] movementKeys = new KeyMapping[]{
+         mc.options.keyUp,
+         mc.options.keyDown,
+         mc.options.keyLeft,
+         mc.options.keyRight,
+         mc.options.keyJump,
+         mc.options.keySprint
       };
 
-      for (KeyBinding keyBinding : movementKeys) {
-         boolean pressed = state && InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), keyBinding.getDefaultKey().getCode());
-         keyBinding.setPressed(pressed);
+      for (KeyMapping keyBinding : movementKeys) {
+         boolean pressed = state && InputConstants.isKeyDown(keyBinding.getDefaultKey().getValue());
+         keyBinding.setDown(pressed);
       }
    }
 }

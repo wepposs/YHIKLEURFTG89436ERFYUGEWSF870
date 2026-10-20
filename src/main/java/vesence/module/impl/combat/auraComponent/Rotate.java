@@ -28,7 +28,7 @@ public final class Rotate implements IMinecraft {
    }
 
    public static void onMatrixRotation(LivingEntity target, boolean attack) {
-      float addyVacY = target.getHeight() / 2.0F * (float)Math.cos(System.currentTimeMillis() / 2200.0);
+      float addyVacY = target.getBbHeight() / 2.0F * (float)Math.cos(System.currentTimeMillis() / 2200.0);
       float addyVacZ = 0.16F * (float)Math.cos(System.currentTimeMillis() / 1250.0);
       float addyVacX = 0.22F * (float)Math.sin(System.currentTimeMillis() / 1700.0);
       Vec3 vec = UBoxPoints.getBestVector3dOnEntityBox(target, false)

@@ -15,7 +15,9 @@ import vesence.module.impl.visuals.AspectRatio;
 @Mixin(GameRenderer.class)
 public class GameRendererAspectMixin {
 
-    @Inject(method = {"getBasicProjectionMatrix"}, at = {@At("RETURN")}, cancellable = true)
+    // TODO(port26): в 26.3 проекция — класс net.minecraft.client.renderer.Projection
+    // (setupPerspective), метода getBasicProjectionMatrix больше нет. Хук отключён.
+    // @Inject(method = {"getBasicProjectionMatrix"}, at = {@At("RETURN")}, cancellable = true)
     private void onGetBasicProjectionMatrix(CallbackInfoReturnable<Matrix4f> cir) {
         if (!AspectRatio.isEnabled()) {
             return;
@@ -26,8 +28,8 @@ public class GameRendererAspectMixin {
             return;
         }
 
-        int fbWidth = mc.getWindow().getFramebufferWidth();
-        int fbHeight = mc.getWindow().getFramebufferHeight();
+        int fbWidth = mc.getWindow().getScreenWidth();
+        int fbHeight = mc.getWindow().getScreenHeight();
 
         float stretch = AspectRatio.getInstance().computeAnimatedScale(fbWidth, fbHeight);
         if (stretch > 0.0f && Math.abs(stretch - 1.0f) > 1.0E-4f) {

@@ -1,15 +1,15 @@
 package vesence.ui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.AddressMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 import vesence.mixin.AbstractTextureAccessor;
 
 import javax.imageio.ImageIO;
@@ -48,7 +48,7 @@ public final class VideoBackground {
 
     private final String dir;
     private final String key;
-    private final ResourceLocation texId;
+    private final Identifier texId;
 
     private volatile boolean started = false;
     private volatile boolean ready = false;
@@ -76,7 +76,7 @@ public final class VideoBackground {
     private VideoBackground(String dir) {
         this.dir = dir.endsWith("/") ? dir.substring(0, dir.length() - 1) : dir;
         this.key = this.dir.replaceAll("[^a-zA-Z0-9_]", "_").toLowerCase(Locale.ROOT);
-        this.texId = ResourceLocation.of("vesence", "menu_video/" + key + ".png");
+        this.texId = Identifier.fromNamespaceAndPath("vesence", "menu_video/" + key + ".png");
     }
 
     public static VideoBackground of(String framesDir) {
@@ -93,7 +93,7 @@ public final class VideoBackground {
     public int getHeight() { return h; }
 
     /** render-поток: id текущего кадра по системным часам или null (пока не готово). */
-    public ResourceLocation currentFrameId() {
+    public Identifier currentFrameId() {
         if (failed) return null;
         if (!started) start();
         if (!ready) return null;
@@ -127,19 +127,19 @@ public final class VideoBackground {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.getTextureManager() == null) { img.close(); return; }
             if (linearSampler == null) {
-                linearSampler = RenderSystem.getSamplerCache().get(
+                linearSampler = RenderSystem.getSamplerCache().getSampler(
                         AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
                         FilterMode.LINEAR, FilterMode.LINEAR, false);
             }
             final int fi = absIdx;
-            NativeImageBackedTexture tex =
-                    new NativeImageBackedTexture(() -> "vesence_menu_video_" + key + "_" + fi, img);
+            DynamicTexture tex =
+                    new DynamicTexture(() -> "vesence_menu_video_" + key + "_" + fi, img);
             try {
                 ((AbstractTextureAccessor) (Object) tex).vesence$setSampler(linearSampler);
             } catch (Throwable ignored) {}
             // Перерегистрация того же id закрывает предыдущую текстуру (и её NativeImage).
-            mc.getTextureManager().registerTexture(texId, tex);
-            try { tex.getGlTextureView(); } catch (Throwable ignored) {}
+            mc.getTextureManager().register(texId, tex);
+            try { tex.getTextureView(); } catch (Throwable ignored) {}
             shownAny = true;
         } catch (Throwable t) {
             try { img.close(); } catch (Throwable ignored) {}
@@ -220,7 +220,7 @@ public final class VideoBackground {
             for (int y = 0; y < ih; y++) {
                 int rowo = y * iw;
                 for (int x = 0; x < iw; x++) {
-                    img.setColorArgb(x, y, 0xFF000000 | (argb[rowo + x] & 0x00FFFFFF));
+                    img.setPixel(x, y, 0xFF000000 | (argb[rowo + x] & 0x00FFFFFF));
                 }
             }
             return img;

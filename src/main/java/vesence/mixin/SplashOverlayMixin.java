@@ -3,12 +3,12 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screen.SplashOverlay;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.gui.screens.Screen;
 import com.mojang.blaze3d.platform.Window;
-import net.minecraft.resource.ResourceReload;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.server.packs.resources.ReloadInstance;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
@@ -24,58 +24,60 @@ import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontRegistry;
 
 @Environment(EnvType.CLIENT)
-@Mixin(SplashOverlay.class)
+@Mixin(LoadingOverlay.class)
 public abstract class SplashOverlayMixin {
 
-    @Shadow private Minecraft client;
-    @Shadow private ResourceReload reload;
-    @Shadow private boolean reloading;
-    @Shadow private float progress;
-    @Shadow private long reloadCompleteTime;
-    @Shadow private long reloadStartTime;
+    @Shadow private Minecraft minecraft;
+    @Shadow private ReloadInstance reload;
+    
+    @Shadow private float currentProgress;
+    @Shadow private long fadeOutStart;
+    @Shadow private long fadeInStart;
 
     private float vesence$spin = 0f;
     private long vesence$lastNanos = 0L;
 
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-    private void vesence$customSplash(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+    private void vesence$customSplash(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
         if (!Vesence.isModInitialized()) return;
-        Minecraft mc = this.client;
+        Minecraft mc = this.minecraft;
         if (mc == null || mc.getWindow() == null) return;
 
-        long now = net.minecraft.util.Util.getMeasuringTimeMs();
-        if (this.reloading && this.reloadStartTime == -1L) this.reloadStartTime = now;
+        long now = net.minecraft.util.Util.getMillis();
+        // TODO(port26): LoadingOverlay#reloading removed in 26.3; "reload in progress" ≈ fade-out not started
+        boolean vesence$reloading = this.fadeOutStart == -1L;
+        if (vesence$reloading && this.fadeInStart == -1L) this.fadeInStart = now;
 
-        float fadeOut = this.reloadCompleteTime > -1L ? (now - this.reloadCompleteTime) / 1000f : -1f;
+        float fadeOut = this.fadeOutStart > -1L ? (now - this.fadeOutStart) / 1000f : -1f;
 
-        float fadeIn = this.reloadStartTime > -1L ? (now - this.reloadStartTime) / 500f : -1f;
+        float fadeIn = this.fadeInStart > -1L ? (now - this.fadeInStart) / 500f : -1f;
 
         float alpha;
         if (fadeOut >= 1f) {
             alpha = 1f - Mth.clamp(fadeOut - 1f, 0f, 1f);
-        } else if (this.reloading) {
+        } else if (vesence$reloading) {
             alpha = Mth.clamp(fadeIn, 0f, 1f);
         } else {
             alpha = 1f;
         }
 
-        float target = this.reload.getProgress();
-        this.progress = Mth.clamp(this.progress * 0.95f + target * 0.05000001f, 0f, 1f);
+        float target = this.reload.getActualProgress();
+        this.currentProgress = Mth.clamp(this.currentProgress * 0.95f + target * 0.05000001f, 0f, 1f);
 
         ci.cancel();
 
-        int width = mc.getWindow().getFramebufferWidth();
-        int height = mc.getWindow().getFramebufferHeight();
+        int width = mc.getWindow().getScreenWidth();
+        int height = mc.getWindow().getScreenHeight();
         if (width <= 0 || height <= 0) return;
 
-        if (fadeOut >= 1f && mc.screen != null) {
-            try { mc.screen.render(context, 0, 0, deltaTicks); } catch (Exception ignored) {}
+        if (fadeOut >= 1f && mc.gui.screen() != null) {
+            try { mc.gui.screen().extractRenderState(context, 0, 0, deltaTicks); } catch (Exception ignored) {}
         }
 
         vesence$draw(mc, width, height, alpha);
 
         if (fadeOut >= 2f) {
-            mc.setOverlay(null);
+            mc.gui.setOverlay(null);
         }
     }
 
@@ -89,14 +91,14 @@ public abstract class SplashOverlayMixin {
         }
         vesence$lastNanos = nowNanos;
 
-        GlState.Snapshot snapshot = GlState.pushPose();
-        net.minecraft.client.gl.RenderTarget mainFb = mc.getMainRenderTarget();
+        GlState.Snapshot snapshot = GlState.push();
+        com.mojang.blaze3d.pipeline.RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
         int tempFbo = 0;
         try {
-            if (mainFb != null && mainFb.getColorAttachment() instanceof net.minecraft.client.texture.GlTexture glColor) {
+            if (mainFb != null && mainFb.getColorTexture() instanceof com.mojang.renderpearl.backend.opengl.GlTexture glColor) {
                 tempFbo = GL30.glGenFramebuffers();
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.getGlId(), 0);
+                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
                 GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
                 if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
                     GL30.glDeleteFramebuffers(tempFbo);
@@ -134,7 +136,7 @@ public abstract class SplashOverlayMixin {
 
         r.pushAlpha(a);
 
-        ResourceLocation bg = ResourceLocation.of("vesence", "images/main_menu/background.png");
+        Identifier bg = Identifier.fromNamespaceAndPath("vesence", "images/main_menu/background.png");
         r.drawImage(bg, 0, 0, sw, sh);
         r.rect(0, 0, sw, sh, 0, ColorUtil.getColor(0, 150));
         r.gradient(0, 0, sw, sh, 0,
@@ -158,14 +160,14 @@ public abstract class SplashOverlayMixin {
             r.drawCircle(dx, dy, dotR, ColorUtil.getColor(255, 174, 247, dotA));
         }
 
-        int pct = Math.round(Mth.clamp(this.progress, 0f, 1f) * 100f);
+        int pct = Math.round(Mth.clamp(this.currentProgress, 0f, 1f) * 100f);
         r.textCenter(FontRegistry.SF_SEMI, cx, cy + ringR + 40f * scale, 40f * scale,
                 pct + "%", new int[]{ColorUtil.getColor(255, 255), ColorUtil.getColor(255, 211, 251, 255)});
 
         float barH = 5f * scale;
         float barY = sh - barH;
         r.rect(0, barY, sw, barH, ColorUtil.getColor(255, 174, 247, 40));
-        float fillW = sw * Mth.clamp(this.progress, 0f, 1f);
+        float fillW = sw * Mth.clamp(this.currentProgress, 0f, 1f);
         r.rect(0, barY, fillW, barH, ColorUtil.getColor(255, 174, 247, 255));
 
         r.popAlpha();

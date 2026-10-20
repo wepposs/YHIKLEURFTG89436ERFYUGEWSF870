@@ -1,15 +1,18 @@
 package vesence.module.impl.visuals.pet;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * Пайплайны/слои рендера питомцев под 1.21.11.
@@ -27,32 +30,36 @@ public final class PetRender {
    }
 
    private static final RenderPipeline MESH_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "pipeline/world/pet_mesh"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.TRIANGLES)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/pet_mesh"))
+         .withVertexShader("core/position_tex_color")
+         .withFragmentShader("core/position_tex_color")
+         .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)         .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(true)
-         .withBlend(BlendFunction.TRANSLUCENT)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+         .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
          .build());
 
    private static final RenderPipeline BOX_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "pipeline/world/pet_box"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/pet_box"))
+         .withVertexShader("core/position_tex_color")
+         .withFragmentShader("core/position_tex_color")
+         .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)         .withPrimitiveTopology(PrimitiveTopology.QUADS)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(true)
-         .withBlend(BlendFunction.TRANSLUCENT)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+         .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
          .build());
 
-   public static RenderType meshLayer(String name, ResourceLocation texture) {
-      return RenderType.of(name, RenderSetup.builder(MESH_PIPELINE)
-         .expectedBufferSize(262144).texture("Sampler0", texture).build());
+   public static RenderType meshLayer(String name, Identifier texture) {
+      return RenderType.create(name, RenderSetup.builder(MESH_PIPELINE)
+         .withTexture("Sampler0", texture).createRenderSetup());
    }
 
-   public static RenderType boxLayer(String name, ResourceLocation texture) {
-      return RenderType.of(name, RenderSetup.builder(BOX_PIPELINE)
-         .expectedBufferSize(65536).texture("Sampler0", texture).build());
+   public static RenderType boxLayer(String name, Identifier texture) {
+      return RenderType.create(name, RenderSetup.builder(BOX_PIPELINE)
+         .withTexture("Sampler0", texture).createRenderSetup());
    }
 }

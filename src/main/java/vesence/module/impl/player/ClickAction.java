@@ -8,7 +8,7 @@ import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.AABB;
@@ -95,16 +95,16 @@ public class ClickAction extends Module {
    }
 
    private void handleFriend() {
-      float tickDelta = mc.getRenderTickCounter().getTickProgress(true);
-      Vec3 eyePos = mc.player.getCameraPosVec(tickDelta);
-      Vec3 lookVec = mc.player.getRotationVec(tickDelta);
+      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+      Vec3 eyePos = mc.player.getEyePosition(tickDelta);
+      Vec3 lookVec = mc.player.getViewVector(tickDelta);
       double maxDist = this.friendDistance.get();
-      Vec3 endVec = eyePos.add(lookVec.multiply(maxDist));
-      AABB searchBox = mc.player.getBoundingBox().stretch(lookVec.multiply(maxDist)).expand(1.0);
+      Vec3 endVec = eyePos.add(lookVec.scale(maxDist));
+      AABB searchBox = mc.player.getBoundingBox().expandTowards(lookVec.scale(maxDist)).inflate(1.0);
 
-      EntityHitResult hitResult = ProjectileUtil.raycast(
+      EntityHitResult hitResult = ProjectileUtil.getEntityHitResult(
          mc.player, eyePos, endVec, searchBox,
-         entity -> entity instanceof Player && !entity.isSpectator() && entity.isAlive() && entity.canHit(),
+         entity -> entity instanceof Player && !entity.isSpectator() && entity.isAlive() && entity.isPickable(),
          maxDist * maxDist
       );
 
@@ -130,12 +130,12 @@ public class ClickAction extends Module {
    }
 
    private void handleCrossbow() {
-      boolean pressed = this.crossbowBind.key != -1 && this.crossbowBind.isPressed();
+      boolean pressed = this.crossbowBind.key != -1 && this.crossbowBind.isDown();
 
       if (!pressed) {
 
          if (this.crossbowCharging) {
-            mc.options.useKey.setPressed(false);
+            mc.options.keyUse.setDown(false);
             this.crossbowCharging = false;
          }
          this.crossbowBindWasPressed = false;
@@ -152,7 +152,7 @@ public class ClickAction extends Module {
       if (mainCharged || offCharged || this.findChargedCrossbowSlot() != -1) {
 
          if (this.crossbowCharging) {
-            mc.options.useKey.setPressed(false);
+            mc.options.keyUse.setDown(false);
             this.crossbowCharging = false;
          }
          if (!this.crossbowBindWasPressed) {
@@ -163,10 +163,10 @@ public class ClickAction extends Module {
       }
 
       if (mainCrossbow) {
-         mc.options.useKey.setPressed(true);
+         mc.options.keyUse.setDown(true);
          this.crossbowCharging = true;
       } else if (this.crossbowCharging) {
-         mc.options.useKey.setPressed(false);
+         mc.options.keyUse.setDown(false);
          this.crossbowCharging = false;
       }
       this.crossbowBindWasPressed = true;
@@ -210,7 +210,7 @@ public class ClickAction extends Module {
       if (mc.gameMode == null || mc.getConnection() == null) {
          return;
       }
-      if (mc.screen != null) {
+      if (mc.gui.screen() != null) {
          return;
       }
 
@@ -229,7 +229,7 @@ public class ClickAction extends Module {
 
                if (this.state == 0) {
                   mc.player.getInventory().setSelectedSlot(this.legitOldSlot);
-                  mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
+                  mc.getConnection().send(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
                   this.resetState();
                }
             }
@@ -238,9 +238,9 @@ public class ClickAction extends Module {
 
       switch (this.state) {
          case 1: {
-            mc.gameMode.clickSlot(
-               mc.player.containerMenu.syncId,
-               this.savedInvSlot, this.swapSlot, ClickType.SWAP, mc.player
+            mc.gameMode.handleContainerInput(
+               mc.player.containerMenu.containerId,
+               this.savedInvSlot, this.swapSlot, ContainerInput.SWAP, mc.player
             );
             InventoryActionUtil.closeHandledScreenIfNeeded();
             this.wasFull = true;
@@ -261,7 +261,7 @@ public class ClickAction extends Module {
             if (this.pearlMode.is("Легитный")) {
                if (this.legitState == LegitState.RETURNING && System.currentTimeMillis() - this.legitStateTime >= 400) {
                   mc.player.getInventory().setSelectedSlot(this.legitOldSlot);
-                  mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
+                  mc.getConnection().send(new ServerboundSetCarriedItemPacket(this.legitOldSlot));
                   this.restoreInventorySlot();
                   this.resetState();
                }
@@ -283,10 +283,10 @@ public class ClickAction extends Module {
          }
       }
 
-      if (this.pearlBind.key != -1 && this.pearlBind.isPressed()) {
+      if (this.pearlBind.key != -1 && this.pearlBind.isDown()) {
          if (!this.pearlBindWasPressed) {
             this.pearlBindWasPressed = true;
-            if (!mc.player.getItemCooldownManager().isCoolingDown(new ItemStack(Items.ENDER_PEARL))) {
+            if (!mc.player.getCooldowns().isOnCooldown(new ItemStack(Items.ENDER_PEARL))) {
                this.throwPearl();
             }
          }
@@ -296,7 +296,7 @@ public class ClickAction extends Module {
    }
 
    private void throwPearl() {
-      if (mc.player.getOffhandItem().isOf(Items.ENDER_PEARL)) {
+      if (mc.player.getOffhandItem().is(Items.ENDER_PEARL)) {
          InventoryActionUtil.useHand(InteractionHand.OFF_HAND);
          return;
       }
@@ -353,17 +353,17 @@ public class ClickAction extends Module {
    private void restoreInventorySlot() {
       if (this.wasFull) {
          if (this.savedInvSlot != -1) {
-            mc.gameMode.clickSlot(
-               mc.player.containerMenu.syncId,
-               this.savedInvSlot, this.swapSlot, ClickType.SWAP, mc.player
+            mc.gameMode.handleContainerInput(
+               mc.player.containerMenu.containerId,
+               this.savedInvSlot, this.swapSlot, ContainerInput.SWAP, mc.player
             );
             InventoryActionUtil.closeHandledScreenIfNeeded();
          }
          this.wasFull = false;
       } else {
-         mc.gameMode.clickSlot(
-            mc.player.containerMenu.syncId,
-            this.swapSlot + 36, 0, ClickType.QUICK_MOVE, mc.player
+         mc.gameMode.handleContainerInput(
+            mc.player.containerMenu.containerId,
+            this.swapSlot + 36, 0, ContainerInput.QUICK_MOVE, mc.player
          );
          InventoryActionUtil.closeHandledScreenIfNeeded();
       }
@@ -386,7 +386,7 @@ public class ClickAction extends Module {
       this.friendBindWasPressed = false;
       this.crossbowBindWasPressed = false;
       if (this.crossbowCharging) {
-         mc.options.useKey.setPressed(false);
+         mc.options.keyUse.setDown(false);
          this.crossbowCharging = false;
       }
       MoveComponent.stop = false;

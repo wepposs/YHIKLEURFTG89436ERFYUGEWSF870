@@ -1,9 +1,8 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -12,16 +11,15 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.render.entity.PlayerEntityRenderer;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -33,6 +31,9 @@ import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 /**
  * SkeletonESP — скелет игрока, отрисованный только линиями (полосами) сквозь стены (X-Ray).
@@ -49,18 +50,19 @@ public class SkeletonESP extends Module {
 
     // ─── Линии (кости), всегда сквозь стены (X-Ray) ──────────────────────────
     private static final RenderPipeline SKELETON_LINES_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/skeleton_lines"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/skeleton_lines"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
 
-    private static final RenderType SKELETON_LAYER = RenderType.of(
+    private static final RenderType SKELETON_LAYER = RenderType.create(
             "vesence_skeleton",
-            RenderSetup.builder(SKELETON_LINES_PIPELINE).expectedBufferSize(4096).translucent().build());
+            RenderSetup.builder(SKELETON_LINES_PIPELINE).createRenderSetup());
 
     public SkeletonESP() {
     }
@@ -76,12 +78,12 @@ public class SkeletonESP extends Module {
         if (mc.player == null || mc.level == null) return;
 
         float tickDelta = event.getTickDelta();
-        Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
 
         if (skeletonLineAlloc == null) { skeletonLineAlloc = new ByteBufferBuilder(16384); }
-        MultiBufferSource.Immediate lineImm = MultiBufferSource.immediate(skeletonLineAlloc);
+        Immediate lineImm = new Immediate();
         VertexConsumer lineBuffer = lineImm.getBuffer(SKELETON_LAYER);
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (player == mc.player) continue;
             if (player.isInvisible()) continue;
             this.renderPlayerPass(event.getMatrixStack(), cameraPos, player, tickDelta, lineBuffer);
@@ -94,12 +96,12 @@ public class SkeletonESP extends Module {
         if (!(player instanceof AbstractClientPlayer clientPlayer)) return;
 
         EntityRenderer<?, ?> rawRenderer = mc.getEntityRenderDispatcher().getRenderer(player);
-        if (!(rawRenderer instanceof PlayerEntityRenderer renderer)) return;
+        if (!(rawRenderer instanceof AvatarRenderer renderer)) return;
 
-        PlayerEntityRenderState state = renderer.createRenderState();
-        renderer.updateRenderState(clientPlayer, state, tickDelta);
-        PlayerEntityModel model = (PlayerEntityModel) renderer.getModel();
-        model.setAngles(state);
+        AvatarRenderState state = renderer.createRenderState();
+        renderer.extractRenderState(clientPlayer, state, tickDelta);
+        PlayerModel model = (PlayerModel) renderer.getModel();
+        model.setupAnim(state);
 
         matrices.pushPose();
         this.setupModelMatrix(matrices, state, renderer, cameraPos, player, tickDelta);
@@ -111,29 +113,29 @@ public class SkeletonESP extends Module {
         matrices.popPose();
     }
 
-    private void setupModelMatrix(PoseStack matrices, PlayerEntityRenderState state,
-                                  PlayerEntityRenderer renderer, Vec3 cameraPos,
+    private void setupModelMatrix(PoseStack matrices, AvatarRenderState state,
+                                  AvatarRenderer renderer, Vec3 cameraPos,
                                   Player player, float tickDelta) {
-        Vec3 pos = player.getLerpedPos(tickDelta);
+        Vec3 pos = player.getPosition(tickDelta);
         matrices.translate(pos.x - cameraPos.x, pos.y - cameraPos.y, pos.z - cameraPos.z);
-        if (state.sleepingDirection != null) {
-            float eyeOffset = state.standingEyeHeight - 0.1F;
+        if (state.bedOrientation != null) {
+            float eyeOffset = player.getEyeHeight() - 0.1F;
             matrices.translate(
-                    -state.sleepingDirection.getOffsetX() * eyeOffset, 0.0F,
-                    -state.sleepingDirection.getOffsetZ() * eyeOffset);
+                    -state.bedOrientation.getStepX() * eyeOffset, 0.0F,
+                    -state.bedOrientation.getStepZ() * eyeOffset);
         }
-        float baseScale = state.baseScale;
+        float baseScale = state.scale;
         matrices.scale(baseScale, baseScale, baseScale);
         ILivingEntityRendererAccess accessor = (ILivingEntityRendererAccess) renderer;
-        accessor.vesence$invokeSetupTransforms(state, matrices, state.bodyYaw, baseScale);
+        accessor.vesence$invokeSetupTransforms(state, matrices, state.bodyRot, baseScale);
         matrices.scale(-1.0F, -1.0F, 1.0F);
         accessor.vesence$invokeScale(state, matrices);
         matrices.translate(0.0F, -1.501F, 0.0F);
     }
 
-    private void drawSkeleton(PoseStack matrices, PlayerEntityModel model,
+    private void drawSkeleton(PoseStack matrices, PlayerModel model,
                               VertexConsumer lineBuffer, int color) {
-        ModelPart root = model.getRootPart();
+        ModelPart root = model.root();
 
         Vec3 headTop = transformPt(matrices, root, model.head, 0, -8, 0);
         Vec3 headBase = transformPt(matrices, root, model.head, 0, 0, 0);
@@ -166,8 +168,8 @@ public class SkeletonESP extends Module {
         };
 
         for (Vec3[] bone : bones) {
-            lineBuffer.vertex(IDENTITY_MATRIX, (float) bone[0].x, (float) bone[0].y, (float) bone[0].z).color(color);
-            lineBuffer.vertex(IDENTITY_MATRIX, (float) bone[1].x, (float) bone[1].y, (float) bone[1].z).color(color);
+            lineBuffer.addVertex(IDENTITY_MATRIX, (float) bone[0].x, (float) bone[0].y, (float) bone[0].z).setColor(color);
+            lineBuffer.addVertex(IDENTITY_MATRIX, (float) bone[1].x, (float) bone[1].y, (float) bone[1].z).setColor(color);
         }
     }
 
@@ -175,16 +177,16 @@ public class SkeletonESP extends Module {
         baseStack.pushPose();
         applyPartTransform(baseStack, root);
         applyPartTransform(baseStack, part);
-        Vector3f pos = baseStack.last().getPositionMatrix()
+        Vector3f pos = baseStack.last().pose()
                 .transformPosition(x * MODEL_SCALE, y * MODEL_SCALE, z * MODEL_SCALE, new Vector3f());
         baseStack.popPose();
         return new Vec3(pos.x, pos.y, pos.z);
     }
 
     private void applyPartTransform(PoseStack matrices, ModelPart part) {
-        matrices.translate(part.originX * MODEL_SCALE, part.originY * MODEL_SCALE, part.originZ * MODEL_SCALE);
-        if (part.roll != 0.0F || part.yaw != 0.0F || part.pitch != 0.0F) {
-            matrices.multiply(new Quaternionf().rotateZYX(part.roll, part.yaw, part.pitch));
+        matrices.translate(part.x * MODEL_SCALE, part.y * MODEL_SCALE, part.z * MODEL_SCALE);
+        if (part.zRot != 0.0F || part.yRot != 0.0F || part.xRot != 0.0F) {
+            matrices.rotate(new Quaternionf().rotateZYX(part.zRot, part.yRot, part.xRot));
         }
         if (part.xScale != 1.0F || part.yScale != 1.0F || part.zScale != 1.0F) {
             matrices.scale(part.xScale, part.yScale, part.zScale);

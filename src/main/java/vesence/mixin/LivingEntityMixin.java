@@ -3,7 +3,6 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.effect.MobEffect;
-import net.minecraft.entity.effect.StatusEffectUtil;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,13 +37,13 @@ public abstract class LivingEntityMixin {
    private static int jumpTicks = 0;
 
    @Shadow
-   public abstract boolean hasStatusEffect(Holder<MobEffect> var1);
+   public abstract boolean hasEffect(Holder<MobEffect> var1);
 
    @Shadow
    @Nullable
-   public abstract MobEffectInstance getStatusEffect(Holder<MobEffect> var1);
+   public abstract MobEffectInstance getEffect(Holder<MobEffect> var1);
 
-   @Inject(method = { "jump" }, at = { @At("HEAD") })
+   @Inject(method = { "jumpFromGround" }, at = { @At("HEAD") })
    public void jumpYo(CallbackInfo ci) {
       LivingEntity self = (LivingEntity) (Object) this;
       if (self instanceof LocalPlayer) {
@@ -52,8 +51,8 @@ public abstract class LivingEntityMixin {
       }
    }
 
-    @Inject(method = { "getHandSwingDuration" }, at = { @At("HEAD") }, cancellable = true)
-    private void swingProgressHook(CallbackInfoReturnable<Integer> cir) {
+    @Inject(method = { "getModifiedSwingDuration" }, at = { @At("HEAD") }, cancellable = true)
+    private void swingProgressHook(net.minecraft.world.item.component.SwingAnimation animation, CallbackInfoReturnable<Integer> cir) {
         if (!Vesence.isModInitialized()) return;
 
         Minecraft localClient = Minecraft.getInstance();
@@ -71,12 +70,12 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    @ModifyConstant(method = { "tickMovement" }, constant = { @Constant(intValue = 10) })
+    // TODO(port26): в 26.3 нет LivingEntity#tickMovement; обработчик был no-op (return original).
     private int modifyJumpTicks(int original) {
         return original;
     }
 
-    @Inject(method = { "pushAwayFrom" }, at = { @At("HEAD") }, cancellable = true)
+    @Inject(method = { "push" }, at = { @At("HEAD") }, cancellable = true)
     private void onPushAwayFrom(Entity entity, CallbackInfo ci) {
         if (!Vesence.isModInitialized()) return;
 
@@ -91,7 +90,7 @@ public abstract class LivingEntityMixin {
             return;
         }
 
-        if (entity instanceof net.minecraft.entity.projectile.FishingBobberEntity && noPush.shouldIgnoreFishing()) {
+        if (entity instanceof net.minecraft.world.entity.projectile.FishingHook && noPush.shouldIgnoreFishing()) {
             ci.cancel();
         }
     }
@@ -101,8 +100,9 @@ public abstract class LivingEntityMixin {
         return oldVelocity;
     }
 
-    @Inject(method = "calcGlidingVelocity", at = @At("RETURN"), cancellable = true)
-    private void onCalcGlidingVelocity(Vec3 oldVelocity, CallbackInfoReturnable<Vec3> cir) {
+   // TODO(port26): в 26.3 нет LivingEntity#calcGlidingVelocity — скорость полёта
+   // считается внутри travelInAir. Нужен новый хук на travelInAir/travelFlying.
+   private void onCalcGlidingVelocity(Vec3 oldVelocity, CallbackInfoReturnable<Vec3> cir) {
         if (!Vesence.isModInitialized()) return;
 
         Vec3 result = cir.getReturnValue();
@@ -116,7 +116,7 @@ public abstract class LivingEntityMixin {
     @Inject(method = "travel", at = @At("TAIL"))
     private void onTravelTail(Vec3 movementInput, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.isGliding() && self instanceof LocalPlayer) {
+        if (self.isFallFlying() && self instanceof LocalPlayer) {
             Vec3 v = self.getDeltaMovement();
             v = calcGlidingVelocity(v);
             self.setDeltaMovement(v);

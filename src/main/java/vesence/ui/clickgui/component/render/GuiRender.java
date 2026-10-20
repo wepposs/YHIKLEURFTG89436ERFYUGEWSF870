@@ -3,7 +3,7 @@ package vesence.ui.clickgui.component.render;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import vesence.Vesence;
 import vesence.module.api.Category;
 import vesence.module.api.Module;
@@ -18,7 +18,7 @@ public class GuiRender extends GuiScreen {
 
    public static void render(
            Renderer2D renderer2D,
-           GuiGraphics context,
+           GuiGraphicsExtractor context,
            int mouseXRaw,
            int mouseYRaw,
            float tickDelta
@@ -29,8 +29,8 @@ public class GuiRender extends GuiScreen {
          return;
       }
 
-      int viewportWidth = client.getWindow().getFramebufferWidth();
-      int viewportHeight = client.getWindow().getFramebufferHeight();
+      int viewportWidth = client.getWindow().getScreenWidth();
+      int viewportHeight = client.getWindow().getScreenHeight();
 
       if (viewportWidth <= 0 || viewportHeight <= 0) {
          return;
@@ -115,8 +115,8 @@ public class GuiRender extends GuiScreen {
        */
 
       float scale =
-              (float) client.getWindow().getFramebufferWidth()
-                      / client.getWindow().getScaledWidth();
+              (float) client.getWindow().getScreenWidth()
+                      / client.getWindow().getGuiScaledWidth();
 
       renderer2D.pushScale(scale);
 

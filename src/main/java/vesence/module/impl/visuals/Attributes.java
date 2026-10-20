@@ -123,23 +123,23 @@ public class Attributes extends Module {
      * ╨┤╨░╨╗╤М╤И╨╡ тАФ ╤В╨╛╨╗╤М╨║╨╛ ╨╡╤Б╨╗╨╕ ╨┐╨╛╨┐╨░╨┤╨░╨╡╤В ╨▓ ╨┐╨╡╤А╨╡╨┤╨╜╨╕╨╣ ╨║╨╛╨╜╤Г╤Б ╨║╨░╨╝╨╡╤А╤Л, ╨╕ ╨╜╨╡ ╨┤╨░╨╗╤М╤И╨╡ {@link #MAX_RENDER_DISTANCE}.
      */
     public boolean shouldRenderFor(Player player, Vec3 cameraPos) {
-        Vec3 anchor = new Vec3(player.getX(), player.getY() + player.getHeight() + 0.3, player.getZ());
-        double distSq = cameraPos.squaredDistanceTo(anchor);
+        Vec3 anchor = new Vec3(player.getX(), player.getY() + player.getBbHeight() + 0.3, player.getZ());
+        double distSq = cameraPos.distanceToSqr(anchor);
         if (distSq > MAX_RENDER_DISTANCE_SQ) {
             return false;
         }
         if (distSq < NEAR_ALWAYS_SQ) {
             return true;
         }
-        Camera cam = mc.gameRenderer.getCamera();
-        double ry = Math.toRadians(cam.getYRot());
-        double rp = Math.toRadians(cam.getXRot());
+        Camera cam = mc.gameRenderer.mainCamera();
+        double ry = Math.toRadians(cam.yRot());
+        double rp = Math.toRadians(cam.xRot());
         Vec3 forward = new Vec3(
                 -Math.sin(ry) * Math.cos(rp),
                 -Math.sin(rp),
                 Math.cos(ry) * Math.cos(rp));
         Vec3 dir = anchor.subtract(cameraPos).normalize();
-        return forward.dotProduct(dir) > 0.15;
+        return forward.dot(dir) > 0.15;
     }
 
     /** ╨Р╨║╤В╨╕╨▓╨╡╨╜ ╨╗╨╕ ┬л╨Э╨░╤А╤Г╤В╨╛ ╨▒╨╡╨│┬╗ тАФ ╨┤╨╗╤П PlayerEntityModelMixin. */
@@ -152,10 +152,10 @@ public class Attributes extends Module {
      */
     /** Proxy for the LivingEntityRendererMixin: draws the hat in model space (third person). */
     public void renderChinaHatOnHead(Player player,
-                                      net.minecraft.client.util.math.PoseStack matrices,
+                                      com.mojang.blaze3d.vertex.PoseStack matrices,
                                       net.minecraft.client.model.Model<?> model,
-                                      net.minecraft.client.render.command.OrderedRenderCommandQueue queue) {
-        if (model instanceof net.minecraft.client.render.entity.model.BipedEntityModel<?> biped) {
+                                      net.minecraft.client.renderer.SubmitNodeCollector queue) {
+        if (model instanceof net.minecraft.client.model.HumanoidModel<?> biped) {
             this.chinaHatRenderer.renderOnHead(player, matrices, biped, queue);
         }
     }

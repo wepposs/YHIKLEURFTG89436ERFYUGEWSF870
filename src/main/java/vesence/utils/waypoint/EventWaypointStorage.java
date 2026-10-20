@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreenPre;
@@ -42,11 +42,11 @@ public final class EventWaypointStorage {
 
    private static final long EVENT_TTL_MS = 300000L;
 
-   private static final ResourceLocation WAYPOINT_ICON = ResourceLocation.of("vesence", "textures/events/waypoint.png");
-   private static final ResourceLocation ICON_MAYAK = ResourceLocation.of("vesence", "textures/events/may.png");
-   private static final ResourceLocation ICON_VULKAN = ResourceLocation.of("vesence", "textures/events/vul.png");
-   private static final ResourceLocation ICON_METEOR = ResourceLocation.of("vesence", "textures/events/met.png");
-   private static final ResourceLocation ICON_GEYSER = ResourceLocation.of("vesence", "textures/events/gez.png");
+   private static final Identifier WAYPOINT_ICON = Identifier.fromNamespaceAndPath("vesence", "textures/events/waypoint.png");
+   private static final Identifier ICON_MAYAK = Identifier.fromNamespaceAndPath("vesence", "textures/events/may.png");
+   private static final Identifier ICON_VULKAN = Identifier.fromNamespaceAndPath("vesence", "textures/events/vul.png");
+   private static final Identifier ICON_METEOR = Identifier.fromNamespaceAndPath("vesence", "textures/events/met.png");
+   private static final Identifier ICON_GEYSER = Identifier.fromNamespaceAndPath("vesence", "textures/events/gez.png");
 
    private final Minecraft mc = Minecraft.getInstance();
    private final Map<String, Entry> waypoints = new ConcurrentHashMap<>();
@@ -67,9 +67,9 @@ public final class EventWaypointStorage {
       this.clearEventWaypoints();
       this.waypoints.put(name, new Entry(x, y, z, rarity == null ? "" : rarity, System.currentTimeMillis()));
       if (notify && mc.player != null) {
-         mc.player.sendMessage(net.minecraft.text.Component.literal(
+         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                "[EventParser] " + name + (rarity != null && !rarity.isEmpty() ? " [" + rarity + "]" : "")
-                     + " -> " + x + " " + y + " " + z), false);
+                     + " -> " + x + " " + y + " " + z));
       }
    }
 
@@ -122,11 +122,11 @@ public final class EventWaypointStorage {
       }
 
       float scale = (float) Mathf.getScaleFactor();
-      Camera camera = mc.gameRenderer.getCamera();
-      Vec3 camPos = camera.getCameraPos();
+      Camera camera = mc.gameRenderer.mainCamera();
+      Vec3 camPos = camera.position();
 
-      double yawRad = Math.toRadians(camera.getYRot());
-      double pitchRad = Math.toRadians(camera.getXRot());
+      double yawRad = Math.toRadians(camera.yRot());
+      double pitchRad = Math.toRadians(camera.xRot());
       double cosPitch = Math.cos(pitchRad);
       double fx = -Math.sin(yawRad) * cosPitch;
       double fy = -Math.sin(pitchRad);
@@ -214,7 +214,7 @@ public final class EventWaypointStorage {
       renderer.text(smallFont, bgX + bgW - rightPad - distW, bgY + (bgH + distM.height) / 2.0F, smallSize, distText, themeColor);
    }
 
-   private ResourceLocation getEventIcon(String name) {
+   private Identifier getEventIcon(String name) {
       String lower = name.toLowerCase();
       if (lower.contains("маяк")) {
          return ICON_MAYAK;

@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
@@ -127,8 +127,8 @@ public class HitBubbleEffect {
             ms.translate(-bubble.pitchSin * delta / 3.0f, bubble.yawSin * delta / 2.0f, -bubble.pitchCos * delta / 3.0f);
         }
 
-        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bubble.viewYaw));
-        ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(bubble.viewPitch));
+        ms.rotate(Axis.YP.rotationDegrees(-bubble.viewYaw));
+        ms.rotate(Axis.XP.rotationDegrees(bubble.viewPitch));
         ms.scale(-0.1f, -0.1f, 0.1f);
 
         float rBase = 12.5f;
@@ -140,7 +140,7 @@ public class HitBubbleEffect {
             if (integration != null) {
                 ms.pushPose();
                 ms.scale(rBase, rBase, 1.0f);
-                integration.setMatrix(ms.last().getPositionMatrix());
+                integration.setMatrix(ms.last().pose());
                 float timePCBase = delta;
                 float timePC = Math.min(delta / 0.75f, 1.0f);
                 timePC = (float) easeInOutExpo(0.25f + timePC);
@@ -175,8 +175,8 @@ public class HitBubbleEffect {
         }
 
         ms.pushPose();
-        ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
-        Matrix4f quadMatrix = ms.last().getPositionMatrix();
+        ms.rotate(Axis.ZP.rotationDegrees(rotation));
+        Matrix4f quadMatrix = ms.last().pose();
         drawBubbleQuad(quadBuffer, quadMatrix, r, aPC, colorMode, themeColor1, themeColor2, now);
         ms.popPose();
 
@@ -223,12 +223,12 @@ public class HitBubbleEffect {
     private static void putVertex(VertexConsumer buffer, Matrix4f matrix,
                                   float x, float y, float z,
                                   float u, float v, int color) {
-        buffer.vertex(matrix, x, y, z)
-                .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
-                .texture(u, v)
-                .overlay(OverlayTexture.DEFAULT_UV)
-                .light(15728880)
-                .normal(0.0f, 0.0f, 1.0f);
+        buffer.addVertex(matrix, x, y, z)
+                .setColor(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(15728880)
+                .setNormal(0.0f, 0.0f, 1.0f);
     }
 
     private static double easeInOutQuadWave(double t) {

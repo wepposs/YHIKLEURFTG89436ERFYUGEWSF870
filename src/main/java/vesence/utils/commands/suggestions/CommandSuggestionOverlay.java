@@ -3,7 +3,7 @@ package vesence.utils.commands.suggestions;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.util.Mth;
 import vesence.renderengine.render.Renderer2D;
@@ -28,7 +28,7 @@ public final class CommandSuggestionOverlay {
    }
 
    public static Layout render(
-           GuiGraphics context,
+           GuiGraphicsExtractor context,
            Font font,
            EditBox chatField,
            int screenWidth,
@@ -61,11 +61,11 @@ public final class CommandSuggestionOverlay {
                int rowY = layout.areaY() + visibleIndex * layout.rowHeight();
                boolean isSelected = entryIndex == selectionIndex;
                int primaryColor = isSelected ? themeColor : (entry.accent() ? -11393 : -2039584);
-               context.drawTextWithShadow(font, entry.primaryText(), layout.contentX(), rowY + 2, primaryColor);
+               context.text(font, entry.primaryText(), layout.contentX(), rowY + 2, primaryColor, true);
                if (layout.hasDescription() && !entry.description().isEmpty()) {
                   int descriptionX = layout.contentX() + layout.primaryColumnWidth() + 8;
                   int descriptionColor = isSelected ? themeColor : -6643546;
-                  context.drawTextWithShadow(font, entry.description(), descriptionX, rowY + 2, descriptionColor);
+                  context.text(font, entry.description(), descriptionX, rowY + 2, descriptionColor, true);
                }
             }
 
@@ -76,7 +76,7 @@ public final class CommandSuggestionOverlay {
       }
    }
 
-   private static void drawBorders(GuiGraphics context, Layout layout, int totalEntries) {
+   private static void drawBorders(GuiGraphicsExtractor context, Layout layout, int totalEntries) {
       if (layout.scrollOffset() > 0) {
          context.fill(layout.areaX(), layout.areaY() - 1, layout.areaRight(), layout.areaY(), -1879048192);
       }
@@ -99,10 +99,10 @@ public final class CommandSuggestionOverlay {
          boolean hasDescription = false;
 
          for (CommandSuggestions.SuggestionEntry entry : entries) {
-            primaryWidth = Math.max(primaryWidth, font.getWidth(entry.primaryText()));
+            primaryWidth = Math.max(primaryWidth, font.width(entry.primaryText()));
             if (!entry.description().isEmpty()) {
                hasDescription = true;
-               descriptionWidth = Math.max(descriptionWidth, font.getWidth(entry.description()));
+               descriptionWidth = Math.max(descriptionWidth, font.width(entry.description()));
             }
          }
 

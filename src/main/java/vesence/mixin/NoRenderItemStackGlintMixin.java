@@ -13,7 +13,7 @@ import vesence.module.impl.visuals.NoRender;
 @Environment(EnvType.CLIENT)
 @Mixin(ItemStack.class)
 public class NoRenderItemStackGlintMixin {
-    @Inject(method = "hasGlint", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "hasFoil", at = @At("HEAD"), cancellable = true)
     private void vesence$hideGlint(CallbackInfoReturnable<Boolean> cir) {
         if (!Vesence.isModInitialized()) return;
         NoRender nr = Vesence.get.manager.get(NoRender.class);

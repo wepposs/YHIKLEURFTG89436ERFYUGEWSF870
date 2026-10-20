@@ -1,26 +1,26 @@
 package vesence.module.impl.visuals.particular;
 
-import net.minecraft.client.particle.BillboardParticle;
-import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.SingleQuadParticle;
+import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.util.RandomSource;
 
-public class CascadeParticle extends BillboardParticle {
+public class CascadeParticle extends SingleQuadParticle {
     private final SpriteSet provider;
 
-    protected CascadeParticle(ClientLevel world, double x, double y, double z, SpriteSet provider) {
-        super(world, x, y, z, provider.getSprite(world.getRandom()));
+    protected CascadeParticle(ClientLevel level, double x, double y, double z, SpriteSet provider) {
+        super(level, x, y, z, provider.get(level.getRandom()));
         this.provider = provider;
-        this.maxAge = 9;
-        this.scale = 1.0F;
-        this.gravityStrength = 0.4F;
-        this.velocityX = this.random.nextDouble() * 0.25D - 0.125D;
-        this.velocityZ = this.random.nextDouble() * 0.25D - 0.125D;
-        this.setSprite(provider.getSprite(this.tickCount, this.maxAge));
+        this.lifetime = 9;
+        this.quadSize = 1.0F;
+        this.gravity = 0.4F;
+        this.xd = this.random.nextDouble() * 0.25D - 0.125D;
+        this.zd = this.random.nextDouble() * 0.25D - 0.125D;
+        this.setSprite(provider.get(this.age, this.lifetime));
         this.removeIfInsideSolidBlock();
     }
 
@@ -32,24 +32,24 @@ public class CascadeParticle extends BillboardParticle {
         }
         this.removeIfInsideSolidBlock();
         if (this.isAlive()) {
-            this.setSprite(this.provider.getSprite(this.tickCount, this.maxAge));
+            this.setSprite(this.provider.get(this.age, this.lifetime));
         }
     }
 
     private void removeIfInsideSolidBlock() {
-        BlockPos pos = BlockPos.ofFloored(this.x, this.y, this.z);
-        if (this.world.getBlockState(pos).isOpaque()) {
+        BlockPos pos = BlockPos.containing(this.x, this.y, this.z);
+        if (this.level.getBlockState(pos).canOcclude()) {
             this.alpha = 0.0F;
-            this.markDead();
+            this.remove();
         }
     }
 
     @Override
-    public RenderType getRenderType() {
-        return RenderType.PARTICLE_ATLAS_OPAQUE;
+    public SingleQuadParticle.Layer getLayer() {
+        return SingleQuadParticle.Layer.OPAQUE;
     }
 
-    public static class Factory implements ParticleFactory<SimpleParticleType> {
+    public static class Factory implements ParticleProvider<SimpleParticleType> {
         private final SpriteSet provider;
 
         public Factory(SpriteSet provider) {
@@ -57,8 +57,8 @@ public class CascadeParticle extends BillboardParticle {
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
-            return new CascadeParticle(world, x, y, z, this.provider);
+        public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xd, double yd, double zd, RandomSource random) {
+            return new CascadeParticle(level, x, y, z, this.provider);
         }
     }
 }

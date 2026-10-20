@@ -12,7 +12,7 @@ public class RotationUtil {
     private static final double SENSITIVITY_SCALE = 0.15;
 
     public static float getMouseSensitivity() {
-        double mouseSens = mc.options.getMouseSensitivity().getValue();
+        double mouseSens = mc.options.sensitivity().get();
         float step = (float) (Math.pow(mouseSens * 0.6 + 0.2, 3.0) * 8.0 * SENSITIVITY_SCALE);
         return Float.isFinite(step) && step > 0.0f ? step : 0.15f;
     }
@@ -20,7 +20,7 @@ public class RotationUtil {
     public static Vector2f getRotationTo(Vec3 targetPos) {
         if (mc.player == null) return null;
         
-        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
         Vec3 diff = targetPos.subtract(eyePos);
         
         if (diff.lengthSqr() < 1.0E-6) {
@@ -44,7 +44,7 @@ public class RotationUtil {
     public static Vec3 getClosestPointOnEntity(Entity entity) {
         if (mc.player == null) return new Vec3(entity.getX(), entity.getY(), entity.getZ());
         
-        Vec3 eyePos = mc.player.getCameraPosVec(1.0f);
+        Vec3 eyePos = mc.player.getEyePosition(1.0f);
         return getClosestPointOnBox(eyePos, entity.getBoundingBox());
     }
 }

@@ -26,7 +26,7 @@ public final class CommandHandler {
     @EventInit
     public void onPacket(EventPacket event) {
         if (event.isSend() && event.getPacket() instanceof ServerboundChatPacket packet) {
-            String message = packet.chatMessage();
+            String message = packet.message();
             if (message != null && !message.isEmpty()) {
                 CommandManager commandManager = CommandManager.getInstance();
                 if (commandManager.handleMessage(message)) {

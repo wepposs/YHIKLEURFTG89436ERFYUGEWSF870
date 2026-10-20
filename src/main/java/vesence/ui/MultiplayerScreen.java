@@ -4,22 +4,21 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.ConnectScreen;
-import net.minecraft.client.gui.screen.world.WorldIcon;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.network.MultiplayerServerListPinger;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.multiplayer.ServerStatusPinger;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
-import net.minecraft.server.ServerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.network.NetworkingBackend;
+import net.minecraft.server.network.EventLoopGroupHolder;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.ResourceLocation;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.resources.Identifier;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import vesence.Vesence;
@@ -62,8 +61,8 @@ public class MultiplayerScreen extends Screen {
     private final ScrollUtil scroll = new ScrollUtil();
     private final Animation2 emptyAnim = new Animation2();
 
-    private final MultiplayerServerListPinger pinger = new MultiplayerServerListPinger();
-    private NetworkingBackend networkingBackend;
+    private final ServerStatusPinger pinger = new ServerStatusPinger();
+    private EventLoopGroupHolder networkingBackend;
 
     private static final java.util.concurrent.ExecutorService PING_POOL =
             java.util.concurrent.Executors.newCachedThreadPool(r -> {
@@ -99,7 +98,7 @@ public class MultiplayerScreen extends Screen {
     private final Animation2 cancelHover = new Animation2();
 
     private static class Entry {
-        ServerInfo info;
+        ServerData info;
         final Animation2 alpha = new Animation2();
         final Animation2 xAnim = new Animation2();
         final Animation2 hover = new Animation2();
@@ -107,11 +106,11 @@ public class MultiplayerScreen extends Screen {
         float displayY = 0;
         boolean removing = false;
 
-        WorldIcon icon = null;
+        Identifier iconId = null;
         byte[] faviconBytes = null;
         boolean faviconLoaded = false;
 
-        Entry(ServerInfo info) { this.info = info; }
+        Entry(ServerData info) { this.info = info; }
     }
 
     public MultiplayerScreen(Screen parent) {
@@ -129,7 +128,7 @@ public class MultiplayerScreen extends Screen {
         super.init();
         Minecraft mc = Minecraft.getInstance();
         serverList = new ServerList(mc);
-        serverList.loadFile();
+        serverList.load();
         rebuildEntries();
         introStartMillis = 0L;
         cursorStart = System.currentTimeMillis();
@@ -138,18 +137,18 @@ public class MultiplayerScreen extends Screen {
 
     private void pingAll() {
         if (networkingBackend == null) {
-            try { networkingBackend = NetworkingBackend.remote(true); } catch (Throwable ignored) {}
+            try { networkingBackend = EventLoopGroupHolder.remote(true); } catch (Throwable ignored) {}
         }
         if (networkingBackend == null) return;
         for (Entry e : entries) {
             if (e.removing || e.info == null) continue;
-            if (e.info.getStatus() == ServerInfo.Status.PINGING) continue;
-            final ServerInfo info = e.info;
-            info.setStatus(ServerInfo.Status.PINGING);
+            if (e.info.state() == ServerData.State.PINGING) continue;
+            final ServerData info = e.info;
+            info.setState(ServerData.State.PINGING);
 
             PING_POOL.submit(() -> {
                 try {
-                    pinger.add(info, () -> {}, () -> {}, networkingBackend);
+                    pinger.pingServer(info, () -> {}, () -> {}, networkingBackend);
                 } catch (Throwable ignored) {}
             });
         }
@@ -182,30 +181,30 @@ public class MultiplayerScreen extends Screen {
     }
 
     private boolean splashFadeStarted(Minecraft mc) {
-        net.minecraft.client.gui.screen.Overlay overlay = mc.getOverlay();
+        net.minecraft.client.gui.screens.Overlay overlay = mc.gui.overlay();
         if (overlay == null) return true;
         return false;
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getWindow() == null || !Vesence.isModInitialized()) {
             context.fill(0, 0, this.width, this.height, 0xFF000000);
             return;
         }
-        int width = mc.getWindow().getFramebufferWidth();
-        int height = mc.getWindow().getFramebufferHeight();
+        int width = mc.getWindow().getScreenWidth();
+        int height = mc.getWindow().getScreenHeight();
         if (width <= 0 || height <= 0) return;
 
-        GlState.Snapshot snapshot = GlState.pushPose();
-        RenderTarget mainFb = mc.getMainRenderTarget();
+        GlState.Snapshot snapshot = GlState.push();
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
         int tempFbo = 0;
         try {
-            if (mainFb != null && mainFb.getColorAttachment() instanceof net.minecraft.client.texture.GlTexture glColor) {
+            if (mainFb != null && mainFb.getColorTexture() instanceof com.mojang.renderpearl.backend.opengl.GlTexture glColor) {
                 tempFbo = GL30.glGenFramebuffers();
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.getGlId(), 0);
+                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
                 GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
                 if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
                     GL30.glDeleteFramebuffers(tempFbo);
@@ -243,12 +242,12 @@ public class MultiplayerScreen extends Screen {
     private void renderVesence(Renderer2D r, int sw, int sh, Minecraft mc) {
         if (introStartMillis == 0L && splashFadeStarted(mc)) introStartMillis = System.currentTimeMillis();
 
-        double[] gx = new double[1], gy = new double[1];
-        GLFW.glfwGetCursorPos(mc.getWindow().getHandle(), gx, gy);
-        mxFb = (float) (gx[0] * ((double) sw / mc.getWindow().getWidth()));
-        myFb = (float) (gy[0] * ((double) sh / mc.getWindow().getHeight()));
+        // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...); use MouseHandler positions
+        double gx0 = mc.mouseHandler.xpos(), gy0 = mc.mouseHandler.ypos();
+        mxFb = (float) (gx0 * ((double) sw / mc.getWindow().getWidth()));
+        myFb = (float) (gy0 * ((double) sh / mc.getWindow().getHeight()));
 
-        ResourceLocation bg = ResourceLocation.of("vesence", "images/main_menu/background.png");
+        Identifier bg = Identifier.fromNamespaceAndPath("vesence", "images/main_menu/background.png");
         // Непрозрачная подложка ПЕРЕД фоном (как в главном меню): если фон
         // где-то полупрозрачный, без неё сквозь него просвечивал живой мир
         // игры из кадра — это и давало «сетку». Base перекрывает мир.
@@ -263,7 +262,7 @@ public class MultiplayerScreen extends Screen {
             outro = 1f - Math.max(0f, Math.min(1f, e));
             if (e >= 1f) {
                 closing = false;
-                mc.setScreen(parent);
+                mc.gui.setScreen(parent);
                 return;
             }
         }
@@ -292,11 +291,11 @@ public class MultiplayerScreen extends Screen {
 
     private String t(String ru, String eng) { return russian ? ru : eng; }
 
-    private int statusColor(ServerInfo info) {
+    private int statusColor(ServerData info) {
         if (info == null) return ColorUtil.getColor(150, 150, 165, 255);
-        ServerInfo.Status s = info.getStatus();
-        if (s == ServerInfo.Status.SUCCESSFUL) return ColorUtil.getColor(120, 230, 140, 255);
-        if (s == ServerInfo.Status.PINGING || s == ServerInfo.Status.INITIAL) return ColorUtil.getColor(255, 200, 100, 255);
+        ServerData.State s = info.state();
+        if (s == ServerData.State.SUCCESSFUL) return ColorUtil.getColor(120, 230, 140, 255);
+        if (s == ServerData.State.PINGING || s == ServerData.State.INITIAL) return ColorUtil.getColor(255, 200, 100, 255);
         return ColorUtil.getColor(235, 80, 90, 255);
     }
 
@@ -305,15 +304,19 @@ public class MultiplayerScreen extends Screen {
         for (Entry e : entries) {
             if (e.removing) continue;
             byte[] bytes = null;
-            try { bytes = e.info.getFavicon(); } catch (Throwable ignored) {}
+            try { bytes = e.info.getIconBytes(); } catch (Throwable ignored) {}
             if (bytes != null && bytes.length > 0) {
                 if (!e.faviconLoaded || e.faviconBytes == null || !java.util.Arrays.equals(bytes, e.faviconBytes)) {
                     try {
-                        if (e.icon == null) {
-                            e.icon = WorldIcon.forServer(mc.getTextureManager(), e.info.address == null ? e.info.name : e.info.address);
+                        if (e.iconId == null) {
+                            String key = e.info.ip == null ? e.info.name : e.info.ip;
+                            e.iconId = Identifier.fromNamespaceAndPath("vesence", "favicon/" + Integer.toUnsignedString(key.hashCode(), 36));
                         }
+                        // TODO(port26): WorldIcon removed in 26.3; register DynamicTexture directly
                         NativeImage img = NativeImage.read(bytes);
-                        e.icon.load(img);
+                        net.minecraft.client.renderer.texture.DynamicTexture tex =
+                                new net.minecraft.client.renderer.texture.DynamicTexture(() -> "vesence_favicon", img);
+                        mc.getTextureManager().register(e.iconId, tex);
                         e.faviconBytes = bytes;
                         e.faviconLoaded = true;
                     } catch (Throwable t) {
@@ -321,7 +324,7 @@ public class MultiplayerScreen extends Screen {
                     }
                 }
             } else {
-                if (e.icon != null) { try { e.icon.destroy(); } catch (Throwable ignored) {} e.icon = null; }
+                if (e.iconId != null) { try { mc.getTextureManager().release(e.iconId); } catch (Throwable ignored) {} e.iconId = null; }
                 e.faviconLoaded = false;
                 e.faviconBytes = null;
             }
@@ -329,14 +332,14 @@ public class MultiplayerScreen extends Screen {
     }
 
     private int resolveFavicon(Entry e) {
-        if (!e.faviconLoaded || e.icon == null) return 0;
+        if (!e.faviconLoaded || e.iconId == null) return 0;
         try {
-            ResourceLocation id = e.icon.getTextureId();
+            Identifier id = e.iconId;
             var tex = Minecraft.getInstance().getTextureManager().getTexture(id);
             if (tex != null) {
-                var view = tex.getGlTextureView();
-                if (view != null && view.texture() instanceof GlTexture glTex) {
-                    int gl = glTex.getGlId();
+                var view = tex.getTexture();
+                if (view != null && view instanceof GlTexture glTex) {
+                    int gl = glTex.glId();
                     if (gl > 0) return gl;
                 }
             }
@@ -412,11 +415,11 @@ public class MultiplayerScreen extends Screen {
 
             float txX = icoX + icoS + 14;
             r.text(FontRegistry.SF_SEMI, txX, eY + 35, 37, e.info.name == null ? "" : e.info.name, ColorUtil.overCol(ColorUtil.getColor(255,125), -1, blend), -0.5f);
-            r.text(FontRegistry.SF_MEDIUM, txX, eY + 55, 32, e.info.address == null ? "" : e.info.address, ColorUtil.overCol(ColorUtil.getColor(255,65), ColorUtil.getColor(255, 165), blend), -0.5f);
+            r.text(FontRegistry.SF_MEDIUM, txX, eY + 55, 32, e.info.ip == null ? "" : e.info.ip, ColorUtil.overCol(ColorUtil.getColor(255,65), ColorUtil.getColor(255, 165), blend), -0.5f);
 
-            String motd = e.info.label != null ? e.info.label.getString() : "";
-            if (motd.isEmpty() && e.info.getStatus() == ServerInfo.Status.PINGING) motd = t("Пинг...", "Pinging...");
-            String players = e.info.playerCountLabel != null ? e.info.playerCountLabel.getString() : "";
+            String motd = e.info.status != null ? e.info.motd.getString() : "";
+            if (motd.isEmpty() && e.info.state() == ServerData.State.PINGING) motd = t("Пинг...", "Pinging...");
+            String players = e.info.players != null ? e.info.players.online() + "/" + e.info.players.max() : "";
             float delS = 45;
             float delX = cardX + cardW - delS - 13;
             if (!players.isEmpty()) {
@@ -438,7 +441,7 @@ public class MultiplayerScreen extends Screen {
             r.popAlpha();
         }
 
-        r.getTransformStack().popPose();
+        r.getTransformStack().pop();
         r.popClipRect();
 
     }
@@ -563,13 +566,13 @@ public class MultiplayerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean bl) {
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean bl) {
         int button = click.button();
-        boolean left = button == GLFW.GLFW_MOUSE_BUTTON_LEFT;
-        boolean right = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT;
+        boolean left = button == InputConstants.MOUSE_BUTTON_LEFT;
+        boolean right = button == InputConstants.MOUSE_BUTTON_RIGHT;
         if (!left && !right) return super.mouseClicked(click, bl);
         Minecraft mc = Minecraft.getInstance();
-        double scale = (double) mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaledWidth();
+        double scale = (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth();
         float mx = (float) (click.x() * scale);
         float my = (float) (click.y() * scale);
         mouseDown = left;
@@ -610,7 +613,7 @@ public class MultiplayerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(net.minecraft.client.gui.Click click) {
+    public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent click) {
         mouseDown = false;
         return super.mouseReleased(click);
     }
@@ -622,7 +625,7 @@ public class MultiplayerScreen extends Screen {
     }
 
     @Override
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (formOpen && focusedField != 0) {
             StringBuilder buf = focusedField == 1 ? nameInput : addrInput;
             int cp = input.codepoint();
@@ -636,9 +639,9 @@ public class MultiplayerScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         int key = input.key();
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (key == InputConstants.KEY_ESCAPE) {
             if (formOpen) { closeForm(); return true; }
             beginClose();
             return true;
@@ -646,27 +649,27 @@ public class MultiplayerScreen extends Screen {
         if (formOpen && focusedField != 0) {
             StringBuilder buf = focusedField == 1 ? nameInput : addrInput;
             boolean ctrl = ClipboardUtil.isCtrl(input.modifiers());
-            if (ctrl && key == GLFW.GLFW_KEY_A) {
+            if (ctrl && key == InputConstants.KEY_A) {
                 selectAll = buf.length() > 0;
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_C) {
+            if (ctrl && key == InputConstants.KEY_C) {
                 if (buf.length() > 0) ClipboardUtil.set(buf.toString());
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_X) {
+            if (ctrl && key == InputConstants.KEY_X) {
                 if (buf.length() > 0) { ClipboardUtil.set(buf.toString()); buf.setLength(0); cursorStart = System.currentTimeMillis(); }
                 selectAll = false;
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_V) {
+            if (ctrl && key == InputConstants.KEY_V) {
                 String base = selectAll ? "" : buf.toString();
                 String res = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), 64, ClipboardUtil.MODE_ASCII);
                 buf.setLength(0); buf.append(res);
                 selectAll = false; cursorStart = System.currentTimeMillis();
                 return true;
             }
-            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+            if (key == InputConstants.KEY_BACKSPACE) {
                 if (selectAll) { buf.setLength(0); selectAll = false; cursorStart = System.currentTimeMillis(); }
                 else if (buf.length() > 0) {
                     if (ctrl) buf.setLength(0); else buf.deleteCharAt(buf.length() - 1);
@@ -674,8 +677,8 @@ public class MultiplayerScreen extends Screen {
                 }
                 return true;
             }
-            if (key == GLFW.GLFW_KEY_TAB) { selectAll = false; focusedField = focusedField == 1 ? 2 : 1; cursorStart = System.currentTimeMillis(); return true; }
-            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) { selectAll = false; saveForm(); return true; }
+            if (key == InputConstants.KEY_TAB) { selectAll = false; focusedField = focusedField == 1 ? 2 : 1; cursorStart = System.currentTimeMillis(); return true; }
+            if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) { selectAll = false; saveForm(); return true; }
         }
         return super.keyPressed(input);
     }
@@ -684,7 +687,7 @@ public class MultiplayerScreen extends Screen {
     public boolean shouldCloseOnEsc() { return false; }
 
     @Override
-    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+    public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
     }
 
     private static boolean inside(float px, float py, float x, float y, float w, float h) {
@@ -700,9 +703,9 @@ public class MultiplayerScreen extends Screen {
         nameInput.setLength(0);
         addrInput.setLength(0);
         if (index >= 0 && index < entries.size()) {
-            ServerInfo info = entries.get(index).info;
+            ServerData info = entries.get(index).info;
             if (info.name != null) nameInput.append(info.name);
-            if (info.address != null) addrInput.append(info.address);
+            if (info.ip != null) addrInput.append(info.ip);
         }
     }
 
@@ -719,23 +722,23 @@ public class MultiplayerScreen extends Screen {
         if (addr.isEmpty()) { closeForm(); return; }
 
         if (editIndex >= 0 && editIndex < serverList.size()) {
-            ServerInfo info = serverList.get(editIndex);
+            ServerData info = serverList.get(editIndex);
             info.name = name;
-            info.address = addr;
+            info.ip = addr;
         } else {
-            ServerInfo info = new ServerInfo(name, addr, ServerInfo.ServerType.OTHER);
+            ServerData info = new ServerData(name, addr, ServerData.Type.OTHER);
             serverList.add(info, false);
         }
-        serverList.saveFile();
+        serverList.save();
         rebuildEntries();
         closeForm();
         pingAll();
     }
 
     private void refreshList() {
-        serverList.loadFile();
+        serverList.load();
         rebuildEntries();
-        try { pinger.cancel(); } catch (Throwable ignored) {}
+        try { pinger.removeAll(); } catch (Throwable ignored) {}
         pingAll();
 
         introStartMillis = System.currentTimeMillis();
@@ -753,18 +756,18 @@ public class MultiplayerScreen extends Screen {
         e.removing = true;
         e.alpha.run(0.0, 0.25, Easings.CUBIC_OUT);
         e.xAnim.run(60.0, 0.25, Easings.CUBIC_OUT);
-        if (e.icon != null) { try { e.icon.destroy(); } catch (Throwable ignored) {} e.icon = null; e.faviconLoaded = false; }
+        if (e.iconId != null) { try { Minecraft.getInstance().getTextureManager().release(e.iconId); } catch (Throwable ignored) {} e.iconId = null; } e.faviconLoaded = false;
         try {
             serverList.remove(e.info);
-            serverList.saveFile();
+            serverList.save();
         } catch (Throwable ignored) {}
     }
 
     @Override
     public void removed() {
-        try { pinger.cancel(); } catch (Throwable ignored) {}
+        try { pinger.removeAll(); } catch (Throwable ignored) {}
         for (Entry e : entries) {
-            if (e.icon != null) { try { e.icon.destroy(); } catch (Throwable ignored) {} e.icon = null; }
+            if (e.iconId != null) { try { Minecraft.getInstance().getTextureManager().release(e.iconId); } catch (Throwable ignored) {} e.iconId = null; }
         }
         super.removed();
     }
@@ -772,8 +775,8 @@ public class MultiplayerScreen extends Screen {
     private void connect(Entry e) {
         try {
             Minecraft mc = Minecraft.getInstance();
-            ServerAddress addr = ServerAddress.parse(e.info.address);
-            ConnectScreen.connect(this, mc, addr, e.info, false, null);
+            ServerAddress addr = ServerAddress.parseString(e.info.ip);
+            ConnectScreen.startConnecting(this, mc, addr, e.info, false, null);
         } catch (Throwable t) {
             System.err.println("[weppos] connect failed: " + t.getMessage());
         }

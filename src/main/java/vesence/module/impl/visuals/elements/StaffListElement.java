@@ -3,9 +3,9 @@ package vesence.module.impl.visuals.elements;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.HudElement;
@@ -106,9 +106,9 @@ public class StaffListElement extends HudElement {
         if (mc.getConnection() == null) return new ArrayList<>(knownStaff.values());
 
         Set<String> current = new HashSet<>();
-        for (PlayerListEntry entry : mc.getConnection().getPlayerList()) {
+        for (PlayerInfo entry : mc.getConnection().getOnlinePlayers()) {
             String nick = entry.getProfile().name();
-            Component displayName = entry.getDisplayName();
+            Component displayName = entry.getTabListDisplayName();
             String displayText = displayName != null ? displayName.getString() : nick;
 
             if (!isStaff(displayText) && !isStaff(nick) && !StaffStorage.isStaff(nick)) continue;
@@ -134,9 +134,9 @@ public class StaffListElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
-        boolean isChatOpen = mc.screen instanceof ChatScreen;
+        boolean isChatOpen = mc.gui.screen() instanceof ChatScreen;
 
         List<StaffInfo> staff = collectStaff();
 

@@ -7,7 +7,7 @@ import net.fabricmc.api.Environment;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.Minecraft;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -243,7 +243,7 @@ public final class GlBackend {
    }
 
    public void beginFrame(int width, int height) {
-      this.snapshot = GlState.pushPose();
+      this.snapshot = GlState.push();
       this.viewportWidth = width;
       this.viewportHeight = height;
       GL11.glViewport(0, 0, width, height);
@@ -1230,7 +1230,7 @@ public final class GlBackend {
       int srcY = Math.max(0, this.viewportHeight - y - h);
       int srcW = Math.min(w, this.viewportWidth - srcX);
       int srcH = Math.min(h, this.viewportHeight - Math.max(0, this.viewportHeight - y - h));
-      GlState.Snapshot s = GlState.pushPose();
+      GlState.Snapshot s = GlState.push();
 
       try {
          boolean wasScissorEnabled = GL11.glIsEnabled(3089);
@@ -1269,7 +1269,7 @@ public final class GlBackend {
       if (client == null) {
          return new GlBackend.FrameCapture(0, 0, 0, 0);
       } else {
-         RenderTarget framebuffer = client.getMainRenderTarget();
+         RenderTarget framebuffer = client.gameRenderer.mainRenderTarget();
          if (framebuffer == null) {
             return new GlBackend.FrameCapture(0, 0, 0, 0);
          } else if (extractGlTexId(framebuffer) == 0) {
@@ -1277,14 +1277,14 @@ public final class GlBackend {
          } else {
             int sourceColor = extractGlTexId(framebuffer);
             int sourceDepth = 0;
-            if (framebuffer.getDepthAttachment() instanceof GlTexture glDepth) {
-               sourceDepth = glDepth.getGlId();
+            if (framebuffer.getDepthTexture() instanceof GlTexture glDepth) {
+               sourceDepth = glDepth.glId();
             }
 
-            int width = Math.max(1, framebuffer.textureWidth);
-            int height = Math.max(1, framebuffer.textureHeight);
+            int width = Math.max(1, framebuffer.width);
+            int height = Math.max(1, framebuffer.height);
             this.fullFrameTarget.ensure(width, height);
-            GlState.Snapshot state = GlState.pushPose();
+            GlState.Snapshot state = GlState.push();
 
             try {
                GL11.glDisable(3089);
@@ -1332,7 +1332,7 @@ public final class GlBackend {
       if (texture > 0 && width > 0 && height > 0) {
          this.ensureFullscreenResources();
          ShaderProgram program = this.ensureFullscreenProgram();
-         GlState.Snapshot state = GlState.pushPose();
+         GlState.Snapshot state = GlState.push();
 
          try {
             GL30.glBindFramebuffer(36160, 0);
@@ -1490,21 +1490,21 @@ public final class GlBackend {
       if (framebuffer == null) return 0;
 
       try {
-         GpuTextureView view = framebuffer.getColorAttachmentView();
+         GpuTextureView view = framebuffer.getColorTextureView();
          if (view != null && !view.isClosed()) {
-            com.mojang.blaze3d.textures.GpuTexture tex = view.texture();
+            com.mojang.renderpearl.api.textures.GpuTexture tex = view.texture();
             if (!extractLogDone) {
                System.out.println("[VesenceBlur] view=" + view + " tex=" + tex + " isGlTexture=" + (tex instanceof GlTexture));
                extractLogDone = true;
             }
-            if (tex instanceof GlTexture glTex) return glTex.getGlId();
+            if (tex instanceof GlTexture glTex) return glTex.glId();
          }
       } catch (Exception e) {
          if (!extractLogDone) { System.out.println("[VesenceBlur] view exception: " + e); extractLogDone = true; }
       }
 
       try {
-         if (framebuffer.getColorAttachment() instanceof GlTexture glTex) return glTex.getGlId();
+         if (framebuffer.getColorTexture() instanceof GlTexture glTex) return glTex.glId();
       } catch (Exception ignored) {}
       if (!extractLogDone) { System.out.println("[VesenceBlur] both paths returned 0"); extractLogDone = true; }
       return 0;

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 
 /**
@@ -68,7 +68,7 @@ public class PetBox {
       }
       matrices.pushPose();
       this.translateRotate(matrices);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
       for (Cube cube : this.cubes) {
          cube.render(matrix, buffer);
       }
@@ -81,13 +81,13 @@ public class PetBox {
    private void translateRotate(PoseStack matrices) {
       matrices.translate(this.rotationPointX / 16.0F, this.rotationPointY / 16.0F, this.rotationPointZ / 16.0F);
       if (this.rotateAngleZ != 0.0F) {
-         matrices.multiply(RotationAxis.POSITIVE_Z.rotation(this.rotateAngleZ));
+         matrices.rotate(Axis.ZP.rotation(this.rotateAngleZ));
       }
       if (this.rotateAngleY != 0.0F) {
-         matrices.multiply(RotationAxis.POSITIVE_Y.rotation(this.rotateAngleY));
+         matrices.rotate(Axis.YP.rotation(this.rotateAngleY));
       }
       if (this.rotateAngleX != 0.0F) {
-         matrices.multiply(RotationAxis.POSITIVE_X.rotation(this.rotateAngleX));
+         matrices.rotate(Axis.XP.rotation(this.rotateAngleX));
       }
    }
 
@@ -138,9 +138,9 @@ public class PetBox {
          for (Quad quad : this.quads) {
             for (int i = 0; i < 4; i++) {
                float[] p = quad.positions[i];
-               buffer.vertex(matrix, p[0] / 16.0F, p[1] / 16.0F, p[2] / 16.0F)
-                     .texture(quad.u[i], quad.v[i])
-                     .color(255, 255, 255, 255);
+               buffer.addVertex(matrix, p[0] / 16.0F, p[1] / 16.0F, p[2] / 16.0F)
+                     .setUv(quad.u[i], quad.v[i])
+                     .setColor(255, 255, 255, 255);
             }
          }
       }

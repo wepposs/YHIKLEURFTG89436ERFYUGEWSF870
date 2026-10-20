@@ -8,9 +8,9 @@ import com.google.gson.JsonParser;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.session.Session;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.User;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.hmi.script_wrappers.C;
 import vesence.mixin.MinecraftClientAccessor;
 import vesence.renderengine.render.Renderer2D;
@@ -175,7 +175,7 @@ public class AccountSwitcherWindow {
                 t("Менеджер аккаунтов", "All your accounts\nare saved here."), headGrad, 6);
 
         r.textRight(FontRegistry.MONTSERRAT, cx + panelW - PAD - 30, headY + 23, 50,
-                t("Сейчас: ", "Current: ") + Minecraft.getInstance().getSession().getUsername(), accent(100), -1.5f);
+                t("Сейчас: ", "Current: ") + Minecraft.getInstance().getUser().getName(), accent(100), -1.5f);
 
         closeW = 100; closeH = 30;
         closeX = panelX + panelW - closeW - PAD;
@@ -288,7 +288,7 @@ public class AccountSwitcherWindow {
             r.popAlpha();
         }
 
-        r.getTransformStack().popPose();
+        r.getTransformStack().pop();
         r.popClipRect();
     }
 
@@ -489,39 +489,39 @@ public class AccountSwitcherWindow {
         if (!windowOpen || focusedField == 0) return false;
         StringBuilder buf = focusedField == 1 ? nickInput : serverInput;
         int maxLen = focusedField == 1 ? 24 : 40;
-        boolean ctrl = Minecraft.getInstance().isCtrlPressed();
-        if (ctrl && key == GLFW.GLFW_KEY_A) {
+        boolean ctrl = Minecraft.getInstance().hasControlDown();
+        if (ctrl && key == InputConstants.KEY_A) {
             selectAll = buf.length() > 0;
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_C) {
+        if (ctrl && key == InputConstants.KEY_C) {
             if (buf.length() > 0) ClipboardUtil.set(buf.toString());
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_X) {
+        if (ctrl && key == InputConstants.KEY_X) {
             if (buf.length() > 0) { ClipboardUtil.set(buf.toString()); buf.setLength(0); cursorStart = System.currentTimeMillis(); }
             selectAll = false;
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_V) {
+        if (ctrl && key == InputConstants.KEY_V) {
             String base = selectAll ? "" : buf.toString();
             String res = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), maxLen, ClipboardUtil.MODE_ASCII);
             buf.setLength(0); buf.append(res);
             selectAll = false; cursorStart = System.currentTimeMillis();
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+        if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
             selectAll = false;
             if (focusedField == 1 && !nickInput.toString().trim().isEmpty()) {
                 focusedField = 2; cursorStart = System.currentTimeMillis();
             } else { addAccount(); }
             return true;
         }
-        if (key == GLFW.GLFW_KEY_TAB) {
+        if (key == InputConstants.KEY_TAB) {
             selectAll = false;
             focusedField = focusedField == 1 ? 2 : 1; cursorStart = System.currentTimeMillis(); return true;
         }
-        if (key == GLFW.GLFW_KEY_BACKSPACE) {
+        if (key == InputConstants.KEY_BACKSPACE) {
             if (selectAll) { buf.setLength(0); selectAll = false; cursorStart = System.currentTimeMillis(); }
             else if (buf.length() > 0) {
                 if (ctrl) buf.setLength(0); else buf.deleteCharAt(buf.length() - 1);
@@ -532,7 +532,7 @@ public class AccountSwitcherWindow {
         return false;
     }
 
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (!windowOpen || focusedField == 0) return false;
         StringBuilder buf = focusedField == 1 ? nickInput : serverInput;
         int maxLen = focusedField == 1 ? 24 : 40;
@@ -710,7 +710,7 @@ public class AccountSwitcherWindow {
         if (nick == null || nick.isEmpty()) return;
         try {
             Minecraft mc = Minecraft.getInstance();
-            Session session = new Session(nick, UUID.randomUUID(), "", java.util.Optional.empty(), java.util.Optional.empty());
+            User session = new User(nick, UUID.randomUUID(), "", java.util.Optional.empty(), java.util.Optional.empty());
             ((MinecraftClientAccessor) mc).setSession(session);
         } catch (Exception ignored) {}
     }

@@ -10,21 +10,23 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import vesence.module.impl.visuals.Ambience;
 
 @Environment(EnvType.CLIENT)
 @Mixin(FogRenderer.class)
 public class FogRendererMixin {
-    @Inject(method = "getFogColor", at = @At("RETURN"), cancellable = true)
-    private static void onGetFogColor(Camera camera, float tickProgress, ClientLevel world, int viewDistance, float skyDarkness, CallbackInfoReturnable<Vector4f> cir) {
+    // 26.3: getFogColor стал приватным computeFogColor, который пишет результат в out-параметр Vector4f.
+    @Inject(method = "computeFogColor", at = @At("RETURN"))
+    private void onGetFogColor(Camera camera, float tickProgress, ClientLevel world, int viewDistance, float skyDarkness, Vector4f out, CallbackInfo ci) {
         Ambience ambience = Ambience.getInstance();
         if (ambience != null && Ambience.isEnabled() && ambience.shouldOverrideFog()) {
             int color = ambience.getFogColorValue();
             float r = ((color >> 16) & 0xFF) / 255.0f;
             float g = ((color >> 8) & 0xFF) / 255.0f;
             float b = (color & 0xFF) / 255.0f;
-            cir.setReturnValue(new Vector4f(r, g, b, 1.0f));
+            out.set(r, g, b, 1.0f);
         }
     }
 
@@ -42,7 +44,7 @@ public class FogRendererMixin {
      * тумана множителями. "Очистить" уводит туман за горизонт.
      */
     @ModifyVariable(
-            method = "applyFog(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V",
+            method = "updateBuffer(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V",
             at = @At("HEAD"),
             ordinal = 2,
             argsOnly = true,
@@ -58,7 +60,7 @@ public class FogRendererMixin {
         if (amb.isFogClearMode()) return 1.0E7f;
         if (amb.isFogOverrideMode()) {
             // Порт Relevant: fogEnd = viewDistance * endMul; fogStart = fogEnd * startMul.
-            float viewDistance = client.gameRenderer.getFarPlaneDistance();
+            float viewDistance = client.options.getEffectiveRenderDistance() * 64.0F /* TODO(port26): was gameRenderer.getFarPlaneDistance() */;
             float fogEnd = viewDistance * amb.getFogEndMultiplier();
             return fogEnd * amb.getFogStartMultiplier();
         }
@@ -66,7 +68,7 @@ public class FogRendererMixin {
     }
 
     @ModifyVariable(
-            method = "applyFog(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V",
+            method = "updateBuffer(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V",
             at = @At("HEAD"),
             ordinal = 3,
             argsOnly = true,
@@ -81,7 +83,7 @@ public class FogRendererMixin {
         }
         if (amb.isFogClearMode()) return 1.0E7f + 1.0f;
         if (amb.isFogOverrideMode()) {
-            float viewDistance = client.gameRenderer.getFarPlaneDistance();
+            float viewDistance = client.options.getEffectiveRenderDistance() * 64.0F /* TODO(port26): was gameRenderer.getFarPlaneDistance() */;
             return viewDistance * amb.getFogEndMultiplier();
         }
         return renderDistanceEnd;

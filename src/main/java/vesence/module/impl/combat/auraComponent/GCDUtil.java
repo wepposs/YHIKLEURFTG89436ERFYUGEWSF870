@@ -48,10 +48,10 @@ public class GCDUtil implements IMinecraft {
 
    /** Сенса из опций клиента, зажатая в валидный диапазон. */
    public static float sensitivity() {
-      if (mc == null || mc.options == null || mc.options.getMouseSensitivity() == null) {
+      if (mc == null || mc.options == null || mc.options.sensitivity() == null) {
          return DEFAULT_SENSITIVITY;
       }
-      float s = mc.options.getMouseSensitivity().getValue().floatValue();
+      float s = mc.options.sensitivity().get().floatValue();
       return Mth.clamp(s, 0.0F, 1.0F);
    }
 

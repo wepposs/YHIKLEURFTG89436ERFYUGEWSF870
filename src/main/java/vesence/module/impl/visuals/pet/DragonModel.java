@@ -3,10 +3,10 @@ package vesence.module.impl.visuals.pet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.resources.Identifier;
+import com.mojang.math.Axis;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Порт xd.harm.modules.models.dragon.DragonModel — традиционная бокс-модель
@@ -17,7 +17,7 @@ import net.minecraft.util.math.RotationAxis;
 public class DragonModel {
 
    public static final RenderType LAYER = PetRender.boxLayer(
-      "vesence_pet_dragon", ResourceLocation.of("vesence", "textures/pet/dragon.png"));
+      "vesence_pet_dragon", Identifier.fromNamespaceAndPath("vesence", "textures/pet/dragon.png"));
 
    private final Minecraft mc = Minecraft.getInstance();
 
@@ -383,7 +383,7 @@ public class DragonModel {
       jaw.rotateAngleX = (float) Math.toRadians(2.5 + Math.sin(ageInTicks * 0.3F) * 2);
    }
 
-   public void render(PoseStack matrixStack, MultiBufferSource vertexConsumers, float partialTicks, DragonBrain brain) {
+   public void render(PoseStack matrixStack, Immediate vertexConsumers, float partialTicks, DragonBrain brain) {
       if (mc.player == null) {
          return;
       }
@@ -392,8 +392,8 @@ public class DragonModel {
 
       matrixStack.pushPose();
       matrixStack.translate(0.0, 0.8F + bobbing, 0.0);
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(brain.getBody()));
+      matrixStack.rotate(Axis.XP.rotationDegrees(180.0F));
+      matrixStack.rotate(Axis.YP.rotationDegrees(brain.getBody()));
       matrixStack.scale(0.5F, 0.5F, 0.5F);
 
       DRAGON.render(matrixStack, buffer);

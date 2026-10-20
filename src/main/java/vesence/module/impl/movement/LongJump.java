@@ -42,10 +42,10 @@ public class LongJump extends vesence.module.api.Module {
                this.jumpsUsed = 0;
             }
 
-            if (!mc.player.isTouchingWater() && !mc.player.isInLava() && !mc.player.isFlyingVehicle()) {
+            if (!mc.player.isInWater() && !mc.player.isInLava() && !mc.player.isFlyingVehicle()) {
                if (!mc.player.getAbilities().flying) {
-                  if (!mc.player.hasVehicle()) {
-                     while (mc.options.jumpKey.isPressed()) {
+                  if (!mc.player.isPassenger()) {
+                     while (mc.options.keyJump.isDown()) {
                         if (mc.player.onGround()) {
                            return;
                         }
@@ -55,7 +55,7 @@ public class LongJump extends vesence.module.api.Module {
                         }
 
                         mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, power.get(), mc.player.getDeltaMovement().z);
-                        mc.player.velocityDirty = true;
+                        mc.player.syncVelocity = true; // TODO(port26): was velocityDirty (yarn) / hurtMarked (old mojmap); 26.3 uses syncVelocity
                         this.jumpsUsed++;
                      }
                   }
@@ -66,22 +66,22 @@ public class LongJump extends vesence.module.api.Module {
    }
 
    private void handleWater() {
-      if (mc.player.isTouchingWater() || this.isPlayerInWaterBlock()) {
-         if (mc.options.jumpKey.isPressed()) {
+      if (mc.player.isInWater() || this.isPlayerInWaterBlock()) {
+         if (mc.options.keyJump.isDown()) {
             double currentY = mc.player.getDeltaMovement().y;
             double targetY = Math.min(currentY + waterAdd.get(), (double)waterMaxY.get());
             if (targetY > currentY) {
                mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, targetY, mc.player.getDeltaMovement().z);
-               mc.player.velocityDirty = true;
+               mc.player.syncVelocity = true; // TODO(port26): was velocityDirty (yarn) / hurtMarked (old mojmap); 26.3 uses syncVelocity
             }
          }
       }
    }
 
    private boolean isPlayerInWaterBlock() {
-      BlockPos pos = BlockPos.ofFloored(mc.player.getX(), mc.player.getY(), mc.player.getZ());
-      return mc.level.getBlockState(pos).isOf(Blocks.WATER)
-         || mc.level.getBlockState(pos.down()).isOf(Blocks.WATER);
+      BlockPos pos = BlockPos.containing(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+      return mc.level.getBlockState(pos).is(Blocks.WATER)
+         || mc.level.getBlockState(pos.below()).is(Blocks.WATER);
    }
 
    @Override

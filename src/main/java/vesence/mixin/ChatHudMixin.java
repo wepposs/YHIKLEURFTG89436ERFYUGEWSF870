@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ChatComponent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,13 +31,17 @@ import vesence.module.impl.misc.BetterMinecraft;
 public abstract class ChatHudMixin {
 
    @Shadow
-   private int scrolledLines;
+   private int chatScrollbarPos;
 
    @Shadow
-   protected abstract int getLineHeight();
+   private int getLineHeight() {
+      throw new AssertionError();
+   }
 
    @Shadow
-   protected abstract double getChatScale();
+   private double getScale() {
+      throw new AssertionError();
+   }
 
    @Unique
    private double vesence$displayed;
@@ -63,18 +67,18 @@ public abstract class ChatHudMixin {
    @Unique
    private double vesence$savedChatOpacity;
 
-   @Inject(method = "scroll(I)V", at = @At("RETURN"), require = 0, expect = 0)
+   @Inject(method = "scrollChat(I)V", at = @At("RETURN"), require = 0, expect = 0)
    private void vesence$onUserScroll(int amount, CallbackInfo ci) {
       vesence$userScrolled = true;
    }
 
-   @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;IIIZZ)V", at = @At("HEAD"), require = 0, expect = 0)
-   private void vesence$pushSmoothScroll(GuiGraphics context, Font font, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
+   @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("HEAD"), require = 0, expect = 0)
+   private void vesence$pushSmoothScroll(GuiGraphicsExtractor context, Font font, int currentTick, int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean flag, CallbackInfo ci) {
       // Гарантия видимости чата: если chatOpacity занулена — временно рисуем видимо.
       vesence$clampChatOpacity();
 
       vesence$pushed = false;
-      int target = scrolledLines;
+      int target = chatScrollbarPos;
 
       if (!BetterMinecraft.smoothScrollEnabled()) {
          vesence$displayed = target;
@@ -113,32 +117,32 @@ public abstract class ChatHudMixin {
          rounded = 0;
       }
       double frac = vesence$displayed - rounded;
-      double chatScale = getChatScale();
+      double chatScale = getScale();
       double offset = frac * getLineHeight() * chatScale;
 
       // Рисуем набор строк для округлённой позиции со сдвигом на дробный остаток строки.
       // ФИКС 1.21.11: БОЛЬШЕ НЕ вызываем context.enableScissor вокруг ChatComponent.render.
-      // Под слоёной (deferred) отрисовкой GuiGraphics в 1.21.11 scissor вокруг рендера
+      // Под слоёной (deferred) отрисовкой GuiGraphicsExtractor в 1.21.11 scissor вокруг рендера
       // чата «вырезал» сам ТЕКСТ сообщений — чат пропадал, оставался только скролл-
       // индикатор. Для плавности достаточно сдвига матрицы на дробную часть (< 1 строки);
       // клиппинг краёв не нужен (в худшем случае строка на краю чуть выходит за область
       // ТОЛЬКО во время активного скролла — это безопасно и незаметно).
       vesence$realScrolled = target;
-      scrolledLines = rounded;
+      chatScrollbarPos = rounded;
 
-      context.getMatrices().pushMatrix();
-      context.getMatrices().translate(0f, (float) offset);
+      context.pose().pushMatrix();
+      context.pose().translate(0f, (float) offset);
       vesence$pushed = true;
    }
 
-   @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;IIIZZ)V", at = @At("RETURN"), require = 0, expect = 0)
-   private void vesence$popSmoothScroll(GuiGraphics context, Font font, int currentTick, int mouseX, int mouseY, boolean focused, boolean flag, CallbackInfo ci) {
+   @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("RETURN"), require = 0, expect = 0)
+   private void vesence$popSmoothScroll(GuiGraphicsExtractor context, Font font, int currentTick, int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean flag, CallbackInfo ci) {
       // Восстанавливаем исходную непрозрачность чата (значение не сохраняется на диск).
       vesence$restoreChatOpacity();
 
       if (vesence$pushed) {
-         scrolledLines = vesence$realScrolled;
-         context.getMatrices().popMatrix();
+         chatScrollbarPos = vesence$realScrolled;
+         context.pose().popMatrix();
          vesence$pushed = false;
       }
    }
@@ -160,10 +164,10 @@ public abstract class ChatHudMixin {
       try {
          Minecraft mc = Minecraft.getInstance();
          if (mc == null || mc.options == null) return;
-         double op = mc.options.getChatOpacity().getValue();
+         double op = mc.options.chatOpacity().get();
          if (op < 0.1) {
             vesence$savedChatOpacity = op;
-            mc.options.getChatOpacity().setValue(1.0);
+            mc.options.chatOpacity().set(1.0);
             vesence$opacityClamped = true;
          }
       } catch (Throwable ignored) {
@@ -177,7 +181,7 @@ public abstract class ChatHudMixin {
       try {
          Minecraft mc = Minecraft.getInstance();
          if (mc != null && mc.options != null) {
-            mc.options.getChatOpacity().setValue(vesence$savedChatOpacity);
+            mc.options.chatOpacity().set(vesence$savedChatOpacity);
          }
       } catch (Throwable ignored) {
       }

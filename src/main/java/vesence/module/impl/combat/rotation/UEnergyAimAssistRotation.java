@@ -85,9 +85,9 @@ public class UEnergyAimAssistRotation {
         if (mc.player == null || target == null) return false;
         double range = aimAssist ? VISIBLE_RANGE : 100.0;
         Vec3 eye = mc.player.getEyePosition();
-        Vec3 look = Vec3.fromPolar(pitch, yaw).multiply(range);
-        AABB box = target.getBoundingBox().expand(0.05);
-        return box.raycast(eye, eye.add(look)).isPresent() || box.contains(eye);
+        Vec3 look = Vec3.directionFromRotation(pitch, yaw).scale(range);
+        AABB box = target.getBoundingBox().inflate(0.05);
+        return box.clip(eye, eye.add(look)).isPresent() || box.contains(eye);
     }
 
     public static void state() {

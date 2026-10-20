@@ -2,9 +2,9 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
 import vesence.module.api.Category;
@@ -29,18 +29,18 @@ public class ChestStealer extends Module {
     public void onUpdate(EventUpdate e) {
         if (mc.player == null) return;
 
-        if (mc.player.containerMenu instanceof GenericContainerScreenHandler container) {
-            int size = container.getInventory().size();
+        if (mc.player.containerMenu instanceof ChestMenu container) {
+            int size = container.getContainer().getContainerSize();
 
             for (int index = 0; index < size; ++index) {
-                ItemStack stack = container.getInventory().getItem(index);
+                ItemStack stack = container.getContainer().getItem(index);
                 if (stack.isEmpty()) continue;
 
                 if (delay.get() == 0.0) {
-                    mc.gameMode.clickSlot(container.syncId, index, 0, ClickType.QUICK_MOVE, mc.player);
+                    mc.gameMode.handleContainerInput(container.containerId, index, 0, ContainerInput.QUICK_MOVE, mc.player);
                 } else {
                     if (System.currentTimeMillis() - lastStealTime >= delay.get().longValue()) {
-                        mc.gameMode.clickSlot(container.syncId, index, 0, ClickType.QUICK_MOVE, mc.player);
+                        mc.gameMode.handleContainerInput(container.containerId, index, 0, ContainerInput.QUICK_MOVE, mc.player);
                         lastStealTime = System.currentTimeMillis();
                     }
                 }

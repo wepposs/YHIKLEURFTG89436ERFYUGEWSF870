@@ -3,8 +3,8 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -20,7 +20,7 @@ import vesence.utils.render.math.animation.AnimationUtils;
  * затемнение фона не трогается.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenAnimationMixin {
 
     @Unique
@@ -32,15 +32,10 @@ public abstract class HandledScreenAnimationMixin {
         return a != null && a.isInventoryEnabled();
     }
 
-    @Inject(
-            method = "renderBackground",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screen/ingame/HandledScreen;drawBackground(Lnet/minecraft/client/gui/GuiGraphics;FII)V",
-                    shift = At.Shift.BEFORE
-            )
-    )
-    private void vesence$onBeforeDrawBackground(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    // TODO(port26): renderBackground/drawBackground removed in 26.3; extractContents (bg + slots + items)
+    // is the first thing extractRenderState draws, so the scale push moved to its HEAD.
+    @Inject(method = "extractContents", at = @At("HEAD"))
+    private void vesence$onBeforeDrawBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!vesence$animEnabled()) {
             vesence$pushed = false;
             return;
@@ -50,10 +45,10 @@ public abstract class HandledScreenAnimationMixin {
         float v = anim.getValue();
 
         Minecraft mc = Minecraft.getInstance();
-        float pivotX = mc.getWindow().getScaledWidth() / 2f;
-        float pivotY = mc.getWindow().getScaledHeight() / 2f;
+        float pivotX = mc.getWindow().getGuiScaledWidth() / 2f;
+        float pivotY = mc.getWindow().getGuiScaledHeight() / 2f;
 
-        Matrix3x2fStack matrices = context.getMatrices();
+        Matrix3x2fStack matrices = context.pose();
         matrices.pushMatrix();
         matrices.translate(pivotX, pivotY);
         matrices.scale(v, v);
@@ -61,10 +56,10 @@ public abstract class HandledScreenAnimationMixin {
         vesence$pushed = true;
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    private void vesence$onRenderReturn(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void vesence$onRenderReturn(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (vesence$pushed) {
-            context.getMatrices().popMatrix();
+            context.pose().popMatrix();
             vesence$pushed = false;
         }
     }

@@ -13,7 +13,7 @@ import vesence.module.impl.visuals.CameraClip;
 @Mixin(Camera.class)
 public abstract class CameraClipMixin {
 
-    @Inject(method = "clipToSpace", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+    @Inject(method = "getMaxZoom", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
     private void vesence$noCameraClip(float desiredCameraDistance, CallbackInfoReturnable<Float> cir) {
         if (CameraClip.isActive()) {
             cir.setReturnValue(desiredCameraDistance);

@@ -1,14 +1,16 @@
 package vesence.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Invoker;
+import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(targets = "net.minecraft.entity.player.ItemCooldownManager$Entry")
+// TODO(port26): ItemCooldowns$Entry renamed to ItemCooldowns$CooldownInstance (a record
+// with startTime/endTime components) in 26.3
+@Mixin(targets = "net.minecraft.world.item.ItemCooldowns$CooldownInstance")
 public interface ItemCooldownManagerEntryAccessor {
 
-    @Invoker("startTick")
+    @Accessor("startTime")
     int invokeStartTick();
 
-    @Invoker("endTick")
+    @Accessor("endTime")
     int invokeEndTick();
 }

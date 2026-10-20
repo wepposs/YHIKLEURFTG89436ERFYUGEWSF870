@@ -3,7 +3,7 @@ package vesence.module.impl.combat.rotation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -51,11 +51,11 @@ public class UFunTimeRotation {
 
         // Аим-поинт: бокс цели, сдвинутый по вектору движения, ближайшая к глазу
         // точка с дотяжкой к центру, когда цель ближе радиуса удара.
-        Vec3 velocity = new Vec3(target.getX() - target.lastRenderX,
-                target.getY() - target.lastRenderY, target.getZ() - target.lastRenderZ);
+        Vec3 velocity = new Vec3(target.getX() - target.xOld,
+                target.getY() - target.yOld, target.getZ() - target.zOld);
         AABB box = target.getBoundingBox()
-                .offset(velocity.lengthSqr() > 0.36 ? velocity.normalize().multiply(0.6) : velocity)
-                .contract(0.08);
+                .move(velocity.lengthSqr() > 0.36 ? velocity.normalize().scale(0.6) : velocity)
+                .deflate(0.08);
         Vec3 closest = new Vec3(
                 Mth.clamp(eye.x, box.minX, box.maxX),
                 Mth.clamp(eye.y, box.minY + 0.15,
@@ -64,9 +64,9 @@ public class UFunTimeRotation {
         Vec3 toCenter = new Vec3(
                 (box.minX + box.maxX) * 0.5 - closest.x, 0.0,
                 (box.minZ + box.maxZ) * 0.5 - closest.z);
-        Vec3 aim = closest.add(toCenter.multiply(Mth.clamp(
+        Vec3 aim = closest.add(toCenter.scale(Mth.clamp(
                 (attackDist - 0.15 - eye.distanceTo(closest)) / Math.max(0.05, toCenter.length()), 0.0, 0.8)));
-        AABB inner = target.getBoundingBox().contract(0.1);
+        AABB inner = target.getBoundingBox().deflate(0.1);
         Vec3 dir = new Vec3(
                 Mth.clamp(aim.x, inner.minX, inner.maxX),
                 Mth.clamp(aim.y, inner.minY, inner.maxY),
@@ -93,7 +93,7 @@ public class UFunTimeRotation {
 
         // Тряска в простое: растёт по мере отката кулдауна, знак чередуется
         // от удара к удару.
-        float cooldownLeft = 1.0F - mc.player.getAttackCooldownProgress(1.0F);
+        float cooldownLeft = 1.0F - mc.player.getAttackStrengthScale(1.0F);
         float shake = attack ? 0.0F : cooldownLeft * cooldownLeft;
         float sign = hitCounter % 2 == 0 ? 1.0F : -1.0F;
         if (!attack) {
@@ -136,8 +136,8 @@ public class UFunTimeRotation {
      * Возвращает множитель фазы синуса (0..0.6).
      */
     private static float cooldownSpeed() {
-        float progress = mc.player.getAttackCooldownProgress(1.0F);
-        double attackSpeed = mc.player.getAttributeValue(EntityAttributes.ATTACK_SPEED);
+        float progress = mc.player.getAttackStrengthScale(1.0F);
+        double attackSpeed = mc.player.getAttributeValue(Attributes.ATTACK_SPEED);
         if (attackSpeed > 1.6) {
             progress *= (float) (1.6 / attackSpeed);
         }

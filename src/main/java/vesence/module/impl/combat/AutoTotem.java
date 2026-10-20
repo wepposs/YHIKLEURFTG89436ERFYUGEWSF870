@@ -8,11 +8,11 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.entity.projectile.TridentEntity;
+import net.minecraft.world.entity.projectile.arrow.ThrownTrident;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
@@ -199,7 +199,7 @@ public class AutoTotem extends Module {
 
             boolean originalWasHeadForCycle = this.takeSphere.get()
                && !this.originalOffhandItem.isEmpty()
-               && this.originalOffhandItem.isOf(Items.PLAYER_HEAD);
+               && this.originalOffhandItem.is(Items.PLAYER_HEAD);
             boolean wantReturn = this.returnTotem.get() || originalWasHeadForCycle;
 
             if (wantReturn
@@ -241,18 +241,18 @@ public class AutoTotem extends Module {
       float radius = this.crystalRadius.get().floatValue();
       double radiusSq = radius * radius;
       if (this.triggers.get("Кристалл рядом")) {
-         for (Entity entity : mc.level.getEntities()) {
-            if (entity instanceof EndCrystal && mc.player.squaredDistanceTo(entity) <= radiusSq) {
+         for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity instanceof EndCrystal && mc.player.distanceToSqr(entity) <= radiusSq) {
                return true;
             }
          }
       }
 
       if (this.triggers.get("Кристалл в руке")) {
-         for (Player player : mc.level.getPlayers()) {
+         for (Player player : mc.level.players()) {
             if (player != mc.player
-               && mc.player.squaredDistanceTo(player) <= radiusSq
-               && (player.getMainHandItem().isOf(Items.END_CRYSTAL) || player.getOffhandItem().isOf(Items.END_CRYSTAL))) {
+               && mc.player.distanceToSqr(player) <= radiusSq
+               && (player.getMainHandItem().is(Items.END_CRYSTAL) || player.getOffhandItem().is(Items.END_CRYSTAL))) {
                return true;
             }
          }
@@ -272,17 +272,17 @@ public class AutoTotem extends Module {
       double radiusSq = radius * radius;
       Vec3 playerPos = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ());
 
-      for (Entity entity : mc.level.getEntities()) {
-         if (!(entity instanceof TridentEntity trident)) continue;
+      for (Entity entity : mc.level.entitiesForRendering()) {
+         if (!(entity instanceof ThrownTrident trident)) continue;
          if (trident.getOwner() == mc.player) continue;
-         if (mc.player.squaredDistanceTo(trident) > radiusSq) continue;
+         if (mc.player.distanceToSqr(trident) > radiusSq) continue;
 
          Vec3 vel = trident.getDeltaMovement();
          if (vel.lengthSqr() < 0.05) continue;
 
          Vec3 tridentPos = new Vec3(trident.getX(), trident.getY(), trident.getZ());
-         double distNow = tridentPos.squaredDistanceTo(playerPos);
-         double distNext = tridentPos.add(vel).squaredDistanceTo(playerPos);
+         double distNow = tridentPos.distanceToSqr(playerPos);
+         double distNext = tridentPos.add(vel).distanceToSqr(playerPos);
          if (distNext <= distNow) {
             return true;
          }
@@ -297,8 +297,8 @@ public class AutoTotem extends Module {
       float radius = this.tntRadius.get().floatValue();
       double radiusSq = radius * radius;
 
-      for (Entity entity : mc.level.getEntities()) {
-         if (entity instanceof PrimedTnt && mc.player.squaredDistanceTo(entity) <= radiusSq) {
+      for (Entity entity : mc.level.entitiesForRendering()) {
+         if (entity instanceof PrimedTnt && mc.player.distanceToSqr(entity) <= radiusSq) {
             return true;
          }
       }
@@ -309,12 +309,12 @@ public class AutoTotem extends Module {
       if (mc.player == null || mc.level == null) return false;
       if (this.skipIfHead.get()) {
          boolean blockingHead = this.takeSphere.get()
-            ? mc.player.getMainHandItem().isOf(Items.PLAYER_HEAD)
+            ? mc.player.getMainHandItem().is(Items.PLAYER_HEAD)
             : this.isHoldingHead();
          if (blockingHead) return false;
       }
       float currentHp = mc.player.getHealth() + mc.player.getAbsorptionAmount();
-      boolean isGliding = mc.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA) && mc.player.isGliding();
+      boolean isGliding = mc.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA) && mc.player.isFallFlying();
       float hpThreshold = isGliding ? this.hpOnElytra.get().floatValue() : this.hp.get().floatValue();
       if (currentHp <= hpThreshold) {
          return true;
@@ -324,10 +324,10 @@ public class AutoTotem extends Module {
          float radius = this.crystalRadius.get().floatValue();
          double radiusSq = radius * radius;
          if (this.triggers.get("Обсидиан в руке")) {
-            for (Player player : mc.level.getPlayers()) {
+            for (Player player : mc.level.players()) {
                if (player != mc.player
-                  && mc.player.squaredDistanceTo(player) <= radiusSq
-                  && (player.getMainHandItem().isOf(Items.OBSIDIAN) || player.getOffhandItem().isOf(Items.OBSIDIAN))) {
+                  && mc.player.distanceToSqr(player) <= radiusSq
+                  && (player.getMainHandItem().is(Items.OBSIDIAN) || player.getOffhandItem().is(Items.OBSIDIAN))) {
                   return true;
                }
             }
@@ -342,11 +342,11 @@ public class AutoTotem extends Module {
       if (mc.player == null) return false;
       ItemStack main = mc.player.getMainHandItem();
       ItemStack off = mc.player.getOffhandItem();
-      return main.isOf(Items.PLAYER_HEAD) || off.isOf(Items.PLAYER_HEAD);
+      return main.is(Items.PLAYER_HEAD) || off.is(Items.PLAYER_HEAD);
    }
 
    private boolean hasTotemInOffhand() {
-      return mc.player != null && mc.player.getOffhandItem().isOf(Items.TOTEM_OF_UNDYING);
+      return mc.player != null && mc.player.getOffhandItem().is(Items.TOTEM_OF_UNDYING);
    }
 
    private int findTotemSlot() {
@@ -355,9 +355,9 @@ public class AutoTotem extends Module {
       int enchantedTotem = -1;
 
       for (int i = 9; i < 45; i++) {
-         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
-         if (stack.isOf(Items.TOTEM_OF_UNDYING)) {
-            boolean isEnchanted = stack.hasGlint();
+         ItemStack stack = mc.player.inventoryMenu.getSlot(i).getItem();
+         if (stack.is(Items.TOTEM_OF_UNDYING)) {
+            boolean isEnchanted = stack.hasFoil();
             if (isEnchanted) {
                if (enchantedTotem == -1) {
                   enchantedTotem = i;
@@ -386,7 +386,7 @@ public class AutoTotem extends Module {
          this.savedTotemSlot = totemSlot;
          this.doSwap(totemSlot);
          this.totemTakenByUs = true;
-         mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
+         mc.player.connection.send(new ServerboundContainerClosePacket(0));
       }
    }
 
@@ -401,9 +401,9 @@ public class AutoTotem extends Module {
       }
 
       boolean originalWasTotem = !this.originalOffhandItem.isEmpty()
-         && this.originalOffhandItem.isOf(Items.TOTEM_OF_UNDYING);
+         && this.originalOffhandItem.is(Items.TOTEM_OF_UNDYING);
       boolean originalWasHead = !this.originalOffhandItem.isEmpty()
-         && this.originalOffhandItem.isOf(Items.PLAYER_HEAD);
+         && this.originalOffhandItem.is(Items.PLAYER_HEAD);
       boolean originalWasEmpty = this.originalOffhandItem.isEmpty();
 
       if (originalWasTotem || originalWasHead) {
@@ -433,7 +433,7 @@ public class AutoTotem extends Module {
 
       this.totemTakenByUs = false;
       this.clearOriginalOffhand();
-      mc.player.connection.sendPacket(new ServerboundContainerClosePacket(0));
+      mc.player.connection.send(new ServerboundContainerClosePacket(0));
    }
 
    /** Единая точка сброса «памяти» оригинального офф-хенда. */
@@ -448,8 +448,8 @@ public class AutoTotem extends Module {
          return -1;
       } else {
          for (int i = 9; i < 45; i++) {
-            ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
-            if (ItemStack.areItemsEqual(stack, item) && ItemStack.areEqual(stack, item)) {
+            ItemStack stack = mc.player.inventoryMenu.getSlot(i).getItem();
+            if (ItemStack.isSameItemSameComponents(stack, item)) {
                return i;
             }
          }
@@ -472,10 +472,10 @@ public class AutoTotem extends Module {
       int byNormName = -1;
 
       for (int i = 9; i < 45; i++) {
-         ItemStack stack = mc.player.playerScreenHandler.getSlot(i).getItem();
-         if (!stack.isOf(Items.PLAYER_HEAD)) continue;
+         ItemStack stack = mc.player.inventoryMenu.getSlot(i).getItem();
+         if (!stack.is(Items.PLAYER_HEAD)) continue;
 
-         if (ItemStack.areItemsEqual(stack, reference) && ItemStack.areEqual(stack, reference)) {
+         if (ItemStack.isSameItemSameComponents(stack, reference)) {
             return i;
          }
 
@@ -505,7 +505,7 @@ public class AutoTotem extends Module {
    private static String computeStableHeadName(ItemStack stack) {
       if (stack == null || stack.isEmpty()) return "";
       try {
-         Component name = stack.getName();
+         Component name = stack.getHoverName();
          if (name == null) return "";
          String s = name.getString();
          return s == null ? "" : s;
@@ -533,24 +533,24 @@ public class AutoTotem extends Module {
    private void doSwap1214(int slot) {
       if (slot >= 36 && slot <= 44) {
          int hotbarSlot = slot - 36;
-         mc.gameMode.clickSlot(0, 45, hotbarSlot, ClickType.SWAP, mc.player);
+         mc.gameMode.handleContainerInput(0, 45, hotbarSlot, ContainerInput.SWAP, mc.player);
       } else {
-         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
-         mc.gameMode.clickSlot(0, 45, 0, ClickType.SWAP, mc.player);
-         mc.gameMode.clickSlot(0, slot, 0, ClickType.SWAP, mc.player);
+         mc.gameMode.handleContainerInput(0, slot, 0, ContainerInput.SWAP, mc.player);
+         mc.gameMode.handleContainerInput(0, 45, 0, ContainerInput.SWAP, mc.player);
+         mc.gameMode.handleContainerInput(0, slot, 0, ContainerInput.SWAP, mc.player);
       }
    }
 
    private void doSwap1165(int slot) {
-      mc.gameMode.clickSlot(0, slot, 40, ClickType.SWAP, mc.player);
+      mc.gameMode.handleContainerInput(0, slot, 40, ContainerInput.SWAP, mc.player);
    }
 
    private void disableSprint() {
       if (!this.sprintPaused) {
          this.sprintPaused = true;
       }
-      if (mc.options != null && mc.options.sprintKey != null) {
-         mc.options.sprintKey.setPressed(false);
+      if (mc.options != null && mc.options.keySprint != null) {
+         mc.options.keySprint.setDown(false);
       }
       if (mc.player != null) {
          mc.player.setSprinting(false);

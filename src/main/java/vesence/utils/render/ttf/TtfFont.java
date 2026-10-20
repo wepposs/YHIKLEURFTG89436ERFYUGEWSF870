@@ -5,8 +5,8 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 import vesence.renderengine.render.Renderer2D;
 
 import java.awt.Color;
@@ -89,21 +89,21 @@ public final class TtfFont {
       NativeImage native_ = new NativeImage(boxW, boxH, false);
       for (int y = 0; y < boxH; y++) {
          for (int x = 0; x < boxW; x++) {
-            native_.setColorArgb(x, y, img.getRGB(x, y));
+            native_.setPixel(x, y, img.getRGB(x, y));
          }
       }
 
       String name = "ttf_glyph_" + COUNTER.incrementAndGet();
       final String nameFinal = name;
       Supplier<String> nameSupplier = () -> nameFinal;
-      NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, native_);
+      DynamicTexture tex = new DynamicTexture(nameSupplier, native_);
       tex.upload();
-      ResourceLocation id = ResourceLocation.of("vesence", "ttf_glyph/" + name);
-      Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
+      Identifier id = Identifier.fromNamespaceAndPath("vesence", "ttf_glyph/" + name);
+      Minecraft.getInstance().getTextureManager().register(id, tex);
 
       int glId = 0;
-      if (tex.getGlTexture() instanceof GlTexture glTex) {
-         glId = glTex.getGlId();
+      if (tex.getTexture() instanceof GlTexture glTex) {
+         glId = glTex.glId();
       }
 
       Glyph glyph = new Glyph();
@@ -156,21 +156,21 @@ public final class TtfFont {
             v = (float) Math.pow(v, 0.75);
             int av = (int) (v * 255f + 0.5f);
             if (av < 0) av = 0; else if (av > 255) av = 255;
-            glowImg.setColorArgb(xx, yy, (av << 24) | 0x00FFFFFF);
+            glowImg.setPixel(xx, yy, (av << 24) | 0x00FFFFFF);
          }
       }
 
       String name = "ttf_glow_" + COUNTER.incrementAndGet();
       final String nameFinal = name;
       Supplier<String> nameSupplier = () -> nameFinal;
-      NativeImageBackedTexture tex = new NativeImageBackedTexture(nameSupplier, glowImg);
+      DynamicTexture tex = new DynamicTexture(nameSupplier, glowImg);
       tex.upload();
-      ResourceLocation id = ResourceLocation.of("vesence", "ttf_glow/" + name);
-      Minecraft.getInstance().getTextureManager().registerTexture(id, tex);
+      Identifier id = Identifier.fromNamespaceAndPath("vesence", "ttf_glow/" + name);
+      Minecraft.getInstance().getTextureManager().register(id, tex);
 
       int glowGlId = 0;
-      if (tex.getGlTexture() instanceof GlTexture glTex) {
-         glowGlId = glTex.getGlId();
+      if (tex.getTexture() instanceof GlTexture glTex) {
+         glowGlId = glTex.glId();
       }
 
       glyph.glowGlId = glowGlId;
@@ -325,7 +325,7 @@ public final class TtfFont {
 
    private static final class Glyph {
       int glId;
-      ResourceLocation identifier;
+      Identifier identifier;
       int width;
       int height;
       int advance;
@@ -333,7 +333,7 @@ public final class TtfFont {
       int offsetY;
       // Pre-baked, Gaussian-blurred glow texture (white with soft alpha halo).
       int glowGlId;
-      ResourceLocation glowIdentifier;
+      Identifier glowIdentifier;
       int glowWidth;
       int glowHeight;
       int glowPad;

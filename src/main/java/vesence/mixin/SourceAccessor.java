@@ -2,13 +2,13 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.sound.Source;
+import com.mojang.blaze3d.audio.Channel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Environment(EnvType.CLIENT)
-@Mixin({Source.class})
+@Mixin({Channel.class})
 public interface SourceAccessor {
-   @Accessor("pointer")
+   @Accessor("source")
    int rtx$getSourceId();
 }

@@ -39,10 +39,10 @@ public class Rotation implements IMinecraft {
    }
 
    public static float cameraYaw() {
-      return Mth.wrapDegrees(mc.gameRenderer.getCamera().getYRot() + (mc.gameRenderer.getCamera().isThirdPerson() ? 180 : 0));
+      return Mth.wrapDegrees(mc.gameRenderer.mainCamera().yRot() + (mc.gameRenderer.mainCamera().isDetached() ? 180 : 0));
    }
 
    public static float cameraPitch() {
-      return (mc.gameRenderer.getCamera().isThirdPerson() ? -1 : 1) * mc.gameRenderer.getCamera().getXRot();
+      return (mc.gameRenderer.mainCamera().isDetached() ? -1 : 1) * mc.gameRenderer.mainCamera().xRot();
    }
 }

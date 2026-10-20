@@ -2,7 +2,7 @@ package vesence.utils.render.text;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 
@@ -65,7 +65,7 @@ public final class PrefixHelper {
         return ch == null ? null : PREFIX_MAP.get(ch);
     }
 
-    public static net.minecraft.util.ResourceLocation getDonatTexture(String ch) {
+    public static net.minecraft.resources.Identifier getDonatTexture(String ch) {
         String replacement = getReplacement(ch);
         if (replacement == null) {
             return null;
@@ -74,10 +74,10 @@ public final class PrefixHelper {
         if (!DONAT_TEXTURES.contains(file)) {
             return null;
         }
-        return net.minecraft.util.ResourceLocation.of("vesence", "textures/donat/" + file + ".png");
+        return net.minecraft.resources.Identifier.fromNamespaceAndPath("vesence", "textures/donat/" + file + ".png");
     }
 
-    public static net.minecraft.util.ResourceLocation findDonatTexture(String raw) {
+    public static net.minecraft.resources.Identifier findDonatTexture(String raw) {
         if (raw == null || raw.isEmpty()) {
             return null;
         }
@@ -102,7 +102,7 @@ public final class PrefixHelper {
         }
         if (!hasPrefix) return component;
 
-        MutableText result = Component.empty();
+        MutableComponent result = Component.empty();
         component.visit((style, segment) -> {
             translateSegment(segment, style, result);
             return java.util.Optional.empty();
@@ -110,7 +110,7 @@ public final class PrefixHelper {
         return result;
     }
 
-    private static void translateSegment(String segment, Style style, MutableText result) {
+    private static void translateSegment(String segment, Style style, MutableComponent result) {
         int i = 0;
         while (i < segment.length()) {
             int cp = segment.codePointAt(i);

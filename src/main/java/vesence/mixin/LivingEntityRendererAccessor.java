@@ -11,14 +11,14 @@ import vesence.access.ILivingEntityRendererAccess;
 public abstract class LivingEntityRendererAccessor implements ILivingEntityRendererAccess {
 
     @Shadow
-    protected abstract void setupTransforms(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale);
+    protected abstract void setupRotations(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale);
 
     @Shadow
     protected abstract void scale(LivingEntityRenderState state, PoseStack matrices);
 
     @Override
     public void vesence$invokeSetupTransforms(LivingEntityRenderState state, PoseStack matrices, float bodyYaw, float scale) {
-        this.setupTransforms(state, matrices, bodyYaw, scale);
+        this.setupRotations(state, matrices, bodyYaw, scale);
     }
 
     @Override

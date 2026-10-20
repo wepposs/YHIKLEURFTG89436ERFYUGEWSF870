@@ -6,20 +6,18 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.item.AxeItem;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MaceItem;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
-import net.minecraft.network.packet.c2s.play.ServerboundPlayerCommandPacket.Mode;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.server.dialog.action.Action;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.tags.FluidTags;
@@ -32,8 +30,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.ClipContext.FluidHandling;
-import net.minecraft.world.ClipContext.ShapeType;
+import net.minecraft.world.level.ClipContext.Fluid;
+import net.minecraft.world.level.ClipContext.Block;
 import net.minecraft.world.level.Level;
 import vesence.module.impl.combat.AttackAura;
 import vesence.utils.other.IMinecraft;
@@ -83,7 +81,7 @@ public final class Attack implements IMinecraft {
          return -1;
       } else {
          for (int i = 0; i < 9; i++) {
-            if (mc.player.getInventory().getItem(i).getItem() instanceof AxeItem) {
+            if (mc.player.getInventory().getItem(i).is(ItemTags.AXES)) {
                return i;
             }
          }
@@ -110,12 +108,12 @@ public final class Attack implements IMinecraft {
                if ((slot = getAxeSlot()) != -1 && slot != handSlot) {
                   pre$post[0] = () -> {
                      if (mc.getConnection() != null) {
-                        mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(slot));
+                        mc.getConnection().send(new ServerboundSetCarriedItemPacket(slot));
                      }
                   };
                   pre$post[1] = () -> {
                      if (mc.getConnection() != null) {
-                        mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(handSlot));
+                        mc.getConnection().send(new ServerboundSetCarriedItemPacket(handSlot));
                      }
                   };
                }
@@ -132,13 +130,13 @@ public final class Attack implements IMinecraft {
       Runnable[] pre$post = new Runnable[]{() -> {}, () -> {}};
       if (enabled && mc.player != null) {
          if (mc.player.isBlocking()) {
-            InteractionHand active = mc.player.getActiveHand();
+            InteractionHand active = mc.player.getUsedItemHand();
             if (active == null) {
                return pre$post;
             }
 
-            pre$post[0] = () -> mc.getConnection().sendPacket(new ServerboundPlayerActionPacket(Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, Direction.DOWN));
-            pre$post[1] = () -> mc.getConnection().sendPacket(new ServerboundUseItemPacket(active, 0, mc.player.getYRot(), mc.player.getXRot()));
+            pre$post[0] = () -> mc.getConnection().send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN));
+            pre$post[1] = () -> mc.getConnection().send(new ServerboundUseItemPacket(active, 0, mc.player.getYRot(), mc.player.getXRot()));
          }
 
          return pre$post;
@@ -150,14 +148,14 @@ public final class Attack implements IMinecraft {
    public static Runnable[] skipSilentSprintingTaskForUse(boolean enabled) {
       Runnable[] pre$post = new Runnable[]{() -> {}, () -> {}};
       if (enabled && mc.player != null) {
-         if (mc.player.isSprinting() && !mc.player.onGround() && !mc.player.isSubmergedIn(FluidTags.WATER)) {
+         if (mc.player.isSprinting() && !mc.player.onGround() && !mc.player.isEyeInFluid(FluidTags.WATER)) {
             pre$post[0] = () -> {
                mc.player.setSprinting(false);
-               mc.getConnection().sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.STOP_SPRINTING));
+               mc.getConnection().send(new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Action.STOP_SPRINTING));
             };
             pre$post[1] = () -> {
                mc.player.setSprinting(true);
-               mc.getConnection().sendPacket(new ServerboundPlayerCommandPacket(mc.player, Mode.START_SPRINTING));
+               mc.getConnection().send(new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Action.START_SPRINTING));
             };
          }
 
@@ -173,7 +171,7 @@ public final class Attack implements IMinecraft {
          double minDst = rangeY * 2.0;
          double maxY = 320.0;
          double minY = -64.0;
-         float selfWD2 = mc.player.getWidth() / 2.0F - 0.01F;
+         float selfWD2 = mc.player.getBbWidth() / 2.0F - 0.01F;
 
          for (Vec3 vec : Arrays.asList(
                  eyePos.add(-selfWD2, 0.0, -selfWD2),
@@ -182,15 +180,15 @@ public final class Attack implements IMinecraft {
                  eyePos.add(-selfWD2, 0.0, selfWD2)
          )) {
             HitResult first = mc.level
-                    .raycast(new ClipContext(vec, vec.add(0.0, -rangeY, 0.0), ShapeType.VISUAL, FluidHandling.ANY, mc.player));
+                    .clip(new ClipContext(vec, vec.add(0.0, -rangeY, 0.0), ClipContext.Block.VISUAL, ClipContext.Fluid.ANY, mc.player));
             HitResult second = mc.level
-                    .raycast(new ClipContext(vec, vec.add(0.0, rangeY, 0.0), ShapeType.VISUAL, FluidHandling.ANY, mc.player));
-            if (maxY > second.getPos().y) {
-               maxY = second.getPos().y;
+                    .clip(new ClipContext(vec, vec.add(0.0, rangeY, 0.0), ClipContext.Block.VISUAL, ClipContext.Fluid.ANY, mc.player));
+            if (maxY > second.getLocation().y) {
+               maxY = second.getLocation().y;
             }
 
-            if (minY < first.getPos().y) {
-               minY = first.getPos().y;
+            if (minY < first.getLocation().y) {
+               minY = first.getLocation().y;
             }
 
             double dst = maxY - minY;
@@ -199,7 +197,7 @@ public final class Attack implements IMinecraft {
             }
          }
 
-         return minDst - mc.player.getHeight();
+         return minDst - mc.player.getBbHeight();
       } else {
          return 1.0;
       }
@@ -211,8 +209,8 @@ public final class Attack implements IMinecraft {
       } else {
          double fallOffset = mc.player.fallDistance;
          if (mc.level != null && !mc.player.onGround() && mc.player.getDeltaMovement().y < -0.0784000015258789) {
-            boolean posLiquid = !mc.level.getFluidState(mc.player.getBlockPos()).isEmpty();
-            boolean posUpLiquid = !mc.level.getFluidState(mc.player.getBlockPos().up()).isEmpty();
+            boolean posLiquid = !mc.level.getFluidState(mc.player.blockPosition()).isEmpty();
+            boolean posUpLiquid = !mc.level.getFluidState(mc.player.blockPosition().above()).isEmpty();
             if (!posLiquid && !posUpLiquid && mc.player.fallDistance < -mc.player.getDeltaMovement().y && mc.player.tickCount > 6) {
                fallOffset = -mc.player.getDeltaMovement().y;
             }
@@ -224,11 +222,11 @@ public final class Attack implements IMinecraft {
 
    private static boolean isFrozen() {
       if (mc.player == null) return false;
-      MobEffectInstance slowness = mc.player.getStatusEffect(MobEffects.SLOWNESS);
+      MobEffectInstance slowness = mc.player.getEffect(MobEffects.SLOWNESS);
       if (slowness != null && slowness.getAmplifier() >= 4) {
          return true;
       }
-      return mc.player.isFrozen();
+      return mc.player.isFullyFrozen();
    }
 
    /**
@@ -256,12 +254,12 @@ public final class Attack implements IMinecraft {
       if (AttackAura.maceReady()
             && !mc.player.onGround()
             && InventoryActionUtil.findItem(Items.MACE, false) != -1
-            && !mc.player.getItemCooldownManager().isCoolingDown(
+            && !mc.player.getCooldowns().isOnCooldown(
                   mc.player.getInventory().getItem(InventoryActionUtil.findItem(Items.MACE, false)))) {
          if (AttackAura.smashTimingBlocked(AttackAura.target)) {
             return false;
          }
-         if (MaceItem.shouldDealAdditionalDamage(mc.player) && mc.player.getDeltaMovement().y < 0.0) {
+         if (MaceItem.canSmashAttack(mc.player) && mc.player.getDeltaMovement().y < 0.0) {
             return true;
          }
       }
@@ -271,18 +269,18 @@ public final class Attack implements IMinecraft {
       }
 
       boolean smartCrits = AttackAura.extraSettings.get("Умные криты");
-      FluidState eyeFluid = mc.level.getFluidState(BlockPos.ofFloored(mc.player.getEyePosition()));
-      boolean physical = !mc.player.hasStatusEffect(MobEffects.LEVITATION)
-            && !mc.player.hasStatusEffect(MobEffects.BLINDNESS)
-            && !eyeFluid.isIn(FluidTags.WATER)
-            && !eyeFluid.isIn(FluidTags.LAVA)
+      FluidState eyeFluid = mc.level.getFluidState(BlockPos.containing(mc.player.getEyePosition()));
+      boolean physical = !mc.player.hasEffect(MobEffects.LEVITATION)
+            && !mc.player.hasEffect(MobEffects.BLINDNESS)
+            && !eyeFluid.is(FluidTags.WATER)
+            && !eyeFluid.is(FluidTags.LAVA)
             && !mc.player.getAbilities().flying
-            && !mc.player.isGliding()
-            && !mc.player.isClimbing()
-            && !mc.player.hasVehicle();
+            && !mc.player.isFallFlying()
+            && !mc.player.onClimbable()
+            && !mc.player.isPassenger();
       double threshold = airStuckActive() ? 0.0 : convenientFallOffset();
       return physical && mc.player.fallDistance > threshold && !mc.player.onGround()
-            || smartCrits && mc.player.onGround() && !mc.player.input.playerInput.jump()
+            || smartCrits && mc.player.onGround() && !mc.player.input.keyPresses.jump()
             || !physical;
    }
 
@@ -302,9 +300,9 @@ public final class Attack implements IMinecraft {
       }
 
       if (livingIn != null && mc.gameMode != null && mc.player != null) {
-         mc.gameMode.attackEntity(mc.player, livingIn);
+         mc.gameMode.attack(mc.player, livingIn);
          if (hand != null) {
-            mc.player.swingHand(hand);
+            mc.player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
          }
 
          if (cpsBypass) {
@@ -328,17 +326,17 @@ public final class Attack implements IMinecraft {
       if (mc.player == null) {
          return 500L;
       } else {
-         double attackSpeed = mc.player.getAttributeValue(EntityAttributes.ATTACK_SPEED);
+         double attackSpeed = mc.player.getAttributeValue(Attributes.ATTACK_SPEED);
          float maxDeviation = 0.2F;
          long msCooldown2 = (long)(1.0 / attackSpeed * 1000.0 * (1.0F - Math.min(maxDeviation, 1.0F)));
-         long msCooldown = mc.player.getMainHandItem().isIn(ItemTags.SWORDS) ? msCooldown2 - ThreadLocalRandom.current().nextLong(20L, 40L) : msCooldown2 + ThreadLocalRandom.current().nextLong(5L, 20L);
+         long msCooldown = mc.player.getMainHandItem().is(ItemTags.SWORDS) ? msCooldown2 - ThreadLocalRandom.current().nextLong(20L, 40L) : msCooldown2 + ThreadLocalRandom.current().nextLong(5L, 20L);
 
-         if (mc.player.getMainHandItem().isIn(ItemTags.SWORDS)) {
+         if (mc.player.getMainHandItem().is(ItemTags.SWORDS)) {
             if (mc.player.isJumping() && mc.player.tickCount > 6 && AttackAura.extraSettings.get("Умные криты")) {
                msCooldown = msCooldown2 - ThreadLocalRandom.current().nextLong(50L, 70L);
             }
 
-            if (mc.player.isSubmergedInWater()) {
+            if (mc.player.isUnderWater()) {
                msCooldown = msCooldown2 - ThreadLocalRandom.current().nextLong(50L, 70L);
             }
          }
@@ -382,18 +380,18 @@ public final class Attack implements IMinecraft {
          return false;
       }
       if (AttackAura.maceSmashActive()) {
-         return !mc.player.getItemCooldownManager().isCoolingDown(mc.player.getMainHandItem());
+         return !mc.player.getCooldowns().isOnCooldown(mc.player.getMainHandItem());
       }
       if (mc.player.fallDistance > 1.5F) {
-         return !mc.player.getItemCooldownManager().isCoolingDown(mc.player.getMainHandItem())
+         return !mc.player.getCooldowns().isOnCooldown(mc.player.getMainHandItem())
                && ticksSinceHit > 3L + msOffset / 50L;
       }
       float progressOffset = 0.5F + (float) Math.max(0L, -msOffset) / 50.0F;
-      if (mc.player.getMainHandItem().isOf(Items.MACE)) {
-         return !mc.player.getItemCooldownManager().isCoolingDown(mc.player.getMainHandItem())
-               && mc.player.getAttackCooldownProgress(progressOffset) >= 0.9F;
+      if (mc.player.getMainHandItem().is(Items.MACE)) {
+         return !mc.player.getCooldowns().isOnCooldown(mc.player.getMainHandItem())
+               && mc.player.getAttackStrengthScale(progressOffset) >= 0.9F;
       }
-      return mc.player.getAttackCooldownProgress(progressOffset) >= 0.9F
+      return mc.player.getAttackStrengthScale(progressOffset) >= 0.9F
             && ticksSinceHit >= 10L + msOffset / 50L;
    }
 
@@ -429,12 +427,12 @@ public final class Attack implements IMinecraft {
       if (AttackAura.sprintType.is("Быстрый")) {
          return shouldAttack(targetIn, false, false, -50L, ranges)
                && !mc.player.onGround()
-               && !mc.player.isSubmergedIn(FluidTags.WATER)
+               && !mc.player.isEyeInFluid(FluidTags.WATER)
                && mc.player.getDeltaMovement().y <= 0.0030162615090425808;
       }
       return shouldAttack(targetIn, false, false, -150L, ranges)
             && !mc.player.onGround()
-            && !mc.player.isSubmergedIn(FluidTags.WATER)
+            && !mc.player.isEyeInFluid(FluidTags.WATER)
             && mc.player.getDeltaMovement().y <= 0.16477328182606651;
    }
 
@@ -445,25 +443,25 @@ public final class Attack implements IMinecraft {
       if (mc.level == null || mc.player == null) {
          return true;
       }
-      return mc.level.raycast(new ClipContext(from, to, ShapeType.COLLIDER,
-            FluidHandling.NONE, mc.player)).getType() == HitResult.Type.MISS;
+      return mc.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER,
+            ClipContext.Fluid.NONE, mc.player)).getType() == HitResult.Type.MISS;
    }
 
    /** Class359#m3899: неполный блок или блок, в котором стоит игрок. */
-   private static boolean isNonFullOrOccupied(net.minecraft.block.BlockState state, BlockPos pos) {
+   private static boolean isNonFullOrOccupied(net.minecraft.world.level.block.state.BlockState state, BlockPos pos) {
       if (mc.player == null) {
          return false;
       }
-      BlockPos eyeBlock = BlockPos.ofFloored(mc.player.getEyePosition());
+      BlockPos eyeBlock = BlockPos.containing(mc.player.getEyePosition());
       if (eyeBlock.equals(pos)
-            || mc.player.isInPose(net.minecraft.entity.EntityPose.SWIMMING) && eyeBlock.up().equals(pos)) {
+            || mc.player.hasPose(net.minecraft.world.entity.Pose.SWIMMING) && eyeBlock.above().equals(pos)) {
          return true;
       }
-      net.minecraft.block.Block block = state.getBlock();
-      return block instanceof net.minecraft.block.FenceBlock || block instanceof net.minecraft.block.FenceGateBlock
-            || block instanceof net.minecraft.block.WallBlock || block instanceof net.minecraft.block.PaneBlock
-            || block instanceof net.minecraft.block.SlabBlock || block instanceof net.minecraft.block.StairsBlock
-            || block instanceof net.minecraft.block.TrapdoorBlock || block instanceof net.minecraft.block.PointedDripstoneBlock;
+      net.minecraft.world.level.block.Block block = state.getBlock();
+      return block instanceof net.minecraft.world.level.block.FenceBlock || block instanceof net.minecraft.world.level.block.FenceGateBlock
+            || block instanceof net.minecraft.world.level.block.WallBlock || block instanceof net.minecraft.world.level.block.IronBarsBlock
+            || block instanceof net.minecraft.world.level.block.SlabBlock || block instanceof net.minecraft.world.level.block.StairBlock
+            || block instanceof net.minecraft.world.level.block.TrapDoorBlock || block instanceof net.minecraft.world.level.block.PointedDripstoneBlock;
    }
 
    /** Class359#m3903: луч проходит, если не считать неполные блоки. */
@@ -471,13 +469,13 @@ public final class Attack implements IMinecraft {
       if (mc.level == null || mc.player == null) {
          return true;
       }
-      return net.minecraft.world.BlockView.raycast(from, to, null, (ctx, pos) -> {
-         net.minecraft.block.BlockState state = mc.level.getBlockState(pos);
+      return net.minecraft.world.level.BlockGetter.traverseBlocks(from, to, null, (ctx, pos) -> {
+         net.minecraft.world.level.block.state.BlockState state = mc.level.getBlockState(pos);
          if (isNonFullOrOccupied(state, pos)) {
             return null;
          }
-         net.minecraft.util.shape.VoxelShape shape = state.getCollisionShape(mc.level, pos);
-         return shape.isEmpty() || shape.raycast(from, to, pos) == null ? null : Boolean.FALSE;
+         net.minecraft.world.phys.shapes.VoxelShape shape = state.getCollisionShape(mc.level, pos);
+         return shape.isEmpty() || shape.clip(from, to, pos) == null ? null : Boolean.FALSE;
       }, ctx -> Boolean.TRUE);
    }
 
@@ -499,17 +497,17 @@ public final class Attack implements IMinecraft {
          return true;
       }
       Vec3 eye = mc.player.getEyePosition();
-      AABB box = target.getBoundingBox().expand(target.getTargetingMargin());
+      AABB box = target.getBoundingBox().inflate(target.getPickRadius());
       if (box.contains(eye)) {
          return true;
       }
-      Vec3 hit = box.raycast(eye, eye.add(directionVec(mc.player.getYRot(), mc.player.getXRot())
-            .multiply(range))).orElse(null);
+      Vec3 hit = box.clip(eye, eye.add(directionVec(mc.player.getYRot(), mc.player.getXRot())
+            .scale(range))).orElse(null);
       if (hit == null) {
          return false;
       }
       // Чуть-чуть не доходя до поверхности бокса (Deluxe: Class359#m3904).
-      Vec3 beforeSurface = hit.add(eye.subtract(hit).normalize().multiply(0.05));
+      Vec3 beforeSurface = hit.add(eye.subtract(hit).normalize().scale(0.05));
       return clearIgnoringNonFull(eye, beforeSurface);
    }
 

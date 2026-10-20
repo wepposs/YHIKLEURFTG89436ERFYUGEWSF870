@@ -3,12 +3,12 @@ package vesence.module.impl.visuals.elements.modern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.entity.player.ItemCooldownManager;
+import net.minecraft.world.item.ItemCooldowns;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2fStack;
 import vesence.mixin.ItemCooldownManagerAccessor;
 import vesence.mixin.ItemCooldownManagerEntryAccessor;
@@ -70,9 +70,9 @@ public class ModernCooldownsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
-        boolean chatOpen = mc.screen instanceof ChatScreen;
+        boolean chatOpen = mc.gui.screen() instanceof ChatScreen;
 
         for (RowState st : rows.values()) st.active = false;
         for (CooldownEntry entry : collectCooldowns(mc)) {
@@ -184,15 +184,15 @@ public class ModernCooldownsElement extends HudElement {
         boundsH = panelH;
     }
 
-    private void drawItemIcon(GuiGraphics ctx, ItemStack stack, float px, float py, float size, float alpha) {
+    private void drawItemIcon(GuiGraphicsExtractor ctx, ItemStack stack, float px, float py, float size, float alpha) {
         if (stack == null || stack.isEmpty() || alpha <= 0.01f) return;
         float elemScale = getScale();
-        float guiScale = (float) Minecraft.getInstance().getWindow().getScaleFactor();
+        float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
         float sx = this.x + (px - this.x) * elemScale;
         float sy = this.y + (py - this.y) * elemScale;
         float drawSize = size * elemScale;
 
-        Matrix3x2fStack m = ctx.getMatrices();
+        Matrix3x2fStack m = ctx.pose();
         m.pushMatrix();
         float cx = (sx + drawSize / 2f) / guiScale;
         float cy = (sy + drawSize / 2f) / guiScale;
@@ -200,7 +200,7 @@ public class ModernCooldownsElement extends HudElement {
         float sc = (drawSize / guiScale) / 16f * alpha;
         m.scale(sc, sc);
         m.translate(-8f, -8f);
-        ctx.drawItem(stack, 0, 0);
+        ctx.item(stack, 0, 0);
         m.popMatrix();
     }
 
@@ -209,9 +209,9 @@ public class ModernCooldownsElement extends HudElement {
         List<CooldownEntry> result = new ArrayList<>();
         Set<Item> seen = new LinkedHashSet<>();
 
-        ItemCooldownManager cdm = mc.player.getItemCooldownManager();
+        ItemCooldowns cdm = mc.player.getCooldowns();
 
-        Map<ResourceLocation, ?> entriesMap = null;
+        Map<Identifier, ?> entriesMap = null;
         int currentTick = 0;
         try {
             ItemCooldownManagerAccessor accessor = (ItemCooldownManagerAccessor) cdm;
@@ -225,31 +225,31 @@ public class ModernCooldownsElement extends HudElement {
             Item item = stack.getItem();
             if (seen.contains(item)) continue;
 
-            float progress = cdm.getCooldownProgress(stack, 0.0f);
+            float progress = cdm.getCooldownPercent(stack, 0.0f);
             if (progress <= 0f) continue;
 
             seen.add(item);
             int remainingTicks = entriesMap != null ? getRemainingTicks(stack, entriesMap, currentTick) : 0;
-            result.add(new CooldownEntry(item.toString(), stack.getName().getString(), stack.copy(), progress, remainingTicks));
+            result.add(new CooldownEntry(item.toString(), stack.getHoverName().getString(), stack.copy(), progress, remainingTicks));
         }
 
         ItemStack offHand = mc.player.getOffhandItem();
         if (!offHand.isEmpty()) {
             Item item = offHand.getItem();
             if (!seen.contains(item)) {
-                float progress = cdm.getCooldownProgress(offHand, 0.0f);
+                float progress = cdm.getCooldownPercent(offHand, 0.0f);
                 if (progress > 0f) {
                     int remainingTicks = entriesMap != null ? getRemainingTicks(offHand, entriesMap, currentTick) : 0;
-                    result.add(new CooldownEntry(item.toString(), offHand.getName().getString(), offHand.copy(), progress, remainingTicks));
+                    result.add(new CooldownEntry(item.toString(), offHand.getHoverName().getString(), offHand.copy(), progress, remainingTicks));
                 }
             }
         }
         return result;
     }
 
-    private int getRemainingTicks(ItemStack stack, Map<ResourceLocation, ?> entries, int currentTick) {
+    private int getRemainingTicks(ItemStack stack, Map<Identifier, ?> entries, int currentTick) {
         try {
-            ResourceLocation itemId = stack.getItem().getRegistryEntry().getKey().map(k -> k.getValue()).orElse(null);
+            Identifier itemId = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (itemId == null) return 0;
             Object entry = entries.get(itemId);
             if (entry instanceof ItemCooldownManagerEntryAccessor entryAcc) {

@@ -11,8 +11,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.ClipContext.FluidHandling;
-import net.minecraft.world.ClipContext.ShapeType;
+import net.minecraft.world.level.ClipContext.Fluid;
+import net.minecraft.world.level.ClipContext.Block;
 import net.minecraft.world.level.Level;
 import vesence.utils.other.IMinecraft;
 
@@ -24,16 +24,16 @@ public final class RayTraceUtil implements IMinecraft {
    public static EntityHitResult traceEntities(
          Entity shooter, Vec3 startVector, Vec3 endVector, AABB boundingBox, Predicate<Entity> filter,
          double distance) {
-      Level world = Minecraft.getInstance().world;
+      Level world = Minecraft.getInstance().level;
       double closestDistance = distance;
       Entity closestEntity = null;
       Vec3 closestHitVector = null;
 
-      for (Entity entity : world.getOtherEntities(shooter, boundingBox, filter)) {
-         AABB entityBoundingBox = entity.getBoundingBox().expand(entity.getTargetingMargin());
-         Optional<Vec3> optional = entityBoundingBox.raycast(startVector, endVector);
+      for (Entity entity : world.getEntities(shooter, boundingBox, filter)) {
+         AABB entityBoundingBox = entity.getBoundingBox().inflate(entity.getPickRadius());
+         Optional<Vec3> optional = entityBoundingBox.clip(startVector, endVector);
          if (entityBoundingBox.contains(startVector) || optional.isPresent()) {
-            double distanceToHit = optional.<Double>map(startVector::squaredDistanceTo).orElse(0.0);
+            double distanceToHit = optional.<Double>map(startVector::distanceToSqr).orElse(0.0);
             distanceToHit = Math.sqrt(distanceToHit);
             if ((distanceToHit < closestDistance || closestDistance == 0.0)
                   && entity.getRootVehicle() != shooter.getRootVehicle()) {
@@ -49,29 +49,29 @@ public final class RayTraceUtil implements IMinecraft {
 
    public static HitResult calculateRayTrace(double distance, float yaw, float pitch, Entity entity,
          boolean ignoreBlocks) {
-      float tickDelta = mc.getRenderTickCounter().getTickProgress(true);
-      Vec3 startVector = mc.player.getCameraPosVec(tickDelta);
+      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+      Vec3 startVector = mc.player.getEyePosition(tickDelta);
       Vec3 directionVector = getVectorForRotation(pitch, yaw);
-      Vec3 endVector = startVector.add(directionVector.multiply(distance));
-      HitResult blockResult = traceBlock(startVector, endVector, ShapeType.COLLIDER, FluidHandling.NONE);
-      double entityDistance = blockResult.getPos().squaredDistanceTo(startVector);
-      AABB entityBoundingBox = entity.getBoundingBox().stretch(directionVector.multiply(distance)).expand(1.0);
-      EntityHitResult entityHitResult = ProjectileUtil.raycast(
-            entity, startVector, endVector, entityBoundingBox, x -> !x.isSpectator() && x.isAlive() && x.canHit(),
+      Vec3 endVector = startVector.add(directionVector.scale(distance));
+      HitResult blockResult = traceBlock(startVector, endVector, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE);
+      double entityDistance = blockResult.getLocation().distanceToSqr(startVector);
+      AABB entityBoundingBox = entity.getBoundingBox().expandTowards(directionVector.scale(distance)).inflate(1.0);
+      EntityHitResult entityHitResult = ProjectileUtil.getEntityHitResult(
+            entity, startVector, endVector, entityBoundingBox, x -> !x.isSpectator() && x.isAlive() && x.isPickable(),
             distance * distance);
       return (HitResult) (entityHitResult == null
-            || !ignoreBlocks && !(entityHitResult.getPos().squaredDistanceTo(startVector) < entityDistance)
+            || !ignoreBlocks && !(entityHitResult.getLocation().distanceToSqr(startVector) < entityDistance)
                   ? blockResult
                   : entityHitResult);
    }
 
    public static boolean rayTraceEntity(float yaw, float pitch, double distance, Entity entity) {
-      float tickDelta = mc.getRenderTickCounter().getTickProgress(true);
-      Vec3 eyeVec = mc.player.getCameraPosVec(tickDelta);
+      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+      Vec3 eyeVec = mc.player.getEyePosition(tickDelta);
       Vec3 lookVec = getVectorForRotation(pitch, yaw);
-      Vec3 endVec = eyeVec.add(lookVec.multiply(distance));
+      Vec3 endVec = eyeVec.add(lookVec.scale(distance));
       AABB entityBox = entity.getBoundingBox();
-      return entityBox.contains(eyeVec) || entityBox.raycast(eyeVec, endVec).isPresent();
+      return entityBox.contains(eyeVec) || entityBox.clip(eyeVec, endVec).isPresent();
    }
 
    public static Vec3 getVectorForRotation(float pitch, float yaw) {
@@ -87,15 +87,15 @@ public final class RayTraceUtil implements IMinecraft {
    public static boolean rayTraceSingleEntity(float yaw, float pitch, double distance, Entity entity) {
       Vec3 eyeVec = mc.player.getEyePosition();
       Vec3 lookVec = RayTraceUtil.getVectorForRotation(pitch, yaw);
-      Vec3 extendedVec = eyeVec.add(lookVec.multiply(distance));
+      Vec3 extendedVec = eyeVec.add(lookVec.scale(distance));
       AABB AABB2 = entity.getBoundingBox();
-      return AABB2.contains(eyeVec) || AABB2.raycast(eyeVec, extendedVec).isPresent();
+      return AABB2.contains(eyeVec) || AABB2.clip(eyeVec, extendedVec).isPresent();
    }
 
    public static boolean rayTraceSmallHitBox(float yaw, float pitch, double distance, Entity entity) {
       Vec3 eyeVec = mc.player.getEyePosition();
       Vec3 lookVec = RayTraceUtil.getVectorForRotation(pitch, yaw);
-      Vec3 extendedVec = eyeVec.add(lookVec.multiply(distance));
+      Vec3 extendedVec = eyeVec.add(lookVec.scale(distance));
       AABB originalBB = entity.getBoundingBox();
       double centerX = (originalBB.minX + originalBB.maxX) / 2.0;
       float value = 1.6f;
@@ -105,11 +105,11 @@ public final class RayTraceUtil implements IMinecraft {
       double centerZ = (originalBB.minZ + originalBB.maxZ) / 2.0;
       double halfZ = (originalBB.maxZ - originalBB.minZ) / 2.0 / (double)value;
       AABB smallBB = new AABB(centerX - halfX, centerY - halfY, centerZ - halfZ, centerX + halfX, centerY + halfY, centerZ + halfZ);
-      return smallBB.contains(eyeVec) || smallBB.raycast(eyeVec, extendedVec).isPresent();
+      return smallBB.contains(eyeVec) || smallBB.clip(eyeVec, extendedVec).isPresent();
    }
    
-   public static HitResult traceBlock(Vec3 startVec, Vec3 endVec, ShapeType blockMode, FluidHandling fluidMode) {
-      return mc.level.raycast(new ClipContext(startVec, endVec, blockMode, fluidMode, mc.player));
+   public static HitResult traceBlock(Vec3 startVec, Vec3 endVec, ClipContext.Block blockMode, ClipContext.Fluid fluidMode) {
+      return mc.level.clip(new ClipContext(startVec, endVec, blockMode, fluidMode, mc.player));
    }
 
    public static Vec3 calculateViewVector(float yaw, float pitch) {

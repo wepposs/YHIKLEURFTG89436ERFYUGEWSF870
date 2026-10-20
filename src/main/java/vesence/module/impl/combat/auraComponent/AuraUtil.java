@@ -8,7 +8,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
@@ -46,8 +46,8 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Vec3 getVector4(LivingEntity target) {
-      double wHalf = target.getWidth() / 2.0F;
-      double yExpand = Mth.clamp(target.getY() - 6.0, 0.0, target.getHeight());
+      double wHalf = target.getBbWidth() / 2.0F;
+      double yExpand = Mth.clamp(target.getY() - 6.0, 0.0, target.getBbHeight());
       double xExpand = Mth.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
       double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
       return new Vec3(
@@ -57,7 +57,7 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Vec3 getVector3(LivingEntity target) {
-      double yExpand = Mth.clamp(target.getY() - target.getY(), 0.0, target.getHeight());
+      double yExpand = Mth.clamp(target.getY() - target.getY(), 0.0, target.getBbHeight());
       double xExpand = Mth.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
       double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
       return new Vec3(
@@ -67,7 +67,7 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Vec3 getVector2(LivingEntity target) {
-      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
+      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getBbHeight());
       double xExpand = Mth.clamp(mc.player.getX() - target.getX(), 0.0, 0.0);
       double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), 0.0, 0.0);
       return new Vec3(
@@ -77,8 +77,8 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Vec3 getVector(LivingEntity target) {
-      double wHalf = target.getWidth() / 2.0F;
-      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getHeight());
+      double wHalf = target.getBbWidth() / 2.0F;
+      double yExpand = Mth.clamp(target.getEyeY() - target.getY(), 0.0, target.getBbHeight());
       double xExpand = Mth.clamp(mc.player.getX() - target.getX(), -wHalf, wHalf);
       double zExpand = Mth.clamp(mc.player.getZ() - target.getZ(), -wHalf, wHalf);
       return new Vec3(
@@ -116,7 +116,7 @@ public final class AuraUtil implements IMinecraft {
       if (entity == null) {
          return Vec3.ZERO;
       } else {
-         AABB box = entity.getBoundingBox().expand(-point);
+         AABB box = entity.getBoundingBox().inflate(-point);
          Vec3 center = box.getCenter();
          Vec3 closestPoint = null;
          double closestDistance = Double.MAX_VALUE;
@@ -188,14 +188,14 @@ public final class AuraUtil implements IMinecraft {
    }
 
    public static Vec3 getClosestTargetPoint(Entity entity) {
-      float tickDelta = mc.getRenderTickCounter().getTickProgress(false);
-      return getClosestTargetPoint(mc.player.getCameraPosVec(tickDelta), entity,
-            Math.min(entity.getWidth(), entity.getHeight()) / 4.0F);
+      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+      return getClosestTargetPoint(mc.player.getEyePosition(tickDelta), entity,
+            Math.min(entity.getBbWidth(), entity.getBbHeight()) / 4.0F);
    }
 
    public static Vector4f calculateRotationFromCamera(LivingEntity target) {
-      float tickDelta = mc.getRenderTickCounter().getTickProgress(false);
-      Vec3 eyePos = mc.player.getCameraPosVec(tickDelta);
+      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+      Vec3 eyePos = mc.player.getEyePosition(tickDelta);
       Vec3 vec = getClosestTargetPoint(target).subtract(eyePos);
       float rawYaw = Mth.wrapDegrees((float) (Math.toDegrees(Math.atan2(vec.z, vec.x)) - 90.0));
       float rawPitch = (float) (-Math.toDegrees(Math.atan2(vec.y, Math.sqrt(vec.x * vec.x + vec.z * vec.z))));

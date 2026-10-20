@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,14 +15,12 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
@@ -38,6 +35,9 @@ import vesence.module.api.Module;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.renderengine.render.Renderer2D;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 /**
  * ChorusESP — показывает, куда телепортирует Chorus Fruit.
@@ -47,7 +47,7 @@ import vesence.renderengine.render.Renderer2D;
  * (расчёт по точному ванильному алгоритму телепорта).</p>
  *
  * <p>В момент реального телепорта модуль ловит серверный пакет позиции
- * ({@link PlayerPositionLookS2CPacket}) и запоминает ТОЧНУЮ клетку приземления —
+ * ({@link net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket}) и запоминает ТОЧНУЮ клетку приземления —
  * это гарантированные 100% данные самой игры, а не догадка. Эта клетка
  * подсвечивается зелёным и держится заданное время, чтобы было видно, куда
  * именно закинуло.</p>
@@ -66,28 +66,30 @@ public class ChorusESP extends Module {
    public final SliderSetting holdTime = new SliderSetting("Держать цель, сек", 6.0, 1.0, 15.0, 0.5, false);
 
    private static final RenderPipeline FILL_PIPELINE = RenderPipelines.register(
-         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-               .withLocation(ResourceLocation.of("vesence", "pipeline/chorus_esp_fill"))
-               .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+         RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+               .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/chorus_esp_fill"))
+               .withVertexShader("core/position_color")
+               .withFragmentShader("core/position_color")
+               .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)               .withPrimitiveTopology(PrimitiveTopology.QUADS)
                .withCull(false)
-               .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-               .withDepthWrite(false)
-               .withBlend(BlendFunction.TRANSLUCENT)
+               .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+               .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                .build());
    private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-               .withLocation(ResourceLocation.of("vesence", "pipeline/chorus_esp_line"))
-               .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+         RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+               .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/chorus_esp_line"))
+               .withVertexShader("core/position_color")
+               .withFragmentShader("core/position_color")
+               .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)               .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
                .withCull(false)
-               .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-               .withDepthWrite(false)
-               .withBlend(BlendFunction.TRANSLUCENT)
+               .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+               .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                .build());
 
-   private static final RenderType FILL_LAYER = RenderType.of("chorus_esp_fill",
-         RenderSetup.builder(FILL_PIPELINE).expectedBufferSize(2097152).translucent().build());
-   private static final RenderType LINE_LAYER = RenderType.of("chorus_esp_line",
-         RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(1048576).translucent().build());
+   private static final RenderType FILL_LAYER = RenderType.create("chorus_esp_fill",
+         RenderSetup.builder(FILL_PIPELINE).createRenderSetup());
+   private static final RenderType LINE_LAYER = RenderType.create("chorus_esp_line",
+         RenderSetup.builder(LINE_PIPELINE).createRenderSetup());
 
    private ByteBufferBuilder allocator = null;
 
@@ -133,13 +135,13 @@ public class ChorusESP extends Module {
    public void onPacket(EventPacket e) {
       if (!this.enable) return;
       if (e.isSend()) return;
-      if (!(e.getPacket() instanceof PlayerPositionLookS2CPacket)) return;
+      if (!(e.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket)) return;
       if (mc.player == null) return;
       // Считаем телепортом хоруса только пакет позиции сразу после/во время еды.
       if (System.currentTimeMillis() - this.lastChorusMs > 1200L) return;
       this.teleportPending = true;
       this.pendingSinceMs = System.currentTimeMillis();
-      this.prePos = mc.player.getEntityPos();
+      this.prePos = mc.player.position();
    }
 
    // ------------------------------------------------------------------
@@ -161,9 +163,9 @@ public class ChorusESP extends Module {
          // Как только сервер реально телепортнул — фиксируем точную клетку.
          if (this.teleportPending) {
             Vec3 pre = this.prePos;
-            boolean moved = pre != null && mc.player.getEntityPos().squaredDistanceTo(pre) > 0.25;
+            boolean moved = pre != null && mc.player.position().distanceToSqr(pre) > 0.25;
             if (moved || now - this.pendingSinceMs > 150L) {
-               this.confirmedSpot = mc.player.getBlockPos();
+               this.confirmedSpot = mc.player.blockPosition();
                this.confirmedUntilMs = now + (long) (this.holdTime.get() * 1000.0);
                this.teleportPending = false;
             }
@@ -188,12 +190,12 @@ public class ChorusESP extends Module {
    }
 
    private boolean isHoldingChorus() {
-      return mc.player.getMainHandItem().isOf(Items.CHORUS_FRUIT)
-            || mc.player.getOffhandItem().isOf(Items.CHORUS_FRUIT);
+      return mc.player.getMainHandItem().is(Items.CHORUS_FRUIT)
+            || mc.player.getOffhandItem().is(Items.CHORUS_FRUIT);
    }
 
    private boolean isEatingChorus() {
-      return mc.player.isUsingItem() && mc.player.getActiveItem().isOf(Items.CHORUS_FRUIT);
+      return mc.player.isUsingItem() && mc.player.getActiveItem().is(Items.CHORUS_FRUIT);
    }
 
    // ------------------------------------------------------------------
@@ -202,7 +204,7 @@ public class ChorusESP extends Module {
 
    private void recomputeThrottled() {
       long now = System.currentTimeMillis();
-      long playerKey = mc.player.getBlockPos().asLong();
+      long playerKey = mc.player.blockPosition().asLong();
       if (!this.zoneCells.isEmpty() && now - this.lastComputeMs < 150L && playerKey == this.lastPlayerKey) {
          return;
       }
@@ -219,7 +221,7 @@ public class ChorusESP extends Module {
       final double py = mc.player.getY();
       final double pz = mc.player.getZ();
       final int floorPy = Mth.floor(py);
-      final int minY = mc.level.getBottomY();
+      final int minY = mc.level.getMinY();
 
       final int cxMin = Mth.floor(px - 8.0);
       final int cxMax = Mth.floor(px + 8.0);
@@ -228,7 +230,7 @@ public class ChorusESP extends Module {
 
       // Сырые веса вероятности по клетке приземления (ключ = BlockPos.asLong).
       final Map<Long, Double> raw = new HashMap<>();
-      final BlockPos.Mutable cursor = new BlockPos.Mutable();
+      final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
       for (int cx = cxMin; cx <= cxMax; cx++) {
          double wx = overlap(px - 8.0, px + 8.0, cx) / 16.0;
@@ -236,7 +238,7 @@ public class ChorusESP extends Module {
          for (int cz = czMin; cz <= czMax; cz++) {
             double wz = overlap(pz - 8.0, pz + 8.0, cz) / 16.0;
             if (wz <= 0.0) continue;
-            if (!mc.level.getChunkManager().isChunkLoaded(cx >> 4, cz >> 4)) continue;
+            if (!mc.level.getChunkSource().hasChunk(cx >> 4, cz >> 4)) continue;
 
             double columnWeight = wx * wz;
             for (int dy = -8; dy <= 7; dy++) {
@@ -256,7 +258,7 @@ public class ChorusESP extends Module {
       double bestDist = Double.MAX_VALUE;
       long bestKey = 0L;
       for (Map.Entry<Long, Double> e : raw.entrySet()) {
-         BlockPos pos = BlockPos.fromLong(e.getKey());
+         BlockPos pos = BlockPos.of(e.getKey().longValue());
          if (!isValidLanding(pos)) continue;
          this.zoneCells.add(pos);
 
@@ -272,7 +274,7 @@ public class ChorusESP extends Module {
       }
 
       if (!this.zoneCells.isEmpty()) {
-         this.predictedBest = BlockPos.fromLong(bestKey);
+         this.predictedBest = BlockPos.of(bestKey);
       }
    }
 
@@ -284,12 +286,12 @@ public class ChorusESP extends Module {
    }
 
    /** Спуск вниз до первого блока, который «держит движение». Возвращает Y ступней. */
-   private int descend(BlockPos.Mutable cursor, int cx, int startY, int cz, int minY) {
+   private int descend(BlockPos.MutableBlockPos cursor, int cx, int startY, int cz, int minY) {
       int limit = Math.max(minY, startY - MAX_DESCENT);
       for (int y = startY; y > limit; y--) {
          cursor.set(cx, y - 1, cz);
          BlockState below = mc.level.getBlockState(cursor);
-         if (below.blocksMovement()) {
+         if (below.isSolid()) {
             return y;
          }
       }
@@ -301,9 +303,9 @@ public class ChorusESP extends Module {
       double x = pos.getX() + 0.5;
       double y = pos.getY();
       double z = pos.getZ() + 0.5;
-      AABB box = new AABB(x - 0.3, y, z - 0.3, x + 0.3, y + 1.8, z + 0.3).contract(1.0E-7);
+      AABB box = new AABB(x - 0.3, y, z - 0.3, x + 0.3, y + 1.8, z + 0.3).contract(1.0E-7, 1.0E-7, 1.0E-7);
       try {
-         return mc.level.isSpaceEmpty(mc.player, box) && !mc.level.containsFluid(box);
+         return mc.level.noCollision(mc.player, box) && !mc.level.containsAnyLiquid(box);
       } catch (Exception ex) {
          return false;
       }
@@ -314,14 +316,14 @@ public class ChorusESP extends Module {
    // ------------------------------------------------------------------
 
    private void render(EventRender3D event, boolean fieldActive, boolean confirmedActive, long now) {
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
       PoseStack matrices = event.getMatrixStack();
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
 
       if (this.allocator == null) {
          this.allocator = new ByteBufferBuilder(2097152);
       }
-      Immediate immediate = MultiBufferSource.immediate(this.allocator);
+      Immediate immediate = new Immediate();
 
       int theme = setAlpha(Renderer2D.ColorUtil.getClientColor(), 255);
       float pulse = (float) ((Math.sin(now / 1000.0 * Math.PI * 2.0 * 0.6) + 1.0) * 0.5); // 0..1
@@ -392,35 +394,35 @@ public class ChorusESP extends Module {
       float y1 = y0 + 1f;
       float z1 = z0 + 1f;
 
-      buf.vertex(m, x0, y0, z0).color(r, g, b, aB);
-      buf.vertex(m, x1, y0, z0).color(r, g, b, aB);
-      buf.vertex(m, x1, y0, z1).color(r, g, b, aB);
-      buf.vertex(m, x0, y0, z1).color(r, g, b, aB);
+      buf.addVertex(m, x0, y0, z0).setColor(r, g, b, aB);
+      buf.addVertex(m, x1, y0, z0).setColor(r, g, b, aB);
+      buf.addVertex(m, x1, y0, z1).setColor(r, g, b, aB);
+      buf.addVertex(m, x0, y0, z1).setColor(r, g, b, aB);
 
-      buf.vertex(m, x0, y1, z0).color(r, g, b, aT);
-      buf.vertex(m, x0, y1, z1).color(r, g, b, aT);
-      buf.vertex(m, x1, y1, z1).color(r, g, b, aT);
-      buf.vertex(m, x1, y1, z0).color(r, g, b, aT);
+      buf.addVertex(m, x0, y1, z0).setColor(r, g, b, aT);
+      buf.addVertex(m, x0, y1, z1).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y1, z1).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y1, z0).setColor(r, g, b, aT);
 
-      buf.vertex(m, x0, y0, z0).color(r, g, b, aB);
-      buf.vertex(m, x0, y1, z0).color(r, g, b, aT);
-      buf.vertex(m, x1, y1, z0).color(r, g, b, aT);
-      buf.vertex(m, x1, y0, z0).color(r, g, b, aB);
+      buf.addVertex(m, x0, y0, z0).setColor(r, g, b, aB);
+      buf.addVertex(m, x0, y1, z0).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y1, z0).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y0, z0).setColor(r, g, b, aB);
 
-      buf.vertex(m, x0, y0, z1).color(r, g, b, aB);
-      buf.vertex(m, x1, y0, z1).color(r, g, b, aB);
-      buf.vertex(m, x1, y1, z1).color(r, g, b, aT);
-      buf.vertex(m, x0, y1, z1).color(r, g, b, aT);
+      buf.addVertex(m, x0, y0, z1).setColor(r, g, b, aB);
+      buf.addVertex(m, x1, y0, z1).setColor(r, g, b, aB);
+      buf.addVertex(m, x1, y1, z1).setColor(r, g, b, aT);
+      buf.addVertex(m, x0, y1, z1).setColor(r, g, b, aT);
 
-      buf.vertex(m, x0, y0, z0).color(r, g, b, aB);
-      buf.vertex(m, x0, y0, z1).color(r, g, b, aB);
-      buf.vertex(m, x0, y1, z1).color(r, g, b, aT);
-      buf.vertex(m, x0, y1, z0).color(r, g, b, aT);
+      buf.addVertex(m, x0, y0, z0).setColor(r, g, b, aB);
+      buf.addVertex(m, x0, y0, z1).setColor(r, g, b, aB);
+      buf.addVertex(m, x0, y1, z1).setColor(r, g, b, aT);
+      buf.addVertex(m, x0, y1, z0).setColor(r, g, b, aT);
 
-      buf.vertex(m, x1, y0, z0).color(r, g, b, aB);
-      buf.vertex(m, x1, y1, z0).color(r, g, b, aT);
-      buf.vertex(m, x1, y1, z1).color(r, g, b, aT);
-      buf.vertex(m, x1, y0, z1).color(r, g, b, aB);
+      buf.addVertex(m, x1, y0, z0).setColor(r, g, b, aB);
+      buf.addVertex(m, x1, y1, z0).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y1, z1).setColor(r, g, b, aT);
+      buf.addVertex(m, x1, y0, z1).setColor(r, g, b, aB);
    }
 
    private void outlineBox(VertexConsumer buf, Matrix4f m, BlockPos pos, Vec3 cam, int color) {
@@ -467,8 +469,8 @@ public class ChorusESP extends Module {
    }
 
    private static void line(VertexConsumer buf, Matrix4f m, float x1, float y1, float z1, float x2, float y2, float z2, int c1, int c2) {
-      buf.vertex(m, x1, y1, z1).color(((c1 >> 16) & 0xFF) / 255f, ((c1 >> 8) & 0xFF) / 255f, (c1 & 0xFF) / 255f, ((c1 >> 24) & 0xFF) / 255f);
-      buf.vertex(m, x2, y2, z2).color(((c2 >> 16) & 0xFF) / 255f, ((c2 >> 8) & 0xFF) / 255f, (c2 & 0xFF) / 255f, ((c2 >> 24) & 0xFF) / 255f);
+      buf.addVertex(m, x1, y1, z1).setColor(((c1 >> 16) & 0xFF) / 255f, ((c1 >> 8) & 0xFF) / 255f, (c1 & 0xFF) / 255f, ((c1 >> 24) & 0xFF) / 255f);
+      buf.addVertex(m, x2, y2, z2).setColor(((c2 >> 16) & 0xFF) / 255f, ((c2 >> 8) & 0xFF) / 255f, (c2 & 0xFF) / 255f, ((c2 >> 24) & 0xFF) / 255f);
    }
 
    private static int setAlpha(int color, int alpha) {

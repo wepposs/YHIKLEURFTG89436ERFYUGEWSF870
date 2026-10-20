@@ -11,7 +11,7 @@ public class AnimationUtil {
    public static double delta;
 
    public static float animation(float animation, float target, float speedTarget) {
-      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getCurrentFps(), 5.0F) * 15.0F;
+      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getFps(), 5.0F) * 15.0F;
       if (dif > 0.0F) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);
@@ -24,7 +24,7 @@ public class AnimationUtil {
    }
 
    public static double animation(double animation, double target, double speedTarget) {
-      double dif = (target - animation) / Math.max(Minecraft.getInstance().getCurrentFps(), 5) * speedTarget;
+      double dif = (target - animation) / Math.max(Minecraft.getInstance().getFps(), 5) * speedTarget;
       if (dif > 0.0) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);

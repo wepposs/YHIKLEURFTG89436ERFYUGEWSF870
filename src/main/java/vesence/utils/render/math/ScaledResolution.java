@@ -15,9 +15,9 @@ public class ScaledResolution {
 
    public ScaledResolution(Minecraft mc) {
       if (mc != null && mc.getWindow() != null) {
-         int fbWidth = mc.getWindow().getFramebufferWidth();
-         int fbHeight = mc.getWindow().getFramebufferHeight();
-         scaleFactor = mc.getWindow().getScaleFactor();
+         int fbWidth = mc.getWindow().getScreenWidth();
+         int fbHeight = mc.getWindow().getScreenHeight();
+         scaleFactor = (int) mc.getWindow().getGuiScale();
          this.scaledWidthD = (double)fbWidth / scaleFactor;
          this.scaledHeightD = (double)fbHeight / scaleFactor;
          this.scaledWidth = Mth.ceil(this.scaledWidthD);

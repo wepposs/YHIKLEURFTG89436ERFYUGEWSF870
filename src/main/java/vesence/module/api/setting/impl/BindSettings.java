@@ -4,8 +4,7 @@ import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.util.InputUtil;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.module.api.setting.Setting;
 
 @Environment(EnvType.CLIENT)
@@ -34,7 +33,7 @@ public class BindSettings extends Setting<Integer> {
    }
 
    public boolean isKeyDown(int keyCode) {
-      return InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), keyCode);
+      return InputConstants.isKeyDown(keyCode);
    }
 
    public String label() {
@@ -46,13 +45,23 @@ public class BindSettings extends Setting<Integer> {
       return isDown(this.key);
    }
 
+   public boolean isDown() {
+      return isPressed();
+   }
+
    private boolean isDown(int k) {
       if (k == -1) return false;
       if (k <= -100) {
          int button = -k - 100;
-         long handle = Minecraft.getInstance().getWindow().getHandle();
-         return GLFW.glfwGetMouseButton(handle, button) == GLFW.GLFW_PRESS;
+         // TODO(port26): was GLFW.glfwGetMouseButton(handle, button); SDL-era API only exposes named buttons
+         net.minecraft.client.MouseHandler mouse = Minecraft.getInstance().mouseHandler;
+         return switch (button) {
+            case 0 -> mouse.isLeftPressed();
+            case 1 -> mouse.isRightPressed();
+            case 2 -> mouse.isMiddlePressed();
+            default -> false;
+         };
       }
-      return InputUtil.isKeyPressed(Minecraft.getInstance().getWindow(), k);
+      return InputConstants.isKeyDown(k);
    }
 }

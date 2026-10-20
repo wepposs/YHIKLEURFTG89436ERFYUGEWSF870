@@ -310,7 +310,7 @@ public class UFunTestRotation {
         );
 
         if (smoothbackShakeStartMs >= 0L && hasReleaseFrom) {
-            newYaw   = Mth.lerpAngleDegrees(tEased, releaseFromYaw,   newYaw);
+            newYaw   = Mth.rotLerp(tEased, releaseFromYaw,   newYaw);
             newPitch = Mth.lerp(tEased, releaseFromPitch, newPitch);
 
             if (t >= 1.0f) {

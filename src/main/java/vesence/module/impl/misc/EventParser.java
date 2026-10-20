@@ -4,7 +4,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -66,7 +66,7 @@ public class EventParser extends Module {
       if (this.pendingCmd && --this.delayTicks <= 0) {
          this.pendingCmd = false;
          if (mc.getConnection() != null) {
-            mc.getConnection().sendChatCommand("event delay");
+            mc.getConnection().sendCommand("event delay");
          }
       }
    }
@@ -77,7 +77,7 @@ public class EventParser extends Module {
          return;
       }
 
-      if (!(event.getPacket() instanceof GameMessageS2CPacket packet)) {
+      if (!(event.getPacket() instanceof ClientboundSystemChatPacket packet)) {
          return;
       }
 

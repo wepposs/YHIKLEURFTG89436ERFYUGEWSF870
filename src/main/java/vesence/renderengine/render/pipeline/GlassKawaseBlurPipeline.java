@@ -1,62 +1,71 @@
 package vesence.renderengine.render.pipeline;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import java.nio.ByteBuffer;
-import java.util.OptionalInt;
+import java.util.Optional;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 public class GlassKawaseBlurPipeline {
-    private static final ResourceLocation DOWN_PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/glass_kawase_down");
-    private static final ResourceLocation DOWN_VERTEX_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_down");
-    private static final ResourceLocation DOWN_FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_down");
-    private static final ResourceLocation UP_PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/glass_kawase_up");
-    private static final ResourceLocation UP_VERTEX_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_up");
-    private static final ResourceLocation UP_FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/glass_kawase_up");
+    private static final Identifier DOWN_PIPELINE_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/glass_kawase_down");
+    private static final Identifier DOWN_VERTEX_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/glass_kawase_down");
+    private static final Identifier DOWN_FRAGMENT_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/glass_kawase_down");
+    private static final Identifier UP_PIPELINE_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/glass_kawase_up");
+    private static final Identifier UP_VERTEX_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/glass_kawase_up");
+    private static final Identifier UP_FRAGMENT_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/glass_kawase_up");
     private static final RenderPipeline DOWN_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+        RenderPipeline.builder()
             .withLocation(DOWN_PIPELINE_ID)
             .withVertexShader(DOWN_VERTEX_SHADER)
             .withFragmentShader(DOWN_FRAGMENT_SHADER)
-            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-            .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
-            .withSampler("Sampler0")
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+            .withBindGroupLayout(BindGroupLayout.builder()
+                    .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
+                    .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER)
+                    .build())
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(Optional.empty())
             .withCull(false)
             .build()
     );
     private static final RenderPipeline UP_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+        RenderPipeline.builder()
             .withLocation(UP_PIPELINE_ID)
             .withVertexShader(UP_VERTEX_SHADER)
             .withFragmentShader(UP_FRAGMENT_SHADER)
-            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-            .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
-            .withSampler("Sampler0")
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+            .withBindGroupLayout(BindGroupLayout.builder()
+                    .withUniform("KawaseData", UniformType.UNIFORM_BUFFER)
+                    .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER)
+                    .build())
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(Optional.empty())
             .withCull(false)
             .build()
     );
@@ -121,7 +130,7 @@ public class GlassKawaseBlurPipeline {
         finalTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_kawase_final",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.RGBA8,
+            GpuFormat.RGBA8_UNORM,
             width,
             height,
             1,
@@ -145,7 +154,7 @@ public class GlassKawaseBlurPipeline {
             downTextures[i] = RenderSystem.getDevice().createTexture(
                 () -> "vesence:glass_kawase_down_" + finalIndex,
                 GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-                TextureFormat.RGBA8,
+                GpuFormat.RGBA8_UNORM,
                 currentWidth,
                 currentHeight,
                 1,
@@ -156,7 +165,7 @@ public class GlassKawaseBlurPipeline {
             upTextures[i] = RenderSystem.getDevice().createTexture(
                 () -> "vesence:glass_kawase_up_" + finalIndex,
                 GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-                TextureFormat.RGBA8,
+                GpuFormat.RGBA8_UNORM,
                 currentWidth,
                 currentHeight,
                 1,
@@ -215,7 +224,7 @@ public class GlassKawaseBlurPipeline {
         }
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        GpuSampler sampler = RenderSystem.getSamplerCache().get(FilterMode.LINEAR);
+        GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
 
         GpuTextureView currentSource = sourceView;
         int currentWidth = width;
@@ -240,21 +249,21 @@ public class GlassKawaseBlurPipeline {
             }
             encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
-            GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().write(
-                RenderSystem.getModelViewMatrix(),
+            GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().writeTransform(
+                RenderSystem.getModelViewMatrixCopy(),
                 COLOR_MODULATOR,
                 MODEL_OFFSET,
                 TEXTURE_MATRIX
             );
 
-            try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_down_pass_" + finalIndex, downTextureViews[i], OptionalInt.empty())) {
-                renderPass.setPipeline(DOWN_PIPELINE);
-                renderPass.setVertexBuffer(0, dummyVertexBuffer);
-                renderPass.bindTexture("Sampler0", currentSource, sampler);
+            try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_down_pass_" + finalIndex, downTextureViews[i], Optional.empty())) {
+                renderPass.setPipeline(RenderSystem.getCompiledPipeline(DOWN_PIPELINE));
+                renderPass.setVertexBuffer(0, dummyVertexBuffer.slice());
+                renderPass.setUniform("Sampler0", currentSource, sampler);
                 RenderSystem.bindDefaultUniforms(renderPass);
                 renderPass.setUniform("DynamicTransforms", dynamicTransforms);
                 renderPass.setUniform("KawaseData", uniformBuffer);
-                renderPass.draw(0, 6);
+                renderPass.draw(0, 6, 0, 1);
             }
 
             currentSource = downTextureViews[i];
@@ -267,21 +276,21 @@ public class GlassKawaseBlurPipeline {
             prepareUniformData(currentWidth, currentHeight, offset);
             encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
-            GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().write(
-                RenderSystem.getModelViewMatrix(),
+            GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().writeTransform(
+                RenderSystem.getModelViewMatrixCopy(),
                 COLOR_MODULATOR,
                 MODEL_OFFSET,
                 TEXTURE_MATRIX
             );
 
-            try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_up_pass_" + finalIndex, upTextureViews[i], OptionalInt.empty())) {
-                renderPass.setPipeline(UP_PIPELINE);
-                renderPass.setVertexBuffer(0, dummyVertexBuffer);
-                renderPass.bindTexture("Sampler0", currentSource, sampler);
+            try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_up_pass_" + finalIndex, upTextureViews[i], Optional.empty())) {
+                renderPass.setPipeline(RenderSystem.getCompiledPipeline(UP_PIPELINE));
+                renderPass.setVertexBuffer(0, dummyVertexBuffer.slice());
+                renderPass.setUniform("Sampler0", currentSource, sampler);
                 RenderSystem.bindDefaultUniforms(renderPass);
                 renderPass.setUniform("DynamicTransforms", dynamicTransforms);
                 renderPass.setUniform("KawaseData", uniformBuffer);
-                renderPass.draw(0, 6);
+                renderPass.draw(0, 6, 0, 1);
             }
 
             currentSource = upTextureViews[i];
@@ -292,21 +301,21 @@ public class GlassKawaseBlurPipeline {
         prepareUniformData(currentWidth, currentHeight, offset);
         encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
-        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().write(
-            RenderSystem.getModelViewMatrix(),
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().writeTransform(
+            RenderSystem.getModelViewMatrixCopy(),
             COLOR_MODULATOR,
             MODEL_OFFSET,
             TEXTURE_MATRIX
         );
 
-        try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_final_pass", finalTextureView, OptionalInt.empty())) {
-            renderPass.setPipeline(UP_PIPELINE);
-            renderPass.setVertexBuffer(0, dummyVertexBuffer);
-            renderPass.bindTexture("Sampler0", currentSource, sampler);
+        try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:glass_kawase_final_pass", finalTextureView, Optional.empty())) {
+            renderPass.setPipeline(RenderSystem.getCompiledPipeline(UP_PIPELINE));
+            renderPass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            renderPass.setUniform("Sampler0", currentSource, sampler);
             RenderSystem.bindDefaultUniforms(renderPass);
             renderPass.setUniform("DynamicTransforms", dynamicTransforms);
             renderPass.setUniform("KawaseData", uniformBuffer);
-            renderPass.draw(0, 6);
+            renderPass.draw(0, 6, 0, 1);
         }
 
         return finalTextureView;

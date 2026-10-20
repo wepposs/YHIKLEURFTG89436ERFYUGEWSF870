@@ -13,14 +13,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
 public class LuaAnimationResourceLoader
 implements SimpleSynchronousResourceReloadListener {
-    public ResourceLocation getFabricId() {
-        return ResourceLocation.of((String)"holdmyitems", (String)"lua_animation_loader");
+    public Identifier getFabricId() {
+        return Identifier.fromNamespaceAndPath((String)"holdmyitems", (String)"lua_animation_loader");
     }
 
     private String preprocessScript(String script) {
@@ -82,7 +82,7 @@ implements SimpleSynchronousResourceReloadListener {
         return processed.toString();
     }
 
-    public void reload(ResourceManager manager) {
+    public void onResourceManagerReload(ResourceManager manager) {
         LuaTestHMI.renderAsBlock.clear();
         this.loadSingle(manager, "holdmyitems/hand_pose.lua", script -> {
             try {
@@ -114,14 +114,14 @@ implements SimpleSynchronousResourceReloadListener {
     }
 
     private void loadSingle(ResourceManager manager, String path, Consumer<String> consumer) {
-        ResourceLocation id = ResourceLocation.of((String)"minecraft", (String)path);
+        Identifier id = Identifier.fromNamespaceAndPath((String)"minecraft", (String)path);
         try {
             Resource resource = manager.getResource(id).orElse(null);
             if (resource == null) {
                 consumer.accept("");
                 return;
             }
-            try (InputStream stream = resource.getInputStream();){
+            try (InputStream stream = resource.open();){
                 String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
                 content = this.preprocessScript(content);
                 consumer.accept(content);
@@ -134,12 +134,12 @@ implements SimpleSynchronousResourceReloadListener {
     }
 
     private ArrayList<LuaScriptCache> loadMultiple(ResourceManager manager, String path) {
-        ResourceLocation id = ResourceLocation.of((String)"minecraft", (String)path);
+        Identifier id = Identifier.fromNamespaceAndPath((String)"minecraft", (String)path);
         ArrayList<LuaScriptCache> caches = new ArrayList<LuaScriptCache>();
         try {
-            List<Resource> resources = manager.getAllResources(id);
+            List<Resource> resources = manager.getResourceStack(id);
             for (Resource resource : resources) {
-                InputStream stream = resource.getInputStream();
+                InputStream stream = resource.open();
                 try {
                     String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
                     content = this.preprocessScript(content);

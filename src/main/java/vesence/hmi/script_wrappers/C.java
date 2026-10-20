@@ -6,7 +6,7 @@ import net.minecraft.client.Camera;
 
 public class C {
     public void setCamPos(double x, double y, double z) {
-        Camera class_41842 = Minecraft.getInstance().gameRenderer.getCamera();
+        Camera class_41842 = Minecraft.getInstance().gameRenderer.mainCamera();
         if (class_41842 instanceof CameraAccessor) {
             CameraAccessor camera = (CameraAccessor)class_41842;
             camera.hMI5_0$setPosValues((float)x, (float)y, (float)z);
@@ -14,7 +14,7 @@ public class C {
     }
 
     public void setCamRot(double x, double y, double z) {
-        Camera class_41842 = Minecraft.getInstance().gameRenderer.getCamera();
+        Camera class_41842 = Minecraft.getInstance().gameRenderer.mainCamera();
         if (class_41842 instanceof CameraAccessor) {
             CameraAccessor camera = (CameraAccessor)class_41842;
             camera.hMI5_0$setRotationValues((float)x, (float)y, (float)z);

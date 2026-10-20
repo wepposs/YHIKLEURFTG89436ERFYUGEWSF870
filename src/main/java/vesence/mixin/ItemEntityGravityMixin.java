@@ -14,7 +14,7 @@ public abstract class ItemEntityGravityMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void vesence$stabilizeGroundItems(CallbackInfo ci) {
         ItemEntity item = (ItemEntity) (Object) this;
-        if (item.getEntityWorld() == null || !item.getEntityWorld().isClient()) {
+        if (item.level() == null || !item.level().isClientSide()) {
             return;
         }
         if (item.onGround()) {
@@ -26,7 +26,7 @@ public abstract class ItemEntityGravityMixin {
             item.setDeltaMovement(vx, vy, vz);
             return;
         }
-        if (item.hasNoGravity()) {
+        if (item.isNoGravity()) {
             item.setNoGravity(false);
         }
     }

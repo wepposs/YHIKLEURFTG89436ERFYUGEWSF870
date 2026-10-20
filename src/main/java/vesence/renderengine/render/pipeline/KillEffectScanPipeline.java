@@ -1,31 +1,34 @@
 package vesence.renderengine.render.pipeline;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
-import java.util.OptionalInt;
+import java.util.Optional;
 
 /**
  * KillEffectScanPipeline — GPU-порт rich FragEffectScanRenderer.
@@ -36,24 +39,27 @@ import java.util.OptionalInt;
  * рисует кольцо в воздухе.
  */
 public class KillEffectScanPipeline {
-    private static final ResourceLocation PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/killeffect_scan");
-    private static final ResourceLocation VERTEX_SHADER = ResourceLocation.of("vesence", "core/killeffect_scan");
-    private static final ResourceLocation FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/killeffect_scan");
+    private static final Identifier PIPELINE_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/killeffect_scan");
+    private static final Identifier VERTEX_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/killeffect_scan");
+    private static final Identifier FRAGMENT_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/killeffect_scan");
 
     // std140 layout: 2×mat4(64) + 6×vec4(16) = 128 + 96 = 224, паддинг до 256.
     private static final int UNIFORM_SIZE = 256;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            RenderPipeline.builder()
                     .withLocation(PIPELINE_ID)
                     .withVertexShader(VERTEX_SHADER)
                     .withFragmentShader(FRAGMENT_SHADER)
-                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                    .withUniform("ScanData", UniformType.UNIFORM_BUFFER)
-                    .withSampler("DepthSampler")
-                    .withBlend(BlendFunction.ADDITIVE)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
+                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                    .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                    .withBindGroupLayout(BindGroupLayout.builder()
+                            .withUniform("ScanData", UniformType.UNIFORM_BUFFER)
+                            .withUniform("DepthSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .build())
+                    .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
+                    .withDepthStencilState(Optional.empty())
                     .withCull(false)
                     .build()
     );
@@ -89,7 +95,7 @@ public class KillEffectScanPipeline {
         depthCopyTexture = RenderSystem.getDevice().createTexture(
                 () -> "vesence:killeffect_scan_depth_copy",
                 GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
-                TextureFormat.DEPTH32, width, height, 1, 1);
+                GpuFormat.D32_FLOAT, width, height, 1, 1);
         depthCopyTextureView = RenderSystem.getDevice().createTextureView(depthCopyTexture);
         lastWidth = width;
         lastHeight = height;
@@ -124,11 +130,11 @@ public class KillEffectScanPipeline {
                            Vec3 center, float radius, float width, float sharpness,
                            int outerColor, int midColor, int innerColor, int scanlineColor) {
         if (radius <= 0.0f) return;
-        RenderTarget mainFb = mc.getMainRenderTarget();
-        if (mainFb == null || mainFb.getColorAttachment() == null || mainFb.getDepthAttachment() == null) return;
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
+        if (mainFb == null || mainFb.getColorTexture() == null || mainFb.getDepthTexture() == null) return;
 
-        int w = mainFb.textureWidth;
-        int h = mainFb.textureHeight;
+        int w = mainFb.width;
+        int h = mainFb.height;
         if (w <= 0 || h <= 0) return;
 
         ensureInitialized();
@@ -138,29 +144,29 @@ public class KillEffectScanPipeline {
         Matrix4f invView = new Matrix4f(view).invert();
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(mainFb.getDepthAttachment(), depthCopyTexture, 0, 0, 0, 0, 0, w, h);
+        encoder.copyTextureToTexture(mainFb.getDepthTexture(), depthCopyTexture, 0, 0, 0, 0, 0, w, h);
 
         prepareUniformData(invProjection, invView, cameraPos, radius, center, width,
                 outerColor, midColor, innerColor, scanlineColor, sharpness);
         encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
-        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().write(
-                RenderSystem.getModelViewMatrix(),
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().writeTransform(
+                RenderSystem.getModelViewMatrixCopy(),
                 new org.joml.Vector4f(1f, 1f, 1f, 1f),
                 new org.joml.Vector3f(0f, 0f, 0f),
                 new Matrix4f());
 
-        GpuSampler nearest = RenderSystem.getSamplerCache().get(FilterMode.NEAREST);
-        GpuTextureView targetView = mainFb.getColorAttachmentView();
+        GpuSampler nearest = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
+        GpuTextureView targetView = mainFb.getColorTextureView();
 
-        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:killeffect_scan_pass", targetView, OptionalInt.empty())) {
-            pass.setPipeline(PIPELINE);
-            pass.setVertexBuffer(0, dummyVertexBuffer);
-            pass.bindTexture("DepthSampler", depthCopyTextureView, nearest);
+        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:killeffect_scan_pass", targetView, Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(PIPELINE));
+            pass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            pass.setUniform("DepthSampler", depthCopyTextureView, nearest);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dynamicTransforms);
             pass.setUniform("ScanData", uniformBuffer);
-            pass.draw(0, 6);
+            pass.draw(0, 6, 0, 1);
         }
     }
 

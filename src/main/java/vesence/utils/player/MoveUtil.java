@@ -38,7 +38,7 @@ public final class MoveUtil implements IMinecraft {
 
    public static boolean isMoving() {
       if (mc.player == null || mc.player.input == null) return false;
-      net.minecraft.util.math.Vector2f move = mc.player.input.getMovementInput();
+      net.minecraft.world.phys.Vec2 move = mc.player.input.getMoveVector();
       return move.x != 0.0F || move.y != 0.0F;
    }
 
@@ -75,7 +75,7 @@ public final class MoveUtil implements IMinecraft {
          return;
       }
 
-      float effectiveYaw = mc.player.isGliding() ? mc.player.getYRot() : cameraYaw;
+      float effectiveYaw = mc.player.isFallFlying() ? mc.player.getYRot() : cameraYaw;
       double angle = Mth.wrapDegrees(Math.toDegrees(direction(effectiveYaw, forward, strafe)));
 
       float closestForward = 0.0F;
@@ -150,7 +150,7 @@ public final class MoveUtil implements IMinecraft {
          return;
       }
 
-      float effectiveYaw = mc.player.isGliding() ? mc.player.getYRot() : cameraYaw;
+      float effectiveYaw = mc.player.isFallFlying() ? mc.player.getYRot() : cameraYaw;
       double angle = Mth.wrapDegrees(
               Math.toDegrees(direction(effectiveYaw, forward, strafe))
       );
@@ -176,25 +176,25 @@ public final class MoveUtil implements IMinecraft {
          }
       }
 
-      mc.options.forwardKey.setPressed(closestForward > 0.0F);
-      mc.options.backKey.setPressed(closestForward < 0.0F);
-      mc.options.leftKey.setPressed(closestStrafe > 0.0F);
-      mc.options.rightKey.setPressed(closestStrafe < 0.0F);
+      mc.options.keyUp.setDown(closestForward > 0.0F);
+      mc.options.keyDown.setDown(closestForward < 0.0F);
+      mc.options.keyLeft.setDown(closestStrafe > 0.0F);
+      mc.options.keyRight.setDown(closestStrafe < 0.0F);
    }
 
    public static float[] getMovementFromKeys() {
       float forward = 0.0F;
       float strafe = 0.0F;
-      if (mc.options.forwardKey.isPressed()) {
+      if (mc.options.keyUp.isDown()) {
          forward++;
       }
-      if (mc.options.backKey.isPressed()) {
+      if (mc.options.keyDown.isDown()) {
          forward--;
       }
-      if (mc.options.leftKey.isPressed()) {
+      if (mc.options.keyLeft.isDown()) {
          strafe++;
       }
-      if (mc.options.rightKey.isPressed()) {
+      if (mc.options.keyRight.isDown()) {
          strafe--;
       }
       return new float[]{forward, strafe};
@@ -258,12 +258,12 @@ public final class MoveUtil implements IMinecraft {
          double randX = Mth.lerp(Math.random(), box.minX, box.maxX);
          double randY = Mth.lerp(Math.random(), box.minY, box.maxY);
          double randZ = Mth.lerp(Math.random(), box.minZ, box.maxZ);
-         randY = Mth.clamp(randY, AttackAura.target.getY() + 0.2, AttackAura.target.getY() + AttackAura.target.getHeight() - 0.2);
+         randY = Mth.clamp(randY, AttackAura.target.getY() + 0.2, AttackAura.target.getY() + AttackAura.target.getBbHeight() - 0.2);
          Vec3 randomHitVec = new Vec3(randX, randY, randZ);
          Vec3 direction = randomHitVec.subtract(mc.player.getEyePosition()).normalize();
          float targetYaw = (float)Mth.wrapDegrees(Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90.0);
          double angle = Mth.wrapDegrees(
-                 Math.toDegrees(direction(mc.player.isGliding() ? mc.player.getYRot() : targetYaw, forward, strafe))
+                 Math.toDegrees(direction(mc.player.isFallFlying() ? mc.player.getYRot() : targetYaw, forward, strafe))
          );
          float closestForward = 0.0F;
          float closestStrafe = 0.0F;
@@ -284,10 +284,10 @@ public final class MoveUtil implements IMinecraft {
             }
          }
 
-         mc.options.forwardKey.setPressed(closestForward > 0.0F);
-         mc.options.backKey.setPressed(closestForward < 0.0F);
-         mc.options.leftKey.setPressed(closestStrafe > 0.0F);
-         mc.options.rightKey.setPressed(closestStrafe < 0.0F);
+         mc.options.keyUp.setDown(closestForward > 0.0F);
+         mc.options.keyDown.setDown(closestForward < 0.0F);
+         mc.options.keyLeft.setDown(closestStrafe > 0.0F);
+         mc.options.keyRight.setDown(closestStrafe < 0.0F);
       }
    }
 

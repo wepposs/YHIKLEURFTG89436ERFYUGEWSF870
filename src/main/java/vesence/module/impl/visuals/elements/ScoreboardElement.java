@@ -3,11 +3,11 @@ package vesence.module.impl.visuals.elements;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
-import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.Team;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
@@ -144,7 +144,7 @@ public class ScoreboardElement extends HudElement {
     // ── рендер ────────────────────────────────────────────────────────────
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) {
             boundsW = 0.0F;
@@ -263,7 +263,7 @@ public class ScoreboardElement extends HudElement {
      * Порт {@code ScoreboardHud.drawMixed}: разбивает {@code text} на «runs» —
      * символы с MSDF-глифом рисуются {@link Renderer2D#text} (гладкий шрифт
      * клиента), символы рамки ({@link #isFrameFallback}, AABB Drawing/бары)
-     * дорисовываются ВАНИЛЬНЫМ шрифтом MC через {@link GuiGraphics} (у него
+     * дорисовываются ВАНИЛЬНЫМ шрифтом MC через {@link GuiGraphicsExtractor} (у него
      * есть эти глифы), а прочий не-рисуемый мусор — ПРОПУСКАЕТСЯ (как в relevant).
      * Возвращает новый {@code x} (курсор).
      */
@@ -392,7 +392,7 @@ public class ScoreboardElement extends HudElement {
             return null;
         }
 
-        ScoreboardObjective obj = resolveSidebarObjective(mc.level.getScoreboard(), mc);
+        Objective obj = resolveSidebarObjective(mc.level.getScoreboard(), mc);
         if (obj == null) {
             cache = null;
             return null;
@@ -402,11 +402,11 @@ public class ScoreboardElement extends HudElement {
 
         String titleRaw = stripDecorative(applyNameProtect(LegacyTextHelper.extractRaw(obj.getDisplayName())));
 
-        List<ScoreboardEntry> entries = new ArrayList<>(sb.getScoreboardEntries(obj));
+        List<PlayerScoreEntry> entries = new ArrayList<>(sb.listPlayerScores(obj));
         List<String> lines = entries.stream()
-                .filter(e -> e != null && !e.hidden())
-                .sorted(Comparator.comparingInt(ScoreboardEntry::value).reversed()
-                        .thenComparing(ScoreboardEntry::owner, String::compareToIgnoreCase))
+                .filter(e -> e != null && !e.isHidden())
+                .sorted(Comparator.comparingInt(PlayerScoreEntry::value).reversed()
+                        .thenComparing(PlayerScoreEntry::owner, String::compareToIgnoreCase))
                 .limit(MAX_LINES)
                 .map(entry -> stripDecorative(applyNameProtect(LegacyTextHelper.extractRaw(resolveNameText(sb, entry)))))
                 // Фильтр как в relevant: пустые строки (в т.ч. «только цвет-код») —
@@ -575,20 +575,18 @@ public class ScoreboardElement extends HudElement {
      * {@code Gui.renderScoreboardSidebar}: если у команды игрока есть
      * цвет (≠ RESET) — берём TEAM_&lt;color&gt; слот, иначе — общий SIDEBAR.
      */
-    private ScoreboardObjective resolveSidebarObjective(Scoreboard scoreboard, Minecraft mc) {
+    private Objective resolveSidebarObjective(Scoreboard scoreboard, Minecraft mc) {
         if (scoreboard == null) return null;
-        ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        Objective sidebar = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR);
         if (mc.player == null) return sidebar;
 
-        Team team = scoreboard.getScoreHolderTeam(mc.player.getName().getString());
+        Team team = scoreboard.getPlayersTeam(mc.player.getName().getString());
         if (team != null) {
-            ChatFormatting color = team.getColor();
-            if (color != null && color != ChatFormatting.RESET) {
-                ScoreboardDisplaySlot slot = ScoreboardDisplaySlot.fromFormatting(color);
-                if (slot != null) {
-                    ScoreboardObjective teamObj = scoreboard.getObjectiveForSlot(slot);
-                    if (teamObj != null) return teamObj;
-                }
+            java.util.Optional<net.minecraft.world.scores.TeamColor> color = team.getColor();
+            if (color.isPresent()) {
+                net.minecraft.world.scores.DisplaySlot slot = color.get().displaySlot();
+                Objective teamObj = scoreboard.getDisplayObjective(slot);
+                if (teamObj != null) return teamObj;
             }
         }
         return sidebar;
@@ -598,13 +596,13 @@ public class ScoreboardElement extends HudElement {
      * Реальный текст строки лежит в prefix/suffix команды owner-а —
      * {@code Team.decorateName}. Без этого owner пустой и контент пропадает.
      */
-    private Component resolveNameText(Scoreboard scoreboard, ScoreboardEntry entry) {
-        Component base = entry.name();
+    private Component resolveNameText(Scoreboard scoreboard, PlayerScoreEntry entry) {
+        Component base = entry.ownerName();
         if (base == null) base = Component.empty();
 
         String owner = entry.owner();
-        Team ownerTeam = owner != null ? scoreboard.getScoreHolderTeam(owner) : null;
-        return Team.decorateName(ownerTeam, base);
+        Team ownerTeam = owner != null ? scoreboard.getPlayersTeam(owner) : null;
+        return net.minecraft.world.scores.PlayerTeam.formatNameForTeam(ownerTeam, base);
     }
 
     // ── bounds ──────────────────────────────────────────────────────────────

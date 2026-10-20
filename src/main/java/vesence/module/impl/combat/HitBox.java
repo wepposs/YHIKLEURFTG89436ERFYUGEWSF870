@@ -120,7 +120,7 @@ public class HitBox extends Module {
     private void applyHitBoxes() {
         double expand = Math.max(0.0D, size.get() * 2.5D);
 
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (isInvalid(player)) {
                 continue;
             }
@@ -170,7 +170,7 @@ public class HitBox extends Module {
             return;
         }
 
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (player == mc.player || !player.isAlive()) {
                 continue;
             }
@@ -220,12 +220,12 @@ public class HitBox extends Module {
         summary++;
 
         if (summary >= 2 && canAttack(target)) {
-            mc.gameMode.attackEntity(
+            mc.gameMode.attack(
                     mc.player,
                     target
             );
 
-            mc.player.swingHand(InteractionHand.MAIN_HAND);
+            mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
 
             lastAttackTime = System.currentTimeMillis();
 
@@ -239,7 +239,7 @@ public class HitBox extends Module {
         Vec3 eye = mc.player.getEyePosition();
 
         Vec3 look = mc.player
-                .getRotationVec(1.0F)
+                .getViewVector(1.0F)
                 .normalize();
 
         LivingEntity result = null;
@@ -251,7 +251,7 @@ public class HitBox extends Module {
 
         double range = 3.0D;
 
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity living)) {
                 continue;
             }
@@ -289,7 +289,7 @@ public class HitBox extends Module {
             direction = direction.normalize();
 
             double dot = Mth.clamp(
-                    look.dotProduct(direction),
+                    look.dot(direction),
                     -1.0D,
                     1.0D
             );
@@ -313,7 +313,7 @@ public class HitBox extends Module {
         Vec3 point = getEntityCenter(entity);
 
         if (size.get() > 0.0D) {
-            AABB box = entity.getBoundingBox().expand(size.get());
+            AABB box = entity.getBoundingBox().inflate(size.get());
             point = getClosestPoint(box, eye);
         }
 
@@ -346,7 +346,7 @@ public class HitBox extends Module {
     private Vec3 getEntityCenter(LivingEntity entity) {
         return new Vec3(
                 entity.getX(),
-                entity.getY() + entity.getHeight() * 0.5D,
+                entity.getY() + entity.getBbHeight() * 0.5D,
                 entity.getZ()
         );
     }
@@ -499,7 +499,7 @@ public class HitBox extends Module {
         Vec3 eye = mc.player.getEyePosition();
 
         Vec3 look = mc.player
-                .getRotationVec(1.0F)
+                .getViewVector(1.0F)
                 .normalize();
 
         Vec3 point = getEntityCenter(entity);
@@ -513,7 +513,7 @@ public class HitBox extends Module {
         direction = direction.normalize();
 
         double dot = Mth.clamp(
-                look.dotProduct(direction),
+                look.dot(direction),
                 -1.0D,
                 1.0D
         );

@@ -94,8 +94,8 @@ public class CompactGuiRender {
             return;
         }
 
-        float sw = client.getWindow().getScaledWidth();
-        float sh = client.getWindow().getScaledHeight();
+        float sw = client.getWindow().getGuiScaledWidth();
+        float sh = client.getWindow().getGuiScaledHeight();
 
         CompactGuiScreen.setGuiScaleTarget(
                 vesence.module.impl.misc.ClickGui.guiScale.get()

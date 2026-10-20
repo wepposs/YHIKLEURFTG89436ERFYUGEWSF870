@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -14,15 +13,13 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.util.math.PoseStack.Entry;
-import net.minecraft.util.ResourceLocation;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
@@ -35,6 +32,10 @@ import vesence.module.api.setting.Setting;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.renderengine.render.Renderer2D;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 @IModule(name = "Jump Circle", description = "Круг под ногами при прыжке", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -54,18 +55,20 @@ public class JumpCircle extends Module {
 
    private final List<CircleData> circles = new ArrayList<>();
    private ByteBufferBuilder circleAllocator = null;
-   private final ResourceLocation circleTexture = ResourceLocation.of("vesence", "textures/world/jumpcircle.png");
-   private final ResourceLocation circleTextureSecond = ResourceLocation.of("vesence", "textures/world/jumpcircle2.png");
+   private final Identifier circleTexture = Identifier.fromNamespaceAndPath("vesence", "textures/world/jumpcircle.png");
+   private final Identifier circleTextureSecond = Identifier.fromNamespaceAndPath("vesence", "textures/world/jumpcircle2.png");
    private boolean wasOnGround = true;
 
    private static final RenderPipeline JUMP_CIRCLE_PIPELINE = RenderPipelines.register(
-         RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-               .withLocation(ResourceLocation.of("vesence", "pipeline/world/jump_circle"))
-               .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+         RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+               .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/jump_circle"))
+               .withVertexShader("core/position_tex_color")
+               .withFragmentShader("core/position_tex_color")
+               .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+               .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)               .withPrimitiveTopology(PrimitiveTopology.QUADS)
                .withCull(false)
-               .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-               .withDepthWrite(false)
-               .withBlend(BlendFunction.LIGHTNING)
+               .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+               .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                .build());
 
    public JumpCircle() {
@@ -119,22 +122,22 @@ public class JumpCircle extends Module {
          return;
       }
       long now = System.currentTimeMillis();
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       PoseStack matrices = e.getMatrixStack();
-      ResourceLocation texture = this.type.is("Второй") ? this.circleTextureSecond : this.circleTexture;
+      Identifier texture = this.type.is("Второй") ? this.circleTextureSecond : this.circleTexture;
 
       if (circleAllocator == null) {
          circleAllocator = new ByteBufferBuilder(262144);
       }
-      Immediate immediate = MultiBufferSource.immediate(circleAllocator);
+      Immediate immediate = new Immediate();
       try {
-         RenderType renderLayer = RenderType.of(
+         RenderType renderLayer = RenderType.create(
                texture.toString(),
                RenderSetup.builder(JUMP_CIRCLE_PIPELINE)
-                     .expectedBufferSize(2048)
-                     .translucent()
-                     .texture("Sampler0", texture)
-                     .build());
+                     
+                     
+                     .withTexture("Sampler0", texture)
+                     .createRenderSetup());
          VertexConsumer buffer = immediate.getBuffer(renderLayer);
 
          for (CircleData circle : this.circles) {
@@ -192,9 +195,9 @@ public class JumpCircle extends Module {
 
       matrices.pushPose();
       matrices.translate(circle.pos.x - cameraPos.x, circle.pos.y - cameraPos.y, circle.pos.z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      matrices.rotate(Axis.XP.rotationDegrees(90.0F));
+      matrices.rotate(Axis.ZP.rotationDegrees(rotation));
+      Matrix4f matrix = matrices.last().pose();
       float half = finalScale * 0.5F;
       float thickHalf = finalScale * 1.08F * 0.5F;
       // Затемнённый контур под основным слоем + основной слой сверху.
@@ -212,10 +215,10 @@ public class JumpCircle extends Module {
       int bG = colorB >> 8 & 0xFF;
       int bB = colorB & 0xFF;
       int bA = colorB >> 24 & 0xFF;
-      buffer.vertex(matrix, x1, y1, 0.0F).texture(0.0F, 1.0F).color(aR, aG, aB, aA);
-      buffer.vertex(matrix, x1, y2, 0.0F).texture(0.0F, 0.0F).color(bR, bG, bB, bA);
-      buffer.vertex(matrix, x2, y2, 0.0F).texture(1.0F, 0.0F).color(bR, bG, bB, bA);
-      buffer.vertex(matrix, x2, y1, 0.0F).texture(1.0F, 1.0F).color(aR, aG, aB, aA);
+      buffer.addVertex(matrix, x1, y1, 0.0F).setUv(0.0F, 1.0F).setColor(aR, aG, aB, aA);
+      buffer.addVertex(matrix, x1, y2, 0.0F).setUv(0.0F, 0.0F).setColor(bR, bG, bB, bA);
+      buffer.addVertex(matrix, x2, y2, 0.0F).setUv(1.0F, 0.0F).setColor(bR, bG, bB, bA);
+      buffer.addVertex(matrix, x2, y1, 0.0F).setUv(1.0F, 1.0F).setColor(aR, aG, aB, aA);
    }
 
    private static int darken(int color, float factor) {

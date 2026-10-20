@@ -1,21 +1,21 @@
 package vesence.module.impl.visuals.particular.splashes;
 
-import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.util.RandomSource;
 
 public class WaterSplashFoamParticle extends WaterSplashParticle {
-    protected WaterSplashFoamParticle(ClientLevel world, double x, double y, double z, float width, float height, SpriteSet provider) {
-        super(world, x, y, z, width, height, provider);
-        this.red = 1.0F;
-        this.green = 1.0F;
-        this.blue = 1.0F;
+    protected WaterSplashFoamParticle(ClientLevel level, double x, double y, double z, float width, float height, SpriteSet provider) {
+        super(level, x, y, z, width, height, provider);
+        this.rCol = 1.0F;
+        this.gCol = 1.0F;
+        this.bCol = 1.0F;
     }
 
-    public static class Factory implements ParticleFactory<SimpleParticleType> {
+    public static class Factory implements ParticleProvider<SimpleParticleType> {
         private final SpriteSet provider;
 
         public Factory(SpriteSet provider) {
@@ -23,8 +23,8 @@ public class WaterSplashFoamParticle extends WaterSplashParticle {
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
-            return new WaterSplashFoamParticle(world, x, y, z, (float) velocityX, (float) velocityY, this.provider);
+        public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xd, double yd, double zd, RandomSource random) {
+            return new WaterSplashFoamParticle(level, x, y, z, (float) xd, (float) yd, this.provider);
         }
     }
 }

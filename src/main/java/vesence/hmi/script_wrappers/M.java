@@ -2,7 +2,7 @@ package vesence.hmi.script_wrappers;
 
 import net.minecraft.util.Mth;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionfc;
@@ -35,27 +35,27 @@ public class M {
     }
 
     public void rotateX(PoseStack matrices, double amount) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_X.rotationDegrees((float)amount));
+        matrices.rotate(Axis.XP.rotationDegrees((float) amount));
     }
 
     public void rotateY(PoseStack matrices, double amount) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_Y.rotationDegrees((float)amount));
+        matrices.rotate(Axis.YP.rotationDegrees((float) amount));
     }
 
     public void rotateZ(PoseStack matrices, double amount) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_Z.rotationDegrees((float)amount));
+        matrices.rotate(Axis.ZP.rotationDegrees((float) amount));
     }
 
     public void rotateX(PoseStack matrices, double amount, double x, double y, double z) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_X.rotationDegrees((float)amount), (float)x, (float)y, (float)z);
+        matrices.rotateAround(Axis.XP.rotationDegrees((float) amount), (float) x, (float) y, (float) z);
     }
 
     public void rotateY(PoseStack matrices, double amount, double x, double y, double z) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_Y.rotationDegrees((float)amount), (float)x, (float)y, (float)z);
+        matrices.rotateAround(Axis.YP.rotationDegrees((float) amount), (float) x, (float) y, (float) z);
     }
 
     public void rotateZ(PoseStack matrices, double amount, double x, double y, double z) {
-        matrices.multiply((Quaternionfc)RotationAxis.POSITIVE_Z.rotationDegrees((float)amount), (float)x, (float)y, (float)z);
+        matrices.rotateAround(Axis.ZP.rotationDegrees((float) amount), (float) x, (float) y, (float) z);
     }
 
     public double sin(double a) {
@@ -96,7 +96,7 @@ public class M {
 
     public void shear(PoseStack matrices, double shearX, double shearY, double shearZ) {
         Matrix4f shearMatrix = new Matrix4f(1.0f, (float)shearX, (float)shearX, 0.0f, (float)shearY, 1.0f, (float)shearY, 0.0f, (float)shearZ, (float)shearZ, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-        matrices.last().getPositionMatrix().mul((Matrix4fc)shearMatrix);
+        matrices.last().pose().mul((Matrix4fc) shearMatrix);
     }
 }
 

@@ -3,7 +3,6 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.client.Camera;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,23 +31,27 @@ public abstract class CameraMixin {
    private float vesence$currentTickProgress;
 
    @Shadow
+   private Entity entity;
+
+   @Shadow
    protected abstract void setRotation(float var1, float var2);
 
    @Shadow
-   protected abstract void setPos(Vec3 var1);
+   protected abstract void setPosition(Vec3 var1);
 
    @Shadow
-   protected abstract void moveBy(float surge, float heave, float sway);
+   protected abstract void move(float surge, float heave, float sway);
 
    @Inject(
-      method = {"update"},
+      method = {"alignWithEntity(F)V"},
       at = {@At("HEAD")}
    )
-   private void onUpdateHead(Level area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress, CallbackInfo ci) {
+   private void onUpdateHead(float tickProgress, CallbackInfo ci) {
       this.vesence$currentTickProgress = tickProgress;
+      Entity focusedEntity = this.entity;
       if (focusedEntity != null) {
-         this.originalYaw = focusedEntity.getYaw(tickProgress);
-         this.originalPitch = focusedEntity.getPitch(tickProgress);
+         this.originalYaw = focusedEntity.getViewYRot(tickProgress);
+         this.originalPitch = focusedEntity.getViewXRot(tickProgress);
          this.rotationEvent = new EventRotation(this.originalYaw, this.originalPitch, tickProgress);
          EventManager.call(this.rotationEvent);
       } else {
@@ -57,32 +60,32 @@ public abstract class CameraMixin {
    }
 
    @Redirect(
-      method = {"update"},
+      method = {"alignWithEntity(F)V"},
       at = @At(
          value = "INVOKE",
-         target = "Lnet/minecraft/client/render/Camera;setRotation(FF)V"
+         target = "Lnet/minecraft/client/Camera;setRotation(FF)V"
       )
    )
    private void redirectSetRotation(Camera instance, float yaw, float pitch) {
       if (this.rotationEvent == null
-         || this.rotationEvent.getYRot() == this.originalYaw && this.rotationEvent.getXRot() == this.originalPitch) {
+         || this.rotationEvent.getYaw() == this.originalYaw && this.rotationEvent.getPitch() == this.originalPitch) {
          this.setRotation(yaw, pitch);
       } else {
-         this.setRotation(this.rotationEvent.getYRot(), this.rotationEvent.getXRot());
+         this.setRotation(this.rotationEvent.getYaw(), this.rotationEvent.getPitch());
       }
    }
 
    @Inject(
-      method = {"update"},
+      method = {"alignWithEntity(F)V"},
       at = {@At("RETURN")}
    )
-   private void onUpdateReturn(Level area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress, CallbackInfo ci) {
+   private void onUpdateReturn(float tickProgress, CallbackInfo ci) {
       this.rotationEvent = null;
       if (FreecamState.pos != null) {
          Vec3 renderPos = FreecamState.prevPos != null
             ? FreecamState.prevPos.lerp(FreecamState.pos, tickProgress)
             : FreecamState.pos;
-         this.setPos(renderPos);
+         this.setPosition(renderPos);
 
          float renderYaw = FreecamState.prevYaw + (FreecamState.yaw - FreecamState.prevYaw) * tickProgress;
          float renderPitch = FreecamState.prevPitch + (FreecamState.pitch - FreecamState.prevPitch) * tickProgress;
@@ -91,37 +94,37 @@ public abstract class CameraMixin {
    }
 
    @ModifyArg(
-      method = {"update"},
+      method = {"alignWithEntity(F)V"},
       at = @At(
          value = "INVOKE",
-         target = "Lnet/minecraft/client/render/Camera;clipToSpace(F)F"
+         target = "Lnet/minecraft/client/Camera;getMaxZoom(F)F"
       )
    )
    private float vesence$modifyClipDistance(float distance) {
       if (!InterpolateF5.isActive()) return distance;
       InterpolateF5 module = InterpolateF5.getInstance();
       if (module == null) return distance;
-      boolean thirdPerson = !net.minecraft.client.Minecraft.getInstance().options.getPerspective().isFirstPerson();
+      boolean thirdPerson = !net.minecraft.client.Minecraft.getInstance().options.getCameraType().isFirstPerson();
       if (!thirdPerson) return distance;
       return module.getInterpolatedDistance(this.vesence$currentTickProgress);
    }
 
    @Redirect(
-      method = {"update"},
+      method = {"alignWithEntity(F)V"},
       at = @At(
          value = "INVOKE",
-         target = "Lnet/minecraft/client/render/Camera;moveBy(FFF)V"
+         target = "Lnet/minecraft/client/Camera;move(FFF)V"
       )
    )
    private void vesence$redirectMoveBy(Camera instance, float surge, float heave, float sway) {
       float adjustedHeave = heave;
       if (InterpolateF5.isActive()) {
          InterpolateF5 module = InterpolateF5.getInstance();
-         boolean thirdPerson = !net.minecraft.client.Minecraft.getInstance().options.getPerspective().isFirstPerson();
+         boolean thirdPerson = !net.minecraft.client.Minecraft.getInstance().options.getCameraType().isFirstPerson();
          if (module != null && thirdPerson) {
             adjustedHeave += module.getInterpolatedHeightOffset(this.vesence$currentTickProgress);
          }
       }
-      this.moveBy(surge, adjustedHeave, sway);
+      this.move(surge, adjustedHeave, sway);
    }
 }

@@ -2,16 +2,15 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.server.ServerInfo;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
@@ -40,8 +39,8 @@ import vesence.ui.clickgui.GuiClient;
  * Адаптации 1.21.4/ru.whylol -> 1.21.11/vesence:
  *   - @EventLink -> @EventInit; ModuleCategory.MISC -> Category.MISC.
  *   - TextSetting -> StringSetting; setting.visible(()->X) -> setting.hidden(()->!X).
- *   - ChatUtils.sendMessage -> mc.player.sendMessage(Component.literal(...), false).
- *   - MenuPanel (ClickGui открыт) -> mc.screen instanceof GuiClient.
+ *   - ChatUtils.sendMessage -> mc.player.sendSystemMessage(Component.literal(...)).
+ *   - MenuPanel (ClickGui открыт) -> mc.gui.screen() instanceof GuiClient.
  *   - setEnabled(false) -> toggle() (самоотключение, как AutoDuel).
  *   - mc.player.getScoreboard() -> mc.level.getScoreboard().
  *   - getInventory().selectedSlot=X -> getInventory().setSelectedSlot(X).
@@ -82,7 +81,7 @@ public class SPJoin extends Module {
     @EventInit
     public void onPacket(EventPacket event) {
         if (event.getType() != EventPacket.Type.RECEIVE) return;
-        if (!(event.getPacket() instanceof GameMessageS2CPacket packet)) return;
+        if (!(event.getPacket() instanceof ClientboundSystemChatPacket packet)) return;
 
         String message = normalizeText(packet.content().getString());
 
@@ -105,7 +104,7 @@ public class SPJoin extends Module {
         if (checkScoreboard()) {
             if (!hasScoreboard) {
                 hasScoreboard = true;
-                mc.player.sendMessage(Component.literal("§aУспешно зашли на сервер spookytime."), false);
+                mc.player.sendSystemMessage(Component.literal("§aУспешно зашли на сервер spookytime."));
                 this.toggle();
             }
             return;
@@ -137,8 +136,8 @@ public class SPJoin extends Module {
             }
         }
 
-        // Если открыто GUI меню (HandledScreen) - РАБОТАЕТ ДАЖЕ В МЕНЮ ПАУЗЫ
-        if (mc.screen instanceof HandledScreen<?>) {
+        // Если открыто GUI меню (AbstractContainerScreen) - РАБОТАЕТ ДАЖЕ В МЕНЮ ПАУЗЫ
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?>) {
             tryClickInMenu();
             return;
         }
@@ -153,7 +152,7 @@ public class SPJoin extends Module {
      */
     private void handleAnarchyMode() {
         // Пока ClickGui открыт — ничего не отправляем
-        if (mc.screen instanceof GuiClient) return;
+        if (mc.gui.screen() instanceof GuiClient) return;
 
         if (mc.player == null || mc.player.connection == null) return;
 
@@ -164,9 +163,9 @@ public class SPJoin extends Module {
 
         // Отправляем как команду, если начинается с "/", иначе как сообщение
         if (cmd.startsWith("/")) {
-            mc.player.connection.sendChatCommand(cmd.substring(1));
+            mc.player.connection.sendCommand(cmd.substring(1));
         } else {
-            mc.player.connection.sendChatMessage(cmd);
+            mc.player.connection.sendChat(cmd);
         }
 
         // Спамим раз в ~1 секунду пока scoreboard не появится
@@ -180,10 +179,10 @@ public class SPJoin extends Module {
         if (mc.player == null || mc.level == null) return false;
 
         Scoreboard scoreboard = mc.level.getScoreboard();
-        ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
 
         // Scoreboard есть, игрок существует больше 1 секунды, нет открытого GUI
-        return sidebar != null && mc.player.tickCount > 20 && mc.screen == null;
+        return sidebar != null && mc.player.tickCount > 20 && mc.gui.screen() == null;
     }
 
     /**
@@ -196,11 +195,11 @@ public class SPJoin extends Module {
 
         int targetSlot = findTargetSlot();
         if (targetSlot >= 0) {
-            mc.gameMode.clickSlot(
-                mc.player.containerMenu.syncId,
+            mc.gameMode.handleContainerInput(
+                mc.player.containerMenu.containerId,
                 targetSlot,
                 0,
-                ClickType.PICKUP,
+                ContainerInput.PICKUP,
                 mc.player
             );
             delayTicks = 2; // Минимальная задержка (было 5)
@@ -218,7 +217,7 @@ public class SPJoin extends Module {
             ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
             if (stack == null || stack.isEmpty()) continue;
 
-            String name = normalizeText(stack.getName().getString());
+            String name = normalizeText(stack.getHoverName().getString());
             if (name.contains("дуэл") || name.contains("1duels") || name.contains("duel")) {
                 return slot;
             }
@@ -227,7 +226,7 @@ public class SPJoin extends Module {
         // Приоритет 2: якорь возрождения
         for (int slot = 0; slot < mc.player.containerMenu.slots.size(); slot++) {
             ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
-            if (stack != null && !stack.isEmpty() && stack.isOf(Items.RESPAWN_ANCHOR)) {
+            if (stack != null && !stack.isEmpty() && stack.is(Items.RESPAWN_ANCHOR)) {
                 return slot;
             }
         }
@@ -237,7 +236,7 @@ public class SPJoin extends Module {
             ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
             if (stack == null || stack.isEmpty()) continue;
 
-            String name = normalizeText(stack.getName().getString());
+            String name = normalizeText(stack.getHoverName().getString());
             if (name.contains("якор") || name.contains("respawn") || name.contains("anchor")) {
                 return slot;
             }
@@ -258,11 +257,11 @@ public class SPJoin extends Module {
 
         // Переключаемся на слот с компасом
         mc.player.getInventory().setSelectedSlot(compassSlot);
-        mc.player.connection.sendPacket(new ServerboundSetCarriedItemPacket(compassSlot));
+        mc.player.connection.send(new ServerboundSetCarriedItemPacket(compassSlot));
 
         // Используем компас
-        mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
-        mc.player.swingHand(InteractionHand.MAIN_HAND);
+        mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+        mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
 
         delayTicks = 2; // Минимальная задержка (было 5)
     }
@@ -299,13 +298,13 @@ public class SPJoin extends Module {
         if (stack == null || stack.isEmpty()) return false;
 
         // Проверяем по типу предмета
-        if (stack.isOf(Items.COMPASS) || stack.isOf(Items.CLOCK)
-                || stack.isOf(Items.NETHER_STAR) || stack.isOf(Items.PLAYER_HEAD)) {
+        if (stack.is(Items.COMPASS) || stack.is(Items.CLOCK)
+                || stack.is(Items.NETHER_STAR) || stack.is(Items.PLAYER_HEAD)) {
             return true;
         }
 
         // Проверяем по названию
-        String name = normalizeText(stack.getName().getString());
+        String name = normalizeText(stack.getHoverName().getString());
         return name.contains("дуэл") || name.contains("режим") || name.contains("сервер")
                 || name.contains("игра") || name.contains("меню") || name.contains("compass");
     }
@@ -314,8 +313,8 @@ public class SPJoin extends Module {
      * Получает адрес текущего сервера
      */
     private String getServerAddress() {
-        ServerInfo serverInfo = mc.getCurrentServerEntry();
-        return serverInfo == null || serverInfo.address == null ? "" : serverInfo.address;
+        net.minecraft.client.multiplayer.ServerData serverInfo = mc.getCurrentServer();
+        return serverInfo == null || serverInfo.ip == null ? "" : serverInfo.ip;
     }
 
     /**

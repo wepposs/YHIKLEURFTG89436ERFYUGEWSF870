@@ -1,8 +1,8 @@
 package vesence.mixin;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,11 +17,11 @@ import vesence.module.impl.visuals.Attributes;
  * руки отводятся назад, голова слегка наклоняется. Применяется только к
  * локальному игроку в третьем лице.
  */
-@Mixin(PlayerEntityModel.class)
+@Mixin(PlayerModel.class)
 public abstract class PlayerEntityModelMixin {
 
-    @Inject(method = "setAngles(Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;)V", at = @At("TAIL"))
-    private void vesence$applyNarutoRunPose(PlayerEntityRenderState state, CallbackInfo ci) {
+    @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
+    private void vesence$applyNarutoRunPose(AvatarRenderState state, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.level == null) return;
         if (!Vesence.isModInitialized() || Vesence.get == null || Vesence.get.manager == null) return;
@@ -29,34 +29,34 @@ public abstract class PlayerEntityModelMixin {
         Attributes attributes = Vesence.get.manager.get(Attributes.class);
         if (attributes == null || !attributes.isNarutoActive()) return;
 
-        Player self = client.player;
+        net.minecraft.client.player.AbstractClientPlayer self = client.player;
         // Только локальный игрок и только третье лицо.
-        if (state.id != self.getId()) return;
-        if (client.options.getPerspective().isFirstPerson()) return;
-        if (self.isSwimming() || self.isGliding() || self.isUsingItem() || self.isSneaking()) return;
+        if (state.skin != self.getSkin()) return; // TODO(port26): render states carry no entity id in 26.3; match by skin
+        if (client.options.getCameraType().isFirstPerson()) return;
+        if (self.isSwimming() || self.isFallFlying() || self.isUsingItem() || self.isShiftKeyDown()) return;
 
-        float speed = (float) self.getDeltaMovement().horizontalLength();
+        float speed = (float) self.getDeltaMovement().horizontalDistance();
         float run = Mth.clamp(speed * 10.0F, 0.0F, 1.0F);
         if (run < 0.10F) return;
 
         float blend = Mth.clamp((run - 0.10F) / 0.40F, 0.0F, 1.0F);
         blend = blend * blend * (3.0F - 2.0F * blend);
 
-        float tickDelta = client.getRenderTickCounter().getTickProgress(false);
-        float tt = (self.age + tickDelta) * 0.6F;
+        float tickDelta = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float tt = (self.tickCount + tickDelta) * 0.6F;
         float swing = Mth.cos(tt) * 0.14F * blend;
 
-        PlayerEntityModel model = (PlayerEntityModel) (Object) this;
+        PlayerModel model = (PlayerModel) (Object) this;
 
         // Руки назад.
-        model.rightArm.pitch = Mth.lerp(blend, model.rightArm.pitch, 1.25F + swing);
-        model.leftArm.pitch = Mth.lerp(blend, model.leftArm.pitch, 1.25F + swing);
-        model.rightArm.roll = Mth.lerp(blend, model.rightArm.roll, 0.45F);
-        model.leftArm.roll = Mth.lerp(blend, model.leftArm.roll, -0.45F);
-        model.rightArm.yaw = model.rightArm.yaw + 0.08F * blend;
-        model.leftArm.yaw = model.leftArm.yaw - 0.08F * blend;
+        model.rightArm.xRot = Mth.lerp(blend, model.rightArm.xRot, 1.25F + swing);
+        model.leftArm.xRot = Mth.lerp(blend, model.leftArm.xRot, 1.25F + swing);
+        model.rightArm.zRot = Mth.lerp(blend, model.rightArm.zRot, 0.45F);
+        model.leftArm.zRot = Mth.lerp(blend, model.leftArm.zRot, -0.45F);
+        model.rightArm.yRot = model.rightArm.yRot + 0.08F * blend;
+        model.leftArm.yRot = model.leftArm.yRot - 0.08F * blend;
 
         // Голова слегка вниз.
-        model.head.pitch = model.head.pitch - 0.12F * blend;
+        model.head.xRot = model.head.xRot - 0.12F * blend;
     }
 }

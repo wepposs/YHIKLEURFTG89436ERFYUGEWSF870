@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -56,7 +56,7 @@ public class DragonBrain {
          return;
       }
 
-      Vec3 playerPos = entity.getEntityPos();
+      Vec3 playerPos = entity.position();
 
       if (pos == null || pos.distanceTo(playerPos) > 15) {
          Vec3 startPos = new Vec3(playerPos.x, playerPos.y + flyHeight, playerPos.z);
@@ -70,7 +70,7 @@ public class DragonBrain {
 
       Vec3 newTargetPos;
       if (target != null && entity instanceof LocalPlayer) {
-         Vec3 targetPos = target.getEntityPos();
+         Vec3 targetPos = target.position();
          double targetX = targetPos.x + 1.5;
          double targetY = targetPos.y + flyHeight;
          double targetZ = targetPos.z + 1.5;
@@ -88,7 +88,7 @@ public class DragonBrain {
 
       Vec3 diff = safeTargetPos.subtract(pos);
       double speed = target != null ? 0.2 : 0.15;
-      motion = diff.multiply(speed);
+      motion = diff.scale(speed);
 
       Vec3 newPos = pos.add(motion);
       if (!PetUtil.isBlockSolid(newPos.x, newPos.y, newPos.z)
@@ -130,7 +130,7 @@ public class DragonBrain {
       LivingEntity target = AttackAura.target;
 
       if (target != null && entity instanceof LocalPlayer) {
-         Vector2f targetRotation = PetUtil.rotations(pos, target.getEntityPos());
+         Vector2f targetRotation = PetUtil.rotations(pos, target.position());
          yaw = targetRotation.x;
       } else {
          if (motion.x != 0 || motion.z != 0) {

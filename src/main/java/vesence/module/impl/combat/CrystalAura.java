@@ -152,7 +152,7 @@ public class CrystalAura extends Module {
         }
 
         if (rotate.get()) {
-            aimAtBlock(pos.down());
+            aimAtBlock(pos.below());
         }
 
         placeObsidian(pos);
@@ -204,7 +204,7 @@ public class CrystalAura extends Module {
         EndCrystal nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
-        for (var entity : mc.level.getEntities()) {
+        for (var entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof EndCrystal crystal)) continue;
             double dist = mc.player.getEyePosition().distanceTo(crystal.getEyePosition());
             if (dist > range.get().doubleValue()) continue;
@@ -215,34 +215,34 @@ public class CrystalAura extends Module {
         }
 
         if (nearest != null) {
-            mc.gameMode.attackEntity(mc.player, nearest);
-            mc.player.swingHand(InteractionHand.MAIN_HAND);
+            mc.gameMode.attack(mc.player, nearest);
+            mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
             breakTimer.reset();
         }
     }
 
     private BlockPos findNearestObsidian() {
         int r = range.get().intValue();
-        BlockPos playerPos = mc.player.getBlockPos();
+        BlockPos playerPos = mc.player.blockPosition();
         BlockPos nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 for (int z = -r; z <= r; z++) {
-                    BlockPos pos = playerPos.add(x, y, z);
+                    BlockPos pos = playerPos.offset(x, y, z);
 
                     var block = mc.level.getBlockState(pos).getBlock();
                     boolean isObsidian = block == Blocks.OBSIDIAN;
                     boolean isBedrock = !obsidianOnly.get() && block == Blocks.BEDROCK;
                     if (!isObsidian && !isBedrock) continue;
 
-                    if (!mc.level.getBlockState(pos.up()).isAir()) continue;
-                    if (!mc.level.getBlockState(pos.up(2)).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.above()).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.above(2)).isAir()) continue;
 
                     if (onlyNearEnemy.get() && !hasEnemyNear(pos)) continue;
 
-                    double dist = mc.player.getEyePosition().distanceTo(Vec3.ofCenter(pos));
+                    double dist = mc.player.getEyePosition().distanceTo(Vec3.atCenterOf(pos));
                     if (dist < nearestDist) {
                         nearestDist = dist;
                         nearest = pos;
@@ -254,9 +254,9 @@ public class CrystalAura extends Module {
     }
 
     private boolean hasEnemyNear(BlockPos pos) {
-        Vec3 center = Vec3.ofCenter(pos);
+        Vec3 center = Vec3.atCenterOf(pos);
         float maxDist = enemyRange.get().floatValue();
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (player == mc.player) continue;
             if (player.getEyePosition().distanceTo(center) <= maxDist) return true;
         }
@@ -281,29 +281,29 @@ public class CrystalAura extends Module {
 
     private BlockPos findBestObsidianPlacement() {
         int r = range.get().intValue();
-        BlockPos playerPos = mc.player.getBlockPos();
+        BlockPos playerPos = mc.player.blockPosition();
         BlockPos nearest = null;
         double nearestDist = Double.MAX_VALUE;
 
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 for (int z = -r; z <= r; z++) {
-                    BlockPos pos = playerPos.add(x, y, z);
+                    BlockPos pos = playerPos.offset(x, y, z);
 
                     // Должен быть воздух
                     if (!mc.level.getBlockState(pos).isAir()) continue;
 
                     // Должна быть твердая поверхность снизу
-                    if (!mc.level.getBlockState(pos.down()).isSolidBlock(mc.level, pos.down())) continue;
+                    if (!mc.level.getBlockState(pos.below()).isSolidRender()) continue;
 
                     // Должно быть 2 блока воздуха сверху для кристалла
-                    if (!mc.level.getBlockState(pos.up()).isAir()) continue;
-                    if (!mc.level.getBlockState(pos.up(2)).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.above()).isAir()) continue;
+                    if (!mc.level.getBlockState(pos.above(2)).isAir()) continue;
 
                     // Проверка врагов
                     if (onlyNearEnemy.get() && !hasEnemyNear(pos)) continue;
 
-                    double dist = mc.player.getEyePosition().distanceTo(Vec3.ofCenter(pos));
+                    double dist = mc.player.getEyePosition().distanceTo(Vec3.atCenterOf(pos));
                     if (dist < nearestDist) {
                         nearestDist = dist;
                         nearest = pos;
@@ -332,7 +332,7 @@ public class CrystalAura extends Module {
 
     private void aimAtBlock(BlockPos pos) {
         double dx = pos.getX() + 0.5 - mc.player.getX();
-        double dy = pos.getY() + 1.0 - (mc.player.getY() + mc.player.getStandingEyeHeight());
+        double dy = pos.getY() + 1.0 - (mc.player.getY() + mc.player.getEyeHeight());
         double dz = pos.getZ() + 0.5 - mc.player.getZ();
         double dxz = Math.sqrt(dx * dx + dz * dz);
         float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
@@ -345,15 +345,15 @@ public class CrystalAura extends Module {
     private void placeCrystal(BlockPos pos) {
         Vec3 hitVec = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
         BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, pos, false);
-        mc.gameMode.interactBlock(mc.player, InteractionHand.MAIN_HAND, hitResult);
-        mc.player.swingHand(InteractionHand.MAIN_HAND);
+        mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hitResult);
+        mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
     }
 
     private void placeObsidian(BlockPos pos) {
         Vec3 hitVec = new Vec3(pos.getX() + 0.5, pos.getY() - 0.5, pos.getZ() + 0.5);
-        BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, pos.down(), false);
-        mc.gameMode.interactBlock(mc.player, InteractionHand.MAIN_HAND, hitResult);
-        mc.player.swingHand(InteractionHand.MAIN_HAND);
+        BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, pos.below(), false);
+        mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hitResult);
+        mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
     }
 
     @Override

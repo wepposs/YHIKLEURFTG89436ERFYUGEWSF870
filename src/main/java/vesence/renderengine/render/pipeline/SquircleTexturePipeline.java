@@ -70,7 +70,7 @@ public class SquircleTexturePipeline {
                      float[] radii, int color, float smoothness, float cornerSmoothness,
                      float[] matrix, int viewportW, int viewportH, boolean nearest) {
 
-        GlState.Snapshot state = GlState.pushPose();
+        GlState.Snapshot state = GlState.push();
         try {
             shader.use();
             if (uMatrixLoc != -1) GL20.glUniformMatrix3fv(uMatrixLoc, false, matrix);

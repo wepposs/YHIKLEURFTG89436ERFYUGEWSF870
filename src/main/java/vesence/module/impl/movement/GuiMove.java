@@ -7,14 +7,14 @@ import java.util.Queue;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
@@ -44,30 +44,30 @@ public class GuiMove extends Module{
    private boolean timerReady(long delay){return System.currentTimeMillis()-timestamp>=delay;}
    private boolean specialMode(){return mode.is("Reallyworld")||mode.is("Holyworld")||mode.is("SpookyTime")||mode.is("LonyGrief");}
    private boolean canProcessCursor(){return !previousBooleanFlag&&(isMoving()||secondaryBooleanFlag);}
-   private int actionDelay(ClickType type){if(type==ClickType.PICKUP)return 1;return secondaryIntegerValue>1?2:3;}
-   private void processSlotAction(ClickType type){if(!enable||!mode.is("SpookyTime"))return;ClickType action=type==null?ClickType.PICKUP:type;secondaryIntegerValue=actionDelay(action)+1;}
-   private boolean hasCursorStack(){if(!(mc.screen instanceof HandledScreen))return false;if(!canProcessCursor())return false;return mc.player!=null&&mc.player.containerMenu!=null&&!mc.player.containerMenu.getCursorStack().isEmpty();}
-   private void flushQueue(){if(mc.player==null||mc.getConnection()==null)return;while(!queue.isEmpty()){ServerboundContainerClickPacket packet=queue.poll();if(packet!=null)mc.getConnection().sendPacket(packet);}currentIntegerValue=0;}
+   private int actionDelay(ContainerInput type){if(type==ContainerInput.PICKUP)return 1;return secondaryIntegerValue>1?2:3;}
+   private void processSlotAction(ContainerInput type){if(!enable||!mode.is("SpookyTime"))return;ContainerInput action=type==null?ContainerInput.PICKUP:type;secondaryIntegerValue=actionDelay(action)+1;}
+   private boolean hasCursorStack(){if(!(mc.gui.screen() instanceof AbstractContainerScreen))return false;if(!canProcessCursor())return false;return mc.player!=null&&mc.player.containerMenu!=null&&!mc.player.containerMenu.getCarried().isEmpty();}
+   private void flushQueue(){if(mc.player==null||mc.getConnection()==null)return;while(!queue.isEmpty()){ServerboundContainerClickPacket packet=queue.poll();if(packet!=null)mc.getConnection().send(packet);}currentIntegerValue=0;}
    private boolean addQueue(ServerboundContainerClickPacket packet){return !queue.contains(packet)&&queue.add(packet);}
-   private void flushList(){if(mc.player==null||mc.getConnection()==null)return;for(ServerboundContainerClickPacket packet:list)mc.getConnection().sendPacket(packet);list.clear();booleanFlag=false;primaryBooleanFlag=false;}
-   private void stopMovement(){mc.options.forwardKey.setPressed(false);mc.options.backKey.setPressed(false);mc.options.leftKey.setPressed(false);mc.options.rightKey.setPressed(false);mc.options.jumpKey.setPressed(false);mc.options.sneakKey.setPressed(false);mc.options.sprintKey.setPressed(false);}
+   private void flushList(){if(mc.player==null||mc.getConnection()==null)return;for(ServerboundContainerClickPacket packet:list)mc.getConnection().send(packet);list.clear();booleanFlag=false;primaryBooleanFlag=false;}
+   private void stopMovement(){mc.options.keyUp.setDown(false);mc.options.keyDown.setDown(false);mc.options.keyLeft.setDown(false);mc.options.keyRight.setDown(false);mc.options.keyJump.setDown(false);mc.options.keyShift.setDown(false);mc.options.keySprint.setDown(false);}
 
    @EventInit
    public void onPacket(EventPacket event){
       if(mc.player==null||!event.isSend())return;
       Packet<?> packet=event.getPacket();
       if(mode.is("LonyGrief")){
-         if(packet instanceof ServerboundContainerClickPacket click&&mc.screen instanceof InventoryScreen&&!nextBooleanFlag){list.add(click);event.cancel();}
+         if(packet instanceof ServerboundContainerClickPacket click&&mc.gui.screen() instanceof InventoryScreen&&!nextBooleanFlag){list.add(click);event.cancel();}
          return;
       }
       if(mode.is("SpookyTime")){
-         if(packet instanceof ServerboundContainerClickPacket click&&!nextBooleanFlag&&canProcessCursor()&&click.slot()!=-1){
-            processSlotAction(click.actionType());
+         if(packet instanceof ServerboundContainerClickPacket click&&!nextBooleanFlag&&canProcessCursor()&&click.slotNum()!=-1){
+            processSlotAction(click.containerInput());
             if(!secondaryBooleanFlag&&addQueue(click)){currentIntegerValue=0;event.cancel();}
          }
          return;
       }
-      if((mode.is("Reallyworld")||mode.is("Holyworld"))&&mc.screen instanceof InventoryScreen&&isMoving()){
+      if((mode.is("Reallyworld")||mode.is("Holyworld"))&&mc.gui.screen() instanceof InventoryScreen&&isMoving()){
          if(packet instanceof ServerboundContainerClickPacket click){
             if(nextBooleanFlag)return;
             list.add(click);
@@ -101,7 +101,7 @@ public class GuiMove extends Module{
          currentIntegerValue++;
          if(secondaryBooleanFlag)currentIntegerValue=0;
       }
-      KeyBinding[] keys={mc.options.forwardKey,mc.options.backKey,mc.options.leftKey,mc.options.rightKey,mc.options.jumpKey};
+      KeyMapping[] keys={mc.options.keyUp,mc.options.keyDown,mc.options.keyLeft,mc.options.keyRight,mc.options.keyJump};
       if(previousBooleanFlag){
          stopMovement();
          return;
@@ -114,8 +114,8 @@ public class GuiMove extends Module{
       if(lock){
          stopMovement();
          mc.player.setSprinting(false);
-      }else if(!(mc.screen instanceof ChatScreen)&&(!(mc.screen instanceof HandledScreen)||mc.screen instanceof InventoryScreen)){
-         for(KeyBinding key:keys)key.setPressed(InputUtil.isKeyPressed(mc.getWindow(),key.getDefaultKey().getCode()));
+      }else if(!(mc.gui.screen() instanceof ChatScreen)&&(!(mc.gui.screen() instanceof AbstractContainerScreen)||mc.gui.screen() instanceof InventoryScreen)){
+         for(KeyMapping key:keys)key.setDown(InputConstants.isKeyDown(key.getDefaultKey().getValue()));
          if(booleanFlag&&mode.is("Reallyworld"))flushList();
          if(primaryBooleanFlag&&mode.is("Holyworld")&&primaryIntegerValue==0)flushList();
          if(booleanFlag&&mode.is("LonyGrief")&&timerReady(50L))flushList();
@@ -166,9 +166,9 @@ public class GuiMove extends Module{
       list.clear();
       timestamp=0L;
       super.onDisable();
-      if(mc.screen==null&&mc.options!=null){
-         KeyBinding[] keys={mc.options.forwardKey,mc.options.backKey,mc.options.leftKey,mc.options.rightKey};
-         for(KeyBinding key:keys)key.setPressed(InputUtil.isKeyPressed(mc.getWindow(),key.getDefaultKey().getCode()));
+      if(mc.gui.screen()==null&&mc.options!=null){
+         KeyMapping[] keys={mc.options.keyUp,mc.options.keyDown,mc.options.keyLeft,mc.options.keyRight};
+         for(KeyMapping key:keys)key.setDown(InputConstants.isKeyDown(key.getDefaultKey().getValue()));
       }
    }
 

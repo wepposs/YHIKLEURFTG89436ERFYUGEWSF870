@@ -3,15 +3,15 @@ package vesence.module.impl.misc;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.ServerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.scoreboard.ReadableScoreboardScore;
+import net.minecraft.world.scores.ReadOnlyScoreInfo;
 import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.phys.AABB;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
@@ -43,16 +43,16 @@ public class ScoreboardHealth extends Module {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return originalHealth;
 
-        ServerInfo serverInfo = mc.getCurrentServerEntry();
+        ServerData serverInfo = mc.getCurrentServer();
         if (serverInfo != null) {
-            String ip = serverInfo.address.toLowerCase();
+            String ip = serverInfo.ip.toLowerCase();
             if (ip.contains("funtime.su") || ip.contains("funtime.me") || ip.contains("spookytime.net")) {
-                if (target.hasStatusEffect(MobEffects.INVISIBILITY)) {
+                if (target.hasEffect(MobEffects.INVISIBILITY)) {
                     return -1f;
                 }
 
-                AABB box = target.getBoundingBox().expand(0.5, 2.0, 0.5);
-                List<ArmorStand> armorStands = mc.level.getEntitiesByClass(ArmorStand.class, box, armorStand -> armorStand.getY() > target.getY() + 1.0);
+                AABB box = target.getBoundingBox().inflate(0.5, 2.0, 0.5);
+                List<ArmorStand> armorStands = mc.level.getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(ArmorStand.class), box, armorStand -> armorStand.getY() > target.getY() + 1.0);
 
                 for (ArmorStand armorStand : armorStands) {
                     if (armorStand.hasCustomName()) {
@@ -80,28 +80,28 @@ public class ScoreboardHealth extends Module {
         try {
             Scoreboard scoreboard = mc.level.getScoreboard();
 
-            ScoreboardDisplaySlot[] slots = {
-                ScoreboardDisplaySlot.BELOW_NAME,
-                ScoreboardDisplaySlot.SIDEBAR
+            DisplaySlot[] slots = {
+                DisplaySlot.BELOW_NAME,
+                DisplaySlot.SIDEBAR
             };
 
-            for (ScoreboardDisplaySlot slot : slots) {
-                ScoreboardObjective objective = scoreboard.getObjectiveForSlot(slot);
+            for (DisplaySlot slot : slots) {
+                Objective objective = scoreboard.getDisplayObjective(slot);
                 if (objective == null) continue;
 
-                ReadableScoreboardScore score = scoreboard.getScore(target, objective);
+                net.minecraft.world.scores.ReadOnlyScoreInfo score = scoreboard.getPlayerScoreInfo(net.minecraft.world.scores.ScoreHolder.forNameOnly(target.getScoreboardName()), objective);
                 if (score != null) {
-                    int points = score.getScore();
+                    int points = score.value();
                     if (points > 0) {
                         return (float) points;
                     }
                 }
             }
 
-            for (ScoreboardObjective objective : scoreboard.getObjectives()) {
-                ReadableScoreboardScore score = scoreboard.getScore(target, objective);
+            for (Objective objective : scoreboard.getObjectives()) {
+                net.minecraft.world.scores.ReadOnlyScoreInfo score = scoreboard.getPlayerScoreInfo(net.minecraft.world.scores.ScoreHolder.forNameOnly(target.getScoreboardName()), objective);
                 if (score != null) {
-                    int points = score.getScore();
+                    int points = score.value();
                     if (points > 0) {
                         return (float) points;
                     }

@@ -1,10 +1,10 @@
 package vesence.renderengine.postfx;
 
-import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import vesence.renderengine.render.pipeline.GlassKawaseBlurPipeline;
@@ -103,25 +103,25 @@ public class HandShadowTrailRenderer {
 
         cleanupTextures();
 
-        sceneBeforeTexture = createTexture("shadow_trail_scene_before", TextureFormat.RGBA8, width, height);
+        sceneBeforeTexture = createTexture("shadow_trail_scene_before", GpuFormat.RGBA8_UNORM, width, height);
         sceneBeforeTextureView = RenderSystem.getDevice().createTextureView(sceneBeforeTexture);
 
-        sceneAfterTexture = createTexture("shadow_trail_scene_after", TextureFormat.RGBA8, width, height);
+        sceneAfterTexture = createTexture("shadow_trail_scene_after", GpuFormat.RGBA8_UNORM, width, height);
         sceneAfterTextureView = RenderSystem.getDevice().createTextureView(sceneAfterTexture);
 
-        depthBeforeTexture = createTexture("shadow_trail_depth_before", TextureFormat.DEPTH32, width, height);
+        depthBeforeTexture = createTexture("shadow_trail_depth_before", GpuFormat.D32_FLOAT, width, height);
         depthBeforeTextureView = RenderSystem.getDevice().createTextureView(depthBeforeTexture);
 
-        depthAfterTexture = createTexture("shadow_trail_depth_after", TextureFormat.DEPTH32, width, height);
+        depthAfterTexture = createTexture("shadow_trail_depth_after", GpuFormat.D32_FLOAT, width, height);
         depthAfterTextureView = RenderSystem.getDevice().createTextureView(depthAfterTexture);
 
-        maskTexture = createTexture("shadow_trail_mask", TextureFormat.RGBA8, width, height);
+        maskTexture = createTexture("shadow_trail_mask", GpuFormat.RGBA8_UNORM, width, height);
         maskTextureView = RenderSystem.getDevice().createTextureView(maskTexture);
 
-        trailTextureA = createTexture("shadow_trail_accum_a", TextureFormat.RGBA8, width, height);
+        trailTextureA = createTexture("shadow_trail_accum_a", GpuFormat.RGBA8_UNORM, width, height);
         trailTextureViewA = RenderSystem.getDevice().createTextureView(trailTextureA);
 
-        trailTextureB = createTexture("shadow_trail_accum_b", TextureFormat.RGBA8, width, height);
+        trailTextureB = createTexture("shadow_trail_accum_b", GpuFormat.RGBA8_UNORM, width, height);
         trailTextureViewB = RenderSystem.getDevice().createTextureView(trailTextureB);
 
         lastWidth = width;
@@ -129,7 +129,7 @@ public class HandShadowTrailRenderer {
         useTrailA = true;
     }
 
-    private GpuTexture createTexture(String name, TextureFormat format, int width, int height) {
+    private GpuTexture createTexture(String name, GpuFormat format, int width, int height) {
         return RenderSystem.getDevice().createTexture(
             () -> "vesence:" + name,
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
@@ -161,18 +161,18 @@ public class HandShadowTrailRenderer {
         if (!enabled) return;
         ensureInitialized();
 
-        RenderTarget fb = client.getMainRenderTarget();
-        if (fb == null || fb.getColorAttachment() == null) return;
+        RenderTarget fb = client.gameRenderer.mainRenderTarget();
+        if (fb == null || fb.getColorTexture() == null) return;
 
-        int width = fb.textureWidth;
-        int height = fb.textureHeight;
+        int width = fb.width;
+        int height = fb.height;
         ensureTextures(width, height);
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(fb.getColorAttachment(), sceneBeforeTexture, 0, 0, 0, 0, 0, width, height);
+        encoder.copyTextureToTexture(fb.getColorTexture(), sceneBeforeTexture, 0, 0, 0, 0, 0, width, height);
 
-        if (fb.getDepthAttachment() != null) {
-            encoder.copyTextureToTexture(fb.getDepthAttachment(), depthBeforeTexture, 0, 0, 0, 0, 0, width, height);
+        if (fb.getDepthTexture() != null) {
+            encoder.copyTextureToTexture(fb.getDepthTexture(), depthBeforeTexture, 0, 0, 0, 0, 0, width, height);
         }
 
         capturing = true;
@@ -181,17 +181,17 @@ public class HandShadowTrailRenderer {
     public void captureSceneAfterAndRender() {
         if (!enabled || !capturing) return;
 
-        RenderTarget fb = client.getMainRenderTarget();
-        if (fb == null || fb.getColorAttachment() == null) {
+        RenderTarget fb = client.gameRenderer.mainRenderTarget();
+        if (fb == null || fb.getColorTexture() == null) {
             capturing = false;
             return;
         }
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(fb.getColorAttachment(), sceneAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
+        encoder.copyTextureToTexture(fb.getColorTexture(), sceneAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
 
-        if (fb.getDepthAttachment() != null) {
-            encoder.copyTextureToTexture(fb.getDepthAttachment(), depthAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
+        if (fb.getDepthTexture() != null) {
+            encoder.copyTextureToTexture(fb.getDepthTexture(), depthAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
         }
 
         maskDiff.createMask(
@@ -247,7 +247,7 @@ public class HandShadowTrailRenderer {
         }
 
         composite.composite(
-            fb.getColorAttachmentView(),
+            fb.getColorTextureView(),
             sceneAfterTextureView,
             maskTextureView,
             blurredTrail,

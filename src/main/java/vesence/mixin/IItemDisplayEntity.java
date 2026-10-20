@@ -2,14 +2,12 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.entity.decoration.DisplayEntity.ItemDisplayEntity;
-import net.minecraft.entity.decoration.DisplayEntity.ItemDisplayEntity.Data;
+import net.minecraft.world.entity.Display;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
 
+// TODO(port26): Display.ItemDisplay no longer exposes the inner Data class in 26.3;
+// the old "data" accessor was dropped. No current callers.
 @Environment(EnvType.CLIENT)
-@Mixin({ItemDisplayEntity.class})
+@Mixin({Display.ItemDisplay.class})
 public interface IItemDisplayEntity {
-   @Accessor("data")
-   Data client$data();
 }

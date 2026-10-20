@@ -6,8 +6,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.component.SwingAnimation;
 import vesence.utils.other.IMinecraft;
 
 @Environment(EnvType.CLIENT)
@@ -22,8 +23,8 @@ public final class InventoryActionUtil implements IMinecraft {
 
       int previousSlot = mc.player.getInventory().getSelectedSlot();
       selectSlot(slot);
-      mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
-      mc.player.swingHand(InteractionHand.MAIN_HAND);
+      mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+      mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
       if (restorePreviousSlot && previousSlot >= 0 && previousSlot <= 8 && previousSlot != slot) {
          selectSlot(previousSlot);
       }
@@ -35,8 +36,8 @@ public final class InventoryActionUtil implements IMinecraft {
          return false;
       }
 
-      mc.gameMode.interactItem(mc.player, hand);
-      mc.player.swingHand(hand);
+      mc.gameMode.useItem(mc.player, hand);
+      mc.player.swing(hand, SwingAnimation.DEFAULT, true);
       return true;
    }
 
@@ -46,7 +47,7 @@ public final class InventoryActionUtil implements IMinecraft {
       }
 
       mc.player.getInventory().setSelectedSlot(slot);
-      mc.getConnection().sendPacket(new ServerboundSetCarriedItemPacket(slot));
+      mc.getConnection().send(new ServerboundSetCarriedItemPacket(slot));
    }
 
     public static boolean swapWithHotbar(int inventorySlot, int hotbarSlot) {
@@ -59,11 +60,11 @@ public final class InventoryActionUtil implements IMinecraft {
             return true;
         }
 
-        mc.gameMode.clickSlot(
-                mc.player.containerMenu.syncId,
+        mc.gameMode.handleContainerInput(
+                mc.player.containerMenu.containerId,
                 toScreenSlot(inventorySlot),
                 hotbarSlot,
-                ClickType.SWAP,
+                ContainerInput.SWAP,
                 mc.player
         );
         closeHandledScreenIfNeeded();
@@ -79,11 +80,11 @@ public final class InventoryActionUtil implements IMinecraft {
          return true;
       }
 
-      mc.gameMode.clickSlot(
-              mc.player.containerMenu.syncId,
+      mc.gameMode.handleContainerInput(
+              mc.player.containerMenu.containerId,
               toScreenSlot(hotbarSlot1),
               hotbarSlot2,
-              ClickType.SWAP,
+              ContainerInput.SWAP,
               mc.player
       );
       closeHandledScreenIfNeeded();
@@ -133,11 +134,11 @@ public final class InventoryActionUtil implements IMinecraft {
          return false;
       }
 
-      mc.gameMode.clickSlot(
-              mc.player.containerMenu.syncId,
+      mc.gameMode.handleContainerInput(
+              mc.player.containerMenu.containerId,
               toScreenSlot(inventorySlot),
               40,
-              ClickType.SWAP,
+              ContainerInput.SWAP,
               mc.player
       );
       closeHandledScreenIfNeeded();
@@ -153,7 +154,7 @@ public final class InventoryActionUtil implements IMinecraft {
       int end = hotbarOnly ? 9 : 36;
       for (int i = start; i < end; i++) {
          ItemStack stack = mc.player.getInventory().getItem(i);
-         if (stack.isOf(item)) {
+         if (stack.is(item)) {
             return i;
          }
       }
@@ -182,8 +183,8 @@ public final class InventoryActionUtil implements IMinecraft {
    }
 
    public static void closeHandledScreenIfNeeded() {
-      if (mc.player != null && mc.screen == null) {
-         mc.player.connection.sendPacket(new ServerboundContainerClosePacket(mc.player.containerMenu.syncId));
+      if (mc.player != null && mc.gui.screen() == null) {
+         mc.player.connection.send(new ServerboundContainerClosePacket(mc.player.containerMenu.containerId));
       }
    }
 
@@ -191,9 +192,9 @@ public final class InventoryActionUtil implements IMinecraft {
       if (mc.player != null && mc.player.connection != null) {
          int previous = mc.player.getInventory().getSelectedSlot();
          selectSlot(hotbarSlot);
-         mc.player.connection.sendPacket(new net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket(
-                 net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND,
-                 net.minecraft.util.math.BlockPos.ORIGIN, net.minecraft.util.math.Direction.DOWN));
+         mc.player.connection.send(new net.minecraft.network.protocol.game.ServerboundPlayerActionPacket(
+                 net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND,
+                 net.minecraft.core.BlockPos.ZERO, net.minecraft.core.Direction.DOWN));
          if (hotbarSlot >= 0 && hotbarSlot <= 8) {
              selectSlot(hotbarSlot);
          } else {

@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Mouse;
+import net.minecraft.client.MouseHandler;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,10 +15,10 @@ import vesence.event.input.MouseUpdateEvent;
 import vesence.event.player.EventLook;
 
 @Environment(EnvType.CLIENT)
-@Mixin({Mouse.class})
+@Mixin({MouseHandler.class})
 public abstract class MouseMixin {
    @Inject(
-      method = {"updateMouse"},
+      method = {"turnPlayer(D)V"},
       at = {@At("HEAD")},
       cancellable = true
    )
@@ -31,10 +31,10 @@ public abstract class MouseMixin {
    }
 
    @Redirect(
-      method = {"updateMouse"},
+      method = {"turnPlayer(D)V"},
       at = @At(
          value = "INVOKE",
-         target = "Lnet/minecraft/client/network/LocalPlayer;changeLookDirection(DD)V"
+         target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"
       )
    )
    private void onLook(LocalPlayer player, double yaw, double pitch) {
@@ -43,7 +43,7 @@ public abstract class MouseMixin {
          EventLook event = new EventLook(yaw, pitch);
          EventManager.call(event);
          if (!event.isCancelled()) {
-            player.changeLookDirection(event.yaw, event.pitch);
+            player.turn(event.yaw, event.pitch);
          }
       }
    }

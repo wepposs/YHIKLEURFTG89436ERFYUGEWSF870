@@ -3,10 +3,10 @@ package vesence.module.impl.visuals;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.Arm;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import vesence.Vesence;
 import vesence.event.EventInit;
 import vesence.event.impl.EventChangeWorld;
@@ -282,10 +282,10 @@ public class CustomHand extends Module {
       }
 
       if (!this.onlyAura.get() || auraActive) {
-         if (!this.onlySwing.get() || mc.player.handSwingTicks != 0) {
+         if (!this.onlySwing.get() || mc.player.isSwinging()) {
             this.applyCustomAnimation(e);
          } else {
-            e.getMatrices().translate((mc.player.getMainArm().equals(Arm.RIGHT) ? 1 : -1) * 0.56F, -0.52F, -0.72F);
+            e.getMatrices().translate((mc.player.getMainArm().equals(HumanoidArm.RIGHT) ? 1 : -1) * 0.56F, -0.52F, -0.72F);
          }
          e.cancel();
       }
@@ -294,7 +294,7 @@ public class CustomHand extends Module {
    private void applyCustomAnimation(HandAnimationEvent e) {
       PoseStack matrix = e.getMatrices();
       float swingProgress = e.getSwingProgress();
-      int i = mc.player.getMainArm().equals(Arm.RIGHT) ? 1 : -1;
+      int i = mc.player.getMainArm().equals(HumanoidArm.RIGHT) ? 1 : -1;
       float sin1 = Mth.sin(swingProgress * swingProgress * (float) Math.PI);
       float sin2 = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
       float sinSmooth = (float) (Math.sin(swingProgress * Math.PI) * 0.5F);
@@ -304,89 +304,89 @@ public class CustomHand extends Module {
          case "Chop" -> {
             matrix.translate(0.56F * i, -0.44F, -0.72F);
             matrix.translate(0.0F, 0.33F * -0.6F, 0.0F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F * i));
+            matrix.rotate(Axis.YP.rotationDegrees(45.0F * i));
             float f2 = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f2 * -20.0F * i * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(f2 * -80.0F * strength));
+            matrix.rotate(Axis.ZP.rotationDegrees(f2 * -20.0F * i * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(f2 * -80.0F * strength));
             matrix.translate(0.4F, 0.2F, 0.2F);
             matrix.translate(-0.5F, 0.08F, 0.0F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(20.0F));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-80.0F));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(20.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(20.0F));
+            matrix.rotate(Axis.XP.rotationDegrees(-80.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(20.0F));
          }
          case "Twist" -> {
             matrix.translate(i * 0.56F, -0.36F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(80 * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -90 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((sin1 - sin2) * 60 * i * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-30));
+            matrix.rotate(Axis.YP.rotationDegrees(80 * i));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -90 * strength));
+            matrix.rotate(Axis.ZP.rotationDegrees((sin1 - sin2) * 60 * i * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(-30));
             matrix.translate(0, -0.1F, 0.05F);
          }
          case "Swipe" -> {
             matrix.translate(0.56F * i, -0.32F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(70 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-20 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((sin2 * sin1) * -5 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees((sin2 * sin1) * -120 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-70));
+            matrix.rotate(Axis.YP.rotationDegrees(70 * i));
+            matrix.rotate(Axis.ZP.rotationDegrees(-20 * i));
+            matrix.rotate(Axis.YP.rotationDegrees((sin2 * sin1) * -5 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees((sin2 * sin1) * -120 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(-70));
          }
          case "Default" -> {
             matrix.translate(i * 0.56F, -0.52F - (sin2 * 0.5F * strength), -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-45 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(45 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(-45 * i));
          }
          case "Down" -> {
             matrix.translate(i * 0.56F, -0.32F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(76 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(sin2 * -5 * strength));
-            matrix.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(sin2 * -100 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -155 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-100));
+            matrix.rotate(Axis.YP.rotationDegrees(76 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(sin2 * -5 * strength));
+            matrix.rotate(Axis.XN.rotationDegrees(sin2 * -100 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -155 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(-100));
          }
          case "Smooth" -> {
             matrix.translate(i * 0.56F, -0.42F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float) i * (45.0F + sin1 * -20.0F * strength)));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) i * sin2 * -20.0F * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -80.0F * strength));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float) i * -45.0F));
+            matrix.rotate(Axis.YP.rotationDegrees((float) i * (45.0F + sin1 * -20.0F * strength)));
+            matrix.rotate(Axis.ZP.rotationDegrees((float) i * sin2 * -20.0F * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -80.0F * strength));
+            matrix.rotate(Axis.YP.rotationDegrees((float) i * -45.0F));
             matrix.translate(0, -0.1, 0);
          }
          case "Smooth 2" -> {
             matrix.translate(i * 0.56F, -0.42F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -80.0F * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -80.0F * strength));
             matrix.translate(0, -0.1, 0);
          }
          case "Power" -> {
             matrix.translate(i * 0.56F, -0.32F, -0.72F);
             matrix.translate((-sinSmooth * sinSmooth * sin1) * i * strength, 0, 0);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(61 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(sin2 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((sin2 * sin1) * -5 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees((sin2 * sin1) * -30 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-60));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sinSmooth * -60 * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(61 * i));
+            matrix.rotate(Axis.ZP.rotationDegrees(sin2 * strength));
+            matrix.rotate(Axis.YP.rotationDegrees((sin2 * sin1) * -5 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees((sin2 * sin1) * -30 * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(-60));
+            matrix.rotate(Axis.XP.rotationDegrees(sinSmooth * -60 * strength));
          }
          case "Feast" -> {
             matrix.translate(i * 0.56F, -0.32F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(sin2 * 75 * i * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -45 * strength));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30 * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-80));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(35 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(30 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(sin2 * 75 * i * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -45 * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(30 * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-80));
+            matrix.rotate(Axis.YP.rotationDegrees(35 * i));
          }
          case "Spin" -> {
             float smoothAnim = sin1;
             float fastAnim = sinSmooth;
             float anim = Mth.sin(swingProgress * (float) Math.PI);
             matrix.translate(i * 0.18F, 0.12F - 0.08F * smoothAnim, -0.42F + 0.08F * anim);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(55.0F + strength * 8.0F * fastAnim));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-28.0F - strength * 7.0F * smoothAnim));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-82.0F - strength * 13.0F * anim));
+            matrix.rotate(Axis.YP.rotationDegrees(55.0F + strength * 8.0F * fastAnim));
+            matrix.rotate(Axis.ZP.rotationDegrees(-28.0F - strength * 7.0F * smoothAnim));
+            matrix.rotate(Axis.XP.rotationDegrees(-82.0F - strength * 13.0F * anim));
          }
          case "Static" -> {
             matrix.translate(i * 0.56F, -0.42F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -60.0F * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -60.0F * strength));
             matrix.translate(0.0F, -0.1F, 0.0F);
          }
          case "Poke" -> {
@@ -394,94 +394,94 @@ public class CustomHand extends Module {
             float tilt = strength / 3.0F;
             matrix.translate(i * 0.56F, -0.52F, -0.72F);
             matrix.translate(0.0F, 0.0F, tilt * -anim);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(75.0F * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((-75.0F * (strength / 4.0F) * anim - 60.0F) * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-75.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(75.0F * i));
+            matrix.rotate(Axis.ZP.rotationDegrees((-75.0F * (strength / 4.0F) * anim - 60.0F) * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-75.0F));
          }
          case "Akrien" -> {
             matrix.translate(i * 0.65F, -0.32F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(76 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(sin2 * -5.0F * strength));
-            matrix.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(sin2 * -100.0F * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -155.0F * strength));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-100.0F));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(sin2 * 25.0F * strength));
-            matrix.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(sin2 * -25.0F * strength));
-            matrix.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(sin1 * 15.0F * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(76 * i));
+            matrix.rotate(Axis.YP.rotationDegrees(sin2 * -5.0F * strength));
+            matrix.rotate(Axis.XN.rotationDegrees(sin2 * -100.0F * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * -155.0F * strength));
+            matrix.rotate(Axis.XP.rotationDegrees(-100.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(sin2 * 25.0F * strength));
+            matrix.rotate(Axis.XN.rotationDegrees(sin2 * -25.0F * strength));
+            matrix.rotate(Axis.XN.rotationDegrees(sin1 * 15.0F * strength));
             matrix.translate(sin2 * 0.18F * strength, sin2 * 0.59F * strength, 0.0F);
          }
          case "Block" -> {
             float gx = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             matrix.translate(0.56F * i, -0.5F, -0.7F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45 * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(gx * -85.0F * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(45 * i));
+            matrix.rotate(Axis.XP.rotationDegrees(gx * -85.0F * strength));
             matrix.translate(-0.1F * i, 0.28F, 0.2F);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-85.0F));
+            matrix.rotate(Axis.XP.rotationDegrees(-85.0F));
          }
          case "ToBack" -> {
             float g = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             matrix.translate(0.65F * i, -0.45F, -0.9F);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(50.0F));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((-30.0F * (1.0F - g * strength) - 30.0F) * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(110.0F * i));
+            matrix.rotate(Axis.XP.rotationDegrees(50.0F));
+            matrix.rotate(Axis.YP.rotationDegrees((-30.0F * (1.0F - g * strength) - 30.0F) * i));
+            matrix.rotate(Axis.ZP.rotationDegrees(110.0F * i));
          }
          case "SelfBack" -> {
             float anim = (float) Math.sin(swingProgress * (Math.PI / 2) * 2.0);
             matrix.translate(0.65F * i, -0.3F, -0.8F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90 * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-70 * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-100.0F - 60.0F * strength * anim));
+            matrix.rotate(Axis.YP.rotationDegrees(90 * i));
+            matrix.rotate(Axis.ZP.rotationDegrees(-70 * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-100.0F - 60.0F * strength * anim));
          }
          case "Break" -> {
             matrix.translate(0.66F * i, -0.3F, -0.38F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(270 * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * 10.0F * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(270 * i));
+            matrix.rotate(Axis.XP.rotationDegrees(sin2 * 10.0F * strength));
             matrix.scale(0.5F, 0.5F, 0.5F);
             matrix.translate(-0.1F * i, 0.2F, 0.0F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-10.0F * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-105.0F * i));
+            matrix.rotate(Axis.YP.rotationDegrees(-10.0F * i));
+            matrix.rotate(Axis.XP.rotationDegrees(90.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(-105.0F * i));
          }
          case "DropDown" -> {
             float anim = (float) Math.sin(swingProgress * (Math.PI / 2) * 2.0);
             matrix.translate(i * 0.56F, -0.52F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(80.0F));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(this.dropDownCorner.get().floatValue()));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-this.dropDownSlant.get().floatValue() * anim * strength));
+            matrix.rotate(Axis.YP.rotationDegrees(80.0F));
+            matrix.rotate(Axis.XP.rotationDegrees(this.dropDownCorner.get().floatValue()));
+            matrix.rotate(Axis.XP.rotationDegrees(-this.dropDownSlant.get().floatValue() * anim * strength));
          }
          case "Pander" -> {
             float panderAnim = Mth.sin(swingProgress * (float) Math.PI);
             matrix.translate(i * 0.56F, -0.52F, -0.72F);
             matrix.translate((0.3F - panderAnim * 0.15F) * i, 0.2F, -0.15F - panderAnim * 0.13F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((76.0F - 10.0F * panderAnim) * i));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((-16.0F - 8.0F * panderAnim) * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-83.0F - 26.0F * panderAnim));
+            matrix.rotate(Axis.YP.rotationDegrees((76.0F - 10.0F * panderAnim) * i));
+            matrix.rotate(Axis.ZP.rotationDegrees((-16.0F - 8.0F * panderAnim) * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-83.0F - 26.0F * panderAnim));
          }
          case "Slant" -> {
             float anim = (float) Math.sin(swingProgress * (Math.PI / 2) * 2.0);
             float rotate = 35.0F * strength;
             matrix.translate(i * 0.56F, -0.52F, -0.72F);
             matrix.translate(0.0F, 0.0F, -0.3F * anim * strength);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(anim * -rotate));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(anim * rotate));
+            matrix.rotate(Axis.XP.rotationDegrees(anim * -rotate));
+            matrix.rotate(Axis.ZP.rotationDegrees(anim * rotate));
          }
          case "Overhead" -> {
             matrix.translate(i * 0.45F, -0.42F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(35.0F * i));
+            matrix.rotate(Axis.YP.rotationDegrees(35.0F * i));
             float overheadArc = 60.0F - sin2 * 150.0F * strength;
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(overheadArc));
+            matrix.rotate(Axis.XP.rotationDegrees(overheadArc));
             matrix.translate(0.0F, 0.0F, sin1 * -0.10F * strength);
          }
          case "Slice" -> {
             matrix.translate(i * 0.56F, -0.42F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90.0F));
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((-60.0F + sin2 * 130.0F * strength) * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-90.0F));
+            matrix.rotate(Axis.ZP.rotationDegrees((-60.0F + sin2 * 130.0F * strength) * i));
             matrix.translate(0.0F, 0.0F, sin1 * -0.08F * strength);
          }
          case "Stab" -> {
             matrix.translate(i * 0.40F, -0.45F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(35.0F * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-78.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(35.0F * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-78.0F));
             matrix.translate(0.0F, 0.0F, sin2 * -0.42F * strength);
          }
          case "Stinger" -> {
@@ -495,10 +495,10 @@ public class CustomHand extends Module {
                thrust = Mth.cos(p * (float) Math.PI * 0.5F);
             }
             matrix.translate(i * 0.50F, -0.40F, -0.72F);
-            matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(50.0F * i));
-            matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-85.0F));
+            matrix.rotate(Axis.YP.rotationDegrees(50.0F * i));
+            matrix.rotate(Axis.XP.rotationDegrees(-85.0F));
             matrix.translate(0.0F, 0.0F, thrust * -0.32F * strength);
-            matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(thrust * -8.0F * strength * i));
+            matrix.rotate(Axis.ZP.rotationDegrees(thrust * -8.0F * strength * i));
          }
       }
    }

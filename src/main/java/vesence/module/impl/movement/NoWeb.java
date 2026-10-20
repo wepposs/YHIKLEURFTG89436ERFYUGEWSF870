@@ -38,8 +38,8 @@ public class NoWeb extends Module {
 
       if (mode.is("ReallyWorld")) {
          double y = 0.0;
-         if (mc.options.jumpKey.isPressed()) { y = 1.2; }
-         else if (mc.options.sneakKey.isPressed()) { y = -2.0; }
+         if (mc.options.keyJump.isDown()) { y = 1.2; }
+         else if (mc.options.keyShift.isDown()) { y = -2.0; }
          double[] speed = MoveUtil.calculateDirection(Mathf.random(0.62F, 0.64F));
          mc.player.setDeltaMovement(speed[0], y, speed[1]);
       }

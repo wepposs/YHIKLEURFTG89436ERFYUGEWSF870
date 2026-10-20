@@ -1,26 +1,24 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.option.Perspective;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -36,6 +34,9 @@ import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 /**
  * Полный порт Relevant {@code Tracers} — линии от прицела до игроков.
@@ -63,17 +64,18 @@ public class Tracers extends Module {
 
     // Гладкие (не пиксельные) линии: обращённые к камере квады, additive.
     private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "tracers_quad_lines"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "tracers_quad_lines"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build()
     );
-    private static final RenderType LINE_LAYER = RenderType.of(
-            "tracers_quad_lines", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(8192).translucent().build()
+    private static final RenderType LINE_LAYER = RenderType.create(
+            "tracers_quad_lines", RenderSetup.builder(LINE_PIPELINE).createRenderSetup()
     );
 
     public Tracers() {
@@ -82,16 +84,16 @@ public class Tracers extends Module {
 
     @EventInit
     public void onRender3D(EventRender3D event) {
-        if (MC.player == null || MC.world == null || MC.gameRenderer == null) {
+        if (MC.player == null || MC.level == null || MC.gameRenderer == null) {
             return;
         }
-        if (MC.options.getPerspective() == Perspective.THIRD_PERSON_FRONT) {
+        if (MC.options.getCameraType() == net.minecraft.client.CameraType.THIRD_PERSON_FRONT) {
             return;
         }
 
         float partialTicks = event.getTickDelta();
-        Camera camera = MC.gameRenderer.getCamera();
-        Vec3 cameraPos = camera.getCameraPos();
+        Camera camera = MC.gameRenderer.mainCamera();
+        Vec3 cameraPos = camera.position();
         Vec3 start = this.getStartPoint(camera);
         if (!this.isSafe(start)) {
             return;
@@ -109,14 +111,14 @@ public class Tracers extends Module {
         float baseHalf = (float) (thickness.current * 0.00065);
 
         PoseStack matrices = event.getMatrixStack();
-        Immediate immediate = MC.getBufferBuilders().getEntityVertexConsumers();
+        Immediate immediate = new Immediate();
         VertexConsumer buffer = immediate.getBuffer(LINE_LAYER);
 
         matrices.pushPose();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        Matrix4f matrix = matrices.last().getPositionMatrix();
+        Matrix4f matrix = matrices.last().pose();
 
-        for (Player player : MC.world.getPlayers()) {
+        for (Player player : MC.level.players()) {
             if (player == null || player == MC.player || player.isRemoved()) {
                 continue;
             }
@@ -148,7 +150,7 @@ public class Tracers extends Module {
         if (len < 1.0E-4) {
             return;
         }
-        Vec3 dirN = dir.multiply(1.0 / len);
+        Vec3 dirN = dir.scale(1.0 / len);
 
         // Перпендикуляр «в сторону» для КАЖДОГО конца отдельно — считается от
         // вектора взгляда именно в этой точке, ширина ∝ расстоянию до камеры.
@@ -160,10 +162,10 @@ public class Tracers extends Module {
         Vec3 e1 = end.add(endSide);
         Vec3 e0 = end.subtract(endSide);
 
-        buffer.vertex(matrix, (float) s0.x, (float) s0.y, (float) s0.z).color(r, g, b, a);
-        buffer.vertex(matrix, (float) s1.x, (float) s1.y, (float) s1.z).color(r, g, b, a);
-        buffer.vertex(matrix, (float) e1.x, (float) e1.y, (float) e1.z).color(r, g, b, a);
-        buffer.vertex(matrix, (float) e0.x, (float) e0.y, (float) e0.z).color(r, g, b, a);
+        buffer.addVertex(matrix, (float) s0.x, (float) s0.y, (float) s0.z).setColor(r, g, b, a);
+        buffer.addVertex(matrix, (float) s1.x, (float) s1.y, (float) s1.z).setColor(r, g, b, a);
+        buffer.addVertex(matrix, (float) e1.x, (float) e1.y, (float) e1.z).setColor(r, g, b, a);
+        buffer.addVertex(matrix, (float) e0.x, (float) e0.y, (float) e0.z).setColor(r, g, b, a);
     }
 
     /**
@@ -174,17 +176,17 @@ public class Tracers extends Module {
         double dist = toPointFromCam.length();
         float half = (float) (baseHalf * Math.max(0.05, dist));
 
-        Vec3 side = dirN.crossProduct(toPointFromCam);
+        Vec3 side = dirN.cross(toPointFromCam);
         double sideLen = side.length();
         if (sideLen < 1.0E-6) {
-            side = dirN.crossProduct(new Vec3(0, 1, 0));
+            side = dirN.cross(new Vec3(0, 1, 0));
             sideLen = side.length();
             if (sideLen < 1.0E-6) {
                 side = new Vec3(1, 0, 0);
                 sideLen = 1.0;
             }
         }
-        return side.multiply(half / sideLen);
+        return side.scale(half / sideLen);
     }
 
     /**
@@ -192,23 +194,23 @@ public class Tracers extends Module {
      * полблока вперёд по camera-forward. Так линии не «ходят» по экрану.
      */
     private Vec3 getStartPoint(Camera camera) {
-        Vec3 cameraPos = camera.getCameraPos();
-        Vec3 forward = Vec3.fromPolar(camera.getXRot(), camera.getYRot());
-        return cameraPos.add(forward.multiply(0.5));
+        Vec3 cameraPos = camera.position();
+        Vec3 forward = Vec3.directionFromRotation(camera.xRot(), camera.yRot());
+        return cameraPos.add(forward.scale(0.5));
     }
 
     private Vec3 interpolate(Player player, float partialTicks) {
         return new Vec3(
-                Mth.lerp(partialTicks, player.lastRenderX, player.getX()),
-                Mth.lerp(partialTicks, player.lastRenderY, player.getY()),
-                Mth.lerp(partialTicks, player.lastRenderZ, player.getZ())
+                Mth.lerp(partialTicks, player.xOld, player.getX()),
+                Mth.lerp(partialTicks, player.yOld, player.getY()),
+                Mth.lerp(partialTicks, player.zOld, player.getZ())
         );
     }
 
     private boolean isNaked(Player player) {
         for (EquipmentSlot slot : new EquipmentSlot[]{
                 EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-            ItemStack stack = player.getEquippedStack(slot);
+            ItemStack stack = player.getItemBySlot(slot);
             if (!stack.isEmpty()) return false;
         }
         return true;

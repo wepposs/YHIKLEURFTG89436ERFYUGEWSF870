@@ -3,7 +3,7 @@ package vesence.utils.player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;
 import vesence.event.impl.EventPacket;
 import vesence.utils.other.IMinecraft;
 
@@ -42,7 +42,7 @@ public class InventoryUtil implements IMinecraft {
             if (!eventPacket.isSend()) {
                 return;
             }
-            if (eventPacket.getPacket() instanceof UpdateSelectedSlotS2CPacket) {
+            if (eventPacket.getPacket() instanceof ClientboundSetHeldSlotPacket) {
                 this.isChangingItem = true;
             }
         }

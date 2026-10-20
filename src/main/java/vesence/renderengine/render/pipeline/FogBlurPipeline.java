@@ -1,34 +1,37 @@
 package vesence.renderengine.render.pipeline;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
-import java.util.OptionalInt;
+import java.util.Optional;
 
 /**
  * FogBlurPipeline — полный порт Relevant/Blade FogBlurRender на GPU-конвейер 1.21.11.
@@ -44,30 +47,33 @@ import java.util.OptionalInt;
  * </ol>
  */
 public class FogBlurPipeline {
-    private static final ResourceLocation GAUSS_ID = ResourceLocation.of("vesence", "pipeline/fogblur_gaussian");
-    private static final ResourceLocation GAUSS_ID2 = ResourceLocation.of("vesence", "pipeline/fogblur_gaussian2");
-    private static final ResourceLocation COMPOSITE_ID = ResourceLocation.of("vesence", "pipeline/fogblur_composite");
-    private static final ResourceLocation TINT_ID = ResourceLocation.of("vesence", "pipeline/fogblur_tint");
-    private static final ResourceLocation VSH = ResourceLocation.of("vesence", "core/fogblur");
-    private static final ResourceLocation GAUSS_FSH = ResourceLocation.of("vesence", "core/fogblur_gaussian");
-    private static final ResourceLocation COMPOSITE_FSH = ResourceLocation.of("vesence", "core/fogblur_composite");
-    private static final ResourceLocation TINT_FSH = ResourceLocation.of("vesence", "core/fogblur_tint");
+    private static final Identifier GAUSS_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/fogblur_gaussian");
+    private static final Identifier GAUSS_ID2 = Identifier.fromNamespaceAndPath("vesence", "pipeline/fogblur_gaussian2");
+    private static final Identifier COMPOSITE_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/fogblur_composite");
+    private static final Identifier TINT_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/fogblur_tint");
+    private static final Identifier VSH = Identifier.fromNamespaceAndPath("vesence", "core/fogblur");
+    private static final Identifier GAUSS_FSH = Identifier.fromNamespaceAndPath("vesence", "core/fogblur_gaussian");
+    private static final Identifier COMPOSITE_FSH = Identifier.fromNamespaceAndPath("vesence", "core/fogblur_composite");
+    private static final Identifier TINT_FSH = Identifier.fromNamespaceAndPath("vesence", "core/fogblur_tint");
 
     private static final BlendFunction REPLACE_BLEND =
-            new BlendFunction(SourceFactor.ONE, DestFactor.ZERO, SourceFactor.ONE, DestFactor.ZERO);
+            new BlendFunction(BlendFactor.ONE, BlendFactor.ZERO, BlendFactor.ONE, BlendFactor.ZERO);
 
     // Гаусс-пасс: пишем в промежуточную текстуру, замещая содержимое.
     private static final RenderPipeline GAUSS_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            RenderPipeline.builder()
                     .withLocation(GAUSS_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(GAUSS_FSH)
-                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                    .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
-                    .withSampler("SceneSampler")
-                    .withBlend(REPLACE_BLEND)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
+                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                    .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                    .withBindGroupLayout(BindGroupLayout.builder()
+                            .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
+                            .withUniform("SceneSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .build())
+                    .withColorTargetState(new ColorTargetState(REPLACE_BLEND))
+                    .withDepthStencilState(Optional.empty())
                     .withCull(false)
                     .build()
     );
@@ -75,49 +81,58 @@ public class FogBlurPipeline {
     // Второй гаусс-пасс — отдельный pipeline id (тот же шейдер), чтобы не путать
     // биндинги при последовательном рендере в разные цели.
     private static final RenderPipeline GAUSS_PIPELINE2 = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            RenderPipeline.builder()
                     .withLocation(GAUSS_ID2)
                     .withVertexShader(VSH)
                     .withFragmentShader(GAUSS_FSH)
-                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                    .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
-                    .withSampler("SceneSampler")
-                    .withBlend(REPLACE_BLEND)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
+                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                    .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                    .withBindGroupLayout(BindGroupLayout.builder()
+                            .withUniform("BlurData", UniformType.UNIFORM_BUFFER)
+                            .withUniform("SceneSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .build())
+                    .withColorTargetState(new ColorTargetState(REPLACE_BLEND))
+                    .withDepthStencilState(Optional.empty())
                     .withCull(false)
                     .build()
     );
 
     // Композит: альфа-блендинг размытия поверх основного кадра по depth-маске.
     private static final RenderPipeline COMPOSITE_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            RenderPipeline.builder()
                     .withLocation(COMPOSITE_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(COMPOSITE_FSH)
-                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                    .withUniform("DepthData", UniformType.UNIFORM_BUFFER)
-                    .withSampler("BlurSampler")
-                    .withSampler("DepthSampler")
-                    .withBlend(BlendFunction.TRANSLUCENT)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
+                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                    .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                    .withBindGroupLayout(BindGroupLayout.builder()
+                            .withUniform("DepthData", UniformType.UNIFORM_BUFFER)
+                            .withUniform("BlurSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .withUniform("DepthSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .build())
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                    .withDepthStencilState(Optional.empty())
                     .withCull(false)
                     .build()
     );
 
     // Tint (RGB Puke): подкрашивает сцену перед размытием.
     private static final RenderPipeline TINT_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            RenderPipeline.builder()
                     .withLocation(TINT_ID)
                     .withVertexShader(VSH)
                     .withFragmentShader(TINT_FSH)
-                    .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                    .withUniform("TintData", UniformType.UNIFORM_BUFFER)
-                    .withSampler("SceneSampler")
-                    .withBlend(REPLACE_BLEND)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
+                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                    .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                    .withBindGroupLayout(BindGroupLayout.builder()
+                            .withUniform("TintData", UniformType.UNIFORM_BUFFER)
+                            .withUniform("SceneSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                            .build())
+                    .withColorTargetState(new ColorTargetState(REPLACE_BLEND))
+                    .withDepthStencilState(Optional.empty())
                     .withCull(false)
                     .build()
     );
@@ -164,12 +179,12 @@ public class FogBlurPipeline {
         cleanupTextures();
         int rtUsage = GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT;
         sceneCopy = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_scene",
-                GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING, TextureFormat.RGBA8, w, h, 1, 1);
+                GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
         depthCopy = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_depth",
-                GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING, TextureFormat.DEPTH32, w, h, 1, 1);
-        fbo1 = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_fbo1", rtUsage, TextureFormat.RGBA8, w, h, 1, 1);
-        fbo2 = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_fbo2", rtUsage, TextureFormat.RGBA8, w, h, 1, 1);
-        tintTex = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_tint", rtUsage, TextureFormat.RGBA8, w, h, 1, 1);
+                GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING, GpuFormat.D32_FLOAT, w, h, 1, 1);
+        fbo1 = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_fbo1", rtUsage, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
+        fbo2 = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_fbo2", rtUsage, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
+        tintTex = RenderSystem.getDevice().createTexture(() -> "vesence:fogblur_tint", rtUsage, GpuFormat.RGBA8_UNORM, w, h, 1, 1);
         sceneCopyView = RenderSystem.getDevice().createTextureView(sceneCopy);
         depthCopyView = RenderSystem.getDevice().createTextureView(depthCopy);
         fbo1View = RenderSystem.getDevice().createTextureView(fbo1);
@@ -201,18 +216,18 @@ public class FogBlurPipeline {
      */
     public void apply(Minecraft mc, float strength, float distance, boolean linear,
                       boolean usePuke, float pukeOpacity, float pukeSaturation, float pukeBrightness) {
-        RenderTarget mainFb = mc.getMainRenderTarget();
-        if (mainFb == null || mainFb.getColorAttachment() == null || mainFb.getDepthAttachment() == null) return;
-        int w = mainFb.textureWidth;
-        int h = mainFb.textureHeight;
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
+        if (mainFb == null || mainFb.getColorTexture() == null || mainFb.getDepthTexture() == null) return;
+        int w = mainFb.width;
+        int h = mainFb.height;
         if (w <= 0 || h <= 0) return;
 
         ensureInitialized();
         ensureTextures(w, h);
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(mainFb.getColorAttachment(), sceneCopy, 0, 0, 0, 0, 0, w, h);
-        encoder.copyTextureToTexture(mainFb.getDepthAttachment(), depthCopy, 0, 0, 0, 0, 0, w, h);
+        encoder.copyTextureToTexture(mainFb.getColorTexture(), sceneCopy, 0, 0, 0, 0, 0, w, h);
+        encoder.copyTextureToTexture(mainFb.getDepthTexture(), depthCopy, 0, 0, 0, 0, 0, w, h);
 
         // Гаусс-коэффициенты (как в Blade GaussianShader).
         float sigma = Math.max(0.5f, strength);
@@ -226,11 +241,11 @@ public class FogBlurPipeline {
         // UBO вертикального прохода.
         writeBlurUbo(encoder, blurUboV, 0f, 1f, 1f / w, 1f / h, g0, gy, gy * gy, support, linear);
 
-        GpuBufferSlice dyn = RenderSystem.getDynamicUniforms().write(
-                RenderSystem.getModelViewMatrix(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
+        GpuBufferSlice dyn = RenderSystem.getDynamicUniforms().writeTransform(
+                RenderSystem.getModelViewMatrixCopy(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
 
-        GpuSampler sampler = RenderSystem.getSamplerCache().get(linear ? FilterMode.LINEAR : FilterMode.NEAREST);
-        GpuSampler nearest = RenderSystem.getSamplerCache().get(FilterMode.NEAREST);
+        GpuSampler sampler = RenderSystem.getSamplerCache().getClampToEdge(linear ? FilterMode.LINEAR : FilterMode.NEAREST);
+        GpuSampler nearest = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
 
         // Опциональный tint-пасс (RGB Puke) перед размытием: sceneCopy -> tintTex.
         GpuTextureView blurSource = sceneCopyView;
@@ -243,43 +258,44 @@ public class FogBlurPipeline {
             scratch.putFloat(yaw).putFloat(pitch).putFloat(0f).putFloat(0f);
             scratch.flip();
             encoder.writeToBuffer(tintUbo.slice(), scratch);
-            try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_tint", tintView, OptionalInt.empty())) {
-                pass.setPipeline(TINT_PIPELINE);
-                pass.setVertexBuffer(0, dummyVertexBuffer);
-                pass.bindTexture("SceneSampler", sceneCopyView, sampler);
+            try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_tint", tintView, Optional.empty())) {
+                pass.setPipeline(RenderSystem.getCompiledPipeline(TINT_PIPELINE));
+                pass.setVertexBuffer(0, dummyVertexBuffer.slice());
+                pass.setUniform("SceneSampler", sceneCopyView, sampler);
                 RenderSystem.bindDefaultUniforms(pass);
                 pass.setUniform("DynamicTransforms", dyn);
                 pass.setUniform("TintData", tintUbo);
-                pass.draw(0, 6);
+                pass.draw(0, 6, 0, 1);
             }
             blurSource = tintView;
         }
 
         // Проход 1: горизонт (scene|tint) -> fbo1.
-        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_h", fbo1View, OptionalInt.empty())) {
-            pass.setPipeline(GAUSS_PIPELINE);
-            pass.setVertexBuffer(0, dummyVertexBuffer);
-            pass.bindTexture("SceneSampler", blurSource, sampler);
+        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_h", fbo1View, Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(GAUSS_PIPELINE));
+            pass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            pass.setUniform("SceneSampler", blurSource, sampler);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dyn);
             pass.setUniform("BlurData", blurUboH);
-            pass.draw(0, 6);
+            pass.draw(0, 6, 0, 1);
         }
 
         // Проход 2: вертикаль fbo1 -> fbo2.
-        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_v", fbo2View, OptionalInt.empty())) {
-            pass.setPipeline(GAUSS_PIPELINE2);
-            pass.setVertexBuffer(0, dummyVertexBuffer);
-            pass.bindTexture("SceneSampler", fbo1View, sampler);
+        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_v", fbo2View, Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(GAUSS_PIPELINE2));
+            pass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            pass.setUniform("SceneSampler", fbo1View, sampler);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dyn);
             pass.setUniform("BlurData", blurUboV);
-            pass.draw(0, 6);
+            pass.draw(0, 6, 0, 1);
         }
 
         // Depth-данные для композита (как в Blade DepthShader).
         float near = 0.05f;
-        float far = mc.gameRenderer.getFarPlaneDistance();
+        // TODO(port26): was mc.gameRenderer.getFarPlaneDistance(); approximated as vanilla depth-far
+        float far = Math.max(mc.options.getEffectiveRenderDistance(), 4) * 16 * 4.0f;
         float minThreshold = 0.10f * distance / 100f;
         float maxThreshold = 0.28f * distance / 100f;
         if (maxThreshold <= minThreshold) maxThreshold = minThreshold + 0.001f;
@@ -289,16 +305,16 @@ public class FogBlurPipeline {
         encoder.writeToBuffer(depthUbo.slice(), scratch);
 
         // Композит: подмешиваем размытие поверх основного кадра по глубине.
-        GpuTextureView targetView = mainFb.getColorAttachmentView();
-        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_composite", targetView, OptionalInt.empty())) {
-            pass.setPipeline(COMPOSITE_PIPELINE);
-            pass.setVertexBuffer(0, dummyVertexBuffer);
-            pass.bindTexture("BlurSampler", fbo2View, sampler);
-            pass.bindTexture("DepthSampler", depthCopyView, nearest);
+        GpuTextureView targetView = mainFb.getColorTextureView();
+        try (RenderPass pass = encoder.createRenderPass(() -> "vesence:fogblur_composite", targetView, Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(COMPOSITE_PIPELINE));
+            pass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            pass.setUniform("BlurSampler", fbo2View, sampler);
+            pass.setUniform("DepthSampler", depthCopyView, nearest);
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dyn);
             pass.setUniform("DepthData", depthUbo);
-            pass.draw(0, 6);
+            pass.draw(0, 6, 0, 1);
         }
     }
 

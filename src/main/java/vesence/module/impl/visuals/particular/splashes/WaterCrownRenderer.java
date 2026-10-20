@@ -1,22 +1,20 @@
 package vesence.module.impl.visuals.particular.splashes;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -30,6 +28,11 @@ import java.util.List;
 import java.util.Map;
 
 import vesence.event.render.EventRender3D;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import vesence.module.impl.visuals.Immediate;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * Собственный рендер "венца" всплеска воды с точной геометрией оригинала:
@@ -41,25 +44,27 @@ public final class WaterCrownRenderer {
     private static final int FRAMES = 9;
 
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(RenderPipelines.POSITION_TEX_COLOR_SNIPPET)
-                    .withLocation(ResourceLocation.of("particular", "pipeline/water_crown"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("particular", "pipeline/water_crown"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
 
-    private static final Map<ResourceLocation, RenderType> LAYERS = new HashMap<>();
+    private static final Map<Identifier, RenderType> LAYERS = new HashMap<>();
     private static final List<Crown> CROWNS = new ArrayList<>();
 
     private static ByteBufferBuilder allocator;
-    private static MultiBufferSource.Immediate immediate;
+    private static Immediate immediate;
 
     private WaterCrownRenderer() {
     }
 
-    public static void spawn(ClientLevel world, double x, double y, double z, float width, float height, boolean foam) {
+    public static void spawn(ClientLevel level, double x, double y, double z, float width, float height, boolean foam) {
         float r;
         float g;
         float b;
@@ -68,7 +73,7 @@ public final class WaterCrownRenderer {
             g = 1.0F;
             b = 1.0F;
         } else {
-            Color color = new Color(BiomeColors.getWaterColor(world, BlockPos.ofFloored(x, y, z)));
+            Color color = new Color(BiomeColors.getAverageWaterColor(level, BlockPos.containing(x, y, z)));
             r = color.getRed() / 255.0F;
             g = color.getGreen() / 255.0F;
             b = color.getBlue() / 255.0F;
@@ -76,12 +81,12 @@ public final class WaterCrownRenderer {
         CROWNS.add(new Crown(x, y, z, width, height, foam, r, g, b));
     }
 
-    public static void tick(ClientLevel world) {
+    public static void tick(ClientLevel level) {
         Iterator<Crown> it = CROWNS.iterator();
         while (it.hasNext()) {
             Crown c = it.next();
-            if (++c.age >= c.maxAge
-                    || !world.getFluidState(BlockPos.ofFloored(c.x, c.y, c.z)).isIn(FluidTags.WATER)) {
+            if (++c.age >= c.lifetime
+                    || !level.getFluidState(BlockPos.containing(c.x, c.y, c.z)).is(FluidTags.WATER)) {
                 it.remove();
             }
         }
@@ -104,13 +109,13 @@ public final class WaterCrownRenderer {
         try {
             if (allocator == null) {
                 allocator = new ByteBufferBuilder(1048576);
-                immediate = MultiBufferSource.immediate(allocator);
+                immediate = new Immediate();
             }
 
             PoseStack matrices = event.getMatrixStack();
             Vec3 cam = event.getCameraPos();
             float tickDelta = event.getTickDelta();
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            Matrix4f matrix = matrices.last().pose();
 
             for (Crown c : CROWNS) {
                 renderCrown(c, matrix, cam, tickDelta);
@@ -130,23 +135,23 @@ public final class WaterCrownRenderer {
     }
 
     private static void renderCrown(Crown c, Matrix4f matrix, Vec3 cam, float tickDelta) {
-        float progress = (c.age + tickDelta) / c.maxAge;
+        float progress = (c.age + tickDelta) / c.lifetime;
         float w = c.width * (0.8F + 0.2F * progress);
         float h = c.height;
 
-        float cx = (float) (c.x - cam.getX());
-        float baseY = (float) (c.y - cam.getY());
-        float cz = (float) (c.z - cam.getZ());
+        float cx = (float) (c.x - cam.x);
+        float baseY = (float) (c.y - cam.y);
+        float cz = (float) (c.z - cam.z);
         float topY = baseY + h;
 
-        int frame = 1 + Math.min(FRAMES - 1, (int) ((c.age + tickDelta) * FRAMES / c.maxAge));
-        ResourceLocation texture = ResourceLocation.of("particular",
+        int frame = 1 + Math.min(FRAMES - 1, (int) ((c.age + tickDelta) * FRAMES / c.lifetime));
+        Identifier texture = Identifier.fromNamespaceAndPath("particular",
                 "textures/particle/" + (c.foam ? "water_splash_foam_" : "water_splash_") + frame + ".png");
         VertexConsumer buffer = immediate.getBuffer(layerFor(texture));
 
-        int r = (int) (c.red * 255.0F);
-        int g = (int) (c.green * 255.0F);
-        int b = (int) (c.blue * 255.0F);
+        int r = (int) (c.rCol * 255.0F);
+        int g = (int) (c.gCol * 255.0F);
+        int b = (int) (c.bCol * 255.0F);
 
         float x0 = cx - w;
         float x1 = cx + w;
@@ -162,15 +167,15 @@ public final class WaterCrownRenderer {
 
     private static void wall(VertexConsumer buffer, Matrix4f m, float ax, float az, float bx, float bz,
                              float baseY, float topY, int r, int g, int b) {
-        buffer.vertex(m, ax, baseY, az).color(r, g, b, 255).texture(0.0F, 1.0F);
-        buffer.vertex(m, bx, baseY, bz).color(r, g, b, 255).texture(1.0F, 1.0F);
-        buffer.vertex(m, bx, topY, bz).color(r, g, b, 255).texture(1.0F, 0.0F);
-        buffer.vertex(m, ax, topY, az).color(r, g, b, 255).texture(0.0F, 0.0F);
+        buffer.addVertex(m, ax, baseY, az).setColor(r, g, b, 255).setUv(0.0F, 1.0F);
+        buffer.addVertex(m, bx, baseY, bz).setColor(r, g, b, 255).setUv(1.0F, 1.0F);
+        buffer.addVertex(m, bx, topY, bz).setColor(r, g, b, 255).setUv(1.0F, 0.0F);
+        buffer.addVertex(m, ax, topY, az).setColor(r, g, b, 255).setUv(0.0F, 0.0F);
     }
 
-    private static RenderType layerFor(ResourceLocation texture) {
-        return LAYERS.computeIfAbsent(texture, tex -> RenderType.of(tex.toString(),
-                RenderSetup.builder(PIPELINE).expectedBufferSize(1536).translucent().texture("Sampler0", tex).build()));
+    private static RenderType layerFor(Identifier texture) {
+        return LAYERS.computeIfAbsent(texture, tex -> RenderType.create(tex.toString(),
+                RenderSetup.builder(PIPELINE).withTexture("Sampler0", tex).createRenderSetup()));
     }
 
     private static final class Crown {
@@ -180,22 +185,22 @@ public final class WaterCrownRenderer {
         private final float width;
         private final float height;
         private final boolean foam;
-        private final float red;
-        private final float green;
-        private final float blue;
-        private final int maxAge = 18;
+        private final float rCol;
+        private final float gCol;
+        private final float bCol;
+        private final int lifetime = 18;
         private int age;
 
-        private Crown(double x, double y, double z, float width, float height, boolean foam, float red, float green, float blue) {
+        private Crown(double x, double y, double z, float width, float height, boolean foam, float rCol, float gCol, float bCol) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.width = width;
             this.height = height;
             this.foam = foam;
-            this.red = red;
-            this.green = green;
-            this.blue = blue;
+            this.rCol = rCol;
+            this.gCol = gCol;
+            this.bCol = bCol;
         }
     }
 }

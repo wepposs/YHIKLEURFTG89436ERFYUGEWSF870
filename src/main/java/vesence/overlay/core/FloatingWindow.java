@@ -1,7 +1,7 @@
 package vesence.overlay.core;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.render.WorldRenderEvent;
 

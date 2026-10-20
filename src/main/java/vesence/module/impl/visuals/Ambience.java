@@ -262,7 +262,8 @@ public class Ambience extends Module {
     public void renderFogBlur() {
         if (!isBlurEnabled()) return;
         if (mc.player == null || mc.level == null) return;
-        if (mc.gameRenderer != null && mc.gameRenderer.isRenderingPanorama()) return;
+        // TODO(port26): GameRenderer.isRenderingPanorama() удалён в 26.3 (панорама перенесена в CubeMap) — флага нет.
+        if (mc.gameRenderer == null) return;
         try {
             if (blurPipeline == null) {
                 blurPipeline = new vesence.renderengine.render.pipeline.FogBlurPipeline();
@@ -307,15 +308,15 @@ public class Ambience extends Module {
 
     @EventInit
     public void onAttack(AttackEvent event) {
-        if (this.cubesEnabled.get() && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
-            this.cubes.onAttack(mc.gameRenderer.getCamera());
+        if (this.cubesEnabled.get() && mc.gameRenderer != null && mc.gameRenderer.mainCamera() != null) {
+            this.cubes.onAttack(mc.gameRenderer.mainCamera());
         }
     }
 
     @EventInit
     public void onRender3D(EventRender3D event) {
         PoseStack matrices = event.getMatrixStack();
-        Camera camera = mc.gameRenderer.getCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
 
         if (this.cubesEnabled.get()) {
             this.cubes.onRender3D(matrices, camera);

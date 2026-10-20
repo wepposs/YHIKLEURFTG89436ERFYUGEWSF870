@@ -8,16 +8,16 @@ import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.util.LightCoordsUtil;
 import org.joml.Matrix3f;
 import org.joml.Matrix3fc;
 import org.joml.Matrix4f;
@@ -55,12 +55,12 @@ public class Particle {
     private boolean gravity;
     public InteractionHand hand;
     private double age = 0.0;
-    private ResourceLocation texture;
-    private List<ResourceLocation> keyframes = new ArrayList();
+    private Identifier texture;
+    private List<Identifier> keyframes = new ArrayList();
     public PoseStack p_matrices = null;
-    Iterator<ResourceLocation> iterator;
+    Iterator<Identifier> iterator;
 
-    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, ResourceLocation texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker) {
+    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, Identifier texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker) {
         this.particleLifetime = particleLifetime;
         this.gravity = gravity;
         this.lifecycleType = lifecycleType;
@@ -86,7 +86,7 @@ public class Particle {
         this.iterator = this.keyframes.iterator();
     }
 
-    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, ResourceLocation texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha) {
+    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, Identifier texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha) {
         this.particleLifetime = particleLifetime;
         this.gravity = gravity;
         this.lifecycleType = lifecycleType;
@@ -111,7 +111,7 @@ public class Particle {
         this.iterator = this.keyframes.iterator();
     }
 
-    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, ResourceLocation texture, List<ResourceLocation> keyframes, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker) {
+    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, Identifier texture, List<Identifier> keyframes, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker) {
         this.particleLifetime = particleLifetime;
         this.gravity = gravity;
         this.lifecycleType = lifecycleType;
@@ -138,7 +138,7 @@ public class Particle {
         this.iterator = keyframes.iterator();
     }
 
-    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, ResourceLocation texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker, PoseStack p_matrices) {
+    public Particle(boolean gravity, double x, double y, double z, double dx, double dy, double dz, double rx, double ry, double rz, double drx, double dry, double drz, double maxScale, Identifier texture, String space, InteractionHand hand, String lifecycleType, String particleRenderType, double particleLifetime, double alpha, Consumer<Particle> ticker, PoseStack p_matrices) {
         this.particleLifetime = particleLifetime;
         this.gravity = gravity;
         this.lifecycleType = lifecycleType;
@@ -169,7 +169,7 @@ public class Particle {
         if (!this.dead) {
             this.particleLifetime -= (double)(0.1f * LuaTestHMI.deltaTime * 30.0f);
             this.particleLifetime = Math.clamp(this.particleLifetime, 0.0, 9999.0);
-            this.tickCount += (double)(0.1f * LuaTestHMI.deltaTime * 30.0f);
+            this.age += (double)(0.1f * LuaTestHMI.deltaTime * 30.0f);
             this.x += this.dx * (double)LuaTestHMI.deltaTime * 30.0;
             this.y += this.dy * (double)LuaTestHMI.deltaTime * 30.0;
             this.z += this.dz * (double)LuaTestHMI.deltaTime * 30.0;
@@ -183,7 +183,7 @@ public class Particle {
             double forwardZ = Math.cos(radians);
             Vec3 horizontalVelocity = player.getDeltaMovement();
             double dotProduct = horizontalVelocity.x * forwardX + horizontalVelocity.z * forwardZ;
-            double crossProduct = player.getDeltaMovement().getHorizontal().x * forwardZ - horizontalVelocity.z * forwardX;
+            double crossProduct = player.getDeltaMovement().horizontal().x * forwardZ - horizontalVelocity.z * forwardX;
             if (this.gravity) {
                 this.dy -= 0.01 * (double)LuaTestHMI.deltaTime * 30.0;
             }
@@ -191,7 +191,7 @@ public class Particle {
             this.ry += this.dry * (double)LuaTestHMI.deltaTime * 30.0;
             this.rz += this.drz * (double)LuaTestHMI.deltaTime * 30.0;
             if (!this.keyframes.isEmpty() && this.iterator.hasNext() && Minecraft.getInstance().player.tickCount % 4 == 0 && player.tickCount != this.prevAge) {
-                this.texture = (ResourceLocation)this.iterator.next();
+                this.texture = this.iterator.next();
             }
             if (this.lifecycleType == "SCALE") {
                 if (!this.isBirth && this.particleLifetime == 0.0) {
@@ -241,7 +241,7 @@ public class Particle {
     }
 
     @SuppressWarnings("StringEquality")
-    public void render(PoseStack matrices, OrderedRenderCommandQueue queue, int light, AbstractClientPlayer player) {
+    public void render(PoseStack matrices, OrderedSubmitNodeCollector queue, int light, AbstractClientPlayer player) {
         if (this.dead) {
             return;
         }
@@ -256,26 +256,27 @@ public class Particle {
         } else if (this.particleRenderType == "TRANSLUCENT") {
             layer = ParticleRenderLayers.getSolidRenderLayer(this.texture);
         } else if (this.particleRenderType == "CUTOUT_L") {
-            layer = RenderLayers.entitySmoothCutout(this.texture);
+            // TODO(port26): was RenderTypes.entitySmoothCutout; removed in 26.3, using entityCutout
+            layer = RenderTypes.entityCutout(this.texture);
         } else { // TRANSLUCENT_L и значение по умолчанию
-            layer = RenderLayers.entityTranslucent(this.texture);
+            layer = RenderTypes.entityTranslucent(this.texture);
         }
 
-        Matrix4f matrix = matrices.last().getPositionMatrix();
+        Matrix4f matrix = matrices.last().pose();
         Vector3f translation = new Vector3f();
         Vector3f scale = new Vector3f();
         Quaternionf rotation = new Quaternionf();
         matrix.getTranslation(translation);
         matrix.getUnnormalizedRotation(rotation);
         matrix.getScale(scale);
-        matrix.identity().translate((Vector3fc)translation).scale((Vector3fc)scale).rotate((Quaternionfc)Minecraft.getInstance().gameRenderer.getCamera().getRotation());
+        matrix.identity().translate((Vector3fc)translation).scale((Vector3fc)scale).rotate((Quaternionfc)Minecraft.getInstance().gameRenderer.mainCamera().rotation());
         matrix.rotate((Quaternionfc)new Quaternionf().rotateX((float)(this.rx * 0.01745329238474369)));
         matrix.rotate((Quaternionfc)new Quaternionf().rotateY((float)(this.ry * 0.01745329238474369)));
         matrix.rotate((Quaternionfc)new Quaternionf().rotateZ((float)(this.rz * 0.01745329238474369)));
-        Matrix3f normalMatrix = matrices.last().getNormalMatrix();
+        Matrix3f normalMatrix = matrices.last().normal();
         int renderLight = light;
         if (this.particleRenderType == "CUTOUT_L") {
-            renderLight = LightmapTextureManager.pack(15, 15);
+            renderLight = LightCoordsUtil.pack(15, 15);
         }
         double size = 0.5;
         double halfSize = size / 2.0;
@@ -286,11 +287,11 @@ public class Particle {
         int finalLight = renderLight;
         final Matrix4f finalMatrix = new Matrix4f(matrix);
         // В 1.21.11 рендер идёт через очередь команд: submitCustom выдаёт VertexConsumer.
-        queue.submitCustom(matrices, layer, (entry, vertexConsumer) -> {
-            vertexConsumer.vertex(finalMatrix, (float)halfSize, (float)halfSize, 0.0f).color(255, 255, 255, alpha).texture(1.0f, 0.0f).overlay(OverlayTexture.DEFAULT_UV).light(finalLight).normal(normal.x, normal.y, normal.z);
-            vertexConsumer.vertex(finalMatrix, (float)(-halfSize), (float)halfSize, 0.0f).color(255, 255, 255, alpha).texture(0.0f, 0.0f).overlay(OverlayTexture.DEFAULT_UV).light(finalLight).normal(normal.x, normal.y, normal.z);
-            vertexConsumer.vertex(finalMatrix, (float)(-halfSize), (float)(-halfSize), 0.0f).color(255, 255, 255, alpha).texture(0.0f, 1.0f).overlay(OverlayTexture.DEFAULT_UV).light(finalLight).normal(normal.x, normal.y, normal.z);
-            vertexConsumer.vertex(finalMatrix, (float)halfSize, (float)(-halfSize), 0.0f).color(255, 255, 255, alpha).texture(1.0f, 1.0f).overlay(OverlayTexture.DEFAULT_UV).light(finalLight).normal(normal.x, normal.y, normal.z);
+        queue.submitCustomGeometry(matrices, layer, (entry, vertexConsumer) -> {
+            vertexConsumer.addVertex(finalMatrix, (float)halfSize, (float)halfSize, 0.0f).setColor(255, 255, 255, alpha).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(finalLight).setNormal(normal.x, normal.y, normal.z);
+            vertexConsumer.addVertex(finalMatrix, (float)(-halfSize), (float)halfSize, 0.0f).setColor(255, 255, 255, alpha).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(finalLight).setNormal(normal.x, normal.y, normal.z);
+            vertexConsumer.addVertex(finalMatrix, (float)(-halfSize), (float)(-halfSize), 0.0f).setColor(255, 255, 255, alpha).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(finalLight).setNormal(normal.x, normal.y, normal.z);
+            vertexConsumer.addVertex(finalMatrix, (float)halfSize, (float)(-halfSize), 0.0f).setColor(255, 255, 255, alpha).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(finalLight).setNormal(normal.x, normal.y, normal.z);
         });
         matrices.popPose();
     }

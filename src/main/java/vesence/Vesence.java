@@ -183,15 +183,15 @@ public class Vesence implements ClientModInitializer {
 
         // F3+T: шейдеры неба перекомпилируются из свежих исходников.
         net.fabricmc.fabric.api.resource.ResourceManagerHelper
-                .get(net.minecraft.resource.ResourceType.CLIENT_RESOURCES)
+                .get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(new net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener() {
                     @Override
-                    public net.minecraft.util.ResourceLocation getFabricId() {
-                        return net.minecraft.util.ResourceLocation.of("vesence", "sky_shader_reload");
+                    public net.minecraft.resources.Identifier getFabricId() {
+                        return net.minecraft.resources.Identifier.fromNamespaceAndPath("vesence", "sky_shader_reload");
                     }
 
                     @Override
-                    public void reload(net.minecraft.resource.ResourceManager manager) {
+                    public void onResourceManagerReload(net.minecraft.server.packs.resources.ResourceManager manager) {
                         try {
                             vesence.renderengine.render.SkyShaderRenderer.getInstance().reloadPipelines();
                         } catch (Throwable ignored) {
@@ -284,7 +284,7 @@ public class Vesence implements ClientModInitializer {
         GlContextManager.onRenderFrame();
         if (modInitialized) {
             long frameSection = vesence.utils.debug.FreezeWatchdog.sectionEnter("render.frame");
-            GlState.Snapshot snapshot = GlState.pushPose();
+            GlState.Snapshot snapshot = GlState.push();
             try {
                 ensureRendererInitialized();
                 if (!initialized || renderer2D == null) {
@@ -296,8 +296,8 @@ public class Vesence implements ClientModInitializer {
                     return;
                 }
 
-                int width = client.getWindow().getFramebufferWidth();
-                int height = client.getWindow().getFramebufferHeight();
+                int width = client.getWindow().getScreenWidth();
+                int height = client.getWindow().getScreenHeight();
                 if (width <= 0 || height <= 0) {
                     return;
                 }

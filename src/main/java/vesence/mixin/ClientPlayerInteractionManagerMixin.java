@@ -5,10 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
-import net.minecraft.screen.slot.ClickType;
-import net.minecraft.util.ActionResult;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -29,10 +29,10 @@ import vesence.event.player.AttackEvent;
 import vesence.module.impl.player.NoEntityTrace;
 
 @Environment(EnvType.CLIENT)
-@Mixin({ClientPlayerInteractionManager.class})
+@Mixin({MultiPlayerGameMode.class})
 public abstract class ClientPlayerInteractionManagerMixin {
    @Inject(
-      method = {"attackEntity"},
+      method = {"attack"},
       at = {@At("HEAD")},
       cancellable = true
    )
@@ -50,8 +50,8 @@ public abstract class ClientPlayerInteractionManagerMixin {
          vesence.hmi.CritDetector.isCriticalAttack(player, target));
    }
 
-    @Inject(method = "interactEntity", at = @At("HEAD"), cancellable = true)
-    private void onInteractEntity(Player player, Entity entity, InteractionHand hand, CallbackInfoReturnable<ActionResult> cir) {
+    @Inject(method = "interact", at = @At("HEAD"), cancellable = true)
+    private void onInteractEntity(Player player, Entity entity, net.minecraft.world.phys.EntityHitResult hitResult, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
        if (!Vesence.isModInitialized()) return;
        if (hand != InteractionHand.MAIN_HAND) return;
 
@@ -63,32 +63,32 @@ public abstract class ClientPlayerInteractionManagerMixin {
        if (mc.player == null || mc.level == null || mc.getConnection() == null) return;
 
        Vec3 eyePos = mc.player.getEyePosition();
-       Vec3 lookVec = mc.player.getRotationVec(1.0F);
-       Vec3 endPos = eyePos.add(lookVec.multiply(5.0));
+       Vec3 lookVec = mc.player.getViewVector(1.0F);
+       Vec3 endPos = eyePos.add(lookVec.scale(5.0));
 
-       BlockHitResult blockHit = mc.level.raycast(
+       BlockHitResult blockHit = mc.level.clip(
           new ClipContext(eyePos, endPos,
-             ClipContext.ShapeType.COLLIDER,
-             ClipContext.FluidHandling.NONE,
+             ClipContext.Block.COLLIDER,
+             ClipContext.Fluid.NONE,
              mc.player));
 
        if (blockHit != null && blockHit.getType() == HitResult.Type.BLOCK) {
-          mc.getConnection().sendPacket(
+          mc.getConnection().send(
              new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, blockHit, 0));
-          mc.player.swingHand(hand);
+          mc.player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
        }
 
-       cir.setReturnValue(ActionResult.FAIL);
+       cir.setReturnValue(InteractionResult.FAIL);
     }
 
-   @Inject(method = "updateBlockBreakingProgress", at = @At("HEAD"))
+   @Inject(method = "continueDestroyBlock", at = @At("HEAD"))
    private void onBlockBreakingProgress(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
       EventManager.call(new BlockBreakingEvent(pos, direction));
    }
 
-   @Inject(method = "clickSlot", at = @At("HEAD"), cancellable = true)
-   private void onClickSlot(int syncId, int slotId, int button, ClickType actionType, Player player, CallbackInfo ci) {
-      ClickSlotEvent event = new ClickSlotEvent(syncId, slotId, button, actionType);
+   @Inject(method = "handleContainerInput", at = @At("HEAD"), cancellable = true)
+   private void onClickSlot(int containerId, int slotId, int button, ContainerInput actionType, Player player, CallbackInfo ci) {
+      ClickSlotEvent event = new ClickSlotEvent(containerId, slotId, button, actionType);
       EventManager.call(event);
       if (event.isCancelled()) ci.cancel();
    }

@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import net.minecraft.world.InteractionHand;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.player.AbstractClientPlayer;
 
 public class ParticleRenderManager {
     @SuppressWarnings("StringEquality")
-    public static void draw(ArrayList<Particle> particles, PoseStack matrices, OrderedRenderCommandQueue queue, String space, InteractionHand hand, int light, AbstractClientPlayer player) {
+    public static void draw(ArrayList<Particle> particles, PoseStack matrices, OrderedSubmitNodeCollector queue, String space, InteractionHand hand, int light, AbstractClientPlayer player) {
         Iterator<Particle> iterator = particles.iterator();
         while (iterator.hasNext()) {
             Particle particle = iterator.next();

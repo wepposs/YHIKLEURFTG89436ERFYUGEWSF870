@@ -5,7 +5,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.ClipContext;
@@ -36,7 +36,7 @@ import vesence.utils.render.text.FontObject;
 @Environment(EnvType.CLIENT)
 public class Arrows extends Module {
 
-   private static final ResourceLocation TRIANGLE = ResourceLocation.of("vesence", "textures/arrows/triangle.png");
+   private static final Identifier TRIANGLE = Identifier.fromNamespaceAndPath("vesence", "textures/arrows/triangle.png");
 
    // Дистанция (блоки), с которой начинается затухание, и на которой достигается минимум.
    private static final float FADE_NEAR = 4.0F;
@@ -73,33 +73,33 @@ public class Arrows extends Module {
          return;
       }
       // divine recode: не рисуем указатели при открытом отладочном экране (F3)
-      if (mc.getDebugHud().shouldShowDebugHud()) {
+      if (mc.getDebugOverlay().showDebugScreen()) {
          return;
       }
 
       Renderer2D render = event.renderer();
       FontObject font = event.defaultFont();
-      float scale = (float) mc.getWindow().getScaleFactor();
+      float scale = (float) mc.getWindow().getGuiScale();
       float centerX = event.viewportWidth() / 2.0F;
       float centerY = event.viewportHeight() / 2.0F;
 
-      double yawRad = Math.toRadians(mc.gameRenderer.getCamera().getYRot());
+      double yawRad = Math.toRadians(mc.gameRenderer.mainCamera().yRot());
       double cos = Math.cos(yawRad);
       double sin = Math.sin(yawRad);
-      double partialTicks = mc.gameRenderer.getCamera().getLastTickProgress();
-      Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
+      double partialTicks = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+      Vec3 camPos = mc.gameRenderer.mainCamera().position();
 
       double baseRadius = radius.get();
 
-      for (Entity entity : mc.level.getEntities()) {
+      for (Entity entity : mc.level.entitiesForRendering()) {
          if (!isValidEntity(entity)) {
             continue;
          }
 
          double adjustedRadius = (entity instanceof ItemEntity) ? Math.max(baseRadius - 20.0, 0.0) : baseRadius;
 
-         double entityX = entity.lastX + (entity.getX() - entity.lastX) * partialTicks;
-         double entityZ = entity.lastZ + (entity.getZ() - entity.lastZ) * partialTicks;
+         double entityX = entity.xo + (entity.getX() - entity.xo) * partialTicks;
+         double entityZ = entity.zo + (entity.getZ() - entity.zo) * partialTicks;
          double xWay = (entityX - camPos.x) * 0.01;
          double zWay = (entityZ - camPos.z) * 0.01;
          double rotationY = -(zWay * cos - xWay * sin);
@@ -170,8 +170,8 @@ public class Arrows extends Module {
       if (!(entity instanceof Player player) || entity == mc.player) {
          return false;
       }
-      boolean isFriend = FriendStorage.isFriend(player.getNameForScoreboard());
-      boolean isNaked = player.getArmor() == 0;
+      boolean isFriend = FriendStorage.isFriend(player.getScoreboardName());
+      boolean isNaked = player.getArmorValue() == 0;
       if (isFriend) {
          return rendering.get("Друзей");
       }
@@ -189,13 +189,13 @@ public class Arrows extends Module {
       Vec3 start = mc.player.getEyePosition();
       Vec3 end = entity.getBoundingBox().getCenter();
       ClipContext context = new ClipContext(
-            start, end, ClipContext.ShapeType.COLLIDER, ClipContext.FluidHandling.NONE, mc.player);
-      return mc.level.raycast(context).getType() == HitResult.Type.MISS;
+            start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player);
+      return mc.level.clip(context).getType() == HitResult.Type.MISS;
    }
 
    private int determineEntityColor(Entity entity) {
       if (entity instanceof Player player) {
-         if (FriendStorage.isFriend(player.getNameForScoreboard())) {
+         if (FriendStorage.isFriend(player.getScoreboardName())) {
             return friendColor.getRGB();
          }
          return playerColor.getRGB();

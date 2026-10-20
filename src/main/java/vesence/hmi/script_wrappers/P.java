@@ -7,7 +7,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 
 public class P {
     public boolean isSneaking(AbstractClientPlayer player) {
-        return player.isSneaking();
+        return player.isShiftKeyDown();
     }
 
     public boolean isOnGround(AbstractClientPlayer player) {
@@ -19,15 +19,15 @@ public class P {
     }
 
     public boolean isClimbing(AbstractClientPlayer player) {
-        return player.isClimbing();
+        return player.onClimbable();
     }
 
     public boolean isCrawling(AbstractClientPlayer player) {
-        return player.isCrawling();
+        return player.isVisuallyCrawling();
     }
 
     public boolean isSubmergedInWater(AbstractClientPlayer player) {
-        return player.isSubmergedInWater();
+        return player.isUnderWater();
     }
 
     public double getX(AbstractClientPlayer player) {
@@ -43,15 +43,15 @@ public class P {
     }
 
     public double getXSpeed(AbstractClientPlayer player) {
-        return player.getDeltaMovement().getX();
+        return player.getDeltaMovement().x;
     }
 
     public double getYSpeed(AbstractClientPlayer player) {
-        return player.getDeltaMovement().getY();
+        return player.getDeltaMovement().y;
     }
 
     public double getZSpeed(AbstractClientPlayer player) {
-        return player.getDeltaMovement().getZ();
+        return player.getDeltaMovement().z;
     }
 
     public double getSpeed(AbstractClientPlayer player) {
@@ -63,7 +63,7 @@ public class P {
     }
 
     public double getYaw(AbstractClientPlayer player) {
-        return player.getHeadYaw();
+        return player.getYHeadRot();
     }
 
     public double getPitch(AbstractClientPlayer player) {
@@ -79,7 +79,7 @@ public class P {
     }
 
     public InteractionHand getActiveHand(AbstractClientPlayer player) {
-        return player.getActiveHand();
+        return player.getUsedItemHand();
     }
 
     public int getAge(AbstractClientPlayer player) {
@@ -87,7 +87,7 @@ public class P {
     }
 
     public boolean isItemCoolingDown(ItemStack item, AbstractClientPlayer player) {
-        return player.getItemCooldownManager().isCoolingDown(item);
+        return player.getCooldowns().isOnCooldown(item);
     }
 
     public double getSwingCount(AbstractClientPlayer player) {

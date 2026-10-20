@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundExplodePacket;
 import net.minecraft.world.phys.Vec3;
 
 import vesence.event.EventInit;
@@ -66,7 +66,7 @@ public class NoPush extends Module {
          return;
       }
 
-      if (!(event.getPacket() instanceof ExplosionS2CPacket packet)) {
+      if (!(event.getPacket() instanceof ClientboundExplodePacket packet)) {
          return;
       }
 
@@ -85,7 +85,7 @@ public class NoPush extends Module {
 
       if (!this.enable) {
          if (wasNoClip) {
-            mc.player.noClip = false;
+            mc.player.noPhysics = false;
             wasNoClip = false;
          }
 
@@ -94,10 +94,10 @@ public class NoPush extends Module {
       }
 
       if (shouldIgnoreBlocks()) {
-         mc.player.noClip = true;
+         mc.player.noPhysics = true;
          wasNoClip = true;
       } else if (wasNoClip) {
-         mc.player.noClip = false;
+         mc.player.noPhysics = false;
          wasNoClip = false;
       }
 
@@ -142,7 +142,7 @@ public class NoPush extends Module {
    @Override
    public void onDisable() {
       if (mc.player != null && wasNoClip) {
-         mc.player.noClip = false;
+         mc.player.noPhysics = false;
          wasNoClip = false;
       }
 

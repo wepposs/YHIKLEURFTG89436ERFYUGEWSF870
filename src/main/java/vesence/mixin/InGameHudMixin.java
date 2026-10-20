@@ -7,9 +7,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.hud.bar.Bar;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.DeltaTracker;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import org.lwjgl.opengl.GL11;
@@ -29,8 +27,10 @@ import vesence.renderengine.providers.GlState;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.text.FontRegistry;
 
+// TODO(port26): net.minecraft.client.gui.Gui no longer renders the HUD in 26.3 — all render*
+// methods moved to net.minecraft.client.gui.Hud as extract* methods (extract render state pipeline).
 @Environment(EnvType.CLIENT)
-@Mixin(Gui.class)
+@Mixin(net.minecraft.client.gui.Hud.class)
 public abstract class InGameHudMixin {
 
    @org.spongepowered.asm.mixin.Unique
@@ -48,15 +48,15 @@ public abstract class InGameHudMixin {
    @org.spongepowered.asm.mixin.Unique
    private static boolean vesence$fboStatusComplete = false;
 
-   @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
-   private void onRenderCrosshair(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   @Inject(method = "extractCrosshair", at = @At("HEAD"), cancellable = true)
+   private void onRenderCrosshair(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized() && Vesence.get.manager.get(vesence.module.impl.visuals.Crosshair.class).enable) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "renderScoreboardSidebar", at = @At("HEAD"), cancellable = true)
-   private void onRenderScoreboard(CallbackInfo ci) {
+   @Inject(method = "extractScoreboardSidebar", at = @At("HEAD"), cancellable = true)
+   private void onRenderScoreboard(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Таблица")) {
          ci.cancel();
          return;
@@ -68,15 +68,16 @@ public abstract class InGameHudMixin {
       }
    }
 
-   @Inject(method = "renderTitleAndSubtitle", at = @At("HEAD"), cancellable = true)
-   private void onRenderTitle(CallbackInfo ci) {
+   @Inject(method = "extractTitle", at = @At("HEAD"), cancellable = true)
+   private void onRenderTitle(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Тайтлы")) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "renderMainHud", at = @At("HEAD"), cancellable = true)
-   private void vesence$renderCustomHotBar(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   // БЫЛО renderMainHud: полная замена главного HUD (хотбар + статус-бары).
+   @Inject(method = "extractHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
+   private void vesence$renderCustomHotBar(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       Minecraft client = Minecraft.getInstance();
       if (!BetterMinecraft.shouldReplaceMainHud(client)) {
          return;
@@ -85,8 +86,8 @@ public abstract class InGameHudMixin {
       ci.cancel();
    }
 
-   @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
-   private void vesence$renderCustomHotBarOnly(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   @Inject(method = "extractItemHotbar", at = @At("HEAD"), cancellable = true)
+   private void vesence$renderCustomHotBarOnly(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       Minecraft client = Minecraft.getInstance();
       if (!BetterMinecraft.shouldReplaceHotbarOnly(client)) {
          return;
@@ -95,92 +96,115 @@ public abstract class InGameHudMixin {
       ci.cancel();
    }
 
-   @Inject(method = "renderStatusBars", at = @At("HEAD"))
-   private void vesence$pushVanillaValuesOffset(GuiGraphics context, CallbackInfo ci) {
-      if (BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
-         context.getMatrices().pushMatrix();
-         context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+   // БЫЛО renderStatusBars push/pop: сдвиг ванильных полос вверх, когда заменён только хотбар.
+   // В 26.3 полосы рисуются из extractHotbarAndDecorations отдельными вызовами — оборачиваем их.
+   @WrapOperation(
+           method = "extractHotbarAndDecorations",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Hud;extractPlayerHealth(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V")
+   )
+   private void vesence$offsetPlayerHealth(net.minecraft.client.gui.Hud instance, GuiGraphicsExtractor context, Operation<Void> original) {
+      if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
+         original.call(instance, context);
+         return;
       }
-   }
-
-   @Inject(method = "renderStatusBars", at = @At("RETURN"))
-   private void vesence$popVanillaValuesOffset(GuiGraphics context, CallbackInfo ci) {
-      if (BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
-         context.getMatrices().popMatrix();
+      context.pose().pushMatrix();
+      context.pose().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+      try {
+         original.call(instance, context);
+      } finally {
+         context.pose().popMatrix();
       }
    }
 
    @WrapOperation(
-           method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderBar(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/render/DeltaTracker;)V")
+           method = "extractHotbarAndDecorations",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Hud;extractVehicleHealth(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V")
    )
-   private void vesence$offsetVanillaBar(Bar instance, GuiGraphics context, DeltaTracker tickCounter, Operation<Void> original) {
+   private void vesence$offsetVehicleHealth(net.minecraft.client.gui.Hud instance, GuiGraphicsExtractor context, Operation<Void> original) {
+      if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
+         original.call(instance, context);
+         return;
+      }
+      context.pose().pushMatrix();
+      context.pose().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+      try {
+         original.call(instance, context);
+      } finally {
+         context.pose().popMatrix();
+      }
+   }
+
+   @WrapOperation(
+           method = "extractHotbarAndDecorations",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/contextualbar/ContextualBar;extractBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V")
+   )
+   private void vesence$offsetVanillaBar(net.minecraft.client.gui.contextualbar.ContextualBar instance, GuiGraphicsExtractor context, DeltaTracker tickCounter, Operation<Void> original) {
       if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          original.call(instance, context, tickCounter);
          return;
       }
-      context.getMatrices().pushMatrix();
-      context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+      context.pose().pushMatrix();
+      context.pose().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
       try {
          original.call(instance, context, tickCounter);
       } finally {
-         context.getMatrices().popMatrix();
+         context.pose().popMatrix();
       }
    }
 
    @WrapOperation(
-           method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;renderAddons(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/render/DeltaTracker;)V")
+           method = "extractHotbarAndDecorations",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/contextualbar/ContextualBar;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V")
    )
-   private void vesence$offsetVanillaBarAddons(Bar instance, GuiGraphics context, DeltaTracker tickCounter, Operation<Void> original) {
+   private void vesence$offsetVanillaBarAddons(net.minecraft.client.gui.contextualbar.ContextualBar instance, GuiGraphicsExtractor context, DeltaTracker tickCounter, Operation<Void> original) {
       if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          original.call(instance, context, tickCounter);
          return;
       }
-      context.getMatrices().pushMatrix();
-      context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+      context.pose().pushMatrix();
+      context.pose().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
       try {
          original.call(instance, context, tickCounter);
       } finally {
-         context.getMatrices().popMatrix();
+         context.pose().popMatrix();
       }
    }
 
    @WrapOperation(
-           method = "renderMainHud",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/bar/Bar;drawExperienceLevel(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/font/Font;I)V")
+           method = "extractHotbarAndDecorations",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/contextualbar/ContextualBar;extractExperienceLevel(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;I)V")
    )
-   private void vesence$offsetVanillaExperienceLevel(GuiGraphics context, Font font, int level, Operation<Void> original) {
+   private void vesence$offsetVanillaExperienceLevel(GuiGraphicsExtractor context, Font font, int level, Operation<Void> original) {
       if (!BetterMinecraft.shouldReplaceHotbarOnly(Minecraft.getInstance())) {
          original.call(context, font, level);
          return;
       }
-      context.getMatrices().pushMatrix();
-      context.getMatrices().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
+      context.pose().pushMatrix();
+      context.pose().translate(0f, VESENCE_VANILLA_VALUES_Y_OFFSET);
       try {
          original.call(context, font, level);
       } finally {
-         context.getMatrices().popMatrix();
+         context.pose().popMatrix();
       }
    }
 
-   @Inject(method = "renderMainHud", at = @At("RETURN"))
-   private void vesence$renderHeldItemNameOverlay(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   @Inject(method = "extractHotbarAndDecorations", at = @At("RETURN"))
+   private void vesence$renderHeldItemNameOverlay(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       Minecraft client = Minecraft.getInstance();
       if (BetterMinecraft.shouldRenderCustomHeldItemName(client) && !BetterMinecraft.shouldReplaceMainHud(client)) {
          BetterMinecraft.renderHeldItemNameOverlay(context);
       }
    }
 
-   @Inject(method = "renderHeldItemTooltip", at = @At("HEAD"), cancellable = true)
-   private void vesence$cancelVanillaHeldItemTooltip(GuiGraphics context, CallbackInfo ci) {
+   @Inject(method = "extractSelectedItemName", at = @At("HEAD"), cancellable = true)
+   private void vesence$cancelVanillaHeldItemTooltip(GuiGraphicsExtractor context, CallbackInfo ci) {
       if (BetterMinecraft.shouldRenderCustomHeldItemName(Minecraft.getInstance())) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "renderVignetteOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderVignette(CallbackInfo ci) {
+   @Inject(method = "extractVignette", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderVignette(GuiGraphicsExtractor context, net.minecraft.world.entity.Entity entity, CallbackInfo ci) {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
       if (nr != null && nr.enable && NoRender.elements.get("Виньетка")) {
          ci.cancel();
@@ -188,8 +212,8 @@ public abstract class InGameHudMixin {
    }
 
    /** Deluxe NoRender: «Тыква на голове» — прячем оверлей pumpkinblur. */
-   @Inject(method = "renderOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$hidePumpkinOverlay(GuiGraphics context, net.minecraft.util.ResourceLocation texture, float opacity, CallbackInfo ci) {
+   @Inject(method = "extractTextureOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$hidePumpkinOverlay(GuiGraphicsExtractor context, net.minecraft.resources.Identifier texture, float opacity, CallbackInfo ci) {
       if (NoRender.isElementActive("Тыква на голове") && texture.getPath().contains("pumpkinblur")) {
          ci.cancel();
       }
@@ -197,45 +221,45 @@ public abstract class InGameHudMixin {
 
    /** Deluxe NoRender: «Индикатор атаки» — прячем индикатор кулдауна под прицелом. */
    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(
-           method = "renderCrosshair",
-           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/option/SimpleOption;getValue()Ljava/lang/Object;"))
+           method = "extractCrosshair",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;"))
    private Object vesence$hideAttackIndicator(Object original) {
-      return NoRender.isElementActive("Индикатор атаки") ? net.minecraft.client.option.AttackIndicator.OFF : original;
+      return NoRender.isElementActive("Индикатор атаки") ? net.minecraft.client.AttackIndicatorStatus.OFF : original;
    }
 
-   @Inject(method = "renderStatusEffectOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderStatusEffectOverlay(CallbackInfo ci) {
+   @Inject(method = "extractEffects", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderStatusEffectOverlay(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
       if (nr != null && nr.enable && NoRender.elements.get("Иконки эффектов")) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "renderNauseaOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderNausea(CallbackInfo ci) {
+   @Inject(method = "extractConfusionOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderNausea(GuiGraphicsExtractor context, float nauseaLevel, CallbackInfo ci) {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
       if (nr != null && nr.enable && NoRender.elements.get("Тошнота")) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "renderPortalOverlay", at = @At("HEAD"), cancellable = true)
-   private void vesence$onRenderPortal(CallbackInfo ci) {
+   @Inject(method = "extractPortalOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderPortal(GuiGraphicsExtractor context, float portalAlpha, CallbackInfo ci) {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
       if (nr != null && nr.enable && NoRender.elements.get("Портал на экране")) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "render", at = @At("HEAD"))
-   private void onPreRenderHud(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   @Inject(method = "extractRenderState", at = @At("HEAD"))
+   private void onPreRenderHud(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized()) {
          Minecraft client = Minecraft.getInstance();
          if (client != null && client.player != null && client.level != null && client.getWindow() != null) {
-            int width = client.getWindow().getFramebufferWidth();
-            int height = client.getWindow().getFramebufferHeight();
+            int width = client.getWindow().getScreenWidth();
+            int height = client.getWindow().getScreenHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.pushPose();
+               GlState.Snapshot snapshot = GlState.push();
 
                int tempFbo = vesence$bindMainFramebuffer(client);
 
@@ -263,15 +287,15 @@ public abstract class InGameHudMixin {
       }
    }
 
-   @Inject(method = "render", at = @At("RETURN"))
-   private void onRenderHud(GuiGraphics context, DeltaTracker tickCounter, CallbackInfo ci) {
+   @Inject(method = "extractRenderState", at = @At("RETURN"))
+   private void onRenderHud(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized()) {
          Minecraft client = Minecraft.getInstance();
          if (client != null && client.player != null && client.level != null && client.getWindow() != null) {
-            int width = client.getWindow().getFramebufferWidth();
-            int height = client.getWindow().getFramebufferHeight();
+            int width = client.getWindow().getScreenWidth();
+            int height = client.getWindow().getScreenHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.pushPose();
+               GlState.Snapshot snapshot = GlState.push();
 
                int tempFbo = vesence$bindMainFramebuffer(client);
 
@@ -303,17 +327,17 @@ public abstract class InGameHudMixin {
    private static int vesence$bindMainFramebuffer(Minecraft client) {
       long section = vesence.utils.debug.FreezeWatchdog.sectionEnter("framebuffer.attach");
       try {
-         RenderTarget mainFramebuffer = client.getMainRenderTarget();
+         RenderTarget mainFramebuffer = client.gameRenderer.mainRenderTarget();
          if (mainFramebuffer == null) {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
             return 0;
          }
-         if (!(mainFramebuffer.getColorAttachment() instanceof GlTexture glColor)) {
+         if (!(mainFramebuffer.getColorTexture() instanceof GlTexture glColor)) {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
             return 0;
          }
 
-         int mainFramebufferTextureId = glColor.getGlId();
+         int mainFramebufferTextureId = glColor.glId();
          if (vesence$cachedFbo == 0) {
             vesence$cachedFbo = GL30.glGenFramebuffers();
          }

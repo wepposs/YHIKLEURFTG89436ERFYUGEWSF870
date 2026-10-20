@@ -73,7 +73,7 @@ public class ElytraMotion extends Module {
                 && mc != null
                 && mc.player != null
                 && mc.level != null
-                && mc.player.isGliding();
+                && mc.player.isFallFlying();
     }
 
     private LivingEntity target() {
@@ -134,7 +134,7 @@ public class ElytraMotion extends Module {
 
     private boolean isPlayerInputting() {
         if (mc.player == null || mc.player.input == null) return false;
-        net.minecraft.util.math.Vector2f move = mc.player.input.getMovementInput();
+        net.minecraft.world.phys.Vec2 move = mc.player.input.getMoveVector();
         return move.x != 0.0F || move.y != 0.0F;
     }
 
@@ -146,7 +146,7 @@ public class ElytraMotion extends Module {
                 target.getZ() - mc.player.getZ()
         );
         if (toTarget.lengthSqr() < 1.0E-8D) return true;
-        return velocity.normalize().dotProduct(toTarget.normalize()) > 0.95D;
+        return velocity.normalize().dot(toTarget.normalize()) > 0.95D;
     }
 
     private static double clamp(double value, double min, double max) {

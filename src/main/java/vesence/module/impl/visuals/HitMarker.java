@@ -3,23 +3,21 @@ package vesence.module.impl.visuals;
 import java.util.ArrayList;
 import java.util.Optional;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.resources.Identifier;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
@@ -32,6 +30,10 @@ import vesence.module.api.setting.Setting;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * HitMarker — порт из RelevantPremiumpp4.
@@ -42,7 +44,7 @@ import vesence.utils.render.ColorUtil;
 @Environment(EnvType.CLIENT)
 public class HitMarker extends Module {
 
-    private static final ResourceLocation CROSS_TEXTURE = ResourceLocation.of("vesence", "textures/cross/cross.png");
+    private static final Identifier CROSS_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/cross/cross.png");
 
     public final SliderSetting size = new SliderSetting("Размер", 0.5, 0.1, 2.0, 0.05);
     public final SliderSetting fadeInTime = new SliderSetting("Время появления", 100.0, 50.0, 500.0, 10.0);
@@ -56,31 +58,35 @@ public class HitMarker extends Module {
 
     // Additive (glow) и обычный translucent пайплайны
     private static final RenderPipeline MARKER_GLOW_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/hitmarker_glow"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/hitmarker_glow"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.LIGHTNING)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                     .build());
     private static final RenderPipeline MARKER_NORMAL_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/hitmarker_normal"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/hitmarker_normal"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
-    private static final RenderType MARKER_GLOW_LAYER = RenderType.of(
+    private static final RenderType MARKER_GLOW_LAYER = RenderType.create(
             "vesence_hitmarker_glow",
-            RenderSetup.builder(MARKER_GLOW_PIPELINE).expectedBufferSize(4096).translucent()
-                    .texture("Sampler0", CROSS_TEXTURE).build());
-    private static final RenderType MARKER_NORMAL_LAYER = RenderType.of(
+            RenderSetup.builder(MARKER_GLOW_PIPELINE)
+                    .withTexture("Sampler0", CROSS_TEXTURE).createRenderSetup());
+    private static final RenderType MARKER_NORMAL_LAYER = RenderType.create(
             "vesence_hitmarker_normal",
-            RenderSetup.builder(MARKER_NORMAL_PIPELINE).expectedBufferSize(4096).translucent()
-                    .texture("Sampler0", CROSS_TEXTURE).build());
+            RenderSetup.builder(MARKER_NORMAL_PIPELINE)
+                    .withTexture("Sampler0", CROSS_TEXTURE).createRenderSetup());
 
     public HitMarker() {
         this.addSettings(new Setting[]{this.size, this.fadeInTime, this.displayTime, this.fadeOutTime, this.glow, this.scale});
@@ -111,15 +117,15 @@ public class HitMarker extends Module {
     }
 
     private Vec3 resolveHitPosition(Entity attacker, Entity target) {
-        Vec3 fallback = new Vec3(target.getX(), target.getY() + target.getHeight() / 2.0, target.getZ());
+        Vec3 fallback = new Vec3(target.getX(), target.getY() + target.getBbHeight() / 2.0, target.getZ());
         if (attacker == null) return fallback;
-        Vec3 eyePos = attacker.getCameraPosVec(1.0F);
-        Vec3 lookVec = attacker.getRotationVec(1.0F);
+        Vec3 eyePos = attacker.getEyePosition(1.0F);
+        Vec3 lookVec = attacker.getViewVector(1.0F);
         Vec3 targetCenter = target.getBoundingBox().getCenter();
         double distance = Math.max(eyePos.distanceTo(targetCenter) + 1.0, 6.0);
-        Vec3 reachPos = eyePos.add(lookVec.multiply(distance));
-        Optional<Vec3> hitPos = target.getBoundingBox().raycast(eyePos, reachPos);
-        return hitPos.isPresent() ? hitPos.get() : eyePos.add(lookVec.multiply(eyePos.distanceTo(targetCenter)));
+        Vec3 reachPos = eyePos.add(lookVec.scale(distance));
+        Optional<Vec3> hitPos = target.getBoundingBox().clip(eyePos, reachPos);
+        return hitPos.isPresent() ? hitPos.get() : eyePos.add(lookVec.scale(eyePos.distanceTo(targetCenter)));
     }
 
     @EventInit
@@ -132,7 +138,7 @@ public class HitMarker extends Module {
         if (this.hitMarkers.isEmpty()) return;
 
         PoseStack matrices = e.getMatrixStack();
-        Vec3 camera = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
 
         ArrayList<HitMarkerData> renderList;
         synchronized (this.hitMarkers) {
@@ -151,7 +157,7 @@ public class HitMarker extends Module {
             alloc = new ByteBufferBuilder(65536);
             markerAllocator = alloc;
         }
-        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(alloc);
+        Immediate immediate = new Immediate();
         try {
             VertexConsumer buffer = immediate.getBuffer(layer);
             for (HitMarkerData marker : renderList) {
@@ -163,21 +169,21 @@ public class HitMarker extends Module {
                 double z = marker.position.z - camera.z;
                 matrices.pushPose();
                 matrices.translate((float) x, (float) y, (float) z);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
+                matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+                matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
 
                 float currentSize = (float) (double) this.size.get();
                 if (this.scale.get()) {
                     currentSize *= marker.getScaleMultiplier();
                 }
 
-                Matrix4f matrix = matrices.last().getPositionMatrix();
+                Matrix4f matrix = matrices.last().pose();
                 float half = currentSize / 2.0F;
                 int alphaInt = (int) (alpha * 255.0F);
-                buffer.vertex(matrix, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, alphaInt);
-                buffer.vertex(matrix, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, alphaInt);
-                buffer.vertex(matrix, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, alphaInt);
-                buffer.vertex(matrix, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, alphaInt);
+                buffer.addVertex(matrix, -half, -half, 0.0F).setUv(0.0F, 1.0F).setColor(r, g, b, alphaInt);
+                buffer.addVertex(matrix, -half, half, 0.0F).setUv(0.0F, 0.0F).setColor(r, g, b, alphaInt);
+                buffer.addVertex(matrix, half, half, 0.0F).setUv(1.0F, 0.0F).setColor(r, g, b, alphaInt);
+                buffer.addVertex(matrix, half, -half, 0.0F).setUv(1.0F, 1.0F).setColor(r, g, b, alphaInt);
                 matrices.popPose();
             }
             immediate.draw();

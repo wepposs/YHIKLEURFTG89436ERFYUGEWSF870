@@ -1,11 +1,11 @@
 package vesence.utils.render;
 
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
@@ -18,7 +18,7 @@ public class ResourceManager {
 
     private final String path;
     private final String namespace;
-    private final ResourceLocation identifier;
+    private final Identifier identifier;
     private int cachedGlId = -1;
 
     public ResourceManager(String path) {
@@ -39,7 +39,7 @@ public class ResourceManager {
     public ResourceManager(String namespace, String path) {
         this.namespace = namespace;
         this.path = path;
-        this.identifier = ResourceLocation.of(namespace, path);
+        this.identifier = Identifier.fromNamespaceAndPath(namespace, path);
     }
 
     public int getGlId() {
@@ -79,14 +79,14 @@ public class ResourceManager {
                 return 0;
             }
 
-            GpuTextureView view = texture.getGlTextureView();
+            GpuTextureView view = texture.getTextureView();
             if (view == null) {
                 return 0;
             }
 
             GpuTexture gpuTexture = view.texture();
             if (gpuTexture instanceof GlTexture glTexture) {
-                return glTexture.getGlId();
+                return glTexture.glId();
             }
         } catch (Exception e) {
             System.err.println("Failed to load texture: " + namespace + ":" + path);
@@ -96,7 +96,7 @@ public class ResourceManager {
         return 0;
     }
 
-    public ResourceLocation getIdentifier() {
+    public Identifier getIdentifier() {
         return identifier;
     }
 

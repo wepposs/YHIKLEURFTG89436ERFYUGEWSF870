@@ -6,7 +6,7 @@ import java.util.Map.Entry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.util.InputUtil;
+import com.mojang.blaze3d.platform.InputConstants;
 
 @Environment(EnvType.CLIENT)
 public class KeyUtil {
@@ -15,7 +15,7 @@ public class KeyUtil {
    public static Minecraft mc = Minecraft.getInstance();
 
    public static boolean isKeyDown(int keyCode) {
-      return InputUtil.isKeyPressed(mc.getWindow(), keyCode);
+      return InputConstants.isKeyDown(keyCode);
    }
 
    public static String getKey(int key) {

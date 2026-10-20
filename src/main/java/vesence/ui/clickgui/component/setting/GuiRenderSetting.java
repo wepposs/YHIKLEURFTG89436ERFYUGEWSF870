@@ -13,7 +13,7 @@ import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.utils.KeyUtil;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.awt.*;
 import java.util.HashMap;
@@ -21,7 +21,7 @@ import java.util.HashMap;
 @Environment(EnvType.CLIENT)
 public class GuiRenderSetting {
 
-   private static final ResourceLocation HUE_TEXTURE = ResourceLocation.of("vesence", "textures/gui/hue.png");
+   private static final Identifier HUE_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/gui/hue.png");
 
    public static final float HUE_PREVIEW_H = 12.0F;
    public static final float HUE_PANEL_TOP = 4.0F;

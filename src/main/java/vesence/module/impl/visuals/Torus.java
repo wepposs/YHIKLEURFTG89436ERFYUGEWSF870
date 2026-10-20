@@ -5,10 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.network.packet.s2c.play.DamageTiltS2CPacket;
-import net.minecraft.network.packet.s2c.play.EntityDamageS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
+import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
@@ -61,18 +61,18 @@ public class Torus extends Module {
     @EventInit
     public void onPacket(EventPacket event) {
         if (event.getType() != EventPacket.Type.RECEIVE) return;
-        if (MC.world == null || MC.player == null) return;
+        if (MC.level == null || MC.player == null) return;
 
         Entity hitEntity = null;
-        if (event.getPacket() instanceof EntityDamageS2CPacket packet) {
-            hitEntity = MC.world.getEntityById(packet.entityId());
-        } else if (event.getPacket() instanceof DamageTiltS2CPacket packet) {
-            hitEntity = MC.world.getEntityById(packet.id());
+        if (event.getPacket() instanceof ClientboundDamageEventPacket packet) {
+            hitEntity = MC.level.getEntity(packet.entityId());
+        } else if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket packet) {
+            hitEntity = MC.level.getEntity(packet.id());
         }
 
         if (hitEntity != null && hitEntity != MC.player) {
-            Vec3 hitPos = (MC.crosshairTarget instanceof EntityHitResult ehr && ehr.getEntity() == hitEntity)
-                    ? ehr.getPos()
+            Vec3 hitPos = (mc.hitResult instanceof EntityHitResult ehr && ehr.getEntity() == hitEntity)
+                    ? ehr.getLocation()
                     : hitEntity.getEyePosition();
 
             float[] rot = this.getRotations(hitPos);
@@ -83,7 +83,7 @@ public class Torus extends Module {
 
     @EventInit
     public void onRender3D(EventRender3D event) {
-        if (MC.player == null || MC.world == null || MC.gameRenderer == null || this.toruses.isEmpty()) return;
+        if (MC.player == null || MC.level == null || MC.gameRenderer == null || this.toruses.isEmpty()) return;
 
         this.toruses.removeIf(ActiveTorus::isFinished);
         if (this.toruses.isEmpty()) return;
@@ -102,10 +102,10 @@ public class Torus extends Module {
 
                 matrices.pushPose();
                 matrices.translate(torus.pos.x - camPos.x, torus.pos.y - camPos.y, torus.pos.z - camPos.z);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-torus.yaw));
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(torus.pitch));
+                matrices.rotate(Axis.YP.rotationDegrees(-torus.yaw));
+                matrices.rotate(Axis.XP.rotationDegrees(torus.pitch));
 
-                Matrix4f modelView = new Matrix4f(matrices.last().getPositionMatrix());
+                Matrix4f modelView = new Matrix4f(matrices.last().pose());
                 renderer.renderTorus(modelView, torus.outerRadAnim.get(), torus.innerRadAnim.get());
 
                 matrices.popPose();

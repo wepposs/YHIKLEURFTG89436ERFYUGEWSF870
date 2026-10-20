@@ -3,7 +3,7 @@ package vesence.module.impl.visuals;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.network.OtherClientPlayerEntity;
+import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
@@ -23,7 +23,7 @@ public class FakePlayer extends Module {
 
     private static final int FAKE_PLAYER_ID = -21000;
 
-    private OtherClientPlayerEntity fakePlayer;
+    private RemotePlayer fakePlayer;
     private Vec3 spawnPosition;
     private float spawnYaw;
     private float spawnPitch;
@@ -48,7 +48,7 @@ public class FakePlayer extends Module {
             return;
         }
 
-        if (fakePlayer == null || fakePlayer.isRemoved() || fakePlayer.getEntityWorld() != mc.level) {
+        if (fakePlayer == null || fakePlayer.isRemoved() || fakePlayer.level() != mc.level) {
             spawnFakePlayer();
             return;
         }
@@ -63,7 +63,7 @@ public class FakePlayer extends Module {
         }
 
         if (event.getPacket() instanceof ServerboundInteractPacket) {
-            Entity entity = mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult hitResult ? hitResult.getEntity() : null;
+            Entity entity = mc.hitResult instanceof net.minecraft.world.phys.EntityHitResult hitResult ? hitResult.getEntity() : null;
             if (entity == fakePlayer) {
                 event.cancel();
             }
@@ -80,24 +80,26 @@ public class FakePlayer extends Module {
 
         GameProfile profile = new GameProfile(UUID.randomUUID(), "FakePlayer");
 
-        fakePlayer = new OtherClientPlayerEntity(mc.level, profile);
+        fakePlayer = new RemotePlayer(mc.level, profile);
         fakePlayer.setId(FAKE_PLAYER_ID);
-        fakePlayer.copyPositionAndRotation(mc.player);
-        fakePlayer.setPosition(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-        fakePlayer.lastX = spawnPosition.x;
-        fakePlayer.lastY = spawnPosition.y;
-        fakePlayer.lastZ = spawnPosition.z;
+        fakePlayer.setPos(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+        fakePlayer.setYRot(mc.player.getYRot());
+        fakePlayer.setXRot(mc.player.getXRot());
+        fakePlayer.setPos(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+        fakePlayer.xo = spawnPosition.x;
+        fakePlayer.yo = spawnPosition.y;
+        fakePlayer.zo = spawnPosition.z;
         fakePlayer.setYRot(spawnYaw);
         fakePlayer.setXRot(spawnPitch);
-        fakePlayer.setHeadYaw(spawnHeadYaw);
-        fakePlayer.setBodyYaw(spawnBodyYaw);
+        fakePlayer.setYHeadRot(spawnHeadYaw);
+        fakePlayer.setYBodyRot(spawnBodyYaw);
         fakePlayer.setHealth(mc.player.getHealth());
         fakePlayer.setAbsorptionAmount(mc.player.getAbsorptionAmount());
         fakePlayer.setOnGround(mc.player.onGround());
         fakePlayer.setPose(mc.player.getPose());
 
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            fakePlayer.equipStack(slot, mc.player.getEquippedStack(slot).copy());
+            fakePlayer.setItemSlot(slot, mc.player.getItemBySlot(slot).copy());
         }
 
         mc.level.addEntity(fakePlayer);
@@ -105,11 +107,11 @@ public class FakePlayer extends Module {
     }
 
     private void captureSpawnState() {
-        spawnPosition = mc.player.getEntityPos();
+        spawnPosition = mc.player.position();
         spawnYaw = mc.player.getYRot();
         spawnPitch = mc.player.getXRot();
-        spawnHeadYaw = mc.player.getHeadYaw();
-        spawnBodyYaw = mc.player.bodyYaw;
+        spawnHeadYaw = mc.player.getYHeadRot();
+        spawnBodyYaw = mc.player.yBodyRot;
     }
 
     private void holdFakePlayerStill() {
@@ -118,14 +120,14 @@ public class FakePlayer extends Module {
         }
 
         fakePlayer.setDeltaMovement(Vec3.ZERO);
-        fakePlayer.setPosition(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-        fakePlayer.lastX = spawnPosition.x;
-        fakePlayer.lastY = spawnPosition.y;
-        fakePlayer.lastZ = spawnPosition.z;
+        fakePlayer.setPos(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+        fakePlayer.xo = spawnPosition.x;
+        fakePlayer.yo = spawnPosition.y;
+        fakePlayer.zo = spawnPosition.z;
         fakePlayer.setYRot(spawnYaw);
         fakePlayer.setXRot(spawnPitch);
-        fakePlayer.setHeadYaw(spawnHeadYaw);
-        fakePlayer.setBodyYaw(spawnBodyYaw);
+        fakePlayer.setYHeadRot(spawnHeadYaw);
+        fakePlayer.setYBodyRot(spawnBodyYaw);
     }
 
     private void removeFakePlayer() {

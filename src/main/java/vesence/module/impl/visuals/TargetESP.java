@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import java.awt.Color;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -18,16 +17,14 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.world.phys.Vec3;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.Camera;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.util.Mth;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import vesence.event.EventInit;
@@ -50,6 +47,10 @@ import vesence.utils.other.Mathf;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 @IModule(name = "TargetESP", description = "Жозки таргет есп", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
@@ -98,21 +99,21 @@ public class TargetESP extends Module {
            .hidden(() -> !typeTargetEsp.is("Картинка") && !typeTargetEsp.is("Ромб крутой"));
    public static ModeSetting typeCube = new ModeSetting("Режим кубиков", "Новый", "Новый", "Старый")
            .hidden(() -> !typeTargetEsp.is("Кубики"));
-   private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/glow.png");
-   private static final ResourceLocation GLOW_TEXTURE_C = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
-   private static final ResourceLocation CRYSTAL_GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
-   private static final ResourceLocation CHAIN_TEXTURE = ResourceLocation.of("vesence", "textures/targetesp/chain.png");
-   private static final ResourceLocation ESP_BLOOM_TEXTURE = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
-   private static final ResourceLocation PENTAGRAM_CIRCLE_1 = ResourceLocation.of("vesence", "textures/targetesp/circles1.png");
-   private static final ResourceLocation SKULL_0 = ResourceLocation.of("vesence", "textures/targetesp/skull_state_0.png");
-   private static final ResourceLocation SKULL_1 = ResourceLocation.of("vesence", "textures/targetesp/skull_state_1.png");
-   private static final ResourceLocation SKULL_2 = ResourceLocation.of("vesence", "textures/targetesp/skull_state_2.png");
+   private static final Identifier GLOW_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/glow.png");
+   private static final Identifier GLOW_TEXTURE_C = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
+   private static final Identifier CRYSTAL_GLOW_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
+   private static final Identifier CHAIN_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/chain.png");
+   private static final Identifier ESP_BLOOM_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/bloom.png");
+   private static final Identifier PENTAGRAM_CIRCLE_1 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/circles1.png");
+   private static final Identifier SKULL_0 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/skull_state_0.png");
+   private static final Identifier SKULL_1 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/skull_state_1.png");
+   private static final Identifier SKULL_2 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/skull_state_2.png");
    private static final float CHAINS_SCALE = 1.30F;
-   private static final ResourceLocation IMAGE_1 = ResourceLocation.of("vesence", "textures/targetesp/targetesp_1.png");
-   private static final ResourceLocation IMAGE_2 = ResourceLocation.of("vesence", "textures/targetesp/targetesp_2.png");
-   private static final ResourceLocation IMAGE_3 = ResourceLocation.of("vesence", "textures/targetesp/targetesp_3.png");
-   private static final ResourceLocation IMAGE_4 = ResourceLocation.of("vesence", "textures/targetesp/targetesp_4.png");
-   private static final ResourceLocation IMAGE_SQUARE = ResourceLocation.of("vesence", "textures/targetesp/square.png");
+   private static final Identifier IMAGE_1 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/targetesp_1.png");
+   private static final Identifier IMAGE_2 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/targetesp_2.png");
+   private static final Identifier IMAGE_3 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/targetesp_3.png");
+   private static final Identifier IMAGE_4 = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/targetesp_4.png");
+   private static final Identifier IMAGE_SQUARE = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/square.png");
    public static Animation2 alpha = new Animation2();
    public static Animation2 size = new Animation2();
    private LivingEntity lastTarget = null;
@@ -170,191 +171,204 @@ public class TargetESP extends Module {
    private final Animation2 hurtColorAnimation = new Animation2();
 
    private static final RenderPipeline TEXTURED_QUADS_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads"))
+                   .withVertexShader("core/position_tex_color")
+                   .withFragmentShader("core/position_tex_color")
+                   .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
    private static final RenderPipeline TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads"))
+                   .withVertexShader("core/position_tex_color")
+                   .withFragmentShader("core/position_tex_color")
+                   .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
    private static final RenderPipeline RING_STRIP_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("minecraft", "rendertype_lequal_depth_test"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLE_STRIP)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("minecraft", "rendertype_lequal_depth_test"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.TRIANGLE_STRIP)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
    private static final RenderPipeline RING_LINE_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINE_STRIP)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("minecraft", "rendertype_lines"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINE_STRIP)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final RenderType RING_STRIP_LAYER = RenderType.of("night_ring_strip", RenderSetup.builder(RING_STRIP_PIPELINE).expectedBufferSize(1024).translucent().build());
-   private static final RenderType RING_LINE_LAYER = RenderType.of("night_ring_line", RenderSetup.builder(RING_LINE_PIPELINE).expectedBufferSize(1024).translucent().build());
+   private static final RenderType RING_STRIP_LAYER = RenderType.create("night_ring_strip", RenderSetup.builder(RING_STRIP_PIPELINE).createRenderSetup());
+   private static final RenderType RING_LINE_LAYER = RenderType.create("night_ring_line", RenderSetup.builder(RING_LINE_PIPELINE).createRenderSetup());
    private static final RenderPipeline COLOR_QUADS_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/color_quads"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/color_quads"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final RenderType COLOR_QUADS_LAYER = RenderType.of("night_color_quads", RenderSetup.builder(COLOR_QUADS_PIPELINE).expectedBufferSize(1024).translucent().build());
+   private static final RenderType COLOR_QUADS_LAYER = RenderType.create("night_color_quads", RenderSetup.builder(COLOR_QUADS_PIPELINE).createRenderSetup());
    private static final RenderPipeline COLOR_LINES_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.LINES)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("minecraft", "rendertype_lines"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.LINES)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
    private static final RenderPipeline CUBE_LINES_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "targetesp_cube_lines"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "targetesp_cube_lines"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final RenderType CUBE_LINES_LAYER = RenderType.of("targetesp_cube_lines", RenderSetup.builder(CUBE_LINES_PIPELINE).expectedBufferSize(1024).translucent().build());
+   private static final RenderType CUBE_LINES_LAYER = RenderType.create("targetesp_cube_lines", RenderSetup.builder(CUBE_LINES_PIPELINE).createRenderSetup());
 
    // Прозрачный тор (стеклянное кольцо) — TRANSLUCENT блендинг.
    private static final RenderPipeline TORUS_BODY_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "targetesp_torus_body"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "targetesp_torus_body"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.TRANSLUCENT)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                    .build());
-   private static final RenderType TORUS_BODY_LAYER = RenderType.of("targetesp_torus_body", RenderSetup.builder(TORUS_BODY_PIPELINE).expectedBufferSize(65536).translucent().build());
+   private static final RenderType TORUS_BODY_LAYER = RenderType.create("targetesp_torus_body", RenderSetup.builder(TORUS_BODY_PIPELINE).createRenderSetup());
 
 
    private static final RenderPipeline CRYSTAL_TRIANGLES_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/crystal_triangles"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/crystal_triangles"))
+                   .withVertexShader("core/position_color")
+                   .withFragmentShader("core/position_color")
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final RenderType CRYSTAL_TRIANGLES_LAYER = RenderType.of("vesence_crystal_triangles", RenderSetup.builder(CRYSTAL_TRIANGLES_PIPELINE).expectedBufferSize(16384).translucent().build());
+   private static final RenderType CRYSTAL_TRIANGLES_LAYER = RenderType.create("vesence_crystal_triangles", RenderSetup.builder(CRYSTAL_TRIANGLES_PIPELINE).createRenderSetup());
 
    private static final RenderPipeline TEXTURED_QUADS_ADDITIVE_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads_additive"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads_additive"))
+                   .withVertexShader("core/position_tex_color")
+                   .withFragmentShader("core/position_tex_color")
+                   .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
-   private static final RenderType CRYSTAL_GLOW_LAYER = RenderType.of(
+   private static final RenderType CRYSTAL_GLOW_LAYER = RenderType.create(
            "vesence_crystal_glow",
            RenderSetup.builder(TEXTURED_QUADS_ADDITIVE_PIPELINE)
-                   .expectedBufferSize(4096)
-                   .translucent()
-                   .texture("Sampler0", CRYSTAL_GLOW_TEXTURE)
-                   .build());
+                   
+                   
+                   .withTexture("Sampler0", CRYSTAL_GLOW_TEXTURE)
+                   .createRenderSetup());
 
-   private static final RenderType RING2_GLOW_LAYER = RenderType.of(
+   private static final RenderType RING2_GLOW_LAYER = RenderType.create(
            "vesence_ring2_glow",
            RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
-                   .expectedBufferSize(524288)
-                   .translucent()
-                   .texture("Sampler0", GLOW_TEXTURE_C)
-                   .build());
-   private static final RenderType GLOW_NO_DEPTH_LAYER = RenderType.of(
+                   
+                   
+                   .withTexture("Sampler0", GLOW_TEXTURE_C)
+                   .createRenderSetup());
+   private static final RenderType GLOW_NO_DEPTH_LAYER = RenderType.create(
            GLOW_TEXTURE_C.toString(),
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", GLOW_TEXTURE_C).build());
-   private static final RenderType SPIRITS_GLOW_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).withTexture("Sampler0", GLOW_TEXTURE_C).createRenderSetup());
+   private static final RenderType SPIRITS_GLOW_LAYER = RenderType.create(
            GLOW_TEXTURE.getNamespace(),
            RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
-                   .expectedBufferSize(1024)
-                   .translucent()
-                   .texture("Sampler0", GLOW_TEXTURE)
-                   .build());
-   private static final RenderType SPIRITS_BLOOM_LAYER = RenderType.of(
+                   
+                   
+                   .withTexture("Sampler0", GLOW_TEXTURE)
+                   .createRenderSetup());
+   private static final RenderType SPIRITS_BLOOM_LAYER = RenderType.create(
            GLOW_TEXTURE_C.getNamespace(),
            RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
-                   .expectedBufferSize(1024)
-                   .translucent()
-                   .texture("Sampler0", GLOW_TEXTURE_C)
-                   .build());
+                   
+                   
+                   .withTexture("Sampler0", GLOW_TEXTURE_C)
+                   .createRenderSetup());
 
-   private static final RenderType CHAIN_LAYER = RenderType.of(
+   private static final RenderType CHAIN_LAYER = RenderType.create(
            "vesence_targetesp_chain",
-           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(8192).translucent()
-                   .texture("Sampler0", CHAIN_TEXTURE).build());
-   private static final RenderType PENTAGRAM_CIRCLE_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
+                   .withTexture("Sampler0", CHAIN_TEXTURE).createRenderSetup());
+   private static final RenderType PENTAGRAM_CIRCLE_LAYER = RenderType.create(
            "vesence_targetesp_pentagram",
-           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(16384).translucent()
-                   .texture("Sampler0", PENTAGRAM_CIRCLE_1).build());
-   private static final RenderType ESP_BLOOM_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
+                   .withTexture("Sampler0", PENTAGRAM_CIRCLE_1).createRenderSetup());
+   private static final RenderType ESP_BLOOM_LAYER = RenderType.create(
            "vesence_targetesp_bloom",
-           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(16384).translucent()
-                   .texture("Sampler0", ESP_BLOOM_TEXTURE).build());
-   private static final RenderType ESP_BLOOM_NO_DEPTH_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
+                   .withTexture("Sampler0", ESP_BLOOM_TEXTURE).createRenderSetup());
+   private static final RenderType ESP_BLOOM_NO_DEPTH_LAYER = RenderType.create(
            "vesence_targetesp_bloom_nodepth",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(16384).translucent()
-                   .texture("Sampler0", ESP_BLOOM_TEXTURE).build());
-   private static final RenderType SKULL_0_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", ESP_BLOOM_TEXTURE).createRenderSetup());
+   private static final RenderType SKULL_0_LAYER = RenderType.create(
            "vesence_targetesp_skull0",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", SKULL_0).build());
-   private static final RenderType SKULL_1_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", SKULL_0).createRenderSetup());
+   private static final RenderType SKULL_1_LAYER = RenderType.create(
            "vesence_targetesp_skull1",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", SKULL_1).build());
-   private static final RenderType SKULL_2_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", SKULL_1).createRenderSetup());
+   private static final RenderType SKULL_2_LAYER = RenderType.create(
            "vesence_targetesp_skull2",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", SKULL_2).build());
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", SKULL_2).createRenderSetup());
 
    private RenderType skullLayer(int state) {
       return state == 0 ? SKULL_0_LAYER : (state == 1 ? SKULL_1_LAYER : SKULL_2_LAYER);
    }
 
-   private static final RenderType IMAGE_1_LAYER = RenderType.of(           "vesence_targetesp_img1",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", IMAGE_1).build());
-   private static final RenderType IMAGE_2_LAYER = RenderType.of(
+   private static final RenderType IMAGE_1_LAYER = RenderType.create(           "vesence_targetesp_img1",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", IMAGE_1).createRenderSetup());
+   private static final RenderType IMAGE_2_LAYER = RenderType.create(
            "vesence_targetesp_img2",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", IMAGE_2).build());
-   private static final RenderType IMAGE_3_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", IMAGE_2).createRenderSetup());
+   private static final RenderType IMAGE_3_LAYER = RenderType.create(
            "vesence_targetesp_img3",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", IMAGE_3).build());
-   private static final RenderType IMAGE_4_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", IMAGE_3).createRenderSetup());
+   private static final RenderType IMAGE_4_LAYER = RenderType.create(
            "vesence_targetesp_img4",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", IMAGE_4).build());
-   private static final RenderType IMAGE_SQUARE_LAYER = RenderType.of(
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", IMAGE_4).createRenderSetup());
+   private static final RenderType IMAGE_SQUARE_LAYER = RenderType.create(
            "vesence_targetesp_square",
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
-                   .texture("Sampler0", IMAGE_SQUARE).build());
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                   .withTexture("Sampler0", IMAGE_SQUARE).createRenderSetup());
 
    private RenderType imageLayer() {
       if (typeImage.is("Картинка 1")) return IMAGE_1_LAYER;
@@ -363,7 +377,7 @@ public class TargetESP extends Module {
       return IMAGE_3_LAYER;
    }
 
-   private ResourceLocation imageTexture() {
+   private Identifier imageTexture() {
       if (typeImage.is("Картинка 1")) return IMAGE_1;
       if (typeImage.is("Картинка 2")) return IMAGE_2;
       if (typeImage.is("Картинка 4")) return IMAGE_4;
@@ -373,26 +387,28 @@ public class TargetESP extends Module {
    // Заливка осколков: additive-блендинг (LIGHTNING = SRC_ALPHA, ONE) как в
    // оригинале harmony. Это даёт яркие светящиеся осколки картинки таргета.
    private static final RenderPipeline HITBUBBLE_FILL_PIPELINE = RenderPipelines.register(
-           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                   .withLocation(ResourceLocation.of("vesence", "pipeline/world/hitbubble_fill"))
-                   .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                   .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/hitbubble_fill"))
+                   .withVertexShader("core/position_tex_color")
+                   .withFragmentShader("core/position_tex_color")
+                   .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                   .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                   .withPrimitiveTopology(PrimitiveTopology.QUADS)
                    .withCull(false)
-                   .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                   .withDepthWrite(false)
-                   .withBlend(BlendFunction.LIGHTNING)
+                   .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                   .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                    .build());
 
-   private static RenderType hitBubbleQuadLayer(ResourceLocation tex) {
-      return RenderType.of("vesence_hitbubble_quad_" + tex.getPath(),
-              RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(4096).translucent()
-                      .texture("Sampler0", tex).build());
+   private static RenderType hitBubbleQuadLayer(Identifier tex) {
+      return RenderType.create("vesence_hitbubble_quad_" + tex.getPath(),
+              RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
+                      .withTexture("Sampler0", tex).createRenderSetup());
    }
-   private static RenderType hitBubbleFillLayer(ResourceLocation tex) {
+   private static RenderType hitBubbleFillLayer(Identifier tex) {
       // Заливка осколков через additive QUADS-пайплайн — яркие цветные текстурные
       // осколки картинки таргета (полный порт harmony: GL_SRC_ALPHA, GL_ONE).
-      return RenderType.of("vesence_hitbubble_fill_" + tex.getPath(),
-              RenderSetup.builder(HITBUBBLE_FILL_PIPELINE).expectedBufferSize(262144).translucent()
-                      .texture("Sampler0", tex).build());
+      return RenderType.create("vesence_hitbubble_fill_" + tex.getPath(),
+              RenderSetup.builder(HITBUBBLE_FILL_PIPELINE)
+                      .withTexture("Sampler0", tex).createRenderSetup());
    }
    private static final RenderType IMG1_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_1);
    private static final RenderType IMG2_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_2);
@@ -506,11 +522,11 @@ public class TargetESP extends Module {
                this.lastHandledTarget = target;
                float td = e.getTickDelta();
                this.lastTargetPos = new Vec3(
-                       Mth.lerp(td, target.lastRenderX, target.getX()),
-                       Mth.lerp(td, target.lastRenderY, target.getY()),
-                       Mth.lerp(td, target.lastRenderZ, target.getZ()));
-               this.lastTargetHeight = target.getHeight();
-               this.lastTargetWidth = target.getWidth();
+                       Mth.lerp(td, target.xOld, target.getX()),
+                       Mth.lerp(td, target.yOld, target.getY()),
+                       Mth.lerp(td, target.zOld, target.getZ()));
+               this.lastTargetHeight = target.getBbHeight();
+               this.lastTargetWidth = target.getBbWidth();
             }
             alpha.run(target == null ? 0.0 : 1.0, 0.35F, Easings.QUART_OUT);
 
@@ -530,7 +546,7 @@ public class TargetESP extends Module {
                }
                if (this.lastTarget != null && !typeTargetEsp.is("Не отображать")) {
                   if (targetEspAllocator == null) { targetEspAllocator = new ByteBufferBuilder(1048576); }
-                  Immediate immediate = MultiBufferSource.immediate(targetEspAllocator);
+                  Immediate immediate = new Immediate();
 
                   try {
                      if (typeTargetEsp.is("Картинка")) {
@@ -646,17 +662,17 @@ public class TargetESP extends Module {
       // темы (fade-flow), плавный bounce по телу цели (ease-in-out вверх-вниз),
       // плотность 360 сегментов + вертикальная «шторка» затухания за ярко
       // светящейся линией. Шейдерный диск под кольцом НЕ добавляем (по просьбе).
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      double x = target.lastRenderX + (target.getX() - target.lastRenderX) * partialTicks;
-      double y = target.lastRenderY + (target.getY() - target.lastRenderY) * partialTicks;
-      double z = target.lastRenderZ + (target.getZ() - target.lastRenderZ) * partialTicks;
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
+      double x = target.xOld + (target.getX() - target.xOld) * partialTicks;
+      double y = target.yOld + (target.getY() - target.yOld) * partialTicks;
+      double z = target.zOld + (target.getZ() - target.zOld) * partialTicks;
 
       matrices.pushPose();
       matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
 
       float alphaPC = (float) alpha.getValue();
-      float height = target.getHeight();
+      float height = target.getBbHeight();
       double radius = ringRadius.get();
 
       // Bounce: тот же расчёт, что в Relevant — прогон по телу с ease-in-out,
@@ -695,8 +711,8 @@ public class TargetESP extends Module {
          double rad = Math.toRadians(i);
          float xPos = (float) (Math.cos(rad) * radius);
          float zPos = (float) (Math.sin(rad) * radius);
-         strip.vertex(matrix, xPos, ringY, zPos).color(rb, gb, bb, ab);
-         strip.vertex(matrix, xPos, trailY, zPos).color(rt, gt, bt, at);
+         strip.addVertex(matrix, xPos, ringY, zPos).setColor(rb, gb, bb, ab);
+         strip.addVertex(matrix, xPos, trailY, zPos).setColor(rt, gt, bt, at);
       }
 
       VertexConsumer line = immediate.getBuffer(RING_LINE_LAYER);
@@ -704,7 +720,7 @@ public class TargetESP extends Module {
          double rad = Math.toRadians(i);
          float xPos = (float) (Math.cos(rad) * radius);
          float zPos = (float) (Math.sin(rad) * radius);
-         line.vertex(matrix, xPos, ringY, zPos).color(colorLine);
+         line.addVertex(matrix, xPos, ringY, zPos).setColor(colorLine);
       }
 
       matrices.popPose();
@@ -723,8 +739,8 @@ public class TargetESP extends Module {
          }
 
          this.currentTimeSpirits = currentTime;
-         Vec3 lerpedPos = target.getLerpedPos(partialTicks);
-         Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+         Vec3 lerpedPos = target.getPosition(partialTicks);
+         Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
          double x = lerpedPos.x - cameraPos.x;
          double y = lerpedPos.y - cameraPos.y;
          double z = lerpedPos.z - cameraPos.z;
@@ -742,7 +758,7 @@ public class TargetESP extends Module {
          int n3 = 12;
          int n4 = 3 * n2;
          matrices.pushPose();
-         Camera camera = mc.gameRenderer.getCamera();
+         Camera camera = mc.gameRenderer.mainCamera();
 
          for (int i = 0; i < n4; i += n2) {
             for (int j = 0; j < n3; j++) {
@@ -760,9 +776,9 @@ public class TargetESP extends Module {
                scale = 0.0015F + j / 2000.0F;
 
                matrices.scale(scale, scale, scale);
-               matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-               matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
-               Matrix4f matrix = matrices.last().getPositionMatrix();
+               matrices.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+               matrices.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+               Matrix4f matrix = matrices.last().pose();
                VertexConsumer buffer2 = immediate.getBuffer(SPIRITS_GLOW_LAYER);
                int r = baseColor >> 16 & 0xFF;
                int g = baseColor >> 8 & 0xFF;
@@ -770,30 +786,30 @@ public class TargetESP extends Module {
                int a = (int) (alphaPC * 255.0F);
                int n7 = -25;
                int n8 = 50;
-               buffer2.vertex(matrix, n7, n7 + n8, 0.0F)
-                       .color(r, g, b, a)
-                       .texture(0.0F, 1.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               buffer2.vertex(matrix, n7 + n8, n7 + n8, 0.0F)
-                       .color(r, g, b, a)
-                       .texture(1.0F, 1.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               buffer2.vertex(matrix, n7 + n8, n7, 0.0F)
-                       .color(r, g, b, a)
-                       .texture(1.0F, 0.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               buffer2.vertex(matrix, n7, n7, 0.0F)
-                       .color(r, g, b, a)
-                       .texture(0.0F, 0.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
+               buffer2.addVertex(matrix, n7, n7 + n8, 0.0F)
+                       .setColor(r, g, b, a)
+                       .setUv(0.0F, 1.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               buffer2.addVertex(matrix, n7 + n8, n7 + n8, 0.0F)
+                       .setColor(r, g, b, a)
+                       .setUv(1.0F, 1.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               buffer2.addVertex(matrix, n7 + n8, n7, 0.0F)
+                       .setColor(r, g, b, a)
+                       .setUv(1.0F, 0.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               buffer2.addVertex(matrix, n7, n7, 0.0F)
+                       .setColor(r, g, b, a)
+                       .setUv(0.0F, 0.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
                matrices.popPose();
             }
          }
@@ -813,9 +829,9 @@ public class TargetESP extends Module {
                float bloomScale = (0.005F + j / 2000.0F) * 2;
 
                matrices.scale(bloomScale, bloomScale, bloomScale);
-               matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-               matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
-               Matrix4f bloomMatrix = matrices.last().getPositionMatrix();
+               matrices.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+               matrices.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+               Matrix4f bloomMatrix = matrices.last().pose();
                VertexConsumer bloomBuffer = immediate.getBuffer(SPIRITS_BLOOM_LAYER);
                int br = baseColor >> 16 & 0xFF;
                int bg = baseColor >> 8 & 0xFF;
@@ -823,30 +839,30 @@ public class TargetESP extends Module {
                int ba = (int) (alphaPC * 255.0F * 0.2F);
                int bn7 = -25;
                int bn8 = 50;
-               bloomBuffer.vertex(bloomMatrix, bn7, bn7 + bn8, 0.0F)
-                       .color(br, bg, bb, ba)
-                       .texture(0.0F, 1.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               bloomBuffer.vertex(bloomMatrix, bn7 + bn8, bn7 + bn8, 0.0F)
-                       .color(br, bg, bb, ba)
-                       .texture(1.0F, 1.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               bloomBuffer.vertex(bloomMatrix, bn7 + bn8, bn7, 0.0F)
-                       .color(br, bg, bb, ba)
-                       .texture(1.0F, 0.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
-               bloomBuffer.vertex(bloomMatrix, bn7, bn7, 0.0F)
-                       .color(br, bg, bb, ba)
-                       .texture(0.0F, 0.0F)
-                       .overlay(OverlayTexture.DEFAULT_UV)
-                       .light(15728880)
-                       .normal(0.0F, 0.0F, 1.0F);
+               bloomBuffer.addVertex(bloomMatrix, bn7, bn7 + bn8, 0.0F)
+                       .setColor(br, bg, bb, ba)
+                       .setUv(0.0F, 1.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               bloomBuffer.addVertex(bloomMatrix, bn7 + bn8, bn7 + bn8, 0.0F)
+                       .setColor(br, bg, bb, ba)
+                       .setUv(1.0F, 1.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               bloomBuffer.addVertex(bloomMatrix, bn7 + bn8, bn7, 0.0F)
+                       .setColor(br, bg, bb, ba)
+                       .setUv(1.0F, 0.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
+               bloomBuffer.addVertex(bloomMatrix, bn7, bn7, 0.0F)
+                       .setColor(br, bg, bb, ba)
+                       .setUv(0.0F, 0.0F)
+                       .setOverlay(OverlayTexture.NO_OVERLAY)
+                       .setLight(15728880)
+                       .setNormal(0.0F, 0.0F, 1.0F);
                matrices.popPose();
             }
          }
@@ -868,8 +884,8 @@ public class TargetESP extends Module {
       }
       this.spiritsRingLastTime = currentTime;
 
-      Vec3 lerpedPos = target.getLerpedPos(partialTicks);
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 lerpedPos = target.getPosition(partialTicks);
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       double baseX = lerpedPos.x - cameraPos.x;
       double baseY = lerpedPos.y - cameraPos.y;
       double baseZ = lerpedPos.z - cameraPos.z;
@@ -884,8 +900,8 @@ public class TargetESP extends Module {
       int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * alphaPC));
       int baseColor = ColorUtil.overCol(ColorUtil.multAlpha(fadeColor, alphaPC), redColor, atts);
 
-      Camera camera = mc.gameRenderer.getCamera();
-      float entityHeight = target.getHeight();
+      Camera camera = mc.gameRenderer.mainCamera();
+      float entityHeight = target.getBbHeight();
 
       double duration = 2000;
       double elapsed = currentTime % duration;
@@ -928,34 +944,34 @@ public class TargetESP extends Module {
             matrices.pushPose();
             matrices.translate(particleX, particleY, particleZ);
             matrices.scale(scale, scale, scale);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            matrices.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+            Matrix4f matrix = matrices.last().pose();
             VertexConsumer buffer = immediate.getBuffer(SPIRITS_GLOW_LAYER);
-            buffer.vertex(matrix, n7, n7 + n8, 0.0F)
-                    .color(r, g, b, a)
-                    .texture(0.0F, 1.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            buffer.vertex(matrix, n7 + n8, n7 + n8, 0.0F)
-                    .color(r, g, b, a)
-                    .texture(1.0F, 1.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            buffer.vertex(matrix, n7 + n8, n7, 0.0F)
-                    .color(r, g, b, a)
-                    .texture(1.0F, 0.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            buffer.vertex(matrix, n7, n7, 0.0F)
-                    .color(r, g, b, a)
-                    .texture(0.0F, 0.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
+            buffer.addVertex(matrix, n7, n7 + n8, 0.0F)
+                    .setColor(r, g, b, a)
+                    .setUv(0.0F, 1.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            buffer.addVertex(matrix, n7 + n8, n7 + n8, 0.0F)
+                    .setColor(r, g, b, a)
+                    .setUv(1.0F, 1.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            buffer.addVertex(matrix, n7 + n8, n7, 0.0F)
+                    .setColor(r, g, b, a)
+                    .setUv(1.0F, 0.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            buffer.addVertex(matrix, n7, n7, 0.0F)
+                    .setColor(r, g, b, a)
+                    .setUv(0.0F, 0.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
             matrices.popPose();
 
             float bloomScale = (scale + j / 2000.0F) * 1.5f;
@@ -963,34 +979,34 @@ public class TargetESP extends Module {
             matrices.pushPose();
             matrices.translate(particleX, particleY, particleZ);
             matrices.scale(bloomScale, bloomScale, bloomScale);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
-            Matrix4f bloomMatrix = matrices.last().getPositionMatrix();
+            matrices.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+            Matrix4f bloomMatrix = matrices.last().pose();
             VertexConsumer bloomBuffer = immediate.getBuffer(SPIRITS_BLOOM_LAYER);
-            bloomBuffer.vertex(bloomMatrix, n7, n7 + n8, 0.0F)
-                    .color(r, g, b, ba)
-                    .texture(0.0F, 1.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            bloomBuffer.vertex(bloomMatrix, n7 + n8, n7 + n8, 0.0F)
-                    .color(r, g, b, ba)
-                    .texture(1.0F, 1.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            bloomBuffer.vertex(bloomMatrix, n7 + n8, n7, 0.0F)
-                    .color(r, g, b, ba)
-                    .texture(1.0F, 0.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
-            bloomBuffer.vertex(bloomMatrix, n7, n7, 0.0F)
-                    .color(r, g, b, ba)
-                    .texture(0.0F, 0.0F)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .light(15728880)
-                    .normal(0.0F, 0.0F, 1.0F);
+            bloomBuffer.addVertex(bloomMatrix, n7, n7 + n8, 0.0F)
+                    .setColor(r, g, b, ba)
+                    .setUv(0.0F, 1.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            bloomBuffer.addVertex(bloomMatrix, n7 + n8, n7 + n8, 0.0F)
+                    .setColor(r, g, b, ba)
+                    .setUv(1.0F, 1.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            bloomBuffer.addVertex(bloomMatrix, n7 + n8, n7, 0.0F)
+                    .setColor(r, g, b, ba)
+                    .setUv(1.0F, 0.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
+            bloomBuffer.addVertex(bloomMatrix, n7, n7, 0.0F)
+                    .setColor(r, g, b, ba)
+                    .setUv(0.0F, 0.0F)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setLight(15728880)
+                    .setNormal(0.0F, 0.0F, 1.0F);
             matrices.popPose();
          }
       }
@@ -1002,40 +1018,40 @@ public class TargetESP extends Module {
       int r = color >> 16 & 0xFF;
       int g = color >> 8 & 0xFF;
       int b = color & 0xFF;
-      buffer.vertex(matrix, -0.5F, -0.5F, 0.0F)
-              .color(r, g, b, alpha)
-              .texture(0.0F, 1.0F)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, 0.5F, -0.5F, 0.0F)
-              .color(r, g, b, alpha)
-              .texture(1.0F, 1.0F)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, 0.5F, 0.5F, 0.0F)
-              .color(r, g, b, alpha)
-              .texture(1.0F, 0.0F)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, -0.5F, 0.5F, 0.0F)
-              .color(r, g, b, alpha)
-              .texture(0.0F, 0.0F)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, -0.5F, -0.5F, 0.0F)
+              .setColor(r, g, b, alpha)
+              .setUv(0.0F, 1.0F)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, 0.5F, -0.5F, 0.0F)
+              .setColor(r, g, b, alpha)
+              .setUv(1.0F, 1.0F)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, 0.5F, 0.5F, 0.0F)
+              .setColor(r, g, b, alpha)
+              .setUv(1.0F, 0.0F)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, -0.5F, 0.5F, 0.0F)
+              .setColor(r, g, b, alpha)
+              .setUv(0.0F, 0.0F)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
    }
 
    private void renderCubes(PoseStack matrices, Immediate immediate, LivingEntity target, float partialTicks) {
       if (target != null) {
-         Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+         Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
          long time = System.currentTimeMillis();
          int count = 24;
-         double radius = 0.4 + target.getWidth() / 2.0F + 0.35F - 0.35F * alpha.get();
-         double heightRange = target.getHeight();
-         Vec3 lerpedPos = target.getLerpedPos(partialTicks);
+         double radius = 0.4 + target.getBbWidth() / 2.0F + 0.35F - 0.35F * alpha.get();
+         double heightRange = target.getBbHeight();
+         Vec3 lerpedPos = target.getPosition(partialTicks);
          float alphaPC = (float) alpha.getValue();
          size.update();
          int hurtTicks = target.hurtTime;
@@ -1081,28 +1097,28 @@ public class TargetESP extends Module {
             float selfRotSpeed = 12000.0F + (float) r3 * 2000.0F;
             float selfRot = (float) (time % (long) Math.abs(selfRotSpeed)) / Math.abs(selfRotSpeed) * 360.0F;
             if (i % 3 == 0) {
-               matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(selfRot));
-               matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(selfRot));
+               matrices.rotate(Axis.YP.rotationDegrees(selfRot));
+               matrices.rotate(Axis.XP.rotationDegrees(selfRot));
             } else if (i % 3 == 1) {
-               matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(selfRot));
-               matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(selfRot));
+               matrices.rotate(Axis.ZP.rotationDegrees(selfRot));
+               matrices.rotate(Axis.YP.rotationDegrees(selfRot));
             } else {
-               matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(selfRot));
-               matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(selfRot));
+               matrices.rotate(Axis.XP.rotationDegrees(selfRot));
+               matrices.rotate(Axis.ZP.rotationDegrees(selfRot));
             }
 
             VertexConsumer buffer = immediate.getBuffer(COLOR_QUADS_LAYER);
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            Matrix4f matrix = matrices.last().pose();
             drawColorCube(buffer, matrix, ColorUtil.multAlpha(color, 0.5F), cubeSize);
             int lineColor = ColorUtil.multAlpha(color, alphaPC * 1.0F);
             VertexConsumer lineBuffer = immediate.getBuffer(CUBE_LINES_LAYER);
             drawCubeLines(lineBuffer, matrix, lineColor, cubeSize);
             matrices.popPose();
             matrices.pushPose();
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
+            matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
             VertexConsumer glowBuffer = immediate.getBuffer(SPIRITS_BLOOM_LAYER);
-            Matrix4f glowMatrix = matrices.last().getPositionMatrix();
+            Matrix4f glowMatrix = matrices.last().pose();
             float glowSize = cubeSize * 3.0F;
             matrices.scale(glowSize, glowSize, glowSize);
             drawGradientQuad(glowBuffer, glowMatrix, glowCol, (int) (125.0F * alphaPC));
@@ -1118,30 +1134,30 @@ public class TargetESP extends Module {
       int g = color >> 8 & 0xFF;
       int b = color & 0xFF;
       int a = color >> 24 & 0xFF;
-      buffer.vertex(matrix, -s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, -s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, -s).color(r, g, b, a);
-      buffer.vertex(matrix, s, s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, s).color(r, g, b, a);
-      buffer.vertex(matrix, s, -s, -s).color(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, -s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, -s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, s).setColor(r, g, b, a);
+      buffer.addVertex(matrix, s, -s, -s).setColor(r, g, b, a);
    }
 
    private static void drawCubeLines(VertexConsumer buffer, Matrix4f matrix, int color, float size) {
@@ -1166,8 +1182,8 @@ public class TargetESP extends Module {
 
    private static void drawLine(VertexConsumer buffer, Matrix4f matrix, float x1, float y1, float z1, float x2,
                                 float y2, float z2, int r, int g, int b, int a) {
-      buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a);
-      buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a);
+      buffer.addVertex(matrix, x1, y1, z1).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x2, y2, z2).setColor(r, g, b, a);
    }
 
    private void renderCubesOld(PoseStack matrices, Immediate immediate, LivingEntity target, float partialTicks) {
@@ -1215,9 +1231,9 @@ public class TargetESP extends Module {
             int color = ColorUtil.overCol(baseColor, redColor, atts);
             int glowCol = ColorUtil.overCol(ColorUtil.multAlpha(fadeColor, alphaPC),
                     ColorUtil.getColor(200, 100, 100, (int) (255.0F * alphaPC)), atts);
-            Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-            float pitch = mc.gameRenderer.getCamera().getXRot();
-            float yaw = mc.gameRenderer.getCamera().getYRot();
+            Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
+            float pitch = mc.gameRenderer.mainCamera().xRot();
+            float yaw = mc.gameRenderer.mainCamera().yRot();
             for (TargetESP.OldCubeParticle particle : this.oldCubeParticles) {
                particle.update(partialTicks);
                particle.render(matrices, immediate, color, glowCol, alphaPC, atts, partialTicks, cameraPos, pitch, yaw,
@@ -1236,13 +1252,13 @@ public class TargetESP extends Module {
       this.hurtColorAnimation.update();
       float easedAnim = easeOutCubic(alphaPC);
 
-      Vec3 targetPos = target.getLerpedPos(tickDelta);
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 targetPos = target.getPosition(tickDelta);
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       Vec3 renderPos = targetPos.subtract(cameraPos);
 
       float time = (mc.player.tickCount + tickDelta) * 6.0F;
-      float entityHeight = target.getHeight();
-      float entityWidth = target.getWidth();
+      float entityHeight = target.getBbHeight();
+      float entityWidth = target.getBbWidth();
       float halfWidth = entityWidth * 0.5F;
 
       int hurtTicks = target.hurtTime;
@@ -1254,7 +1270,7 @@ public class TargetESP extends Module {
       matrices.pushPose();
       matrices.translate(renderPos.x, renderPos.y, renderPos.z);
 
-      Camera camera = mc.gameRenderer.getCamera();
+      Camera camera = mc.gameRenderer.mainCamera();
 
       VertexConsumer glowBuffer = immediate.getBuffer(CRYSTAL_GLOW_LAYER);
 
@@ -1274,11 +1290,11 @@ public class TargetESP extends Module {
 
          matrices.pushPose();
          matrices.translate(x, y, z);
-         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
-         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180));
+         matrices.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+         matrices.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+         matrices.rotate(Axis.ZP.rotationDegrees(180));
          matrices.scale(crystalScale * 3.6F, crystalScale * 3.6F, crystalScale * 3.6F);
-         Matrix4f glowMatrix = matrices.last().getPositionMatrix();
+         Matrix4f glowMatrix = matrices.last().pose();
          int glowColor = ColorUtil.multAlpha(baseColor, alphaPC * 0.5F);
          drawGradientQuad(glowBuffer, glowMatrix, glowColor, (glowColor >> 24) & 0xFF);
          matrices.popPose();
@@ -1308,9 +1324,9 @@ public class TargetESP extends Module {
                                     float x2, float y2, float z2,
                                     float x3, float y3, float z3,
                                     int r, int g, int b, int a) {
-      buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a);
-      buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a);
-      buffer.vertex(matrix, x3, y3, z3).color(r, g, b, a);
+      buffer.addVertex(matrix, x1, y1, z1).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x2, y2, z2).setColor(r, g, b, a);
+      buffer.addVertex(matrix, x3, y3, z3).setColor(r, g, b, a);
    }
 
    private int getThemeColorAngle(int angle) {
@@ -1325,10 +1341,10 @@ public class TargetESP extends Module {
    private void drawCrystalGeometry(PoseStack matrices, VertexConsumer buffer, float x, float y, float z, float scale, float yaw, int color, float alpha) {
       matrices.pushPose();
       matrices.translate(x, y, z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw + 90F));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90F));
+      matrices.rotate(Axis.YP.rotationDegrees(-yaw + 90F));
+      matrices.rotate(Axis.XP.rotationDegrees(90F));
       matrices.scale(scale, scale, scale);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
 
       int r = (color >> 16) & 0xFF;
       int g = (color >> 8) & 0xFF;
@@ -1367,13 +1383,13 @@ public class TargetESP extends Module {
          int i1 = face[1];
          int i2 = face[2];
 
-         buffer.vertex(matrix, vertices[i0][0], vertices[i0][1], vertices[i0][2]).color(rL, gL, bL, aDark);
-         buffer.vertex(matrix, vertices[i1][0], vertices[i1][1], vertices[i1][2]).color(rL, gL, bL, aDark);
-         buffer.vertex(matrix, vertices[i2][0], vertices[i2][1], vertices[i2][2]).color(rL, gL, bL, a);
+         buffer.addVertex(matrix, vertices[i0][0], vertices[i0][1], vertices[i0][2]).setColor(rL, gL, bL, aDark);
+         buffer.addVertex(matrix, vertices[i1][0], vertices[i1][1], vertices[i1][2]).setColor(rL, gL, bL, aDark);
+         buffer.addVertex(matrix, vertices[i2][0], vertices[i2][1], vertices[i2][2]).setColor(rL, gL, bL, a);
 
-         buffer.vertex(matrix, vertices[i0][0], vertices[i0][1], vertices[i0][2]).color(rL, gL, bL, a);
-         buffer.vertex(matrix, vertices[i2][0], vertices[i2][1], vertices[i2][2]).color(rL, gL, bL, a);
-         buffer.vertex(matrix, vertices[i1][0], vertices[i1][1], vertices[i1][2]).color(rLDark, gLDark, bLDark, aDark);
+         buffer.addVertex(matrix, vertices[i0][0], vertices[i0][1], vertices[i0][2]).setColor(rL, gL, bL, a);
+         buffer.addVertex(matrix, vertices[i2][0], vertices[i2][1], vertices[i2][2]).setColor(rL, gL, bL, a);
+         buffer.addVertex(matrix, vertices[i1][0], vertices[i1][1], vertices[i1][2]).setColor(rLDark, gLDark, bLDark, aDark);
       }
 
       matrices.popPose();
@@ -1388,12 +1404,12 @@ public class TargetESP extends Module {
       this.hurtColorAnimation.update();
       float easedAnim = easeOutCubic(alphaPC);
 
-      Vec3 targetPos = target.getLerpedPos(tickDelta);
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 targetPos = target.getPosition(tickDelta);
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       Vec3 renderPos = targetPos.subtract(cameraPos);
 
-      float entityWidth = target.getWidth() * 0.9F;
-      float entityHeight = target.getHeight();
+      float entityWidth = target.getBbWidth() * 0.9F;
+      float entityHeight = target.getBbHeight();
 
       int hurtTicks = target.hurtTime;
       float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
@@ -1417,12 +1433,12 @@ public class TargetESP extends Module {
 
       Vector3f rightAxis = new Vector3f(1.0F, 0.0F, 0.0F);
       Vector3f upAxis = new Vector3f(0.0F, 1.0F, 0.0F);
-      mc.gameRenderer.getCamera().getRotation().transform(rightAxis);
-      mc.gameRenderer.getCamera().getRotation().transform(upAxis);
+      mc.gameRenderer.mainCamera().rotation().transform(rightAxis);
+      mc.gameRenderer.mainCamera().rotation().transform(upAxis);
 
       matrices.pushPose();
       matrices.translate(renderPos.x, renderPos.y, renderPos.z);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
 
       VertexConsumer buffer = immediate.getBuffer(RING2_GLOW_LAYER);
 
@@ -1458,12 +1474,12 @@ public class TargetESP extends Module {
       if (alphaPC <= 0.01F) return;
 
       float tickDelta = event.getTickDelta();
-      Vec3 targetPos = target.getLerpedPos(tickDelta);
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 targetPos = target.getPosition(tickDelta);
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
       Vec3 renderPos = targetPos.subtract(cameraPos);
 
-      float entityWidth = target.getWidth() * 0.9F;
-      float entityHeight = target.getHeight();
+      float entityWidth = target.getBbWidth() * 0.9F;
+      float entityHeight = target.getBbHeight();
 
       // Пульс тела тора + вертикальное «дыхание» кольца.
       double duration = 1800.0;
@@ -1479,8 +1495,8 @@ public class TargetESP extends Module {
       PoseStack matrices = event.getMatrixStack();
       matrices.pushPose();
       matrices.translate(renderPos.x, renderPos.y + ringY, renderPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
-      Matrix4f mv = new Matrix4f(matrices.last().getPositionMatrix());
+      matrices.rotate(Axis.XP.rotationDegrees(90.0F));
+      Matrix4f mv = new Matrix4f(matrices.last().pose());
       matrices.popPose();
 
       // «Глубина» — перекрытие геометрией мира. Растворение (dissolve) через
@@ -1524,18 +1540,18 @@ public class TargetESP extends Module {
 
       Vector3f rightAxis = new Vector3f(1.0F, 0.0F, 0.0F);
       Vector3f upAxis = new Vector3f(0.0F, 1.0F, 0.0F);
-      mc.gameRenderer.getCamera().getRotation().transform(rightAxis);
-      mc.gameRenderer.getCamera().getRotation().transform(upAxis);
+      mc.gameRenderer.mainCamera().rotation().transform(rightAxis);
+      mc.gameRenderer.mainCamera().rotation().transform(upAxis);
 
       PoseStack matrices = event.getMatrixStack();
       matrices.pushPose();
       matrices.translate(renderPos.x, renderPos.y + ringY, renderPos.z);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
       matrices.popPose();
 
       ByteBufferBuilder allocator = targetEspAllocator2;
       if (allocator == null) { allocator = new ByteBufferBuilder(131072); targetEspAllocator2 = allocator; }
-      Immediate immediate = MultiBufferSource.immediate(allocator);
+      Immediate immediate = new Immediate();
       try {
          VertexConsumer buffer = immediate.getBuffer(RING2_GLOW_LAYER);
          for (int i = 0; i < points; i++) {
@@ -1584,10 +1600,10 @@ public class TargetESP extends Module {
             float z4 = (float) ((outerRad + innerRad * cosT) * sinNP);
             float y4 = (float) (innerRad * sinT);
 
-            buffer.vertex(m, x1, y1, z1).color(r, g, b, alpha);
-            buffer.vertex(m, x2, y2, z2).color(r, g, b, alpha);
-            buffer.vertex(m, x3, y3, z3).color(r, g, b, alpha);
-            buffer.vertex(m, x4, y4, z4).color(r, g, b, alpha);
+            buffer.addVertex(m, x1, y1, z1).setColor(r, g, b, alpha);
+            buffer.addVertex(m, x2, y2, z2).setColor(r, g, b, alpha);
+            buffer.addVertex(m, x3, y3, z3).setColor(r, g, b, alpha);
+            buffer.addVertex(m, x4, y4, z4).setColor(r, g, b, alpha);
          }
       }
    }
@@ -1603,30 +1619,30 @@ public class TargetESP extends Module {
       float uy = upAxis.y * half;
       float uz = upAxis.z * half;
 
-      buffer.vertex(matrix, centerX - rx + ux, centerY - ry + uy, centerZ - rz + uz)
-              .texture(0.0F, 1.0F)
-              .color(color)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, centerX + rx + ux, centerY + ry + uy, centerZ + rz + uz)
-              .texture(1.0F, 1.0F)
-              .color(color)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, centerX + rx - ux, centerY + ry - uy, centerZ + rz - uz)
-              .texture(1.0F, 0.0F)
-              .color(color)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, centerX - rx - ux, centerY - ry - uy, centerZ - rz - uz)
-              .texture(0.0F, 0.0F)
-              .color(color)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, centerX - rx + ux, centerY - ry + uy, centerZ - rz + uz)
+              .setUv(0.0F, 1.0F)
+              .setColor(color)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, centerX + rx + ux, centerY + ry + uy, centerZ + rz + uz)
+              .setUv(1.0F, 1.0F)
+              .setColor(color)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, centerX + rx - ux, centerY + ry - uy, centerZ + rz - uz)
+              .setUv(1.0F, 0.0F)
+              .setColor(color)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, centerX - rx - ux, centerY - ry - uy, centerZ - rz - uz)
+              .setUv(0.0F, 0.0F)
+              .setColor(color)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
    }
 
    /**
@@ -1643,12 +1659,12 @@ public class TargetESP extends Module {
       float alphaPC = (float) alpha.getValue();
       if (alphaPC <= 0.01F) return;
 
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
       double worldX = this.lastTargetPos.x;
       double worldY = this.lastTargetPos.y + (this.lastTargetHeight + 0.4F) * 0.5F;
       double worldZ = this.lastTargetPos.z;
 
-      double distSq = cam.squaredDistanceTo(worldX, worldY, worldZ);
+      double distSq = cam.distanceToSqr(worldX, worldY, worldZ);
       if (distSq > 10000.0) return;
 
       // Тот же расчёт размера, что и в renderMarker3D ("Картинка").
@@ -1755,12 +1771,12 @@ public class TargetESP extends Module {
 
       matrices.pushPose();
       matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
+      matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+      matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
       if (rotation != 0.0F) {
-         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
+         matrices.rotate(Axis.ZP.rotationDegrees(rotation));
       }
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
       texVertex(buffer, matrix, -half, -half, 0.0F, 0.0F, 1.0F, r, g, b, a);
       texVertex(buffer, matrix, -half, half, 0.0F, 0.0F, 0.0F, r, g, b, a);
       texVertex(buffer, matrix, half, half, 0.0F, 1.0F, 0.0F, r, g, b, a);
@@ -1770,12 +1786,12 @@ public class TargetESP extends Module {
 
    private static void texVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y, float z,
                                  float u, float v, int r, int g, int b, int a) {
-      buffer.vertex(matrix, x, y, z)
-              .color(r, g, b, a)
-              .texture(u, v)
-              .overlay(OverlayTexture.DEFAULT_UV)
-              .light(15728880)
-              .normal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, x, y, z)
+              .setColor(r, g, b, a)
+              .setUv(u, v)
+              .setOverlay(OverlayTexture.NO_OVERLAY)
+              .setLight(15728880)
+              .setNormal(0.0F, 0.0F, 1.0F);
    }
 
    private void renderMarker3D(EventRender3D event, Immediate immediate, LivingEntity target, boolean hasTarget) {
@@ -1786,12 +1802,12 @@ public class TargetESP extends Module {
          if (this.appearValue <= 0.001F) return;
       }
 
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
       double worldX = this.lastTargetPos.x;
       double worldY = this.lastTargetPos.y + (this.lastTargetHeight + 0.4F) * 0.5F;
       double worldZ = this.lastTargetPos.z;
 
-      double distSq = cam.squaredDistanceTo(worldX, worldY, worldZ);
+      double distSq = cam.distanceToSqr(worldX, worldY, worldZ);
       if (distSq > 10000.0) return;
 
       float baseSize = (float) (double) imageSize.get() * 12.0F;
@@ -1868,9 +1884,9 @@ public class TargetESP extends Module {
          this.hitBubbleShatterEmitted = false;
       } else {
          if (!this.hitBubbleShatterEmitted && this.hitBubbleLastMarkerPos != null
-                 && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
-            float yaw = mc.gameRenderer.getCamera().getYRot();
-            float pitch = mc.gameRenderer.getCamera().getXRot();
+                 && mc.gameRenderer != null && mc.gameRenderer.mainCamera() != null) {
+            float yaw = mc.gameRenderer.mainCamera().yRot();
+            float pitch = mc.gameRenderer.mainCamera().xRot();
             this.hitBubbleShatter.spawn(this.hitBubbleLastMarkerPos, yaw, pitch, 1200.0f);
             this.hitBubbleShatterEmitted = true;
          }
@@ -1880,15 +1896,15 @@ public class TargetESP extends Module {
    private void renderHitBubbleShatter(EventRender3D event) {
       if (!this.isHitBubbleActive()) return;
       if (this.hitBubbleShatter.isEmpty()) return;
-      if (mc.gameRenderer == null || mc.gameRenderer.getCamera() == null) return;
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
+      if (mc.gameRenderer == null || mc.gameRenderer.mainCamera() == null) return;
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
       int themeColor = this.getESPColor();
       int themeColor2 = ColorUtil.fade(90);
 
       if (targetEspAllocQuad == null) { targetEspAllocQuad = new ByteBufferBuilder(1048576); }
       if (targetEspAllocFill == null) { targetEspAllocFill = new ByteBufferBuilder(1048576); }
-      Immediate imQuad = MultiBufferSource.immediate(targetEspAllocQuad);
-      Immediate imFill = MultiBufferSource.immediate(targetEspAllocFill);
+      Immediate imQuad = new Immediate();
+      Immediate imFill = new Immediate();
       try {
          VertexConsumer quad = imQuad.getBuffer(this.bubbleQuadLayer());
          VertexConsumer fill = imFill.getBuffer(this.bubbleFillLayer());
@@ -1908,14 +1924,14 @@ public class TargetESP extends Module {
          return;
       }
       float delta = event.getTickDelta();
-      Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
-      double tX = Mth.lerp(delta, target.lastRenderX, target.getX()) - camPos.x;
-      double tY = Mth.lerp(delta, target.lastRenderY, target.getY()) - camPos.y;
-      double tZ = Mth.lerp(delta, target.lastRenderZ, target.getZ()) - camPos.z;
+      Vec3 camPos = mc.gameRenderer.mainCamera().position();
+      double tX = Mth.lerp(delta, target.xOld, target.getX()) - camPos.x;
+      double tY = Mth.lerp(delta, target.yOld, target.getY()) - camPos.y;
+      double tZ = Mth.lerp(delta, target.zOld, target.getZ()) - camPos.z;
       float hurtFactor = this.getHurtPC(target);
-      float animationTime = target.age + delta;
-      float baseRadius = Math.max(0.2F, target.getWidth() * 0.90F * CHAINS_SCALE);
-      float bandHeight = Math.max(0.35F, target.getHeight() * 0.45F * CHAINS_SCALE);
+      float animationTime = target.tickCount + delta;
+      float baseRadius = Math.max(0.2F, target.getBbWidth() * 0.90F * CHAINS_SCALE);
+      float bandHeight = Math.max(0.35F, target.getBbHeight() * 0.45F * CHAINS_SCALE);
       float compressedRadius = baseRadius;
       float primaryBandHeight = bandHeight;
       float secondaryBandHeight = bandHeight * 0.8F;
@@ -1929,7 +1945,7 @@ public class TargetESP extends Module {
       VertexConsumer buffer = immediate.getBuffer(CHAIN_LAYER);
       PoseStack matrices = event.getMatrixStack();
       matrices.pushPose();
-      matrices.translate(tX, tY + target.getHeight() * 0.52, tZ);
+      matrices.translate(tX, tY + target.getBbHeight() * 0.52, tZ);
       this.renderChainBandV2(buffer, matrices, compressedRadius * 0.9F, primaryBandHeight, roll, pitch, spin, this.appearValue, startColor, endColor, 0.0F);
       this.renderChainBandV2(buffer, matrices, compressedRadius * 0.98F, secondaryBandHeight, -roll, -pitch, -spin * 0.92F, this.appearValue * 0.92F, endColor, startColor, 0.38F);
       matrices.popPose();
@@ -1938,9 +1954,9 @@ public class TargetESP extends Module {
    private void renderChainBandV2(VertexConsumer buffer, PoseStack matrices, float radius, float bandHeight,
                                   float roll, float pitch, float spin, float alpha, int startColor, int endColor, float uvOffset) {
       matrices.pushPose();
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(roll));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch));
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      matrices.rotate(Axis.ZP.rotationDegrees(roll));
+      matrices.rotate(Axis.XP.rotationDegrees(pitch));
+      Matrix4f matrix = matrices.last().pose();
       float bottomY = -bandHeight * 0.5F;
       float topY = bandHeight * 0.5F;
       int segments = 64;
@@ -1986,19 +2002,19 @@ public class TargetESP extends Module {
       }
 
       PoseStack matrices = event.getMatrixStack();
-      Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 camPos = mc.gameRenderer.mainCamera().position();
       float partialTicks = event.getTickDelta();
 
-      double tx = Mth.lerp(partialTicks, target.lastRenderX, target.getX());
-      double ty = Mth.lerp(partialTicks, target.lastRenderY, target.getY());
-      double tz = Mth.lerp(partialTicks, target.lastRenderZ, target.getZ());
-      Vec3 targetCenter = new Vec3(tx, ty + target.getHeight() / 2.0, tz);
+      double tx = Mth.lerp(partialTicks, target.xOld, target.getX());
+      double ty = Mth.lerp(partialTicks, target.yOld, target.getY());
+      double tz = Mth.lerp(partialTicks, target.zOld, target.getZ());
+      Vec3 targetCenter = new Vec3(tx, ty + target.getBbHeight() / 2.0, tz);
 
       long now = System.currentTimeMillis();
       if (this.orbitLastTime == 0L) this.orbitLastTime = now;
       float dtMs = now - this.orbitLastTime;
       this.orbitLastTime = now;
-      float fpsFactor = 500.0F / Math.max(mc.getCurrentFps(), 10);
+      float fpsFactor = 500.0F / Math.max(mc.getFps(), 10);
       this.orbitMovingAngle += (20.0F * dtMs / 16.667F) * (ORBIT_SPEED / 55.0F);
 
       boolean isHurt = target.hurtTime > 7;
@@ -2048,9 +2064,9 @@ public class TargetESP extends Module {
 
             matrices.pushPose();
             matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
+            Matrix4f matrix = matrices.last().pose();
             texVertex(buffer, matrix, -scale, scale, 0.0F, 0.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, scale, scale, 0.0F, 1.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, scale, -scale, 0.0F, 1.0F, 0.0F, r, g, b, a);
@@ -2066,9 +2082,9 @@ public class TargetESP extends Module {
             int r = headColor >> 16 & 0xFF, g = headColor >> 8 & 0xFF, b = headColor & 0xFF, a = headColor >> 24 & 0xFF;
             matrices.pushPose();
             matrices.translate(head.x - camPos.x, head.y - camPos.y, head.z - camPos.z);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
+            Matrix4f matrix = matrices.last().pose();
             texVertex(buffer, matrix, -headScale, headScale, 0.0F, 0.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, headScale, headScale, 0.0F, 1.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, headScale, -headScale, 0.0F, 1.0F, 0.0F, r, g, b, a);
@@ -2080,7 +2096,7 @@ public class TargetESP extends Module {
 
    private void addBMWGhosts(LivingEntity entity, int cornersCount, int maxTime, int colorBase) {
       float xzRange = 0.7F;
-      float yRange = entity.getHeight();
+      float yRange = entity.getBbHeight();
       int delayXZ = (int) (double) bmwStrengthXZ.get();
       int delayY = (int) (double) bmwStrengthY.get();
       long time = System.currentTimeMillis();
@@ -2108,15 +2124,15 @@ public class TargetESP extends Module {
       Vec3 basePos;
       if (renderTarget != null && renderTarget.isAlive()) {
          basePos = new Vec3(
-                 Mth.lerp(partialTicks, renderTarget.lastRenderX, renderTarget.getX()),
-                 Mth.lerp(partialTicks, renderTarget.lastRenderY, renderTarget.getY()),
-                 Mth.lerp(partialTicks, renderTarget.lastRenderZ, renderTarget.getZ()));
+                 Mth.lerp(partialTicks, renderTarget.xOld, renderTarget.getX()),
+                 Mth.lerp(partialTicks, renderTarget.yOld, renderTarget.getY()),
+                 Mth.lerp(partialTicks, renderTarget.zOld, renderTarget.getZ()));
       } else {
          basePos = this.lastTargetPos;
       }
       if (basePos == null) return;
 
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
       float hurtPC = this.getHurtPC(renderTarget);
       float fixedScreenSize = 6.0F;
       VertexConsumer buffer = immediate.getBuffer(ESP_BLOOM_NO_DEPTH_LAYER);
@@ -2142,12 +2158,12 @@ public class TargetESP extends Module {
    private void drawCompass3D(EventRender3D event, Immediate immediate, LivingEntity target) {
       if (target == null || this.appearValue <= 0.001F || this.lastTargetPos == null) return;
       PoseStack matrices = event.getMatrixStack();
-      Vec3 camPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 camPos = mc.gameRenderer.mainCamera().position();
       float partialTicks = event.getTickDelta();
-      double x = Mth.lerp(partialTicks, target.lastRenderX, target.getX()) - camPos.x;
-      double y = Mth.lerp(partialTicks, target.lastRenderY, target.getY()) - camPos.y;
-      double z = Mth.lerp(partialTicks, target.lastRenderZ, target.getZ()) - camPos.z;
-      float height = target.getHeight();
+      double x = Mth.lerp(partialTicks, target.xOld, target.getX()) - camPos.x;
+      double y = Mth.lerp(partialTicks, target.yOld, target.getY()) - camPos.y;
+      double z = Mth.lerp(partialTicks, target.zOld, target.getZ()) - camPos.z;
+      float height = target.getBbHeight();
 
       final double FLOOR_OFFSET = 0.15;
       short period = 1500;
@@ -2213,9 +2229,9 @@ public class TargetESP extends Module {
             particleColor = ColorUtil.overCol(particleColor, ColorUtil.replAlpha(hurtRed, (int) (160 * this.appearValue)), hurtPC);
             int r = particleColor >> 16 & 0xFF, g = particleColor >> 8 & 0xFF, b = particleColor & 0xFF, a = particleColor >> 24 & 0xFF;
 
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
-            Matrix4f matrix = matrices.last().getPositionMatrix();
+            matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+            matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
+            Matrix4f matrix = matrices.last().pose();
             texVertex(buffer, matrix, -particleSize, -particleSize, 0.0F, 1.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, particleSize, -particleSize, 0.0F, 0.0F, 1.0F, r, g, b, a);
             texVertex(buffer, matrix, particleSize, particleSize, 0.0F, 0.0F, 0.0F, r, g, b, a);
@@ -2230,13 +2246,13 @@ public class TargetESP extends Module {
       if (target == null || this.appearValue <= 0.001F) return;
 
       PoseStack matrices = event.getMatrixStack();
-      Vec3 cam = mc.gameRenderer.getCamera().getCameraPos();
-      float camYaw = mc.gameRenderer.getCamera().getYRot();
-      float camPitch = mc.gameRenderer.getCamera().getXRot();
+      Vec3 cam = mc.gameRenderer.mainCamera().position();
+      float camYaw = mc.gameRenderer.mainCamera().yRot();
+      float camPitch = mc.gameRenderer.mainCamera().xRot();
       float partialTicks = event.getTickDelta();
-      double tx = Mth.lerp(partialTicks, target.lastRenderX, target.getX());
-      double ty = Mth.lerp(partialTicks, target.lastRenderY, target.getY()) + target.getHeight() / 2.0;
-      double tz = Mth.lerp(partialTicks, target.lastRenderZ, target.getZ());
+      double tx = Mth.lerp(partialTicks, target.xOld, target.getX());
+      double ty = Mth.lerp(partialTicks, target.yOld, target.getY()) + target.getBbHeight() / 2.0;
+      double tz = Mth.lerp(partialTicks, target.zOld, target.getZ());
 
       long now = System.currentTimeMillis();
       if (this.lastSkullTime == 0L) this.lastSkullTime = now;
@@ -2291,9 +2307,9 @@ public class TargetESP extends Module {
                               float size, float r, float g, float b, float alpha, float camYaw, float camPitch) {
       matrices.pushPose();
       matrices.translate(x, y, z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      matrices.rotate(Axis.YP.rotationDegrees(-camYaw));
+      matrices.rotate(Axis.XP.rotationDegrees(camPitch));
+      Matrix4f matrix = matrices.last().pose();
       float half = size / 2.0F;
       int ri = (int) (r * 255.0F);
       int gi = (int) (g * 255.0F);
@@ -2315,15 +2331,15 @@ public class TargetESP extends Module {
 
       float partialTicks = event.getTickDelta();
       PoseStack matrices = event.getMatrixStack();
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
 
       double x, y, z;
       float targetWidth;
       if (target != null && target.isAlive()) {
-         x = Mth.lerp(partialTicks, target.lastRenderX, target.getX());
-         y = Mth.lerp(partialTicks, target.lastRenderY, target.getY()) + 0.01;
-         z = Mth.lerp(partialTicks, target.lastRenderZ, target.getZ());
-         targetWidth = target.getWidth();
+         x = Mth.lerp(partialTicks, target.xOld, target.getX());
+         y = Mth.lerp(partialTicks, target.yOld, target.getY()) + 0.01;
+         z = Mth.lerp(partialTicks, target.zOld, target.getZ());
+         targetWidth = target.getBbWidth();
       } else {
          x = this.lastTargetPos.x;
          y = this.lastTargetPos.y + 0.01;
@@ -2354,7 +2370,7 @@ public class TargetESP extends Module {
       }
       float dtMs = Math.min((float) (now - this.lastPentagramParticleTime), 50.0F);
       this.lastPentagramParticleTime = now;
-      float maxHeight = target != null ? target.getHeight() * 2.2F : 3.5F;
+      float maxHeight = target != null ? target.getBbHeight() * 2.2F : 3.5F;
 
       this.pentagramParticles.removeIf(p -> {
          p.update(dtMs, now, target, maxHeight);
@@ -2418,9 +2434,9 @@ public class TargetESP extends Module {
 
          matrices.pushPose();
          matrices.translate(px, py, pz);
-         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYRot()));
-         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getXRot()));
-         Matrix4f matrix = matrices.last().getPositionMatrix();
+         matrices.rotate(Axis.YP.rotationDegrees(-mc.gameRenderer.mainCamera().yRot()));
+         matrices.rotate(Axis.XP.rotationDegrees(mc.gameRenderer.mainCamera().xRot()));
+         Matrix4f matrix = matrices.last().pose();
          texVertex(buffer, matrix, -sizeP, -sizeP, 0.0F, 0.0F, 0.0F, r, g, b, a);
          texVertex(buffer, matrix, sizeP, -sizeP, 0.0F, 1.0F, 0.0F, r, g, b, a);
          texVertex(buffer, matrix, sizeP, sizeP, 0.0F, 1.0F, 1.0F, r, g, b, a);
@@ -2437,10 +2453,10 @@ public class TargetESP extends Module {
 
       matrices.pushPose();
       matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
+      matrices.rotate(Axis.XP.rotationDegrees(90.0F));
+      matrices.rotate(Axis.ZP.rotationDegrees(rotation));
       matrices.scale(scale, scale, scale);
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Matrix4f matrix = matrices.last().pose();
       texVertex(buffer, matrix, -1.0F, 1.0F, 0.0F, 0.0F, 1.0F, r, g, b, a);
       texVertex(buffer, matrix, 1.0F, 1.0F, 0.0F, 1.0F, 1.0F, r, g, b, a);
       texVertex(buffer, matrix, 1.0F, -1.0F, 0.0F, 1.0F, 0.0F, r, g, b, a);
@@ -2453,9 +2469,9 @@ public class TargetESP extends Module {
       if (alpha <= 0.01F || radius <= 0.01F) return;
       matrices.pushPose();
       matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      matrices.rotate(Axis.XP.rotationDegrees(90.0F));
+      matrices.rotate(Axis.ZP.rotationDegrees(rotation));
+      Matrix4f matrix = matrices.last().pose();
 
       int layers = 70;
       float maxHeight = radius * 0.1F;
@@ -2608,21 +2624,21 @@ public class TargetESP extends Module {
 
       double getRenderX(float partialTicks) {
          if (!this.fading && this.entity != null) {
-            return Mth.lerp(partialTicks, this.entity.lastRenderX, this.entity.getX()) + this.x;
+            return Mth.lerp(partialTicks, this.entity.xOld, this.entity.getX()) + this.x;
          }
          return this.worldX;
       }
 
       double getRenderY(float partialTicks) {
          if (!this.fading && this.entity != null) {
-            return Mth.lerp(partialTicks, this.entity.lastRenderY, this.entity.getY()) + this.y;
+            return Mth.lerp(partialTicks, this.entity.yOld, this.entity.getY()) + this.y;
          }
          return this.worldY;
       }
 
       double getRenderZ(float partialTicks) {
          if (!this.fading && this.entity != null) {
-            return Mth.lerp(partialTicks, this.entity.lastRenderZ, this.entity.getZ()) + this.z;
+            return Mth.lerp(partialTicks, this.entity.zOld, this.entity.getZ()) + this.z;
          }
          return this.worldZ;
       }
@@ -2663,7 +2679,7 @@ public class TargetESP extends Module {
          this.animation.setDirection(elapsed <= 800L ? Direction.FORWARDS : Direction.BACKWARDS);
          this.y = this.y + this.velocityY * (TargetESP.oldCubeDeltaTime * 60.0F);
          if (this.entity != null) {
-            Vec3 lerpedPos = this.entity.getLerpedPos(partialTicks);
+            Vec3 lerpedPos = this.entity.getPosition(partialTicks);
             this.motionX = this.x + lerpedPos.x;
             this.motionY = this.y + lerpedPos.y;
             this.motionZ = this.z + lerpedPos.z;
@@ -2694,10 +2710,10 @@ public class TargetESP extends Module {
             matrixStack.pushPose();
             matrixStack.translate(this.posX, this.posY, this.posZ);
             matrixStack.pushPose();
-            matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float) rotation));
-            matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float) rotation));
-            matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) rotation));
-            Matrix4f matrix = matrixStack.last().getPositionMatrix();
+            matrixStack.rotate(Axis.XP.rotationDegrees((float) rotation));
+            matrixStack.rotate(Axis.YP.rotationDegrees((float) rotation));
+            matrixStack.rotate(Axis.ZP.rotationDegrees((float) rotation));
+            Matrix4f matrix = matrixStack.last().pose();
             int cubeColor = ColorUtil.multAlpha(color, 0.5F * animOutput);
             VertexConsumer buffer = immediate.getBuffer(TargetESP.COLOR_QUADS_LAYER);
             TargetESP.drawColorCube(buffer, matrix, cubeColor, cubeSize);
@@ -2706,10 +2722,10 @@ public class TargetESP extends Module {
             TargetESP.drawCubeLines(lineBuffer, matrix, lineColor, cubeSize);
             matrixStack.popPose();
             matrixStack.pushPose();
-            matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw));
-            matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch));
+            matrixStack.rotate(Axis.YP.rotationDegrees(-yaw));
+            matrixStack.rotate(Axis.XP.rotationDegrees(pitch));
             VertexConsumer glowBuffer = immediate.getBuffer(glowLayer);
-            Matrix4f glowMatrix = matrixStack.last().getPositionMatrix();
+            Matrix4f glowMatrix = matrixStack.last().pose();
             float glowSize = cubeSize * 3.0F;
             matrixStack.scale(glowSize, glowSize, glowSize);
             int glowColorWithAlpha = ColorUtil.reAlphaInt(glowCol, (int) (125.0F * alphaPC * animOutput));

@@ -9,11 +9,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -21,16 +20,14 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.event.EventInit;
@@ -43,6 +40,10 @@ import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.utils.friends.FriendStorage;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * Trails — полный порт ru.whylol.client.modules.impl.render.Trails.
@@ -74,27 +75,29 @@ public class Trails extends Module {
 
     // ── Classic pipeline ──
     private static final RenderPipeline STRIP_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/trails_strip"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLE_STRIP)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/trails_strip"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.TRIANGLE_STRIP)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
-    private static final RenderType STRIP_LAYER = RenderType.of("vesence_trails_strip",
-            RenderSetup.builder(STRIP_PIPELINE).expectedBufferSize(262144).translucent().build());
+    private static final RenderType STRIP_LAYER = RenderType.create("vesence_trails_strip",
+            RenderSetup.builder(STRIP_PIPELINE).createRenderSetup());
     private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINE_STRIP)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("minecraft", "rendertype_lines"))
+                    .withVertexShader("core/position_color")
+                    .withFragmentShader("core/position_color")
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINE_STRIP)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.TRANSLUCENT)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                     .build());
-    private static final RenderType LINE_LAYER = RenderType.of("vesence_trails_line",
-            RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(131072).translucent().build());
+    private static final RenderType LINE_LAYER = RenderType.create("vesence_trails_line",
+            RenderSetup.builder(LINE_PIPELINE).createRenderSetup());
 
     public Trails() {
         this.addSettings(this.mode, this.duration);
@@ -132,7 +135,7 @@ public class Trails extends Module {
         if (this.mode.is(MODE_FIZZ)) { this.fizz.onRender(event); return; }
 
         // Classic
-        if (mc.options.getPerspective().isFirstPerson()) return;
+        if (mc.options.getCameraType().isFirstPerson()) return;
         long now = System.currentTimeMillis();
         float lifetime = (float) (double) this.duration.get();
         evictExpired(now, lifetime);
@@ -165,9 +168,9 @@ public class Trails extends Module {
             this.pointHead = (this.pointHead + 1) % MAX_POINTS;
         }
         Point p = this.pointBuffer[writeIdx];
-        p.x = Mth.lerp(partialTicks, mc.player.lastRenderX, mc.player.getX());
-        p.y = Mth.lerp(partialTicks, mc.player.lastRenderY, mc.player.getY());
-        p.z = Mth.lerp(partialTicks, mc.player.lastRenderZ, mc.player.getZ());
+        p.x = Mth.lerp(partialTicks, mc.player.xOld, mc.player.getX());
+        p.y = Mth.lerp(partialTicks, mc.player.yOld, mc.player.getY());
+        p.z = Mth.lerp(partialTicks, mc.player.zOld, mc.player.getZ());
         p.time = now;
     }
 
@@ -180,27 +183,27 @@ public class Trails extends Module {
         if (this.pointSize < 2) return;
         buildPointsView();
 
-        Vec3 view = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 view = mc.gameRenderer.mainCamera().position();
         matrixStack.pushPose();
         matrixStack.translate(-view.x, -view.y, -view.z);
-        Matrix4f matrix = matrixStack.last().getPositionMatrix();
+        Matrix4f matrix = matrixStack.last().pose();
 
         int themeColor = ColorUtil.fade();
         int r = (themeColor >> 16) & 0xFF;
         int g = (themeColor >> 8) & 0xFF;
         int b = themeColor & 0xFF;
-        float height = mc.player.getHeight();
+        float height = mc.player.getBbHeight();
 
         if (trailAllocClassic == null) { trailAllocClassic = new ByteBufferBuilder(262144); }
-        Immediate immediate = MultiBufferSource.immediate(trailAllocClassic);
+        Immediate immediate = new Immediate();
         try {
             VertexConsumer strip = immediate.getBuffer(STRIP_LAYER);
             int total = this.pointsView.size();
             int index = 0;
             for (Point p : this.pointsView) {
                 int a = (int) ((float) index / total * 0.7F * 255.0F);
-                strip.vertex(matrix, (float) p.x, (float) (p.y + height), (float) p.z).color(r, g, b, a);
-                strip.vertex(matrix, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, a);
+                strip.addVertex(matrix, (float) p.x, (float) (p.y + height), (float) p.z).setColor(r, g, b, a);
+                strip.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z).setColor(r, g, b, a);
                 index++;
             }
 
@@ -208,18 +211,18 @@ public class Trails extends Module {
             index = 0;
             for (Point p : this.pointsView) {
                 int a = (int) (Math.min((float) index / total * 1.5F, 1.0F) * 255.0F);
-                lineTop.vertex(matrix, (float) p.x, (float) (p.y + height), (float) p.z).color(r, g, b, a).normal(0, 1, 0);
+                lineTop.addVertex(matrix, (float) p.x, (float) (p.y + height), (float) p.z).setColor(r, g, b, a).setNormal(0, 1, 0);
                 index++;
             }
             immediate.draw();
 
             // Нижняя линия — отдельный immediate (DEBUG_LINE_STRIP нельзя дважды в одном буфере без разрыва)
-            Immediate imm2 = MultiBufferSource.immediate(trailAllocClassic);
+            Immediate imm2 = new Immediate();
             VertexConsumer lineBot = imm2.getBuffer(LINE_LAYER);
             index = 0;
             for (Point p : this.pointsView) {
                 int a = (int) (Math.min((float) index / total * 1.5F, 1.0F) * 255.0F);
-                lineBot.vertex(matrix, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, a).normal(0, 1, 0);
+                lineBot.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z).setColor(r, g, b, a).setNormal(0, 1, 0);
                 index++;
             }
             imm2.draw();
@@ -255,45 +258,48 @@ public class Trails extends Module {
     // DASH TRAIL
     // ═══════════════════════════════════════════════════════════════════════
     private static final class DashTrail {
-        private static final ResourceLocation BLOOM_TEX = ResourceLocation.of("vesence", "textures/dashtrail/dashbloomsample.png");
+        private static final Identifier BLOOM_TEX = Identifier.fromNamespaceAndPath("vesence", "textures/dashtrail/dashbloomsample.png");
         private static final RenderPipeline TEX_PIPELINE = RenderPipelines.register(
-                RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                        .withLocation(ResourceLocation.of("vesence", "pipeline/world/dashtrail_tex"))
-                        .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                        .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/dashtrail_tex"))
+                        .withVertexShader("core/position_tex_color")
+                        .withFragmentShader("core/position_tex_color")
+                        .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                        .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                        .withPrimitiveTopology(PrimitiveTopology.QUADS)
                         .withCull(false)
-                        .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                        .withDepthWrite(false)
-                        .withBlend(BlendFunction.LIGHTNING)
+                        .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                        .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                         .build());
         private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-                RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                        .withLocation(ResourceLocation.of("minecraft", "rendertype_lines"))
-                        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+                RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                        .withLocation(Identifier.fromNamespaceAndPath("minecraft", "rendertype_lines"))
+                        .withVertexShader("core/position_color")
+                        .withFragmentShader("core/position_color")
+                        .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                        .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
                         .withCull(false)
-                        .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                        .withDepthWrite(false)
-                        .withBlend(BlendFunction.TRANSLUCENT)
+                        .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                        .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                         .build());
-        private static final RenderType BLOOM_LAYER = RenderType.of("vesence_dashtrail_bloom",
-                RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(262144).translucent().texture("Sampler0", BLOOM_TEX).build());
-        private static final RenderType LINE_LAYER = RenderType.of("vesence_dashtrail_line",
-                RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(131072).translucent().build());
+        private static final RenderType BLOOM_LAYER = RenderType.create("vesence_dashtrail_bloom",
+                RenderSetup.builder(TEX_PIPELINE).withTexture("Sampler0", BLOOM_TEX).createRenderSetup());
+        private static final RenderType LINE_LAYER = RenderType.create("vesence_dashtrail_line",
+                RenderSetup.builder(LINE_PIPELINE).createRenderSetup());
 
         /** Кэш RenderType'ов по текстуре кубика (main-слой, additive). */
-        private static final Map<ResourceLocation, RenderType> CUBIC_LAYERS = new HashMap<>();
+        private static final Map<Identifier, RenderType> CUBIC_LAYERS = new HashMap<>();
 
-        private static RenderType cubicLayer(ResourceLocation tex) {
-            return CUBIC_LAYERS.computeIfAbsent(tex, t -> RenderType.of(
+        private static RenderType cubicLayer(Identifier tex) {
+            return CUBIC_LAYERS.computeIfAbsent(tex, t -> RenderType.create(
                     "vesence_dashtrail_cubic_" + t.getPath().replace('/', '_').replace('.', '_'),
-                    RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(16384).translucent().texture("Sampler0", t).build()));
+                    RenderSetup.builder(TEX_PIPELINE).withTexture("Sampler0", t).createRenderSetup()));
         }
 
-        static ResourceLocation staticTex(int n) {
-            return ResourceLocation.of("vesence", "textures/dashtrail/dashcubics/dashcubic" + n + ".png");
+        static Identifier staticTex(int n) {
+            return Identifier.fromNamespaceAndPath("vesence", "textures/dashtrail/dashcubics/dashcubic" + n + ".png");
         }
 
-        static ResourceLocation groupTex(int group, int frame) {
-            return ResourceLocation.of("vesence", "textures/dashtrail/dashcubics/group_dashs/group" + group + "/dashcubic" + frame + ".png");
+        static Identifier groupTex(int group, int frame) {
+            return Identifier.fromNamespaceAndPath("vesence", "textures/dashtrail/dashcubics/group_dashs/group" + group + "/dashcubic" + frame + ".png");
         }
 
         private final Random random = new Random(1234567891L);
@@ -311,16 +317,16 @@ public class Trails extends Module {
 
         void onTick() {
             if (mc.player == null || mc.level == null) return;
-            for (Player player : mc.level.getPlayers()) {
+            for (Player player : mc.level.players()) {
                 if (player == null) continue;
-                UUID id = player.getUuid();
-                Vec3 cur = player.getEntityPos();
+                UUID id = player.getUUID();
+                Vec3 cur = player.position();
                 Vec3 prev = this.lastPositions.get(id);
                 this.lastPositions.put(id, cur);
                 if (prev == null || !shouldTrail(player, 25.0F)) continue;
                 spawnForMovement(player, prev, cur);
             }
-            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUuid(uuid) == null);
+            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUUID(uuid) == null);
             updateCubics();
         }
 
@@ -354,8 +360,8 @@ public class Trails extends Module {
 
             PoseStack matrices = event.getMatrixStack();
             float tickDelta = event.getTickDelta();
-            Camera camera = mc.gameRenderer.getCamera();
-            Vec3 camPos = camera.getCameraPos();
+            Camera camera = mc.gameRenderer.mainCamera();
+            Vec3 camPos = camera.position();
 
             List<DashCubic> filtered = new ArrayList<>();
             for (DashCubic c : this.cubics) if (c.alpha > 0.05f) filtered.add(c);
@@ -364,11 +370,11 @@ public class Trails extends Module {
             float alphaPC = this.stateAnim;
 
             if (this.trailAlloc == null) { this.trailAlloc = new ByteBufferBuilder(524288); }
-            Immediate immediate = MultiBufferSource.immediate(this.trailAlloc);
+            Immediate immediate = new Immediate();
             try {
                 // Искры
                 VertexConsumer lines = immediate.getBuffer(LINE_LAYER);
-                Matrix4f baseMatrix = matrices.last().getPositionMatrix();
+                Matrix4f baseMatrix = matrices.last().pose();
                 for (DashCubic c : filtered) {
                     double rx = c.getRenderPosX(tickDelta) - camPos.x;
                     double ry = c.getRenderPosY(tickDelta) - camPos.y;
@@ -386,19 +392,19 @@ public class Trails extends Module {
                         int aa = Mth.clamp((int) (fa * 255.0f), 0, 255);
                         if (aa <= 1) continue;
                         int rr = (base >> 16) & 0xFF, gg = (base >> 8) & 0xFF, bb = base & 0xFF;
-                        lines.vertex(baseMatrix, (float) (sx + rx), (float) (sy + ry), (float) (sz + rz)).color(rr, gg, bb, aa).normal(0, 1, 0);
-                        lines.vertex(baseMatrix, (float) (-sx + rx), (float) (-sy + ry), (float) (-sz + rz)).color(rr, gg, bb, aa).normal(0, 1, 0);
+                        lines.addVertex(baseMatrix, (float) (sx + rx), (float) (sy + ry), (float) (sz + rz)).setColor(rr, gg, bb, aa).setNormal(0, 1, 0);
+                        lines.addVertex(baseMatrix, (float) (-sx + rx), (float) (-sy + ry), (float) (-sz + rz)).setColor(rr, gg, bb, aa).setNormal(0, 1, 0);
                     }
                 }
 
                 // Main-кубики (текстуры) — группируем по resolved-текстуре,
                 // каждая текстура = свой RenderType (additive).
-                Map<ResourceLocation, List<DashCubic>> byTex = new HashMap<>();
+                Map<Identifier, List<DashCubic>> byTex = new HashMap<>();
                 for (DashCubic c : filtered) {
-                    ResourceLocation tex = c.texture.resolve();
+                    Identifier tex = c.texture.resolve();
                     byTex.computeIfAbsent(tex, k -> new ArrayList<>()).add(c);
                 }
-                for (Map.Entry<ResourceLocation, List<DashCubic>> e : byTex.entrySet()) {
+                for (Map.Entry<Identifier, List<DashCubic>> e : byTex.entrySet()) {
                     VertexConsumer buf = immediate.getBuffer(cubicLayer(e.getKey()));
                     for (DashCubic c : e.getValue()) {
                         c.drawMain(buf, matrices, camera, camPos, tickDelta, alphaPC);
@@ -440,7 +446,7 @@ public class Trails extends Module {
             this.motionX = entity.getX() - prevTickPos.x;
             this.motionY = entity.getY() - prevTickPos.y;
             this.motionZ = entity.getZ() - prevTickPos.z;
-            double h = entity.getHeight();
+            double h = entity.getBbHeight();
             this.posX = prevTickPos.x - this.motionX * offsetTickPC + (-0.0875 + 0.175 * Math.random());
             this.posY = prevTickPos.y - this.motionY * offsetTickPC + (h / 3.0 + h / 4.0 * Math.random() * 0.7);
             this.posZ = prevTickPos.z - this.motionZ * offsetTickPC + (-0.0875 + 0.175 * Math.random());
@@ -455,7 +461,7 @@ public class Trails extends Module {
         }
 
         private void updateRotation() {
-            float viewX = mc.gameRenderer != null && mc.gameRenderer.getCamera() != null ? mc.gameRenderer.getCamera().getXRot() : 0f;
+            float viewX = mc.gameRenderer != null && mc.gameRenderer.mainCamera() != null ? mc.gameRenderer.mainCamera().xRot() : 0f;
             if (Math.sqrt(motionX * motionX + motionZ * motionZ) < 5.0E-4) {
                 rotate[0] = (float) (360.0 * Math.random());
                 rotate[1] = viewX;
@@ -499,15 +505,15 @@ public class Trails extends Module {
             float half = scale * 0.5f;
             matrices.pushPose();
             matrices.translate(rx - camPos.x, ry - camPos.y, rz - camPos.z);
-            matrices.multiply(camera.getRotation());
+            matrices.rotate(camera.rotation());
             if (this.rotate[0] != 0.0f) {
-                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(this.rotate[0]));
+                matrices.rotate(Axis.ZP.rotationDegrees(this.rotate[0]));
             }
-            Matrix4f m = matrices.last().getPositionMatrix();
-            buffer.vertex(m, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
-            buffer.vertex(m, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
-            buffer.vertex(m, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
-            buffer.vertex(m, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
+            Matrix4f m = matrices.last().pose();
+            buffer.addVertex(m, -half, -half, 0.0F).setUv(0.0F, 1.0F).setColor(r, g, b, a);
+            buffer.addVertex(m, -half, half, 0.0F).setUv(0.0F, 0.0F).setColor(r, g, b, a);
+            buffer.addVertex(m, half, half, 0.0F).setUv(1.0F, 0.0F).setColor(r, g, b, a);
+            buffer.addVertex(m, half, -half, 0.0F).setUv(1.0F, 1.0F).setColor(r, g, b, a);
             matrices.popPose();
         }
 
@@ -555,7 +561,7 @@ public class Trails extends Module {
             }
         }
 
-        ResourceLocation resolve() {
+        Identifier resolve() {
             if (this.animated) {
                 int frames = switch (this.group) {
                     case 0 -> 11;
@@ -606,22 +612,24 @@ public class Trails extends Module {
     // FIZZ TRAIL (Шипучка)
     // ═══════════════════════════════════════════════════════════════════════
     private static final class FizzTrail {
-        private static final ResourceLocation BLOOM_TEX = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
+        private static final Identifier BLOOM_TEX = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/bloom.png");
         private static final long LIFETIME_MS = 3000L;
         private static final double WALK_THRESHOLD = 0.045;
         private static final float FRIEND_RANGE = 25.0F;
 
         private static final RenderPipeline TEX_PIPELINE = RenderPipelines.register(
-                RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                        .withLocation(ResourceLocation.of("vesence", "pipeline/world/fizztrail_tex"))
-                        .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                        .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/fizztrail_tex"))
+                        .withVertexShader("core/position_tex_color")
+                        .withFragmentShader("core/position_tex_color")
+                        .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                        .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                        .withPrimitiveTopology(PrimitiveTopology.QUADS)
                         .withCull(false)
-                        .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                        .withDepthWrite(false)
-                        .withBlend(BlendFunction.LIGHTNING)
+                        .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                        .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                         .build());
-        private static final RenderType BLOOM_LAYER = RenderType.of("vesence_fizztrail_bloom",
-                RenderSetup.builder(TEX_PIPELINE).expectedBufferSize(262144).translucent().texture("Sampler0", BLOOM_TEX).build());
+        private static final RenderType BLOOM_LAYER = RenderType.create("vesence_fizztrail_bloom",
+                RenderSetup.builder(TEX_PIPELINE).withTexture("Sampler0", BLOOM_TEX).createRenderSetup());
 
         private final Random random = new Random();
         private final List<FizzParticle> particles = new ArrayList<>();
@@ -636,10 +644,10 @@ public class Trails extends Module {
 
         void onTick() {
             if (mc.player == null || mc.level == null) return;
-            for (Player player : mc.level.getPlayers()) {
+            for (Player player : mc.level.players()) {
                 if (player == null) continue;
-                UUID id = player.getUuid();
-                Vec3 cur = player.getEntityPos();
+                UUID id = player.getUUID();
+                Vec3 cur = player.position();
                 Vec3 prev = this.lastPositions.get(id);
                 this.lastPositions.put(id, cur);
                 if (prev == null || !shouldTrail(player, FRIEND_RANGE)) continue;
@@ -648,7 +656,7 @@ public class Trails extends Module {
                 if (speedXZ < WALK_THRESHOLD || !player.onGround()) continue;
                 spawnFromFeet(player, dx, dz, speedXZ);
             }
-            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUuid(uuid) == null);
+            this.lastPositions.keySet().removeIf(uuid -> mc.level.getPlayerByUUID(uuid) == null);
 
             long now = System.currentTimeMillis();
             Iterator<FizzParticle> it = this.particles.iterator();
@@ -664,7 +672,7 @@ public class Trails extends Module {
             double backX = -dx * invLen, backZ = -dz * invLen;
             int count = Mth.clamp((int) (speedXZ / WALK_THRESHOLD), 1, 5);
             double feetX = player.getX(), feetY = player.getY() + 0.05, feetZ = player.getZ();
-            float width = player.getWidth();
+            float width = player.getBbWidth();
             for (int i = 0; i < count; i++) {
                 double ox = (this.random.nextDouble() - 0.5) * width;
                 double oz = (this.random.nextDouble() - 0.5) * width;
@@ -683,9 +691,9 @@ public class Trails extends Module {
         void onRender(EventRender3D event) {
             if (mc.player == null || this.particles.isEmpty()) return;
             float tickDelta = event.getTickDelta();
-            Camera camera = mc.gameRenderer.getCamera();
-            Vec3 camPos = camera.getCameraPos();
-            float camYaw = camera.getYRot(), camPitch = camera.getXRot();
+            Camera camera = mc.gameRenderer.mainCamera();
+            Vec3 camPos = camera.position();
+            float camYaw = camera.yRot(), camPitch = camera.xRot();
             PoseStack matrices = event.getMatrixStack();
 
             int theme = themeColor();
@@ -693,7 +701,7 @@ public class Trails extends Module {
             long now = System.currentTimeMillis();
 
             if (this.trailAlloc == null) { this.trailAlloc = new ByteBufferBuilder(524288); }
-            Immediate immediate = MultiBufferSource.immediate(this.trailAlloc);
+            Immediate immediate = new Immediate();
             try {
                 VertexConsumer buffer = immediate.getBuffer(BLOOM_LAYER);
                 // Проход 1: внешний glow
@@ -744,11 +752,11 @@ public class Trails extends Module {
             this.vy -= GRAVITY; this.vx *= DRAG; this.vz *= DRAG;
             double nextX = x + vx, nextY = y + vy, nextZ = z + vz;
             if (mc.level != null) {
-                if (vy < 0.0 && !mc.level.getBlockState(BlockPos.ofFloored(x, nextY - 0.02, z)).isAir()) {
+                if (vy < 0.0 && !mc.level.getBlockState(BlockPos.containing(x, nextY - 0.02, z)).isAir()) {
                     vy = -vy * BOUNCE; vx *= 0.7; vz *= 0.7; nextY = y;
                 }
-                if (!mc.level.getBlockState(BlockPos.ofFloored(nextX, y, z)).isAir()) { vx = -vx * 0.3; nextX = x; }
-                if (!mc.level.getBlockState(BlockPos.ofFloored(x, y, nextZ)).isAir()) { vz = -vz * 0.3; nextZ = z; }
+                if (!mc.level.getBlockState(BlockPos.containing(nextX, y, z)).isAir()) { vx = -vx * 0.3; nextX = x; }
+                if (!mc.level.getBlockState(BlockPos.containing(x, y, nextZ)).isAir()) { vz = -vz * 0.3; nextZ = z; }
             }
             this.x = nextX; this.y = nextY; this.z = nextZ;
         }
@@ -769,12 +777,12 @@ public class Trails extends Module {
         int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
         matrices.pushPose();
         matrices.translate(x - camPos.x, y - camPos.y, z - camPos.z);
-        matrices.multiply(camera.getRotation());
-        Matrix4f m = matrices.last().getPositionMatrix();
-        buffer.vertex(m, -halfW, -halfH, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
-        buffer.vertex(m, -halfW, halfH, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
-        buffer.vertex(m, halfW, halfH, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
-        buffer.vertex(m, halfW, -halfH, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
+        matrices.rotate(camera.rotation());
+        Matrix4f m = matrices.last().pose();
+        buffer.addVertex(m, -halfW, -halfH, 0.0F).setUv(0.0F, 1.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, -halfW, halfH, 0.0F).setUv(0.0F, 0.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, halfW, halfH, 0.0F).setUv(1.0F, 0.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, halfW, -halfH, 0.0F).setUv(1.0F, 1.0F).setColor(r, g, b, a);
         matrices.popPose();
     }
 
@@ -784,13 +792,13 @@ public class Trails extends Module {
         float half = size * 0.5F;
         matrices.pushPose();
         matrices.translate(x, y, z);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f m = matrices.last().getPositionMatrix();
-        buffer.vertex(m, -half, -half, 0.0F).texture(0.0F, 1.0F).color(r, g, b, a);
-        buffer.vertex(m, -half, half, 0.0F).texture(0.0F, 0.0F).color(r, g, b, a);
-        buffer.vertex(m, half, half, 0.0F).texture(1.0F, 0.0F).color(r, g, b, a);
-        buffer.vertex(m, half, -half, 0.0F).texture(1.0F, 1.0F).color(r, g, b, a);
+        matrices.rotate(Axis.YP.rotationDegrees(-camYaw));
+        matrices.rotate(Axis.XP.rotationDegrees(camPitch));
+        Matrix4f m = matrices.last().pose();
+        buffer.addVertex(m, -half, -half, 0.0F).setUv(0.0F, 1.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, -half, half, 0.0F).setUv(0.0F, 0.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, half, half, 0.0F).setUv(1.0F, 0.0F).setColor(r, g, b, a);
+        buffer.addVertex(m, half, -half, 0.0F).setUv(1.0F, 1.0F).setColor(r, g, b, a);
         matrices.popPose();
     }
 

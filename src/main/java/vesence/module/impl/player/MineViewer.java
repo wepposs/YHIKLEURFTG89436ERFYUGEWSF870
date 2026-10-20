@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
@@ -50,7 +50,7 @@ import vesence.utils.render.text.Font;
  *       {@code ColorUtils} -> {@link ColorUtil}; {@code Theme.MainColor} ->
  *       {@link Renderer2D.ColorUtil#getClientColor()}.</li>
  *   <li>Иконка «B» из icons_client заменена на реальную иконку кирки
- *       ({@link Items#DIAMOND_PICKAXE}) через {@link GuiGraphics#drawItem} —
+ *       ({@link Items#DIAMOND_PICKAXE}) через {@link GuiGraphicsExtractor#drawItem} —
  *       надёжно и по смыслу (шахта). Размеры шрифтов пересчитаны под vesence-скейл.</li>
  * </ul>
  */
@@ -90,7 +90,8 @@ public class MineViewer extends Module {
     private static final float SLIDE = 20.0f;
 
     private final List<Entity> cachedArmorStands = new CopyOnWriteArrayList<>();
-    private final ItemStack pickaxeIcon = new ItemStack(Items.DIAMOND_PICKAXE);
+    // 26.3: ItemStack нельзя создавать до привязки компонентов — ленивая инициализация.
+    private ItemStack pickaxeIcon;
 
     private String lastFoundText = "";
     private String lastFoundLevelText = "";
@@ -119,7 +120,7 @@ public class MineViewer extends Module {
         }
 
         cachedArmorStands.clear();
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof ArmorStand && entity.hasCustomName()) {
                 String name = normalizeStandText(entity.getCustomName().getString());
                 if (isAutoMineStand(name) || isValidTimeText(name) || isValidLevelText(name)) {
@@ -179,7 +180,7 @@ public class MineViewer extends Module {
     }
 
     private boolean shouldRenderOverlay() {
-        return mc.level != null && mc.player != null && mc.screen == null;
+        return mc.level != null && mc.player != null && mc.gui.screen() == null;
     }
 
     private void updateAnimation() {
@@ -217,7 +218,7 @@ public class MineViewer extends Module {
             }
 
             String customName = normalizeStandText(customNameComponent.getString());
-            double distance = entity.squaredDistanceTo(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+            double distance = entity.distanceToSqr(mc.player.getX(), mc.player.getY(), mc.player.getZ());
 
             if (isAutoMineStand(customName) && distance < minAnchorDistance) {
                 minAnchorDistance = distance;
@@ -233,8 +234,8 @@ public class MineViewer extends Module {
 
             String customName = normalizeStandText(customNameComponent.getString());
             double distance = anchorEntity != null
-                    ? entity.squaredDistanceTo(anchorEntity.getX(), anchorEntity.getY(), anchorEntity.getZ())
-                    : entity.squaredDistanceTo(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+                    ? entity.distanceToSqr(anchorEntity.getX(), anchorEntity.getY(), anchorEntity.getZ())
+                    : entity.distanceToSqr(mc.player.getX(), mc.player.getY(), mc.player.getZ());
 
             if (anchorEntity != null && distance > AUTO_MINE_SCAN_DISTANCE) {
                 continue;
@@ -291,7 +292,7 @@ public class MineViewer extends Module {
                 || LEGENDARY_RARITY_PATTERN.matcher(normalized).find();
     }
 
-    private void drawAutoMineInfo(Renderer2D renderer, GuiGraphics drawContext, int vw, float guiScale, String timeText, String levelText) {
+    private void drawAutoMineInfo(Renderer2D renderer, GuiGraphicsExtractor drawContext, int vw, float guiScale, String timeText, String levelText) {
         float easedProgress = easeOutCubic(animationProgress);
         float pulse = (float) (Math.sin(pulseProgress * 4.2f) * 0.5f + 0.5f);
 
@@ -321,6 +322,7 @@ public class MineViewer extends Module {
         // Иконка кирки слева (эквивалент icons_client "B").
         float iconX = cardX + PAD_H;
         float iconY = cardY + (cardH - ICON_SIZE) / 2.0f;
+        if (pickaxeIcon == null) pickaxeIcon = new ItemStack(Items.DIAMOND_PICKAXE);
         drawItemIcon(drawContext, pickaxeIcon, iconX, iconY, ICON_SIZE, guiScale);
 
         // Две строки справа: время (сверху) и редкость (снизу), по центру по высоте.
@@ -339,13 +341,13 @@ public class MineViewer extends Module {
                 ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int) (14 * easedProgress)), 0.5f);
     }
 
-    private void drawItemIcon(GuiGraphics drawContext, ItemStack stack, float x, float y, float size, float guiScale) {
+    private void drawItemIcon(GuiGraphicsExtractor drawContext, ItemStack stack, float x, float y, float size, float guiScale) {
         float s = size / (16.0f * guiScale);
-        Matrix3x2fStack matrices = drawContext.getMatrices();
+        Matrix3x2fStack matrices = drawContext.pose();
         matrices.pushMatrix();
         matrices.translate(x / guiScale, y / guiScale);
         matrices.scale(s, s);
-        drawContext.drawItem(stack, 0, 0);
+        drawContext.item(stack, 0, 0);
         matrices.popMatrix();
     }
 

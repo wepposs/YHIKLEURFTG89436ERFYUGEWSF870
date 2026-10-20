@@ -1,8 +1,8 @@
 package vesence.hmi.layers;
 
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.texture.SpriteAtlasTexture;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 
 /**
  * Порт HMI ShadedRenderLayers под 1.21.11.
@@ -15,5 +15,5 @@ import net.minecraft.client.texture.SpriteAtlasTexture;
  */
 public class ShadedRenderLayers {
     public static final RenderType ShadedOccludedLayer =
-            RenderLayers.entityCutout(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+            RenderTypes.entityCutout(TextureAtlas.LOCATION_BLOCKS);
 }

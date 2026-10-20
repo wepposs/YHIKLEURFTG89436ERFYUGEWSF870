@@ -1,6 +1,6 @@
 package vesence.renderengine.render.pipeline;
 
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
@@ -66,7 +66,7 @@ public class LiquidGlassPipeline {
 
         ensureInitialized();
 
-        GlState.Snapshot state = GlState.pushPose();
+        GlState.Snapshot state = GlState.push();
         try {
             shader.use();
 
@@ -91,7 +91,7 @@ public class LiquidGlassPipeline {
             setUniform("DistortStrength", distortStrength);
 
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            int texId = customTex != 0 ? customTex : extractGlTexId(Minecraft.getInstance().getMainRenderTarget());
+            int texId = customTex != 0 ? customTex : extractGlTexId(Minecraft.getInstance().gameRenderer.mainRenderTarget());
             if (texId == 0 || !GL11.glIsTexture(texId)) {
                 GlState.pop(state);
                 return;
@@ -148,14 +148,14 @@ public class LiquidGlassPipeline {
     public static int extractGlTexId(RenderTarget framebuffer) {
         if (framebuffer == null) return 0;
         try {
-            GpuTextureView view = framebuffer.getColorAttachmentView();
+            GpuTextureView view = framebuffer.getColorTextureView();
             if (view != null && !view.isClosed()) {
-                com.mojang.blaze3d.textures.GpuTexture tex = view.texture();
-                if (tex instanceof GlTexture glTex) return glTex.getGlId();
+                com.mojang.renderpearl.api.textures.GpuTexture tex = view.texture();
+                if (tex instanceof GlTexture glTex) return glTex.glId();
             }
         } catch (Exception ignored) {}
         try {
-            if (framebuffer.getColorAttachment() instanceof GlTexture glTex) return glTex.getGlId();
+            if (framebuffer.getColorTexture() instanceof GlTexture glTex) return glTex.glId();
         } catch (Exception ignored) {}
         return 0;
     }

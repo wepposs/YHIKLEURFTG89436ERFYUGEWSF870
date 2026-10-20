@@ -163,8 +163,8 @@ public final class ShaderEspPipeline {
 
         Color c = new Color(color, true);
         Minecraft mc = Minecraft.getInstance();
-        float fbW = Math.max(1.0f, mc.getWindow().getFramebufferWidth());
-        float fbH = Math.max(1.0f, mc.getWindow().getFramebufferHeight());
+        float fbW = Math.max(1.0f, mc.getWindow().getWidth());
+        float fbH = Math.max(1.0f, mc.getWindow().getHeight());
 
         ShaderProgram program = outlineProgram;
         program.use();
@@ -190,8 +190,8 @@ public final class ShaderEspPipeline {
         if (srcTexture <= 0) return 0;
 
         Minecraft mc = Minecraft.getInstance();
-        int fbW = Math.max(1, mc.getWindow().getFramebufferWidth());
-        int fbH = Math.max(1, mc.getWindow().getFramebufferHeight());
+        int fbW = Math.max(1, mc.getWindow().getWidth());
+        int fbH = Math.max(1, mc.getWindow().getHeight());
         int iters = Math.max(1, Math.min(bloomTargets.length - 2, iterations));
 
         ensureBloomTargets(iters, fbW, fbH);
@@ -289,7 +289,7 @@ public final class ShaderEspPipeline {
 
     public static GlState.Snapshot beginRender() {
         ensureInitialized();
-        GlState.Snapshot snapshot = GlState.pushPose();
+        GlState.Snapshot snapshot = GlState.push();
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_CULL_FACE);
         GL11.glEnable(GL11.GL_BLEND);

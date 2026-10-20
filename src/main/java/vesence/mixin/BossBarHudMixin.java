@@ -4,9 +4,10 @@ import java.util.Map;
 import java.util.UUID;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.hud.BossBarHud;
-import net.minecraft.entity.boss.BossBar;
-import net.minecraft.network.packet.s2c.play.BossBarS2CPacket;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.BossHealthOverlay;
+import net.minecraft.world.BossEvent;
+import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,24 +17,24 @@ import vesence.Vesence;
 import vesence.module.impl.visuals.NoRender;
 
 @Environment(EnvType.CLIENT)
-@Mixin(BossBarHud.class)
+@Mixin(BossHealthOverlay.class)
 public class BossBarHudMixin {
-   @Shadow private Map<UUID, BossBar> bossBars;
+   @Shadow private Map<UUID, BossEvent> events;
 
-   @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-   private void onRender(CallbackInfo ci) {
+   @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
+   private void onRender(GuiGraphicsExtractor context, CallbackInfo ci) {
       if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Линия босса")) {
          ci.cancel();
       }
    }
 
-   @Inject(method = "handlePacket", at = @At("HEAD"))
-   private void onHandlePacket(BossBarS2CPacket packet, CallbackInfo ci) {
+   @Inject(method = "update", at = @At("HEAD"))
+   private void onHandlePacket(ClientboundBossEventPacket packet, CallbackInfo ci) {
       BossBarS2CPacketAccessor accessor = (BossBarS2CPacketAccessor) (Object) packet;
       UUID id = accessor.getUuid();
-      if (id != null && !this.bossBars.containsKey(id) && !this.bossBars.isEmpty()) {
-         BossBar existing = this.bossBars.values().iterator().next();
-         this.bossBars.put(id, existing);
+      if (id != null && !this.events.containsKey(id) && !this.events.isEmpty()) {
+         BossEvent existing = this.events.values().iterator().next();
+         this.events.put(id, existing);
       }
    }
 }

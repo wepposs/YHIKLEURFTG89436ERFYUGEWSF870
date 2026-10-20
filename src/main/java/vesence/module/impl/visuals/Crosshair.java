@@ -48,7 +48,7 @@ public class Crosshair extends Module {
     @EventInit
     public void onRender2D(EventScreen event) {
         if (mc.player == null || mc.level == null) return;
-        if (!mc.options.getPerspective().isFirstPerson()) return;
+        if (!mc.options.getCameraType().isFirstPerson()) return;
 
         Renderer2D r = event.renderer();
 
@@ -65,7 +65,7 @@ public class Crosshair extends Module {
         }
 
         int themeColor = ColorUtil.fade();
-        int targetColor = mc.targetedEntity != null ? ColorUtil.getColor(255, 80, 80, 255) : themeColor;
+        int targetColor = mc.crosshairPickEntity != null ? ColorUtil.getColor(255, 80, 80, 255) : themeColor;
 
         if (mode.is("Орбиз")) {
             this.renderOrb(r, x, y, targetColor);
@@ -129,7 +129,7 @@ public class Crosshair extends Module {
 
         // Лёгкий «дышащий» отклик на кулдаун атаки (если не статический).
         if (!staticCrosshair.get()) {
-            float cooldown = 1.0f - mc.player.getAttackCooldownProgress(0.0f);
+            float cooldown = 1.0f - mc.player.getAttackStrengthScale(0.0f);
             animationSize = Mth.lerp(0.18f, animationSize, cooldown);
             float pulse = 1.0f + animationSize * 0.25f;
             core *= pulse;
@@ -150,7 +150,7 @@ public class Crosshair extends Module {
     }
 
     private void renderClassic(Renderer2D r, float x, float y, int color) {
-        float cooldown = 1.0f - mc.player.getAttackCooldownProgress(0.0f);
+        float cooldown = 1.0f - mc.player.getAttackStrengthScale(0.0f);
         float thickness = 1.0f;
         float length = 3.0f;
         float gap = 2.0f + (staticCrosshair.get() ? 0.0f : 8.0f * cooldown);
@@ -169,7 +169,7 @@ public class Crosshair extends Module {
      * (идеально по центру) + дуга прогресса поверх.
      */
     private void renderRing(Renderer2D r, float x, float y, int color) {
-        float swing = mc.player.handSwingProgress;
+        float swing = mc.player.getSwingAnimation(1.0F);
         float sin = Mth.sin(swing * swing * (float) Math.PI);
         circleSwingAnim = Mth.lerp(0.05f, circleSwingAnim, sin);
 

@@ -20,7 +20,7 @@ import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.utils.ClipboardUtil;
 import vesence.utils.render.utils.KeyUtil;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import java.util.List;
 
@@ -439,9 +439,8 @@ public class CompactGuiClick {
     }
 
     private static boolean isSliderAdjustKeyDown() {
-        long h = Minecraft.getInstance().getWindow().getHandle();
-        return org.lwjgl.glfw.GLFW.glfwGetKey(h, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS
-                || org.lwjgl.glfw.GLFW.glfwGetKey(h, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT);
     }
 
     private static boolean scrollClientSlider(Renderer2D renderer, int mouseX, int mouseY,
@@ -593,15 +592,15 @@ public class CompactGuiClick {
         if (GuiScreen.editingSliderSetting != null) {
             vesence.module.api.setting.impl.SliderSetting es = GuiScreen.editingSliderSetting;
             boolean ctrl = ClipboardUtil.isCtrl(modifiers);
-            if (ctrl && key == GLFW.GLFW_KEY_A) {
+            if (ctrl && key == InputConstants.KEY_A) {
                 GuiScreen.textSelectAll = !es.editBuffer.isEmpty();
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_C) {
+            if (ctrl && key == InputConstants.KEY_C) {
                 if (!es.editBuffer.isEmpty()) ClipboardUtil.set(es.editBuffer);
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_X) {
+            if (ctrl && key == InputConstants.KEY_X) {
                 if (!es.editBuffer.isEmpty()) {
                     ClipboardUtil.set(es.editBuffer);
                     es.editBuffer = "";
@@ -609,7 +608,7 @@ public class CompactGuiClick {
                 GuiScreen.textSelectAll = false;
                 return true;
             }
-            if (ctrl && key == GLFW.GLFW_KEY_V) {
+            if (ctrl && key == InputConstants.KEY_V) {
                 String base = GuiScreen.textSelectAll ? "" : es.editBuffer;
                 es.editBuffer = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), 12, ClipboardUtil.MODE_NUMERIC);
                 GuiScreen.textSelectAll = false;
@@ -637,12 +636,12 @@ public class CompactGuiClick {
             return true;
         }
 
-        if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && CompactModuleWindow.anyOpen()) {
+        if (key == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && CompactModuleWindow.anyOpen()) {
             CompactModuleWindow.closeTop();
             return true;
         }
 
-        if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_F && (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
+        if (key == com.mojang.blaze3d.platform.InputConstants.KEY_F && (modifiers & com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL) != 0) {
             CompactGuiScreen.searchActive = true;
             return true;
         }
@@ -685,15 +684,15 @@ public class CompactGuiClick {
         if (!CompactGuiScreen.searchActive) return false;
 
         boolean ctrl = ClipboardUtil.isCtrl(modifiers);
-        if (ctrl && key == GLFW.GLFW_KEY_A) {
+        if (ctrl && key == InputConstants.KEY_A) {
             CompactGuiScreen.searchSelectAll = !CompactGuiScreen.searchText.isEmpty();
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_C) {
+        if (ctrl && key == InputConstants.KEY_C) {
             if (!CompactGuiScreen.searchText.isEmpty()) ClipboardUtil.set(CompactGuiScreen.searchText);
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_X) {
+        if (ctrl && key == InputConstants.KEY_X) {
             if (!CompactGuiScreen.searchText.isEmpty()) {
                 ClipboardUtil.set(CompactGuiScreen.searchText);
                 CompactGuiScreen.searchText = "";
@@ -702,7 +701,7 @@ public class CompactGuiClick {
             CompactGuiScreen.searchSelectAll = false;
             return true;
         }
-        if (ctrl && key == GLFW.GLFW_KEY_V) {
+        if (ctrl && key == InputConstants.KEY_V) {
             String base = CompactGuiScreen.searchSelectAll ? "" : CompactGuiScreen.searchText;
             CompactGuiScreen.searchText = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), 64, ClipboardUtil.MODE_PRINTABLE);
             CompactGuiScreen.searchSelectAll = false;

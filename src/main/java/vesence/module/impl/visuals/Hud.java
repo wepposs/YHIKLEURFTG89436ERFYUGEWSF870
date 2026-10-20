@@ -3,7 +3,7 @@ package vesence.module.impl.visuals;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.event.EventInit;
 import vesence.event.render.EventScreen;
 import vesence.module.api.Category;
@@ -220,8 +220,8 @@ public class Hud extends Module {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
 
-        boolean isGuiOpen  = mc.screen != null;
-        boolean isChatOpen = mc.screen instanceof ChatScreen;
+        boolean isGuiOpen  = mc.gui.screen() != null;
+        boolean isChatOpen = mc.gui.screen() instanceof ChatScreen;
 
         double mouseX = 0, mouseY = 0;
         boolean leftDown  = false;
@@ -230,15 +230,15 @@ public class Hud extends Module {
         boolean shiftDown = false;
 
         if (isGuiOpen) {
-            long handle = mc.getWindow().getHandle();
             double[] mx = new double[1], my = new double[1];
-            GLFW.glfwGetCursorPos(handle, mx, my);
-            leftDown  = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT)  == GLFW.GLFW_PRESS;
-            rightDown = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
-            altDown   = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_ALT)   == GLFW.GLFW_PRESS
-                    || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_ALT)  == GLFW.GLFW_PRESS;
-            shiftDown = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                    || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT)== GLFW.GLFW_PRESS;
+            mx[0] = mc.mouseHandler.xpos();
+            my[0] = mc.mouseHandler.ypos();
+            leftDown  = mc.mouseHandler.isLeftPressed();
+            rightDown = mc.mouseHandler.isRightPressed();
+            altDown   = InputConstants.isKeyDown(InputConstants.KEY_LALT)
+                    || InputConstants.isKeyDown(InputConstants.KEY_RALT);
+            shiftDown = InputConstants.isKeyDown(InputConstants.KEY_LSHIFT)
+                    || InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
 
             double ratioX = (double) event.viewportWidth()  / mc.getWindow().getWidth();
             double ratioY = (double) event.viewportHeight() / mc.getWindow().getHeight();
@@ -439,7 +439,7 @@ public class Hud extends Module {
 
                     if (ClickGui.isModern()) {
                         float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
-                        org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().getMatrices();
+                        org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().pose();
                         ctxMatrices.pushMatrix();
                         pushedContextMatrix = true;
                         float cgx = centerXfb / guiScale;
@@ -460,7 +460,7 @@ public class Hud extends Module {
             } finally {
                 if (pushedContextMatrix) {
                     try {
-                        event.drawContext().getMatrices().popMatrix();
+                        event.drawContext().pose().popMatrix();
                     } catch (Exception ignored) {
                     }
                 }
@@ -857,8 +857,7 @@ public class Hud extends Module {
             target = lastInteracted;
         }
 
-        long handle = Minecraft.getInstance().getWindow().getHandle();
-        int[] codes = { GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN };
+                int[] codes = { InputConstants.KEY_LEFT, InputConstants.KEY_RIGHT, InputConstants.KEY_UP, InputConstants.KEY_DOWN };
         float[] dxs = { -1f, 1f, 0f, 0f };
         float[] dys = { 0f, 0f, -1f, 1f };
         float step = shiftDown ? 10f : 1f;
@@ -866,7 +865,7 @@ public class Hud extends Module {
         boolean anyDown = false;
 
         for (int k = 0; k < 4; k++) {
-            boolean down = GLFW.glfwGetKey(handle, codes[k]) == GLFW.GLFW_PRESS;
+            boolean down = InputConstants.isKeyDown(codes[k]);
             boolean fire = false;
             if (down) {
                 anyDown = true;

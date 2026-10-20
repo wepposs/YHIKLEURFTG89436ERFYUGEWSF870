@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
-import net.minecraft.client.render.SkyRendering;
+import net.minecraft.client.renderer.SkyRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,9 +17,13 @@ import vesence.module.impl.visuals.Ambience;
  * <p>На стадии неба (перед геометрией) отменяем ванильную отрисовку неба и
  * рисуем кастомный шейдер. Т.к. это происходит ДО мира, геометрия потом
  * перекрывает небо естественно — нет бага с чернением при взгляде вверх.
+ *
+ * <p>26.3: renderTopSky/renderSkyDark/renderGlowingSky/renderSun/renderMoon/renderEndSky
+ * заменены на renderSkyDisc/renderDarkDisc/renderSunriseAndSunset/renderSun/renderMoon/renderEndSky
+ * с RenderPass-пайплайном.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(SkyRendering.class)
+@Mixin(SkyRenderer.class)
 public class SkyRenderingMixin {
 
     private static boolean vesence$skyActive() {
@@ -31,12 +35,12 @@ public class SkyRenderingMixin {
         }
     }
 
-    @Inject(method = "renderTopSky", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderTopSky(int color, CallbackInfo ci) {
+    @Inject(method = "renderSkyDisc", at = @At("HEAD"), cancellable = true)
+    private void vesence$renderTopSky(com.mojang.renderpearl.api.commands.RenderPass pass, org.joml.Vector3fc color, CallbackInfo ci) {
         if (!vesence$skyActive()) return;
         try {
             Minecraft mc = Minecraft.getInstance();
-            Camera camera = mc.gameRenderer != null ? mc.gameRenderer.getCamera() : null;
+            Camera camera = mc.gameRenderer != null ? mc.gameRenderer.mainCamera() : null;
             if (camera != null) {
                 Ambience amb = Ambience.getInstance();
                 boolean fogOn = Ambience.fog.is(Ambience.FOG_OVERRIDE) || Ambience.fog.is(Ambience.FOG_CLEAR);
@@ -53,18 +57,20 @@ public class SkyRenderingMixin {
         }
     }
 
-    @Inject(method = "renderSkyDark", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderSkyDark(CallbackInfo ci) {
+    @Inject(method = "renderDarkDisc", at = @At("HEAD"), cancellable = true)
+    private void vesence$renderSkyDark(com.mojang.renderpearl.api.commands.RenderPass pass, CallbackInfo ci) {
         if (vesence$skyActive()) ci.cancel();
     }
 
-    @Inject(method = "renderGlowingSky", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderGlowingSky(net.minecraft.client.util.math.PoseStack matrices, float tickDelta, int color, CallbackInfo ci) {
+    @Inject(method = "renderSunriseAndSunset", at = @At("HEAD"), cancellable = true)
+    private void vesence$renderGlowingSky(com.mojang.renderpearl.api.commands.RenderPass pass,
+                                          com.mojang.blaze3d.vertex.PoseStack matrices,
+                                          float tickDelta, org.joml.Vector4fc color, CallbackInfo ci) {
         if (vesence$skyActive()) ci.cancel();
     }
 
     @Inject(method = "renderEndSky", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderEndSky(CallbackInfo ci) {
+    private void vesence$renderEndSky(com.mojang.renderpearl.api.commands.RenderPass pass, CallbackInfo ci) {
         if (vesence$skyActive()) ci.cancel();
     }
 
@@ -78,12 +84,15 @@ public class SkyRenderingMixin {
 
     // «Убирать солнце и луну»: отменяем только диски солнца/луны, звёзды остаются
     @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderSun(float alpha, net.minecraft.client.util.math.PoseStack matrices, CallbackInfo ci) {
+    private void vesence$renderSun(com.mojang.renderpearl.api.commands.RenderPass pass, float alpha,
+                                   com.mojang.blaze3d.vertex.PoseStack matrices, CallbackInfo ci) {
         if (vesence$hideSunMoon()) ci.cancel();
     }
 
     @Inject(method = "renderMoon", at = @At("HEAD"), cancellable = true)
-    private void vesence$renderMoon(net.minecraft.world.MoonPhase phase, float alpha, net.minecraft.client.util.math.PoseStack matrices, CallbackInfo ci) {
+    private void vesence$renderMoon(com.mojang.renderpearl.api.commands.RenderPass pass,
+                                    net.minecraft.world.level.MoonPhase phase, float alpha,
+                                    com.mojang.blaze3d.vertex.PoseStack matrices, CallbackInfo ci) {
         if (vesence$hideSunMoon()) ci.cancel();
     }
 }

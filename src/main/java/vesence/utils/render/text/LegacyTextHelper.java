@@ -1,6 +1,6 @@
 package vesence.utils.render.text;
 
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -16,7 +16,7 @@ import java.util.List;
  * scoreboard ({@code ScoreboardElement}) для разбиения строк на цветные
  * сегменты и учёта цвета из стилей {@link Component}.
  *
- * <p>Класс самодостаточен (зависит только от net.minecraft.text.* и
+ * <p>Класс самодостаточен (зависит только от net.minecraft.network.chat.* и
  * {@link ChatFormatting}), поэтому перенесён без изменений API.
  */
 public final class LegacyTextHelper {
@@ -69,14 +69,14 @@ public final class LegacyTextHelper {
                     i += 7;
                     continue;
                 }
-                ChatFormatting formatting = ChatFormatting.byCode(code);
+                ChatFormatting formatting = ChatFormatting.getByCode(code);
                 if (formatting != null) {
                     flushSegment(buffer, segments, currentColor);
                     if (formatting == ChatFormatting.RESET) {
                         currentColor = baseColor;
-                    } else if (formatting.isColor()) {
-                        Integer rgb = formatting.getColorValue();
-                        if (rgb != null) currentColor = 0xFF000000 | rgb;
+                    } else if (net.minecraft.network.chat.TextColor.fromLegacyFormat(formatting) != null) {
+                        net.minecraft.network.chat.TextColor tc = net.minecraft.network.chat.TextColor.fromLegacyFormat(formatting);
+                        currentColor = 0xFF000000 | tc.getValue();
                     }
                     i++;
                     continue;
@@ -93,7 +93,7 @@ public final class LegacyTextHelper {
         StringBuilder visited = new StringBuilder();
         text.visit((style, string) -> {
             if (style != null && style.getColor() != null) {
-                int rgb = style.getColor().getRgb() & 0xFFFFFF;
+                int rgb = style.getColor().getValue() & 0xFFFFFF;
                 String hex = Integer.toHexString(rgb);
                 visited.append("&#");
                 for (int i = 0; i < 6 - hex.length(); i++) visited.append('0');
@@ -125,7 +125,7 @@ public final class LegacyTextHelper {
 
     public static Component parse(String input, int defaultColor) {
         if (input == null || input.isEmpty()) return Component.empty();
-        MutableText result = Component.empty();
+        MutableComponent result = Component.empty();
         StringBuilder buffer = new StringBuilder();
         int baseColor = defaultColor & 0xFFFFFF;
         Style current = Style.EMPTY.withColor(TextColor.fromRgb(baseColor));
@@ -158,15 +158,15 @@ public final class LegacyTextHelper {
                     i += 7;
                     continue;
                 }
-                ChatFormatting formatting = ChatFormatting.byCode(code);
+                ChatFormatting formatting = ChatFormatting.getByCode(code);
                 if (formatting != null) {
                     flush(buffer, result, current);
                     if (formatting == ChatFormatting.RESET) {
                         current = Style.EMPTY.withColor(TextColor.fromRgb(baseColor));
-                    } else if (formatting.isColor()) {
-                        current = Style.EMPTY.withFormatting(formatting);
+                    } else if (net.minecraft.network.chat.TextColor.fromLegacyFormat(formatting) != null) {
+                        current = Style.EMPTY.applyFormat(formatting);
                     } else {
-                        current = current.withFormatting(formatting);
+                        current = current.applyFormat(formatting);
                     }
                     i++;
                     continue;
@@ -178,7 +178,7 @@ public final class LegacyTextHelper {
         return result;
     }
 
-    private static void flush(StringBuilder buffer, MutableText result, Style style) {
+    private static void flush(StringBuilder buffer, MutableComponent result, Style style) {
         if (buffer.length() == 0) return;
         result.append(Component.literal(buffer.toString()).setStyle(style));
         buffer.setLength(0);

@@ -17,7 +17,7 @@ public class FreeLookUtil extends Component {
    @EventInit
    public void onEvent(EventLook event) {
       if (active) {
-         this.rotateTowards(event.getYRot(), event.getXRot());
+         this.rotateTowards(event.getYaw(), event.getPitch());
          event.cancel();
       }
    }
@@ -25,11 +25,11 @@ public class FreeLookUtil extends Component {
    @EventInit
    public void onEvent(EventRotation event) {
       if (active) {
-         event.setYRot(freeYaw);
-         event.setXRot(freePitch);
+         event.setYaw(freeYaw);
+         event.setPitch(freePitch);
       } else {
-         freeYaw = event.getYRot();
-         freePitch = event.getXRot();
+         freeYaw = event.getYaw();
+         freePitch = event.getPitch();
       }
    }
 

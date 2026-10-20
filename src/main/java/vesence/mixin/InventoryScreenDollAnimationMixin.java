@@ -15,7 +15,7 @@ import vesence.utils.render.math.animation.AnimationUtils;
  * Дополняет анимацию открытия инвентаря: кукла игрока (3D-превью) тоже
  * масштабируется вместе с панелью.
  * <p>
- * Причина: {@code GuiGraphics.addEntity(...)} НЕ учитывает GUI matrix stack —
+ * Причина: {@code GuiGraphicsExtractor.addEntity(...)} НЕ учитывает GUI matrix stack —
  * он захватывает сырые пиксельные координаты прямоугольника. Поэтому
  * matrix-scale из {@link HandledScreenAnimationMixin} масштабирует панель, но
  * не куклу. Здесь через {@link ModifyArgs} масштабируем сам прямоугольник
@@ -26,11 +26,12 @@ import vesence.utils.render.math.animation.AnimationUtils;
 @Mixin(InventoryScreen.class)
 public abstract class InventoryScreenDollAnimationMixin {
 
+    // 26.3: drawEntity → extractEntityInInventoryFollowsMouse; GuiGraphicsExtractor.addEntity → entity(...).
     @ModifyArgs(
-            method = "drawEntity(Lnet/minecraft/client/gui/GuiGraphics;IIIIIFFFLnet/minecraft/entity/LivingEntity;)V",
+            method = "extractEntityInInventoryFollowsMouse(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIIIFFFLnet/minecraft/world/entity/LivingEntity;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;addEntity(Lnet/minecraft/client/render/entity/state/EntityRenderState;FLorg/joml/Vector3f;Lorg/joml/Quaternionf;Lorg/joml/Quaternionf;IIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;entity(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;FLorg/joml/Vector3fc;Lorg/joml/Quaternionfc;Lorg/joml/Quaternionfc;IIII)V"
             )
     )
     private static void vesence$scaleDoll(Args args) {
@@ -46,8 +47,8 @@ public abstract class InventoryScreenDollAnimationMixin {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        float pivotX = mc.getWindow().getScaledWidth() / 2f;
-        float pivotY = mc.getWindow().getScaledHeight() / 2f;
+        float pivotX = mc.getWindow().getGuiScaledWidth() / 2f;
+        float pivotY = mc.getWindow().getGuiScaledHeight() / 2f;
 
         // arg1 = size (масштаб рендера сущности), arg5..8 = x1,y1,x2,y2.
         float size = (float) args.get(1);

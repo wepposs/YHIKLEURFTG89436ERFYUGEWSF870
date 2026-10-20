@@ -1,6 +1,6 @@
 package vesence.common.discord;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * DiscordManager intentionally does not initialize Discord RPC.
@@ -14,7 +14,7 @@ public class DiscordManager {
 
    private boolean running = false;
    private DiscordInfo info = new DiscordInfo("Unknown", "", "");
-   private ResourceLocation avatarId;
+   private Identifier avatarId;
 
    public void init() {
       // RPC is managed exclusively by DiscordRCP.
@@ -38,7 +38,7 @@ public class DiscordManager {
       return this.info;
    }
 
-   public ResourceLocation getAvatarId() {
+   public Identifier getAvatarId() {
       return this.avatarId;
    }
 

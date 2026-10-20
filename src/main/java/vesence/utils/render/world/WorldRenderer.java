@@ -2,12 +2,19 @@ package vesence.utils.render.world;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.render.*;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Environment(EnvType.CLIENT)
@@ -19,7 +26,7 @@ public class WorldRenderer {
     private final Matrix4f worldMatrix;
     private final Matrix4f projectionMatrix;
     private final ByteBufferBuilder bufferAllocator;
-    private final MultiBufferSource.Immediate immediate;
+    private final ImmediateBuffers immediate;
     private final float tickDelta;
     private boolean closed;
 
@@ -30,7 +37,7 @@ public class WorldRenderer {
             Matrix4f worldMatrix,
             Matrix4f projectionMatrix,
             ByteBufferBuilder bufferAllocator,
-            MultiBufferSource.Immediate immediate,
+            ImmediateBuffers immediate,
             float tickDelta
     ) {
         this.camera = camera;
@@ -52,10 +59,10 @@ public class WorldRenderer {
         PoseStack stack = new PoseStack();
         Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
         Matrix4f baseWorldMatrix = new Matrix4f(basePositionMatrix);
-        stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));
+        stack.mulPose(new Matrix4f(basePositionMatrix));
         ByteBufferBuilder allocator = new ByteBufferBuilder(262144);
-        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(allocator);
-        float tickDelta = tickCounter.getTickProgress(false);
+        ImmediateBuffers immediate = new ImmediateBuffers(allocator);
+        float tickDelta = tickCounter.getGameTimeDeltaPartialTick(false);
         return new WorldRenderer(camera, stack, basePositionMatrix, baseWorldMatrix, new Matrix4f(projectionMatrix), allocator, immediate, tickDelta);
     }
 
@@ -83,7 +90,7 @@ public class WorldRenderer {
         return this.tickDelta;
     }
 
-    public MultiBufferSource.Immediate bufferSource() {
+    public ImmediateBuffers bufferSource() {
         if (this.closed) {
             throw new IllegalStateException("Cannot access buffers after the world renderer has been closed.");
         } else {
@@ -173,6 +180,33 @@ public class WorldRenderer {
             } catch (Exception var3) {
                 throw new IllegalStateException("Failed to release world renderer buffers.", var3);
             }
+        }
+    }
+
+    // TODO(port26): MultiBufferSource was removed in 26.3; this is a minimal immediate-mode replacement.
+    // draw() builds the accumulated meshes but cannot submit them without a frame-graph RenderPass.
+    public static final class ImmediateBuffers {
+        private final ByteBufferBuilder allocator;
+        private final Map<RenderType, BufferBuilder> buffers = new HashMap<>();
+
+        ImmediateBuffers(ByteBufferBuilder allocator) {
+            this.allocator = allocator;
+        }
+
+        public VertexConsumer getBuffer(RenderType layer) {
+            return this.buffers.computeIfAbsent(layer,
+                    l -> new BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
+        }
+
+        public void draw() {
+            for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
+                MeshData meshData = entry.getValue().build();
+                if (meshData != null) {
+                    // TODO(port26): actual GPU submission requires a RenderPass from the frame graph
+                    meshData.close();
+                }
+            }
+            this.buffers.clear();
         }
     }
 }

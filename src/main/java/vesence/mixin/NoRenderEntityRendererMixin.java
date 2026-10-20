@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -42,10 +42,10 @@ public class NoRenderEntityRendererMixin {
         }
     }
 
-    // Сигнатура 1.21.11 (command-queue путь): renderLabelIfPresent(state, matrices, queue, cameraState).
-    @Inject(method = "renderLabelIfPresent", at = @At("HEAD"), cancellable = true)
+    // 26.3: renderLabelIfPresent → submitNameDisplay(state, matrices, queue, cameraState).
+    @Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
     private void vesence$hideNameInCapture(EntityRenderState state, PoseStack matrices,
-                                           OrderedRenderCommandQueue queue, CameraRenderState cameraState,
+                                           SubmitNodeCollector queue, CameraRenderState cameraState,
                                            CallbackInfo ci) {
         // Ник не должен попадать в силуэт захвата (Wave: setRenderName(false)).
         if (vesence$captureActive()) {

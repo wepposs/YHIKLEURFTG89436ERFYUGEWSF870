@@ -3,7 +3,7 @@ package vesence.renderengine.shaders;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import com.mojang.blaze3d.platform.Window;
 import org.joml.Matrix4f;
@@ -98,15 +98,15 @@ public final class BlurRenderer {
         preparedKernelStrengthBits = Integer.MIN_VALUE;
     }
 
-    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, Corner corner) {
+    public static void draw(GuiGraphicsExtractor context, float x, float y, float width, float height, float alpha, Corner corner) {
         draw(context, x, y, width, height, alpha, defaultRadius, corner);
     }
 
-    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength, Corner corner) {
+    public static void draw(GuiGraphicsExtractor context, float x, float y, float width, float height, float alpha, float strength, Corner corner) {
         draw(context, x, y, width, height, alpha, strength, corner, 1.0f, 0x00000000);
     }
 
-    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength, Corner corner, float brightness, int overlayColor) {
+    public static void draw(GuiGraphicsExtractor context, float x, float y, float width, float height, float alpha, float strength, Corner corner, float brightness, int overlayColor) {
         if (context == null || width <= 0.0f || height <= 0.0f || alpha <= 0.0f) {
             return;
         }
@@ -118,15 +118,15 @@ public final class BlurRenderer {
         drawBlurRegion(x, y, width, height, clamp(alpha, 0.0f, 1.0f), Corner.of(corner), clamp(brightness, 0.6f, 1.5f), overlayColor);
     }
 
-    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha) {
+    public static void draw(GuiGraphicsExtractor context, float x, float y, float width, float height, float alpha) {
         draw(context, x, y, width, height, alpha, Corner.zero());
     }
 
-    public static void draw(GuiGraphics context, float x, float y, float width, float height, float alpha, float strength) {
+    public static void draw(GuiGraphicsExtractor context, float x, float y, float width, float height, float alpha, float strength) {
         draw(context, x, y, width, height, alpha, strength, Corner.zero());
     }
 
-    public static void renderBlur(GuiGraphics context, float x, float y, float width, float height, float radius, float quality, float brightness, int overlayColor) {
+    public static void renderBlur(GuiGraphicsExtractor context, float x, float y, float width, float height, float radius, float quality, float brightness, int overlayColor) {
         float alpha = ((overlayColor >>> 24) & 0xFF) / 255.0f;
         float round = Math.min(Math.max(0.0f, radius), Math.min(width, height) * 0.5f);
         float strength = clamp(Math.max(radius, quality * 10.0f), MIN_RADIUS, MAX_RADIUS);
@@ -227,8 +227,8 @@ public final class BlurRenderer {
         if (client == null || client.getWindow() == null) {
             return;
         }
-        int framebufferWidth = Math.max(1, client.getWindow().getFramebufferWidth() / Math.max(1, downsample));
-        int framebufferHeight = Math.max(1, client.getWindow().getFramebufferHeight() / Math.max(1, downsample));
+        int framebufferWidth = Math.max(1, client.getWindow().getWidth() / Math.max(1, downsample));
+        int framebufferHeight = Math.max(1, client.getWindow().getHeight() / Math.max(1, downsample));
         sceneBuffer = ensureBuffer(sceneBuffer, framebufferWidth, framebufferHeight);
         blurBufferA = ensureBuffer(blurBufferA, framebufferWidth, framebufferHeight);
         blurBufferB = ensureBuffer(blurBufferB, framebufferWidth, framebufferHeight);
@@ -263,7 +263,7 @@ public final class BlurRenderer {
             return;
         }
         ShaderProgram program = BlurShaderRegistration.getCopyProgram();
-        GlState.Snapshot snapshot = GlState.pushPose();
+        GlState.Snapshot snapshot = GlState.push();
         try {
             bindTarget(target);
             GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -287,7 +287,7 @@ public final class BlurRenderer {
             return;
         }
         ShaderProgram program = BlurShaderRegistration.getGaussianProgram();
-        GlState.Snapshot snapshot = GlState.pushPose();
+        GlState.Snapshot snapshot = GlState.push();
         try {
             bindTarget(target);
             GL11.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -319,20 +319,20 @@ public final class BlurRenderer {
             return;
         }
         Window window = client.getWindow();
-        GlState.Snapshot snapshot = GlState.pushPose();
+        GlState.Snapshot snapshot = GlState.push();
         try {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, snapshot.drawFramebuffer);
-            GL11.glViewport(0, 0, window.getFramebufferWidth(), window.getFramebufferHeight());
+            GL11.glViewport(0, 0, window.getWidth(), window.getHeight());
             setupRenderState();
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             program.use();
-            setMatrices(program, window.getScaledWidth(), window.getScaledHeight());
+            setMatrices(program, window.getGuiScaledWidth(), window.getGuiScaledHeight());
             GL20.glUniform1i(program.getUniformLocation("Sampler0"), 0);
             GL20.glUniform2f(program.getUniformLocation("uSize"), width, height);
             GL20.glUniform4f(program.getUniformLocation("uRound"), corner.lb, corner.lt, corner.rb, corner.rt);
             GL20.glUniform2f(program.getUniformLocation("uSmoothness"), -0.5f, 0.5f);
-            GL20.glUniform2f(program.getUniformLocation("uResolution"), window.getFramebufferWidth(), window.getFramebufferHeight());
+            GL20.glUniform2f(program.getUniformLocation("uResolution"), window.getWidth(), window.getHeight());
             GL20.glUniform1i(program.getUniformLocation("uShapeMode"), corner.shapeMode);
             GL20.glUniform1f(program.getUniformLocation("uShapePower"), corner.shapePower);
             GL20.glUniform1f(program.getUniformLocation("uAlpha"), alpha);
@@ -495,12 +495,12 @@ public final class BlurRenderer {
 
     private static int extractMainFramebufferTexture() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.getMainRenderTarget() == null) {
+        if (client == null || client.gameRenderer.mainRenderTarget() == null) {
             return 0;
         }
         try {
-            if (client.getMainRenderTarget().getColorAttachment() instanceof GlTexture glTexture) {
-                return glTexture.getGlId();
+            if (client.gameRenderer.mainRenderTarget().getColorTexture() instanceof GlTexture glTexture) {
+                return glTexture.glId();
             }
         } catch (Exception ignored) {
         }

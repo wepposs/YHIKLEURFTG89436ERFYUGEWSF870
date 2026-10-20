@@ -1,9 +1,9 @@
 package vesence.renderengine.render;
 
-import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -35,7 +35,7 @@ import java.nio.FloatBuffer;
  * (тот же проверенный путь, что и FogBlur) — raw {@code glBlitFramebuffer} с
  * пере-подвешенной текстурой кадра давал ЧЁРНОЕ. <b>Рисование тора</b> идёт
  * raw-GL в свой FBO, к которому подвешена текстура кадра (её GL-id надёжно
- * берётся через {@link GlTexture#getGlId()}), — запись в неё видна на экране.
+ * берётся через {@link GlTexture#glId()}), — запись в неё видна на экране.
  */
 @Environment(EnvType.CLIENT)
 public final class TorusReflectionRenderer {
@@ -110,13 +110,13 @@ public final class TorusReflectionRenderer {
         sceneCopy = RenderSystem.getDevice().createTexture(
                 () -> "vesence:torus_scene",
                 GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
-                TextureFormat.RGBA8, w, h, 1, 1);
+                GpuFormat.RGBA8_UNORM, w, h, 1, 1);
         lastW = w;
         lastH = h;
     }
 
     private static int glId(GpuTexture tex) {
-        return tex instanceof GlTexture gl ? gl.getGlId() : 0;
+        return tex instanceof GlTexture gl ? gl.glId() : 0;
     }
 
     /**
@@ -124,14 +124,14 @@ public final class TorusReflectionRenderer {
      */
     public boolean begin(boolean useDepth, Matrix4f proj, double camX, double camY, double camZ, float freq, float opacity) {
         if (failed) return false;
-        RenderTarget fb = mc.getMainRenderTarget();
-        if (fb == null || fb.getColorAttachment() == null) return false;
-        int colorTex = glId(fb.getColorAttachment());
+        RenderTarget fb = mc.gameRenderer.mainRenderTarget();
+        if (fb == null || fb.getColorTexture() == null) return false;
+        int colorTex = glId(fb.getColorTexture());
         if (colorTex <= 0) return false;
         int depthTex = 0;
-        if (useDepth && fb.getDepthAttachment() != null) depthTex = glId(fb.getDepthAttachment());
-        int w = fb.textureWidth;
-        int h = fb.textureHeight;
+        if (useDepth && fb.getDepthTexture() != null) depthTex = glId(fb.getDepthTexture());
+        int w = fb.width;
+        int h = fb.height;
         if (w <= 0 || h <= 0) return false;
 
         ensureInit();
@@ -140,11 +140,11 @@ public final class TorusReflectionRenderer {
 
         // Копия сцены через Blaze3D (надёжно, как FogBlur) — до raw-GL.
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(fb.getColorAttachment(), sceneCopy, 0, 0, 0, 0, 0, w, h);
+        encoder.copyTextureToTexture(fb.getColorTexture(), sceneCopy, 0, 0, 0, 0, 0, w, h);
         int sceneTex = glId(sceneCopy);
         if (sceneTex <= 0) return false;
 
-        this.snapshot = GlState.pushPose();
+        this.snapshot = GlState.push();
         this.active = true;
 
         // Свой FBO поверх текстуры кадра (+ глубина при необходимости).

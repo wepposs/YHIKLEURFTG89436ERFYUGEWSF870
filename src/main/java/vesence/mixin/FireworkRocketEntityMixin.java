@@ -19,7 +19,7 @@ public class FireworkRocketEntityMixin {
     @ModifyVariable(
             method = "tick",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/entity/LivingEntity;setVelocity(Lnet/minecraft/util/math/Vec3;)V"),
+                    target = "Lnet/minecraft/world/entity/LivingEntity;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"),
             ordinal = 0
     )
     private Vec3 modifyFireworkBoost(Vec3 original) {

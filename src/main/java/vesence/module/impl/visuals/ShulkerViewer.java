@@ -8,9 +8,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.component.DataComponentTypes;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.ContainerComponent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -18,8 +18,8 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.NonNullList;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3x2fStack;
@@ -28,7 +28,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
@@ -46,9 +46,9 @@ public class ShulkerViewer extends Module {
     public static ShulkerViewer INSTANCE;
 
     private final BooleanSetting world = new BooleanSetting("Отображать в мире", true);
-    private final BindSettings previewBind = new BindSettings("Preview Bind", GLFW.GLFW_KEY_LEFT_ALT);
+    private final BindSettings previewBind = new BindSettings("Preview Bind", InputConstants.KEY_LALT);
 
-    private static final ResourceLocation particleTexture = ResourceLocation.of("vesence", "textures/shulkerviewer/shulker_box_tooltip.png");
+    private static final Identifier particleTexture = Identifier.fromNamespaceAndPath("vesence", "textures/shulkerviewer/shulker_box_tooltip.png");
 
     private static final Vector2f OFFSCREEN = new Vector2f(Float.MAX_VALUE, Float.MAX_VALUE);
 
@@ -89,11 +89,11 @@ public class ShulkerViewer extends Module {
     public void onRender(EventScreen e) {
         if (mc.player == null || mc.level == null) return;
         if (world.get()) {
-            GuiGraphics ctx = e.drawContext();
+            GuiGraphicsExtractor ctx = e.drawContext();
             if (ctx == null) return;
 
             List<ItemEntity> shulkerDrops = new ArrayList<>();
-            for (Entity ent : mc.level.getEntities()) {
+            for (Entity ent : mc.level.entitiesForRendering()) {
                 if (ent instanceof ItemEntity itemEnt) {
                     ItemStack drop = itemEnt.getItem();
                     if (drop.getItem() instanceof BlockItem
@@ -103,11 +103,11 @@ public class ShulkerViewer extends Module {
                 }
             }
             // Сортируем по удаленности от игрока (как в оригинале)
-            shulkerDrops.sort(Comparator.comparingDouble((ItemEntity ie) -> ie.squaredDistanceTo(mc.player.getEntityPos())).reversed());
+            shulkerDrops.sort(Comparator.comparingDouble((ItemEntity ie) -> ie.distanceToSqr(mc.player.position())).reversed());
             
             for (ItemEntity itemEnt : shulkerDrops) {
                 ItemStack drop = itemEnt.getItem();
-                DefaultedList<ItemStack> items = loadShulkerItems(drop);
+                NonNullList<ItemStack> items = loadShulkerItems(drop);
                 if (items == null) continue;
                 if (!hasAnyNonEmpty(items)) {
                     continue;
@@ -142,13 +142,13 @@ public class ShulkerViewer extends Module {
         }
     }
 
-    public static boolean onTooltip(GuiGraphics ctx, int mouseX, int mouseY, ItemStack stack) {
+    public static boolean onTooltip(GuiGraphicsExtractor ctx, int mouseX, int mouseY, ItemStack stack) {
         if (INSTANCE == null || !INSTANCE.enable) return false;
         if (mc.getWindow() == null) return false;
         int key = INSTANCE.previewBind.get();
         if (key < 0) return false;
         // Проверяем нажат ли ALT (как в оригинале - LEFT_ALT)
-        if (GLFW.glfwGetKey(mc.getWindow().getHandle(), key) == GLFW.GLFW_PRESS) {
+        if (InputConstants.isKeyDown(key)) {
             if (!canRenderPreview(stack)) {
                 return false;
             }
@@ -158,8 +158,8 @@ public class ShulkerViewer extends Module {
         return false;
     }
 
-    public static void showPreview(GuiGraphics ctx, ItemStack stack, int mouseX, int mouseY) {
-        if (!(Block.getBlockFromItem(stack.getItem()) instanceof ShulkerBoxBlock)) {
+    public static void showPreview(GuiGraphicsExtractor ctx, ItemStack stack, int mouseX, int mouseY) {
+        if (!(stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem && blockItem.getBlock() instanceof ShulkerBoxBlock)) {
             return;
         }
 
@@ -169,13 +169,13 @@ public class ShulkerViewer extends Module {
 
         // Создаем список текста с названием предмета (как в оригинале)
         List<Component> texts = new ArrayList<>();
-        texts.add(stack.getName().copy().formatted(ChatFormatting.WHITE));
+        texts.add(stack.getHoverName().copy().withStyle(ChatFormatting.WHITE));
         
         // Рисуем тултип с названием
-        ctx.drawTooltip(mc.font, texts, mouseX, mouseY);
+        ctx.setTooltipForNextFrame(mc.font, texts, java.util.Optional.empty(), mouseX, mouseY);
         
         // Вычисляем размеры и позицию (как в оригинале)
-        int maxWidth = texts.stream().mapToInt(t -> mc.font.getWidth(t)).max().orElse(0);
+        int maxWidth = texts.stream().mapToInt(t -> mc.font.width(t)).max().orElse(0);
         int x = mouseX + 12;
         int y = mouseY - 12;
         int k = 8;
@@ -183,12 +183,12 @@ public class ShulkerViewer extends Module {
             k += 2 + (texts.size() - 1) * 10;
         }
         
-        if (mc.screen != null) {
-            if (x + maxWidth > mc.screen.width) {
+        if (mc.gui.screen() != null) {
+            if (x + maxWidth > mc.gui.screen().width) {
                 x -= 28 + maxWidth;
             }
-            if (y + k + 6 > mc.screen.height) {
-                y = mc.screen.height - k - 6;
+            if (y + k + 6 > mc.gui.screen().height) {
+                y = mc.gui.screen().height - k - 6;
             }
         }
         
@@ -196,7 +196,7 @@ public class ShulkerViewer extends Module {
         int tint = getColorFromItem(stack);
         drawImage2D(ctx, particleTexture, x - 4, y + k + 5, 256, 256, tint);
 
-        DefaultedList<ItemStack> items = loadShulkerItems(stack);
+        NonNullList<ItemStack> items = loadShulkerItems(stack);
         if (items != null) {
             if (!hasAnyNonEmpty(items)) {
                 return;
@@ -221,12 +221,12 @@ public class ShulkerViewer extends Module {
 
     private static boolean canRenderPreview(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return false;
-        if (!(Block.getBlockFromItem(stack.getItem()) instanceof ShulkerBoxBlock)) return false;
-        DefaultedList<ItemStack> items = loadShulkerItems(stack);
+        if (!(stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem && blockItem.getBlock() instanceof ShulkerBoxBlock)) return false;
+        NonNullList<ItemStack> items = loadShulkerItems(stack);
         return items != null && hasAnyNonEmpty(items);
     }
 
-    private static boolean hasAnyNonEmpty(DefaultedList<ItemStack> items) {
+    private static boolean hasAnyNonEmpty(NonNullList<ItemStack> items) {
         if (items == null || items.isEmpty()) return false;
         for (ItemStack it : items) {
             if (it != null && !it.isEmpty()) return true;
@@ -234,12 +234,12 @@ public class ShulkerViewer extends Module {
         return false;
     }
 
-    private static DefaultedList<ItemStack> loadShulkerItems(ItemStack stack) {
+    private static NonNullList<ItemStack> loadShulkerItems(ItemStack stack) {
         // Используем новую систему компонентов Minecraft 1.21+
-        ContainerComponent container = stack.get(DataComponentTypes.CONTAINER);
+        net.minecraft.world.item.component.ItemContainerContents container = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
         if (container == null) return null;
-        DefaultedList<ItemStack> items = DefaultedList.ofSize(27, ItemStack.EMPTY);
-        container.copyTo(items);
+        NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+        container.copyInto(items);
         return items;
     }
 
@@ -272,9 +272,9 @@ public class ShulkerViewer extends Module {
 
     /** Эквивалент RenderUtils.interpolate2(entity, partialTicks). */
     private static Vec3 interpolate(Entity entity, float partialTicks) {
-        double posX = Mth.lerp((double) partialTicks, entity.lastRenderX, entity.getX());
-        double posY = Mth.lerp((double) partialTicks, entity.lastRenderY, entity.getY());
-        double posZ = Mth.lerp((double) partialTicks, entity.lastRenderZ, entity.getZ());
+        double posX = Mth.lerp((double) partialTicks, entity.xOld, entity.getX());
+        double posY = Mth.lerp((double) partialTicks, entity.yOld, entity.getY());
+        double posZ = Mth.lerp((double) partialTicks, entity.zOld, entity.getZ());
         return new Vec3(posX, posY, posZ);
     }
 
@@ -292,32 +292,32 @@ public class ShulkerViewer extends Module {
         if (clip.w <= 1.0e-5f) return OFFSCREEN;
         float ndcX = clip.x / clip.w;
         float ndcY = clip.y / clip.w;
-        float screenX = (ndcX * 0.5f + 0.5f) * mc.getWindow().getScaledWidth();
-        float screenY = (1.0f - (ndcY * 0.5f + 0.5f)) * mc.getWindow().getScaledHeight();
+        float screenX = (ndcX * 0.5f + 0.5f) * mc.getWindow().getGuiScaledWidth();
+        float screenY = (1.0f - (ndcY * 0.5f + 0.5f)) * mc.getWindow().getGuiScaledHeight();
         if (Float.isNaN(screenX) || Float.isNaN(screenY) || Float.isInfinite(screenX) || Float.isInfinite(screenY)) {
             return OFFSCREEN;
         }
         return new Vector2f(screenX, screenY);
     }
 
-    /** Эквивалент RenderUtils.drawImage2(tex, x, y, w, h, color) — тинт-текстура через GuiGraphics. */
-    private static void drawImage2D(GuiGraphics ctx, ResourceLocation image, float x, float y, float width, float height, int color) {
-        Matrix3x2fStack matrices = ctx.getMatrices();
+    /** Эквивалент RenderUtils.drawImage2(tex, x, y, w, h, color) — тинт-текстура через GuiGraphicsExtractor. */
+    private static void drawImage2D(GuiGraphicsExtractor ctx, Identifier image, float x, float y, float width, float height, int color) {
+        Matrix3x2fStack matrices = ctx.pose();
         matrices.pushMatrix();
         matrices.translate(x, y);
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, image, 0, 0, 0.0f, 0.0f, (int) width, (int) height, (int) width, (int) height, color);
+        ctx.blit(RenderPipelines.GUI_TEXTURED, image, 0, 0, 0.0f, 0.0f, (int) width, (int) height, (int) width, (int) height, color);
         matrices.popMatrix();
     }
 
-    /** Эквивалент RenderUtils.drawStack(stack, x, y, size) — предмет + оверлей через GuiGraphics. */
-    private static void drawStack(GuiGraphics ctx, ItemStack itemStack, float x, float y, float size) {
+    /** Эквивалент RenderUtils.drawStack(stack, x, y, size) — предмет + оверлей через GuiGraphicsExtractor. */
+    private static void drawStack(GuiGraphicsExtractor ctx, ItemStack itemStack, float x, float y, float size) {
         if (itemStack == null || itemStack.isEmpty()) return;
-        Matrix3x2fStack matrices = ctx.getMatrices();
+        Matrix3x2fStack matrices = ctx.pose();
         matrices.pushMatrix();
         matrices.translate(x, y);
         matrices.scale(size, size);
-        ctx.drawItem(itemStack, 0, 0);
-        ctx.drawStackOverlay(mc.font, itemStack, 0, 0);
+        ctx.item(itemStack, 0, 0);
+        ctx.itemDecorations(mc.font, itemStack, 0, 0);
         matrices.popMatrix();
     }
 }

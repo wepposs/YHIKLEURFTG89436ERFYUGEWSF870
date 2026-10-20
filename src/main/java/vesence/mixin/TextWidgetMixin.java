@@ -3,11 +3,11 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.gui.widget.AbstractTextWidget;
+import net.minecraft.client.gui.components.AbstractStringWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.widget.TextWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,16 +20,16 @@ import vesence.module.impl.misc.BetterMinecraft;
  * font. Multi-line text widgets are left untouched to avoid clipping.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(AbstractTextWidget.class)
+@Mixin(AbstractStringWidget.class)
 public abstract class TextWidgetMixin {
 
-   @Inject(method = "renderWidget", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-   private void vesence$customHeader(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-      if (!((Object) this instanceof TextWidget)) {
+   @Inject(method = "extractWidgetRenderState", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+   private void vesence$customHeader(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+      if (!((Object) this instanceof StringWidget)) {
          return;
       }
       Minecraft client = Minecraft.getInstance();
-      if (client != null && client.screen instanceof ChatScreen) {
+      if (client != null && client.gui.screen() instanceof ChatScreen) {
          return;
       }
       if (!BetterMinecraft.customButtonsEnabled() || !Vesence.isModInitialized()) {

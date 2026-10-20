@@ -1,31 +1,33 @@
 package vesence.module.impl.visuals.attributes;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.entity.EntityPose;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import vesence.event.render.EventRender3D;
 import vesence.module.impl.visuals.Attributes;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import vesence.module.impl.visuals.Immediate;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * Хвост — облако мягких glow-биллбордов из {@code bloom.png}. Привязан к телу
@@ -38,26 +40,28 @@ import vesence.module.impl.visuals.Attributes;
  */
 public final class AttributesTail {
 
-    static final ResourceLocation BLOOM = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
+    static final Identifier BLOOM = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/bloom.png");
 
     /** Аддитивный (LIGHTNING) текстурный пайплайн с depth-test, как у bloom в TargetESP. */
     static final RenderPipeline BLOOM_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/attributes_bloom"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/attributes_bloom"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.LIGHTNING)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                     .build());
 
-    static final RenderType BLOOM_LAYER = RenderType.of(
+    static final RenderType BLOOM_LAYER = RenderType.create(
             "vesence_attributes_bloom",
             RenderSetup.builder(BLOOM_PIPELINE)
-                    .expectedBufferSize(262144)
-                    .translucent()
-                    .texture("Sampler0", BLOOM)
-                    .build());
+                    
+                    
+                    .withTexture("Sampler0", BLOOM)
+                    .createRenderSetup());
 
     private static final int CURVE_POINTS = 18;
     private static final float TAIL_LENGTH = 0.95f;
@@ -94,13 +98,13 @@ public final class AttributesTail {
         PoseStack matrices = event.getMatrixStack();
 
         if (this.allocator == null) this.allocator = new ByteBufferBuilder(262144);
-        Immediate immediate = MultiBufferSource.immediate(this.allocator);
+        Immediate immediate = new Immediate();
         VertexConsumer buffer = immediate.getBuffer(BLOOM_LAYER);
 
         boolean any = false;
-        for (Player player : mc.level.getPlayers()) {
+        for (Player player : mc.level.players()) {
             if (!shouldRenderForPlayer(player)) continue;
-            if (player == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
+            if (player == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
             renderTail(player, tickDelta, matrices, cameraPos, buffer);
             any = true;
         }
@@ -116,15 +120,15 @@ public final class AttributesTail {
     private void renderTail(Player player, float tickDelta, PoseStack matrices, Vec3 cameraPos,
                             VertexConsumer buffer) {
         if (!player.isAlive() || player.isInvisible()) return;
-        EntityPose pose = player.getPose();
-        if (pose == EntityPose.SWIMMING || player.isInSwimmingPose() || player.isGliding()) return;
+        net.minecraft.world.entity.Pose pose = player.getPose();
+        if (pose == net.minecraft.world.entity.Pose.SWIMMING || player.hasPose(net.minecraft.world.entity.Pose.SWIMMING) || player.isFallFlying()) return;
 
         // Интерполированная позиция игрока в мире.
-        Vec3 lerpPos = player.getLerpedPos(tickDelta);
+        Vec3 lerpPos = player.getPosition(tickDelta);
         double playerX = lerpPos.x;
         double playerY = lerpPos.y;
         double playerZ = lerpPos.z;
-        float bodyYaw = Mth.lerpAngleDegrees(tickDelta, player.lastBodyYaw, player.bodyYaw);
+        float bodyYaw = Mth.rotLerp(tickDelta, player.yBodyRotO, player.yBodyRot);
 
         int theme = parent.resolveThemeColor();
         int rT = (theme >> 16) & 0xFF;
@@ -134,15 +138,15 @@ public final class AttributesTail {
         int gW = Math.min(255, gT + 100);
         int bW = Math.min(255, bT + 100);
 
-        float baseY = player.isSneaking() ? 0.55f : 0.95f;
+        float baseY = player.isCrouching() ? 0.55f : 0.95f;
         // С конвенцией rotateY(180 - bodyYaw) локальный +Z = «за спиной» игрока.
         float baseZ = 0.08f;
-        float poseScale = player.isSneaking() ? 0.85f : 1.0f;
+        float poseScale = player.isCrouching() ? 0.85f : 1.0f;
 
         // Скорость движения для управления волной.
-        java.util.UUID uuid = player.getUuid();
-        double dx = player.getX() - player.lastRenderX;
-        double dz = player.getZ() - player.lastRenderZ;
+        java.util.UUID uuid = player.getUUID();
+        double dx = player.getX() - player.xOld;
+        double dz = player.getZ() - player.zOld;
         double horizontalSpeed = Math.sqrt(dx * dx + dz * dz);
         float motionTarget = (float) Math.min(1.0, horizontalSpeed / 0.18);
         float motion = motionState.getOrDefault(uuid, 0.0f);
@@ -164,8 +168,8 @@ public final class AttributesTail {
         // Положительный pitch = хвост свисает вниз (локальный +Z → -Y).
         m.rotateX((float) Math.toRadians(baseDownPitch));
 
-        float camYaw = mc.gameRenderer.getCamera().getYRot();
-        float camPitch = mc.gameRenderer.getCamera().getXRot();
+        float camYaw = mc.gameRenderer.mainCamera().yRot();
+        float camPitch = mc.gameRenderer.mainCamera().xRot();
 
         Vector4f localPoint = new Vector4f();
 
@@ -187,9 +191,9 @@ public final class AttributesTail {
             double worldZ = localPoint.z;
 
             float whiteMix = Mth.clamp((p - 0.75f) * 4.0f, 0.0f, 1.0f);
-            int r = Mth.lerp(whiteMix, rT, rW);
-            int g = Mth.lerp(whiteMix, gT, gW);
-            int b = Mth.lerp(whiteMix, bT, bW);
+            int r = (int) Mth.lerp(whiteMix, rT, rW);
+            int g = (int) Mth.lerp(whiteMix, gT, gW);
+            int b = (int) Mth.lerp(whiteMix, bT, bW);
 
             // Размер: компактный у основания → расширяется к концу.
             float size;
@@ -227,9 +231,9 @@ public final class AttributesTail {
         float half = size * 0.5f;
         matrices.pushPose();
         matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
-        Matrix4f mat = matrices.last().getPositionMatrix();
+        matrices.rotate(Axis.YP.rotationDegrees(-camYaw));
+        matrices.rotate(Axis.XP.rotationDegrees(camPitch));
+        Matrix4f mat = matrices.last().pose();
         texVertex(buffer, mat, -half, -half, 0f, 1f, r, g, b, a);
         texVertex(buffer, mat, -half,  half, 0f, 0f, r, g, b, a);
         texVertex(buffer, mat,  half,  half, 1f, 0f, r, g, b, a);
@@ -239,11 +243,11 @@ public final class AttributesTail {
 
     private static void texVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y,
                                   float u, float v, int r, int g, int b, int a) {
-        buffer.vertex(matrix, x, y, 0f)
-                .texture(u, v)
-                .color(r, g, b, a)
-                .overlay(OverlayTexture.DEFAULT_UV)
-                .light(15728880)
-                .normal(0f, 0f, 1f);
+        buffer.addVertex(matrix, x, y, 0f)
+                .setUv(u, v)
+                .setColor(r, g, b, a)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(15728880)
+                .setNormal(0f, 0f, 1f);
     }
 }

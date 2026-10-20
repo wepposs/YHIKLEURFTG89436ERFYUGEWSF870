@@ -13,15 +13,16 @@ import vesence.module.impl.visuals.NoRender;
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
 public class NoRenderGameRendererMixin {
-   @Inject(method = "showFloatingItem", at = @At("HEAD"), cancellable = true)
-   private void onShowFloatingItem(net.minecraft.item.ItemStack floatingItem, CallbackInfo ci) {
-      if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Анимация тотема")) {
-         ci.cancel();
-      }
-   }
+   // TODO(port26): GameRenderer#showFloatingItem removed in 26.3 — totem/floating-item activation
+   // moved to LocalPlayer#displayItemActivation + PlayerRenderState.itemActivation rendered by
+   // ScreenEffectRenderer#renderItemActivationAnimation. Hook point lives in another class, so the
+   // «Анимация тотема» cancel is stubbed here.
+   // @Inject(method = "showFloatingItem", at = @At("HEAD"), cancellable = true)
+   // private void onShowFloatingItem(net.minecraft.world.item.ItemStack floatingItem, CallbackInfo ci) { ... }
 
-   @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"), cancellable = true)
-   private void onTiltViewWhenHurt(net.minecraft.client.util.math.PoseStack matrices, float tickDelta, CallbackInfo ci) {
+   @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)
+   private void onTiltViewWhenHurt(net.minecraft.client.renderer.state.level.CameraRenderState cameraRenderState,
+                                   com.mojang.blaze3d.vertex.PoseStack matrices, CallbackInfo ci) {
       if (Vesence.get.manager.get(NoRender.class).enable && NoRender.elements.get("Тряску камеры")) {
          ci.cancel();
       }

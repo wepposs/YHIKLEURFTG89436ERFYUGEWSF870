@@ -9,29 +9,27 @@ import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -52,6 +50,10 @@ import vesence.module.api.setting.impl.MultiBooleanSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.utils.friends.FriendStorage;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import net.minecraft.client.renderer.BindGroupLayouts;
 
 /**
  * KillEffect — эффекты при исчезновении цели. Несколько режимов:
@@ -73,16 +75,16 @@ public class KillEffect extends Module {
 
     public static KillEffect INSTANCE;
 
-    private static final ResourceLocation VIGNETTE_TEXTURE = ResourceLocation.of("vesence", "images/world/lightarroundscreen.png");
+    private static final Identifier VIGNETTE_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "images/world/lightarroundscreen.png");
     private static final long BASE_EFFECT_DURATION_MS = 5200L;
     private static final double SPAWN_MAX_DISTANCE = 64.0;
     private static final Random random = new Random();
 
     // ── Charm sounds (Матрица) ──
-    private static final SoundEvent FRAG_EFFECT_ECHO_MAIN = SoundEvent.of(ResourceLocation.of("vesence", "frag_effect_echo_main"));
-    private static final SoundEvent FRAG_EFFECT_KNOCK_MAIN = SoundEvent.of(ResourceLocation.of("vesence", "frag_effect_knock_main"));
-    private static final SoundEvent FRAG_EFFECT_PULSE = SoundEvent.of(ResourceLocation.of("vesence", "frag_effect_pulse"));
-    private static final SoundEvent FRAG_EFFECT_SPARKS_COLLISION = SoundEvent.of(ResourceLocation.of("vesence", "frag_effect_sparks_collision"));
+    private static final SoundEvent FRAG_EFFECT_ECHO_MAIN = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "frag_effect_echo_main"));
+    private static final SoundEvent FRAG_EFFECT_KNOCK_MAIN = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "frag_effect_knock_main"));
+    private static final SoundEvent FRAG_EFFECT_PULSE = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "frag_effect_pulse"));
+    private static final SoundEvent FRAG_EFFECT_SPARKS_COLLISION = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "frag_effect_sparks_collision"));
 
     // ── Settings ──
     public final ModeSetting mode = new ModeSetting("Режим", "Матрица", "Матрица", "Default", "Молния", "Частицы");
@@ -117,19 +119,21 @@ public class KillEffect extends Module {
 
     // ── Render pipeline (glow-биллборды, аддитивный blend) ──
     private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-                    .withLocation(ResourceLocation.of("vesence", "pipeline/world/killeffect_glow"))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+            RenderPipeline.builder(new RenderPipeline.Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                    .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/killeffect_glow"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
                     .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.LIGHTNING)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                     .build());
-    private static final ResourceLocation GLOW_TEX = ResourceLocation.of("vesence", "textures/targetesp/bloom.png");
-    private static final RenderType GLOW_LAYER = RenderType.of(
+    private static final Identifier GLOW_TEX = Identifier.fromNamespaceAndPath("vesence", "textures/targetesp/bloom.png");
+    private static final RenderType GLOW_LAYER = RenderType.create(
             "vesence_killeffect_frag_glow",
-            RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(524288).translucent()
-                    .texture("Sampler0", GLOW_TEX).build());
+            RenderSetup.builder(GLOW_PIPELINE)
+                    .withTexture("Sampler0", GLOW_TEX).createRenderSetup());
 
     public KillEffect() {
         INSTANCE = this;
@@ -153,7 +157,7 @@ public class KillEffect extends Module {
         if (mc.player == null || mc.level == null) return;
         if (!(event.getTarget() instanceof LivingEntity target)) return;
         if (!target.isAlive() || target.getHealth() <= 0.0f || !shouldTriggerFor(target)) return;
-        this.tracked.put(target, new Tracked(target.getEntityPos(), target.getEyePosition()));
+        this.tracked.put(target, new Tracked(target.position(), target.getEyePosition()));
     }
 
     // ═══ Event: тик — трекинг цели Aura + детект смерти + частицы/звуки ══════
@@ -166,7 +170,7 @@ public class KillEffect extends Module {
 
         LivingEntity auraTarget = AttackAura.target;
         if (auraTarget != null && auraTarget.isAlive() && auraTarget.getHealth() > 0.0f && shouldTriggerFor(auraTarget)) {
-            this.tracked.put(auraTarget, new Tracked(auraTarget.getEntityPos(), auraTarget.getEyePosition()));
+            this.tracked.put(auraTarget, new Tracked(auraTarget.position(), auraTarget.getEyePosition()));
         }
 
         detectDeaths();
@@ -177,14 +181,14 @@ public class KillEffect extends Module {
     /** Обновляем позицию живых целей, при удалении/смерти — запускаем эффект. */
     private void detectDeaths() {
         long now = System.currentTimeMillis();
-        Vec3 playerPos = mc.player.getEntityPos();
+        Vec3 playerPos = mc.player.position();
         Iterator<Map.Entry<Entity, Tracked>> it = this.tracked.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Entity, Tracked> entry = it.next();
             Entity entity = entry.getKey();
             Tracked t = entry.getValue();
             if (entity != mc.player && entity.isAlive() && !entity.isRemoved()) {
-                t.feet = entity.getEntityPos();
+                t.feet = entity.position();
                 t.eye = entity.getEyePosition();
             } else {
                 if (t.feet.distanceTo(playerPos) <= SPAWN_MAX_DISTANCE) {
@@ -205,13 +209,13 @@ public class KillEffect extends Module {
         if (!hasGlow) return;
 
         PoseStack ms = event.getMatrixStack();
-        Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
         float partialTicks = event.getTickDelta();
         long now = System.currentTimeMillis();
         int accent = accentColor();
 
         if (killEffectAlloc == null) { killEffectAlloc = new ByteBufferBuilder(524288); }
-        MultiBufferSource.Immediate immediate = MultiBufferSource.immediate(killEffectAlloc);
+        Immediate immediate = new Immediate();
         VertexConsumer buffer = immediate.getBuffer(GLOW_LAYER);
 
         // Матрица — белые искры взрыва.
@@ -344,10 +348,10 @@ public class KillEffect extends Module {
             }
             return this.effectTargets.get("Игроки");
         }
-        if (entity instanceof AnimalEntity) {
+        if (entity instanceof net.minecraft.world.entity.animal.Animal) {
             return this.effectTargets.get("Животные");
         }
-        if (entity instanceof MobEntity) {
+        if (entity instanceof net.minecraft.world.entity.Mob) {
             return this.effectTargets.get("Мобы");
         }
         return false;
@@ -431,7 +435,7 @@ public class KillEffect extends Module {
 
     private void playSound(SoundEvent sound, float volume) {
         if (mc.getSoundManager() == null) return;
-        SoundInstance instance = PositionedSoundInstance.ui(sound, 1.0f, volume);
+        SoundInstance instance = SimpleSoundInstance.forUI(sound, 1.0f, volume);
         mc.getSoundManager().play(instance);
     }
 
@@ -486,15 +490,15 @@ public class KillEffect extends Module {
         if (alphaMul <= 0.01f) return;
         matrices.pushPose();
         matrices.translate(position.x - cameraPos.x, position.y - cameraPos.y, position.z - cameraPos.z);
-        matrices.multiply(mc.gameRenderer.getCamera().getRotation());
-        appendQuadRGBA(buffer, matrices.last().getPositionMatrix(), size, r, g, b, alphaMul);
+        matrices.rotate(mc.gameRenderer.mainCamera().rotation());
+        appendQuadRGBA(buffer, matrices.last().pose(), size, r, g, b, alphaMul);
         matrices.popPose();
     }
 
     // ═══ Частицы — взрыв (порт RelevantPremiumpp4/zenith) ════════════════════
     private void spawnParticles(LivingEntity entity, Vec3 pos, int color) {
-        float width = entity != null ? entity.getWidth() : 0.6f;
-        float height = entity != null ? entity.getHeight() : 1.8f;
+        float width = entity != null ? entity.getBbWidth() : 0.6f;
+        float height = entity != null ? entity.getBbHeight() : 1.8f;
         float yaw = entity != null ? (float) Math.toRadians(-entity.getYRot() + 90.0f) : 0.0f;
         boolean hasGravity = this.gravity.get();
         int count = 194;
@@ -596,10 +600,10 @@ public class KillEffect extends Module {
         float half = size * 0.5f;
         int a = (int) Mth.clamp(255.0f * alphaMul, 0, 255);
         if (a <= 1) return;
-        buffer.vertex(matrix, -half, -half, 0.0f).texture(0.0f, 1.0f).color(r, g, b, a);
-        buffer.vertex(matrix, -half, half, 0.0f).texture(0.0f, 0.0f).color(r, g, b, a);
-        buffer.vertex(matrix, half, half, 0.0f).texture(1.0f, 0.0f).color(r, g, b, a);
-        buffer.vertex(matrix, half, -half, 0.0f).texture(1.0f, 1.0f).color(r, g, b, a);
+        buffer.addVertex(matrix, -half, -half, 0.0f).setUv(0.0f, 1.0f).setColor(r, g, b, a);
+        buffer.addVertex(matrix, -half, half, 0.0f).setUv(0.0f, 0.0f).setColor(r, g, b, a);
+        buffer.addVertex(matrix, half, half, 0.0f).setUv(1.0f, 0.0f).setColor(r, g, b, a);
+        buffer.addVertex(matrix, half, -half, 0.0f).setUv(1.0f, 1.0f).setColor(r, g, b, a);
     }
 
     // ═══ ScanWave (Матрица) ══════════════════════════════════════════════════
@@ -627,7 +631,7 @@ public class KillEffect extends Module {
         }
 
         private float viewDistance() {
-            int rd = mc.options.getViewDistance().getValue();
+            int rd = mc.options.getEffectiveRenderDistance();
             return Math.max(96.0f, (rd + 1) * 16.0f);
         }
 
@@ -726,8 +730,8 @@ public class KillEffect extends Module {
 
             ms.pushPose();
             ms.translate(rp.x - cameraPos.x, rp.y - cameraPos.y, rp.z - cameraPos.z);
-            ms.multiply(mc.gameRenderer.getCamera().getRotation());
-            Matrix4f matrix = ms.last().getPositionMatrix();
+            ms.rotate(mc.gameRenderer.mainCamera().rotation());
+            Matrix4f matrix = ms.last().pose();
             appendQuadRGBA(buffer, matrix, baseSize, bright, bright, bright, a * 0.38f);
             appendQuadRGBA(buffer, matrix, baseSize * 0.22f, bright, bright, bright, a * 0.9f);
             ms.popPose();
@@ -783,8 +787,8 @@ public class KillEffect extends Module {
                 float size = (float) (1.0 + 3.0 * (p.y - this.pos.y) / 50.0);
                 ms.pushPose();
                 ms.translate(p.x - cameraPos.x, p.y - cameraPos.y, p.z - cameraPos.z);
-                ms.multiply(mc.gameRenderer.getCamera().getRotation());
-                Matrix4f matrix = ms.last().getPositionMatrix();
+                ms.rotate(mc.gameRenderer.mainCamera().rotation());
+                Matrix4f matrix = ms.last().pose();
                 appendQuadRGBA(buffer, matrix, size * 2.2f, r, g, b, finalAlpha * 0.4f);
                 appendQuadRGBA(buffer, matrix, size * 1.1f, r, g, b, finalAlpha * 0.8f);
                 appendQuadRGBA(buffer, matrix, size * 0.5f, wr, wg, wb, finalAlpha);
@@ -840,15 +844,15 @@ public class KillEffect extends Module {
             double nextZ = this.z + this.vz * delta;
 
             if (this.hasGravity && mc.level != null) {
-                if (!mc.level.getBlockState(BlockPos.ofFloored(this.x, nextY - 0.05, this.z)).isAir()) {
+                if (!mc.level.getBlockState(BlockPos.containing(this.x, nextY - 0.05, this.z)).isAir()) {
                     this.vy = -this.vy * bounceFriction;
                     nextY = this.y;
                 }
-                if (!mc.level.getBlockState(BlockPos.ofFloored(nextX, this.y, this.z)).isAir()) {
+                if (!mc.level.getBlockState(BlockPos.containing(nextX, this.y, this.z)).isAir()) {
                     this.vx = -this.vx * bounceFriction;
                     nextX = this.x;
                 }
-                if (!mc.level.getBlockState(BlockPos.ofFloored(this.x, this.y, nextZ)).isAir()) {
+                if (!mc.level.getBlockState(BlockPos.containing(this.x, this.y, nextZ)).isAir()) {
                     this.vz = -this.vz * bounceFriction;
                     nextZ = this.z;
                 }
@@ -881,8 +885,8 @@ public class KillEffect extends Module {
             int b = this.color & 0xFF;
             ms.pushPose();
             ms.translate(this.x - cameraPos.x, this.y - cameraPos.y, this.z - cameraPos.z);
-            ms.multiply(mc.gameRenderer.getCamera().getRotation());
-            appendQuadRGBA(buffer, ms.last().getPositionMatrix(), innerSize, r, g, b, 0.9f * alpha);
+            ms.rotate(mc.gameRenderer.mainCamera().rotation());
+            appendQuadRGBA(buffer, ms.last().pose(), innerSize, r, g, b, 0.9f * alpha);
             ms.popPose();
         }
     }

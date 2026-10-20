@@ -12,7 +12,7 @@ import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.Vesence;
 
 @Environment(EnvType.CLIENT)
@@ -43,7 +43,7 @@ public final class MacroManager {
 
    public boolean add(String keyName, String command) {
       int key = keyToGlfw(keyName);
-      if (key == GLFW.GLFW_KEY_UNKNOWN || command == null || command.isBlank()) {
+      if (key == 0 /* SDL_SCANCODE_UNKNOWN */ || command == null || command.isBlank()) {
          return false;
       }
       macros.put(key, command.trim());
@@ -82,16 +82,17 @@ public final class MacroManager {
       }
       try {
          if (command.startsWith("/")) {
-            mc.player.connection.sendChatCommand(command.substring(1));
+            mc.player.connection.sendCommand(command.substring(1));
          } else {
-            mc.player.connection.sendChatMessage(command);
+            mc.player.connection.sendChat(command);
          }
       } catch (Exception ignored) {
       }
    }
 
    public static String keyName(int key) {
-      String name = GLFW.glfwGetKeyName(key, 0);
+      // TODO(port26): was GLFW.glfwGetKeyName(key, 0); 26.3 uses SDL scancodes
+      String name = InputConstants.Type.KEYBOARD.getOrCreate(key).getDisplayName().getString();
       if (name != null && !name.isEmpty()) {
          return name.toUpperCase(java.util.Locale.ROOT);
       }
@@ -100,28 +101,29 @@ public final class MacroManager {
 
    public static int keyToGlfw(String s) {
       if (s == null || s.isEmpty()) {
-         return GLFW.GLFW_KEY_UNKNOWN;
+         return 0 /* SDL_SCANCODE_UNKNOWN */;
       }
       String up = s.trim().toUpperCase(java.util.Locale.ROOT);
       if (up.length() == 1) {
          char c = up.charAt(0);
          if (c >= 'A' && c <= 'Z') {
-            return GLFW.GLFW_KEY_A + (c - 'A');
+            return InputConstants.KEY_A + (c - 'A');
          }
          if (c >= '0' && c <= '9') {
-            return GLFW.GLFW_KEY_0 + (c - '0');
+            // TODO(port26): SDL scancode order is 1..9,0
+            return c == '0' ? InputConstants.KEY_0 : InputConstants.KEY_1 + (c - '1');
          }
       }
 
       switch (up) {
-         case "SPACE": return GLFW.GLFW_KEY_SPACE;
-         case "ENTER": case "RETURN": return GLFW.GLFW_KEY_ENTER;
-         case "TAB": return GLFW.GLFW_KEY_TAB;
-         case "LSHIFT": return GLFW.GLFW_KEY_LEFT_SHIFT;
-         case "RSHIFT": return GLFW.GLFW_KEY_RIGHT_SHIFT;
-         case "LCTRL": case "LCONTROL": return GLFW.GLFW_KEY_LEFT_CONTROL;
-         case "RCTRL": case "RCONTROL": return GLFW.GLFW_KEY_RIGHT_CONTROL;
-         default: return GLFW.GLFW_KEY_UNKNOWN;
+         case "SPACE": return InputConstants.KEY_SPACE;
+         case "ENTER": case "RETURN": return InputConstants.KEY_RETURN;
+         case "TAB": return InputConstants.KEY_TAB;
+         case "LSHIFT": return InputConstants.KEY_LSHIFT;
+         case "RSHIFT": return InputConstants.KEY_RSHIFT;
+         case "LCTRL": case "LCONTROL": return InputConstants.KEY_LCONTROL;
+         case "RCTRL": case "RCONTROL": return InputConstants.KEY_RCONTROL;
+         default: return 0 /* SDL_SCANCODE_UNKNOWN */;
       }
    }
 

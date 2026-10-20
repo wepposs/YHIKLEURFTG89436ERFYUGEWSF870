@@ -9,7 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -72,7 +72,7 @@ public class SpikeBrain {
          return;
       }
 
-      Vec3 playerPos = entity.getEntityPos();
+      Vec3 playerPos = entity.position();
       LivingEntity target = AttackAura.target;
       Vec3 desiredPos = resolveDesiredPosition(playerPos, target);
       if (pos == null || pos.distanceTo(playerPos) > TELEPORT_DISTANCE) {
@@ -122,7 +122,7 @@ public class SpikeBrain {
 
    private Vec3 resolveDesiredPosition(Vec3 playerPos, LivingEntity target) {
       if (target != null && entity instanceof LocalPlayer) {
-         Vec3 targetPos = target.getEntityPos();
+         Vec3 targetPos = target.position();
          Vec3 awayFromTarget = pos == null ? playerPos.subtract(targetPos) : pos.subtract(targetPos);
          awayFromTarget = new Vec3(awayFromTarget.x, 0.0D, awayFromTarget.z);
          if (awayFromTarget.lengthSqr() < 1.0E-4D) {
@@ -181,17 +181,17 @@ public class SpikeBrain {
 
       if (target != null && entity instanceof LocalPlayer) {
          AABB box = new AABB(getPos().subtract(0.6D, 0.0D, 0.6D), getPos().add(0.6D, 0.8D, 0.6D));
-         AABB targetBox = target.getBoundingBox().expand(-0.1D, 0.0D, -0.1D);
+         AABB targetBox = target.getBoundingBox().inflate(-0.1D, 0.0D, -0.1D);
          if (box.maxX > targetBox.minX
                && box.maxY > targetBox.minY
                && box.maxZ > targetBox.minZ
                && box.minX < targetBox.maxX
                && box.minY < targetBox.maxY
                && box.minZ < targetBox.maxZ) {
-            Vec3 away = getPos().subtract(target.getEntityPos());
+            Vec3 away = getPos().subtract(target.position());
             away = new Vec3(away.x, 0.0D, away.z);
             if (away.lengthSqr() > 1.0E-4D) {
-               away = away.normalize().multiply(0.18D);
+               away = away.normalize().scale(0.18D);
                motion = new Vec3(away.x, motion.y, away.z);
             } else {
                motion = motion.multiply(0.0D, 1.0D, 0.0D);
@@ -242,17 +242,17 @@ public class SpikeBrain {
       int blockX = Mth.floor(x);
       int baseY = Mth.floor(y);
       int blockZ = Mth.floor(z);
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+      BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
       for (int offset = 1; offset >= -2; offset--) {
          int checkY = baseY + offset;
          mutable.set(blockX, checkY, blockZ);
          BlockState state = mc.level.getBlockState(mutable);
-         if (state.isOf(Blocks.LILY_PAD)) {
+         if (state.is(Blocks.LILY_PAD)) {
             return checkY + LILY_PAD_SURFACE_OFFSET;
          }
-         if (state.isOf(Blocks.WATER)) {
-            BlockState above = mc.level.getBlockState(mutable.up());
-            if (above.isOf(Blocks.LILY_PAD)) {
+         if (state.is(Blocks.WATER)) {
+            BlockState above = mc.level.getBlockState(mutable.move(0, 1, 0));
+            if (above.is(Blocks.LILY_PAD)) {
                return checkY + 1.0D + LILY_PAD_SURFACE_OFFSET;
             }
             return checkY + WATER_SURFACE_OFFSET;
@@ -286,10 +286,10 @@ public class SpikeBrain {
          yaw = normalizeDegrees((float) Math.toDegrees(Math.atan2(motion.z, motion.x)) - 90.0F);
       }
 
-      Vec3 lookTarget = entity.getEntityPos().add(0.0D, 1.0D, 0.0D);
+      Vec3 lookTarget = entity.position().add(0.0D, 1.0D, 0.0D);
       Vector2f lookRotation = PetUtil.rotations(pos, lookTarget);
       if (target != null && entity instanceof LocalPlayer) {
-         lookTarget = target.getEntityPos().add(0.0D, target.getHeight() * 0.65D, 0.0D);
+         lookTarget = target.position().add(0.0D, target.getBbHeight() * 0.65D, 0.0D);
          lookRotation = PetUtil.rotations(pos, lookTarget);
          yaw = normalizeDegrees(lookRotation.x);
 

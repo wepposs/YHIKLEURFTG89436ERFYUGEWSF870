@@ -8,8 +8,7 @@ import java.util.HashMap;
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resource.ResourceType;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.server.packs.PackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +46,7 @@ public class LuaTestHMI {
         }
         initialized = true;
 
-        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES)
                 .registerReloadListener((IdentifiableResourceReloadListener) new LuaAnimationResourceLoader());
         try {
             handScriptCache = new LuaScriptCache("return");
@@ -64,7 +63,8 @@ public class LuaTestHMI {
      * (замена WorldRenderEvents.START из оригинального мода).
      */
     public static void updateDeltaTime() {
-        float currentTime = (float) GLFW.glfwGetTime();
+        // TODO(port26): was GLFW.glfwGetTime(); 26.3 has no GLFW
+        float currentTime = (float) (System.nanoTime() / 1.0e9);
         deltaTime = currentTime - prevTime;
         prevTime = currentTime;
         deltaTime = Minecraft.getInstance().isPaused() ? 0.0f : (float) Math.min(0.05, (double) deltaTime);

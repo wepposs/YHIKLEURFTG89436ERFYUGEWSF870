@@ -2,12 +2,12 @@ package vesence.utils.render;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +20,7 @@ public class ItemColorExtractor {
     public static int getDominantColor(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return 0;
 
-        DyedColorComponent dyedColor = stack.get(DataComponentTypes.DYED_COLOR);
+        DyedItemColor dyedColor = stack.get(DataComponents.DYED_COLOR);
         if (dyedColor != null) {
             return dyedColor.rgb();
         }
@@ -35,7 +35,7 @@ public class ItemColorExtractor {
     }
 
     private static int getColorByName(Item item) {
-        ResourceLocation id = BuiltInRegistries.ITEM.getId(item);
+        Identifier id = BuiltInRegistries.ITEM.getKey(item);
         String path = id.getPath();
 
         if (path.contains("netherite")) return 0x4D3B2F;

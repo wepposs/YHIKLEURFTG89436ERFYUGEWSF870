@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.player.EventElytraBoost;
@@ -78,7 +78,7 @@ public class ElytraBoost extends Module {
 
     @EventInit
     public void onElytraBoost(EventElytraBoost event) {
-        if (!enable || mc.player == null || !mc.player.isGliding()) {
+        if (!enable || mc.player == null || !mc.player.isFallFlying()) {
             return;
         }
 
@@ -128,7 +128,7 @@ public class ElytraBoost extends Module {
     }
 
     private Vec3 adaptBoost(Vec3 boost) {
-        if (mc.player == null || !mc.player.isGliding()) {
+        if (mc.player == null || !mc.player.isFallFlying()) {
             return boost;
         }
 
@@ -147,7 +147,7 @@ public class ElytraBoost extends Module {
         double distance = mc.player.getEyePosition().distanceTo(target.getEyePosition());
 
         double desiredDistance = Math.max(elytraTarget.predictBlocks.get().doubleValue(),
-                target.getWidth() + mc.player.getWidth());
+                target.getBbWidth() + mc.player.getBbWidth());
         double distanceError = (distance - desiredDistance) / Math.max(desiredDistance, 1.0);
 
         double predictedTargetEyeY = target.getEyeY();
@@ -171,9 +171,9 @@ public class ElytraBoost extends Module {
     }
 
     private double getBps(LivingEntity entity) {
-        double dx = entity.getX() - entity.lastRenderX;
-        double dy = entity.getY() - entity.lastRenderY;
-        double dz = entity.getZ() - entity.lastRenderZ;
+        double dx = entity.getX() - entity.xo;
+        double dy = entity.getY() - entity.yo;
+        double dz = entity.getZ() - entity.zo;
         return Math.sqrt(dx * dx + dy * dy + dz * dz) * 20.0;
     }
 

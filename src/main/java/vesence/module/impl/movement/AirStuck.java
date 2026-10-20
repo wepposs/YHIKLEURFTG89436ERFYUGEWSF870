@@ -3,11 +3,11 @@ package vesence.module.impl.movement;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screens.DeathScreen;
-import net.minecraft.server.dialog.Input;
+import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.lifecycle.ClientTickEvent;
@@ -47,7 +47,7 @@ public class AirStuck extends Module {
         }
 
         // Enable noclip and freeze movement
-        mc.player.noClip = true;
+        mc.player.noPhysics = true;
         mc.player.setOnGround(false);
         mc.player.setDeltaMovement(0.0, 0.0, 0.0);
         mc.player.getAbilities().flying = true;
@@ -58,8 +58,8 @@ public class AirStuck extends Module {
         }
 
         // Freeze rotation
-        mc.player.headYaw = savedYaw;
-        mc.player.bodyYaw = savedBodyYaw;
+        mc.player.yHeadRot = savedYaw;
+        mc.player.yBodyRot = savedBodyYaw;
         mc.player.setXRot(savedPitch);
     }
 
@@ -71,7 +71,7 @@ public class AirStuck extends Module {
 
         // Send position packet every 10 ticks to prevent timeout
         if (mc.player.tickCount % 10 == 0) {
-            mc.player.connection.sendPacket(new ServerboundMovePlayerPacket.OnGroundOnly(mc.player.onGround(), mc.player.horizontalCollision));
+            mc.player.connection.send(new ServerboundMovePlayerPacket.StatusOnly(mc.player.onGround(), mc.player.horizontalCollision));
         }
 
         // Cancel motion
@@ -91,7 +91,7 @@ public class AirStuck extends Module {
         }
 
         // Auto-disable on respawn
-        if (event.getPacket() instanceof GameJoinS2CPacket) {
+        if (event.getPacket() instanceof ClientboundLoginPacket) {
             toggle();
         }
     }
@@ -99,7 +99,7 @@ public class AirStuck extends Module {
     private boolean isPlayerDead() {
         return mc.player != null 
                 && mc.player.getHealth() < 1.0F 
-                && mc.screen instanceof DeathScreen;
+                && mc.gui.screen() instanceof DeathScreen;
     }
 
     @Override
@@ -108,12 +108,12 @@ public class AirStuck extends Module {
             oldIsFlying = mc.player.getAbilities().flying;
             
             // Stop all input
-            mc.player.input = new Input();
+            mc.player.input = new ClientInput();
             
             // Save current rotation
             savedYaw = mc.player.getYRot();
             savedPitch = mc.player.getXRot();
-            savedBodyYaw = mc.player.bodyYaw;
+            savedBodyYaw = mc.player.yBodyRot;
         }
         super.onEnable();
     }
@@ -122,7 +122,7 @@ public class AirStuck extends Module {
     public void onDisable() {
         if (mc.player != null) {
             // Restore input
-            if (mc.player.input.getClass() == Input.class) {
+            if (mc.player.input.getClass() == ClientInput.class) {
                 mc.player.input = new KeyboardInput(mc.options);
             }
             
@@ -130,7 +130,7 @@ public class AirStuck extends Module {
             mc.player.getAbilities().flying = oldIsFlying;
             
             // Disable noclip
-            mc.player.noClip = false;
+            mc.player.noPhysics = false;
         }
         super.onDisable();
     }

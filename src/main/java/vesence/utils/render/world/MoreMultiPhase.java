@@ -1,6 +1,6 @@
 package vesence.utils.render.world;
 
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import java.util.Objects;
 import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;

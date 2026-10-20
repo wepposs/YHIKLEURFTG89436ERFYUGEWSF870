@@ -3,10 +3,10 @@ package vesence.module.impl.visuals.elements;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import vesence.Vesence;
 import vesence.hmi.script_wrappers.C;
 import vesence.module.api.Module;
@@ -56,9 +56,9 @@ public class KeybindsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
-        boolean isChatOpen = mc.screen instanceof ChatScreen;
+        boolean isChatOpen = mc.gui.screen() instanceof ChatScreen;
 
         float totalSlotHeight = 0;
         for (Module mod : Vesence.get.manager.getModules()) {

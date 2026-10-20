@@ -2,7 +2,6 @@ package vesence.module.impl.visuals.pet;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
@@ -17,6 +16,7 @@ import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.module.impl.visuals.custompet.CustomPetFollowerController;
 import vesence.module.impl.visuals.custompet.CustomPetVariant;
+import vesence.module.impl.visuals.Immediate;
 
 /**
  * Единый модуль питомцев. Объединяет:
@@ -90,8 +90,8 @@ public class Pet extends Module {
 
       PoseStack matrices = event.getMatrixStack();
       float tickDelta = event.getTickDelta();
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
+      Immediate immediate = new Immediate();
       float scale = this.size.get().floatValue();
 
       if (this.isDragonSelected()) {

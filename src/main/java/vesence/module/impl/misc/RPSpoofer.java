@@ -2,9 +2,9 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.c2s.common.ResourcePackStatusC2SPacket;
-import net.minecraft.network.packet.s2c.common.ResourcePackRemoveS2CPacket;
-import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
+import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
+import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.event.impl.EventUpdate;
@@ -29,10 +29,10 @@ public class RPSpoofer extends Module {
             return;
         }
 
-        if (event.getPacket() instanceof ResourcePackSendS2CPacket packet) {
+        if (event.getPacket() instanceof ClientboundResourcePackPushPacket packet) {
             event.cancel();
             scheduleSpoof(packet.id());
-        } else if (event.getPacket() instanceof ResourcePackRemoveS2CPacket) {
+        } else if (event.getPacket() instanceof ClientboundResourcePackPopPacket) {
             event.cancel();
         }
     }
@@ -44,11 +44,11 @@ public class RPSpoofer extends Module {
         }
 
         long now = System.currentTimeMillis();
-        while (!pendingStatuses.isEmpty() && pendingStatuses.last().sendAt <= now) {
+        while (!pendingStatuses.isEmpty() && ((java.util.ArrayDeque<QueuedStatus>) pendingStatuses).peekLast().sendAt <= now) {
             QueuedStatus queued = pendingStatuses.poll();
             if (queued != null) {
                 NetworkUtils.sendSilentPacket(
-                        new ResourcePackStatusC2SPacket(queued.id, queued.status)
+                        new ServerboundResourcePackPacket(queued.id, queued.status)
                 );
             }
         }
@@ -61,11 +61,11 @@ public class RPSpoofer extends Module {
         pendingStatuses.removeIf(status -> status.id.equals(id));
 
         NetworkUtils.sendSilentPacket(
-                new ResourcePackStatusC2SPacket(id, ResourcePackStatusC2SPacket.Status.ACCEPTED)
+                new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.ACCEPTED)
         );
 
-        pendingStatuses.add(new QueuedStatus(id, ResourcePackStatusC2SPacket.Status.DOWNLOADED, now + 150L));
-        pendingStatuses.add(new QueuedStatus(id, ResourcePackStatusC2SPacket.Status.SUCCESSFULLY_LOADED, now + 400L));
+        pendingStatuses.add(new QueuedStatus(id, ServerboundResourcePackPacket.Action.DOWNLOADED, now + 150L));
+        pendingStatuses.add(new QueuedStatus(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED, now + 400L));
     }
 
     @Override
@@ -74,6 +74,6 @@ public class RPSpoofer extends Module {
         super.onDisable();
     }
 
-    private record QueuedStatus(UUID id, ResourcePackStatusC2SPacket.Status status, long sendAt) {
+    private record QueuedStatus(UUID id, ServerboundResourcePackPacket.Action status, long sendAt) {
     }
 }

@@ -1,25 +1,25 @@
 package vesence.renderengine.render;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import net.minecraft.client.Camera;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -28,7 +28,7 @@ import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.OptionalInt;
+import java.util.Optional;
 
 /**
  * SkyShaderRenderer — полный порт Relevant ShaderSky на core-пайплайн 1.21.11.
@@ -65,12 +65,12 @@ public final class SkyShaderRenderer {
             "Спектр", "Кровавая луна", "Изумруд"
     };
 
-    private static final ResourceLocation SKY_VSH = ResourceLocation.of("vesence", "core/sky/sky_fullscreen");
+    private static final Identifier SKY_VSH = Identifier.fromNamespaceAndPath("vesence", "core/sky/sky_fullscreen");
 
     // Небо рисуется поверх содержимого буфера с учётом собственной альфы, чтобы
     // туман (см. fsh) мог плавно смешиваться. Обычно альфа=1 → полная замена.
     private static final BlendFunction REPLACE_BLEND =
-            new BlendFunction(SourceFactor.ONE, DestFactor.ZERO, SourceFactor.ONE, DestFactor.ZERO);
+            new BlendFunction(BlendFactor.ONE, BlendFactor.ZERO, BlendFactor.ONE, BlendFactor.ZERO);
 
     private static final Vector4f COLOR_MODULATOR = new Vector4f(1f, 1f, 1f, 1f);
     private static final Vector3f MODEL_OFFSET = new Vector3f(0, 0, 0);
@@ -111,17 +111,20 @@ public final class SkyShaderRenderer {
     private RenderPipeline getSkyPipeline(String shaderName) {
         if (skyPipelines.containsKey(shaderName)) return skyPipelines.get(shaderName);
         try {
-            ResourceLocation fsh = ResourceLocation.of("vesence", "core/sky/" + shaderName);
+            Identifier fsh = Identifier.fromNamespaceAndPath("vesence", "core/sky/" + shaderName);
             RenderPipeline p = RenderPipelines.register(
-                    RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
-                            .withLocation(ResourceLocation.of("vesence", "pipeline/" + shaderName + "_g" + pipelineGeneration))
+                    RenderPipeline.builder()
+                            .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/" + shaderName + "_g" + pipelineGeneration))
                             .withVertexShader(SKY_VSH)
                             .withFragmentShader(fsh)
-                            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-                            .withUniform("SkyData", UniformType.UNIFORM_BUFFER)
-                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                            .withDepthWrite(false)
-                            .withBlend(REPLACE_BLEND)
+                            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+                            .withBindGroupLayout(BindGroupLayout.builder()
+                                    .withUniform("SkyData", UniformType.UNIFORM_BUFFER)
+                                    .build())
+                            .withDepthStencilState(Optional.empty())
+                            .withColorTargetState(new ColorTargetState(REPLACE_BLEND))
                             .withCull(false)
                             .build()
             );
@@ -161,11 +164,11 @@ public final class SkyShaderRenderer {
                           boolean fogEnabled, int fogColorRgb, float fogBlend) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || camera == null) return false;
-        RenderTarget mainFb = mc.getMainRenderTarget();
-        if (mainFb == null || mainFb.getColorAttachment() == null) return false;
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
+        if (mainFb == null || mainFb.getColorTexture() == null) return false;
 
-        int w = mainFb.textureWidth;
-        int h = mainFb.textureHeight;
+        int w = mainFb.width;
+        int h = mainFb.height;
         if (w <= 0 || h <= 0) return false;
 
         ensureInitialized();
@@ -173,9 +176,9 @@ public final class SkyShaderRenderer {
         if (skyPipeline == null) return false;
 
         float time = (float) (System.currentTimeMillis() - startTime) / 1000.0F * speed;
-        float camYaw = camera.getYRot();
-        float camPitch = camera.getXRot();
-        float fov = mc.options.getFov().getValue().floatValue();
+        float camYaw = camera.yRot();
+        float camPitch = camera.xRot();
+        float fov = mc.options.fov().get().floatValue();
 
         float fr = ((fogColorRgb >> 16) & 0xFF) / 255.0f;
         float fg = ((fogColorRgb >> 8) & 0xFF) / 255.0f;
@@ -190,17 +193,17 @@ public final class SkyShaderRenderer {
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
         encoder.writeToBuffer(skyUbo.slice(), skyData);
 
-        GpuBufferSlice dyn = RenderSystem.getDynamicUniforms().write(
-                RenderSystem.getModelViewMatrix(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
+        GpuBufferSlice dyn = RenderSystem.getDynamicUniforms().writeTransform(
+                RenderSystem.getModelViewMatrixCopy(), COLOR_MODULATOR, MODEL_OFFSET, TEXTURE_MATRIX);
 
         try (RenderPass pass = encoder.createRenderPass(() -> "vesence:sky_render",
-                mainFb.getColorAttachmentView(), OptionalInt.empty())) {
-            pass.setPipeline(skyPipeline);
-            pass.setVertexBuffer(0, dummyVertexBuffer);
+                mainFb.getColorTextureView(), Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(skyPipeline));
+            pass.setVertexBuffer(0, dummyVertexBuffer.slice());
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dyn);
             pass.setUniform("SkyData", skyUbo);
-            pass.draw(0, 6);
+            pass.draw(0, 6, 0, 1);
         }
         return true;
     }

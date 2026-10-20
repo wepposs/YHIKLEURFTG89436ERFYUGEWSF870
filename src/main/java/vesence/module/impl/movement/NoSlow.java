@@ -44,29 +44,29 @@ public class NoSlow extends Module {
 
       switch (mode.get()) {
          case "Grim" -> {
-            if (mc.player.getActiveHand() == InteractionHand.MAIN_HAND) {
-               mc.gameMode.interactItem(mc.player, InteractionHand.OFF_HAND);
+            if (mc.player.getUsedItemHand() == InteractionHand.MAIN_HAND) {
+               mc.gameMode.useItem(mc.player, InteractionHand.OFF_HAND);
             } else {
-               mc.gameMode.interactItem(mc.player, InteractionHand.MAIN_HAND);
+               mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
             }
             event.cancel();
          }
          case "Grim Tick" -> {
-            if (mc.player.isUsingItem() && !mc.player.hasVehicle() && this.ticks >= 1.2F) {
+            if (mc.player.isUsingItem() && !mc.player.isPassenger() && this.ticks >= 1.2F) {
                event.cancel();
                this.ticks = 0.0F;
             }
          }
          case "Grim Swap" -> {
-            if (mc.player.isUsingItem() && !mc.player.hasVehicle()) {
-               mc.getConnection().sendPacket(new net.minecraft.network.packet.c2s.play.ServerboundSetCarriedItemPacket(
+            if (mc.player.isUsingItem() && !mc.player.isPassenger()) {
+               mc.getConnection().send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(
                        mc.player.getInventory().getSelectedSlot()
                ));
                event.cancel();
             }
          }
          case "SpookyTime" -> {
-            if (mc.player.isUsingItem() && !mc.player.hasVehicle() && this.ticks >= 1.3F) {
+            if (mc.player.isUsingItem() && !mc.player.isPassenger() && this.ticks >= 1.3F) {
                event.cancel();
                this.ticks = 0.26F;
             }

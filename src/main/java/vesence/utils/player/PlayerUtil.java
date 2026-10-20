@@ -20,8 +20,8 @@ public final class PlayerUtil implements IMinecraft {
    }
 
    public static boolean isBlockSolid(double x, double y, double z) {
-      BlockPos pos = BlockPos.ofFloored(x, y, z);
-      return mc.level.getBlockState(pos).isFullCube(mc.level, pos);
+      BlockPos pos = BlockPos.containing(x, y, z);
+      return Block.isShapeFullBlock(mc.level.getBlockState(pos).getCollisionShape(mc.level, pos));
    }
 
    public static Block block(BlockPos pos) {
@@ -29,16 +29,16 @@ public final class PlayerUtil implements IMinecraft {
    }
 
    public static float calculateCorrectYawOffset(float yaw) {
-      double xDiff = mc.player.getX() - mc.player.lastRenderX;
-      double zDiff = mc.player.getZ() - mc.player.lastRenderZ;
+      double xDiff = mc.player.getX() - mc.player.xo;
+      double zDiff = mc.player.getZ() - mc.player.zo;
       float distSquared = (float)(xDiff * xDiff + zDiff * zDiff);
-      float renderYawOffset = mc.player.lastBodyYaw;
+      float renderYawOffset = mc.player.yBodyRotO;
       float offset = renderYawOffset;
       if (distSquared > 0.0025000002F) {
          offset = (float)Mth.atan2(zDiff, xDiff) * 180.0F / (float) Math.PI - 90.0F;
       }
 
-      if (mc.player != null && mc.player.handSwingProgress > 0.0F) {
+      if (mc.player != null && mc.player.isSwinging()) {
          offset = yaw;
       }
 
@@ -54,12 +54,12 @@ public final class PlayerUtil implements IMinecraft {
 
    public static boolean isPlayerInWeb() {
       AABB playerBox = mc.player.getBoundingBox();
-      BlockPos playerPosition = mc.player.getBlockPos();
+      BlockPos playerPosition = mc.player.blockPosition();
       return getNearbyBlockPositions(playerPosition).stream().anyMatch(pos -> isBlockCobweb(playerBox, pos));
    }
 
    private static boolean isBlockCobweb(AABB playerBox, BlockPos pos) {
-      if (!mc.level.getBlockState(pos).isOf(Blocks.COBWEB)) {
+      if (!mc.level.getBlockState(pos).is(Blocks.COBWEB)) {
          return false;
       } else {
          AABB blockBox = new AABB(pos);
@@ -86,12 +86,12 @@ public final class PlayerUtil implements IMinecraft {
          return false;
       } else if (!nullCheck() && mc.getConnection() != null) {
          String serverAddress = null;
-         if (mc.getCurrentServerEntry() != null) {
-            serverAddress = mc.getCurrentServerEntry().address;
+         if (mc.getCurrentServer() != null) {
+            serverAddress = mc.getCurrentServer().ip;
          }
 
          if ((serverAddress == null || serverAddress.isEmpty()) && mc.getConnection().getConnection() != null) {
-            SocketAddress address = mc.getConnection().getConnection().getAddress();
+            SocketAddress address = mc.getConnection().getConnection().getRemoteAddress();
             if (address != null) {
                serverAddress = address.toString();
                if (serverAddress.startsWith("/")) {
@@ -100,7 +100,7 @@ public final class PlayerUtil implements IMinecraft {
             }
          }
 
-         if (mc.isConnectedToLocalServer()) {
+         if (mc.isLocalServer()) {
             serverAddress = "localhost";
          }
 

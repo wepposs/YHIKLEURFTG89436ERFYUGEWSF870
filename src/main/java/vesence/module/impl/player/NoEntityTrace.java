@@ -35,7 +35,7 @@ public class NoEntityTrace extends Module {
       if (!noSword.get()) return true;
 
       ItemStack stack = mc.player.getMainHandItem();
-      String key = stack.getItem().getTranslationKey().toLowerCase();
+      String key = stack.getItem().getDescriptionId().toLowerCase();
       return !key.contains("sword");
    }
 }

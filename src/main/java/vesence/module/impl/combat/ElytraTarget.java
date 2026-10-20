@@ -87,7 +87,7 @@ public class ElytraTarget extends Module {
             return getCenterPoint(target);
         }
 
-        if (!enable || !target.isGliding()) {
+        if (!enable || !target.isFallFlying()) {
             return getCenterPoint(target);
         }
 
@@ -112,12 +112,12 @@ public class ElytraTarget extends Module {
 
         Vec3 center = target.getBoundingBox().getCenter();
         double centerYOffset = center.y - target.getY();
-        double tickVertical = target.getY() - target.lastRenderY;
+        double tickVertical = target.getY() - target.yOld;
         Vec3 velocity = target.getDeltaMovement();
         double horizontal = Math.hypot(velocity.x, velocity.z);
 
         if (horizontal < 1.0E-4) {
-            horizontal = Math.hypot(target.getX() - target.lastRenderX, target.getZ() - target.lastRenderZ);
+            horizontal = Math.hypot(target.getX() - target.xOld, target.getZ() - target.zOld);
         }
 
         if (horizontal < 1.0E-4) {
@@ -131,7 +131,7 @@ public class ElytraTarget extends Module {
         double drag = Math.pow(1.0 / GLIDE_DRAG, ticks);
         
         // Extrapolate position
-        Vec3 extrapolated = velocity.multiply(ticks * drag * OVERTAKE_SPEED_SCALE);
+        Vec3 extrapolated = velocity.scale(ticks * drag * OVERTAKE_SPEED_SCALE);
 
         // Vertical prediction based on pitch
         double pitchRad = Math.toRadians(target.getXRot());
@@ -165,8 +165,8 @@ public class ElytraTarget extends Module {
         Vec3 flatOwn = new Vec3(own.x, 0.0, own.z).normalize();
         Vec3 flatTarget = new Vec3(target.getDeltaMovement().x, 0.0, target.getDeltaMovement().z).normalize();
 
-        double closing = flatOwn.dotProduct(flatTarget);
-        double approach = flatOwn.dotProduct(flatToTarget.normalize());
+        double closing = flatOwn.dot(flatTarget);
+        double approach = flatOwn.dot(flatToTarget.normalize());
 
         return closing >= OVERTAKE_DOT_MIN && approach >= OVERTAKE_DOT_MIN;
     }
@@ -177,7 +177,7 @@ public class ElytraTarget extends Module {
         }
         return new Vec3(
                 entity.getX(),
-                entity.getY() + entity.getHeight() * AIM_HEIGHT_FRAC,
+                entity.getY() + entity.getBbHeight() * AIM_HEIGHT_FRAC,
                 entity.getZ()
         );
     }
@@ -191,7 +191,7 @@ public class ElytraTarget extends Module {
             return false;
         }
 
-        if (!living.isGliding()) {
+        if (!living.isFallFlying()) {
             return false;
         }
 
@@ -212,7 +212,7 @@ public class ElytraTarget extends Module {
             return false;
         }
 
-        return mc.player.isGliding() && target.isGliding();
+        return mc.player.isFallFlying() && target.isFallFlying();
     }
 
     public double aimRadius() {

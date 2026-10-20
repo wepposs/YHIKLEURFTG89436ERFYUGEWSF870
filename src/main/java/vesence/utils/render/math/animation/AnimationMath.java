@@ -8,7 +8,7 @@ import net.minecraft.util.Mth;
 @Environment(EnvType.CLIENT)
 public class AnimationMath {
    public static double deltaTime() {
-      return Minecraft.getInstance().getCurrentFps() > 0 ? 1.0 / Minecraft.getInstance().getCurrentFps() : 1.0;
+      return Minecraft.getInstance().getFps() > 0 ? 1.0 / Minecraft.getInstance().getFps() : 1.0;
    }
 
    public static float fast(float end, float start, float multiple) {
@@ -17,7 +17,7 @@ public class AnimationMath {
    }
 
    public static float animation(float animation, float target, float speedTarget) {
-      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getCurrentFps(), 5.0F) * 15.0F;
+      float dif = (target - animation) / Math.max((float)Minecraft.getInstance().getFps(), 5.0F) * 15.0F;
       if (dif > 0.0F) {
          dif = Math.max(speedTarget, dif);
          dif = Math.min(target - animation, dif);

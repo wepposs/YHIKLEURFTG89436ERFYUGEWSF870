@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.Click;
+import net.minecraft.client.input.MouseButtonEvent;
 import vesence.module.api.setting.Setting;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;

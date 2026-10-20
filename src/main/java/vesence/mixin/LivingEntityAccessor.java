@@ -9,9 +9,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Environment(EnvType.CLIENT)
 @Mixin({LivingEntity.class})
 public interface LivingEntityAccessor {
-    @Accessor("jumpingCooldown")
+    @Accessor("noJumpDelay")
     int getJumpingCooldown();
 
-    @Accessor("jumpingCooldown")
+    @Accessor("noJumpDelay")
     void setJumpingCooldown(int value);
 }

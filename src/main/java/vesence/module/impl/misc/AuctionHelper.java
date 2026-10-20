@@ -9,25 +9,25 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.component.type.LoreComponent;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.core.Holder;
 import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.ScoreHolder;
-import net.minecraft.world.scores.Team;
-import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
@@ -100,12 +100,12 @@ public final class AuctionHelper extends Module {
 
    @EventInit
    public void onUpdate(EventUpdate event) {
-      if (mc.player == null || mc.screen instanceof ChatScreen) {
+      if (mc.player == null || mc.gui.screen() instanceof ChatScreen) {
          this.searchKeyWasDown = false;
          return;
       }
-      boolean down = this.searchHeldItem.isPressed();
-      if (down && !this.searchKeyWasDown && mc.screen == null) {
+      boolean down = this.searchHeldItem.isDown();
+      if (down && !this.searchKeyWasDown && mc.gui.screen() == null) {
          this.searchHeldItem();
       }
       this.searchKeyWasDown = down;
@@ -116,8 +116,8 @@ public final class AuctionHelper extends Module {
    @EventInit
    public void onHandledScreen(HandledScreenEvent event) {
       if (mc.player == null
-            || !(mc.screen instanceof GenericContainerScreen screen)
-            || !(mc.player.containerMenu instanceof GenericContainerScreenHandler handler)) {
+            || !(mc.gui.screen() instanceof ContainerScreen screen)
+            || !(mc.player.containerMenu instanceof ChestMenu handler)) {
          this.resetState();
          return;
       }
@@ -128,7 +128,7 @@ public final class AuctionHelper extends Module {
 
       this.refreshSlotsIfNeeded(handler);
 
-      GuiGraphics context = event.getDrawContext();
+      GuiGraphicsExtractor context = event.getDrawContext();
       int baseX = event.getScreenX();
       int baseY = event.getScreenY();
       float pulse = (float) Math.abs(Math.sin(System.currentTimeMillis() / 800.0 * Math.PI));
@@ -190,32 +190,32 @@ public final class AuctionHelper extends Module {
       String qtyStr = qty > 1 ? " (x" + qty + ")" : "";
 
       tooltip.add(Component.empty());
-      MutableText line = Component.literal("Цена за штуку: ")
-            .formatted(ChatFormatting.GRAY)
-            .append(Component.literal(priceStr).formatted(ChatFormatting.GREEN))
-            .append(Component.literal(qtyStr).formatted(ChatFormatting.DARK_GRAY));
+      MutableComponent line = Component.literal("Цена за штуку: ")
+            .withStyle(ChatFormatting.GRAY)
+            .append(Component.literal(priceStr).withStyle(ChatFormatting.GREEN))
+            .append(Component.literal(qtyStr).withStyle(ChatFormatting.DARK_GRAY));
       tooltip.add(line);
    }
 
    // ── обновление списка дешёвых слотов ──────────────────────────────────────
 
-   private void refreshSlotsIfNeeded(GenericContainerScreenHandler handler) {
-      if (handler.syncId == this.lastSyncId && handler.getRevision() == this.lastRevision) {
+   private void refreshSlotsIfNeeded(ChestMenu handler) {
+      if (handler.containerId == this.lastSyncId && handler.getStateId() == this.lastRevision) {
          return;
       }
       this.updateSlots(handler);
-      this.lastSyncId = handler.syncId;
-      this.lastRevision = handler.getRevision();
+      this.lastSyncId = handler.containerId;
+      this.lastRevision = handler.getStateId();
    }
 
-   private void updateSlots(GenericContainerScreenHandler handler) {
+   private void updateSlots(ChestMenu handler) {
       List<SlotData> candidates = new ArrayList<>();
-      int topSlots = Math.min(45, handler.getRows() * 9);
+      int topSlots = Math.min(45, handler.getRowCount() * 9);
       long balance = this.affordableOnly.get() ? this.getPlayerBalance() : Long.MAX_VALUE;
 
       for (int i = 0; i < topSlots && i < handler.slots.size(); i++) {
          Slot slot = handler.getSlot(i);
-         if (slot == null || !slot.hasStack()) {
+         if (slot == null || !slot.hasItem()) {
             continue;
          }
 
@@ -267,7 +267,7 @@ public final class AuctionHelper extends Module {
          return -1L;
       }
 
-      ScoreboardObjective sidebar = sb.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+      Objective sidebar = sb.getDisplayObjective(DisplaySlot.SIDEBAR);
       if (sidebar != null) {
          long fromSidebar = scanScoreboardObjective(sb, sidebar);
          if (fromSidebar >= 0) {
@@ -276,11 +276,11 @@ public final class AuctionHelper extends Module {
       }
 
       try {
-         PlayerListEntry self = mc.getConnection() != null
-               ? mc.getConnection().getPlayerListEntry(mc.player.getUuid())
+         PlayerInfo self = mc.getConnection() != null
+               ? mc.getConnection().getPlayerInfo(mc.player.getUUID())
                : null;
          if (self != null) {
-            Component display = self.getDisplayName();
+            Component display = self.getTabListDisplayName();
             if (display != null) {
                long money = parseMoneyFromText(display.getString());
                if (money >= 0) {
@@ -298,10 +298,10 @@ public final class AuctionHelper extends Module {
       return -1L;
    }
 
-   private static long scanScoreboardObjective(Scoreboard sb, ScoreboardObjective objective) {
+   private static long scanScoreboardObjective(Scoreboard sb, Objective objective) {
       try {
-         for (ScoreHolder holder : sb.getKnownScoreHolders()) {
-            String name = holder.getNameForScoreboard();
+         for (ScoreHolder holder : sb.getTrackedPlayers()) {
+            String name = holder.getScoreboardName();
             if (name == null) {
                continue;
             }
@@ -309,13 +309,13 @@ public final class AuctionHelper extends Module {
             if (money >= 0) {
                return money;
             }
-            Team team = sb.getScoreHolderTeam(name);
+            PlayerTeam team = sb.getPlayersTeam(name);
             if (team != null) {
-               long pref = parseMoneyFromText(team.getPrefix().getString());
+               long pref = parseMoneyFromText(team.getPlayerPrefix().getString());
                if (pref >= 0) {
                   return pref;
                }
-               long suf = parseMoneyFromText(team.getSuffix().getString());
+               long suf = parseMoneyFromText(team.getPlayerSuffix().getString());
                if (suf >= 0) {
                   return suf;
                }
@@ -380,23 +380,23 @@ public final class AuctionHelper extends Module {
    // ── определение экрана аукциона / лотов ───────────────────────────────────
 
    private static boolean onSupportedAuctionScreen() {
-      if (mc.player == null || !(mc.screen instanceof GenericContainerScreen screen)
-            || !(mc.player.containerMenu instanceof GenericContainerScreenHandler handler)) {
+      if (mc.player == null || !(mc.gui.screen() instanceof ContainerScreen screen)
+            || !(mc.player.containerMenu instanceof ChestMenu handler)) {
          return false;
       }
       return isSupportedAuctionScreen(screen, handler);
    }
 
-   private static boolean isSupportedAuctionScreen(GenericContainerScreen screen, GenericContainerScreenHandler handler) {
+   private static boolean isSupportedAuctionScreen(ContainerScreen screen, ChestMenu handler) {
       String title = normalize(screen.getTitle().getString());
       if (title.contains("аукцион") || title.contains("auction")) {
          return true;
       }
-      if (handler.getRows() < 6 || handler.slots.size() <= 49) {
+      if (handler.getRowCount() < 6 || handler.slots.size() <= 49) {
          return false;
       }
       ItemStack refresh = handler.getSlot(49).getItem();
-      return !refresh.isEmpty() && (refresh.isOf(Items.CLOCK) || refresh.isOf(Items.NETHER_STAR));
+      return !refresh.isEmpty() && (refresh.is(Items.CLOCK) || refresh.is(Items.NETHER_STAR));
    }
 
    private void searchHeldItem() {
@@ -408,20 +408,20 @@ public final class AuctionHelper extends Module {
          sendMessage("AuctionHelper: возьмите предмет в основную руку.");
          return;
       }
-      String query = sanitizeAuctionSearchName(stack.getName().getString());
+      String query = sanitizeAuctionSearchName(stack.getHoverName().getString());
       if (query.isEmpty()) {
          sendMessage("AuctionHelper: не удалось построить запрос для поиска.");
          return;
       }
-      mc.getConnection().sendChatCommand("ah search " + query);
+      mc.getConnection().sendCommand("ah search " + query);
       sendMessage("AuctionHelper: поиск " + query + ".");
    }
 
    private boolean hasThorns(ItemStack stack) {
-      ItemEnchantmentsComponent enchantments =
-            stack.getOrDefault(DataComponentTypes.ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT);
-      for (Holder<Enchantment> enchantment : enchantments.getEnchantments()) {
-         String id = enchantment.getKey().map(key -> key.getValue().getPath()).orElse("");
+      ItemEnchantments enchantments =
+            stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+      for (Holder<Enchantment> enchantment : enchantments.keySet()) {
+         String id = enchantment.unwrapKey().map(key -> key.identifier().getPath()).orElse("");
          if (id.contains("thorns")) {
             return true;
          }
@@ -433,8 +433,8 @@ public final class AuctionHelper extends Module {
       if (stack == null || stack.isEmpty()) {
          return false;
       }
-      String name = normalize(stack.getName().getString());
-      return stack.isOf(Items.BARRIER) || name.contains("товар не актуален");
+      String name = normalize(stack.getHoverName().getString());
+      return stack.is(Items.BARRIER) || name.contains("товар не актуален");
    }
 
    // ── извлечение цены / количества из лора ──────────────────────────────────
@@ -478,7 +478,7 @@ public final class AuctionHelper extends Module {
    }
 
    private static int extractPriceFallback(ItemStack stack) {
-      LoreComponent lore = stack.get(DataComponentTypes.LORE);
+      ItemLore lore = stack.get(DataComponents.LORE);
       if (lore == null) {
          return -1;
       }
@@ -496,7 +496,7 @@ public final class AuctionHelper extends Module {
    }
 
    private static List<String> extractRawLore(ItemStack stack) {
-      LoreComponent lore = stack.get(DataComponentTypes.LORE);
+      ItemLore lore = stack.get(DataComponents.LORE);
       if (lore == null || lore.lines().isEmpty()) {
          return List.of();
       }
@@ -563,7 +563,7 @@ public final class AuctionHelper extends Module {
 
    private static void sendMessage(String text) {
       if (mc.player != null) {
-         mc.player.sendMessage(Component.literal(text), false);
+         mc.player.sendSystemMessage(Component.literal(text));
       }
    }
 

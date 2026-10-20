@@ -3,8 +3,8 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.hud.PlayerListHud;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.PlayerTabOverlay;
 import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -19,19 +19,19 @@ import vesence.utils.render.math.animation.AnimationUtils;
  * сдвиг раскрытия при удержании Tab. Скрытый → показанный.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(PlayerListHud.class)
+@Mixin(PlayerTabOverlay.class)
 public abstract class PlayerListHudAnimationMixin {
 
     @Unique
     private boolean vesence$pushed;
 
     @Inject(
-            method = "render(Lnet/minecraft/client/gui/GuiGraphics;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+            method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;ILnet/minecraft/world/scores/Scoreboard;Lnet/minecraft/world/scores/Objective;)V",
             at = @At("HEAD")
     )
-    private void vesence$onRenderHead(GuiGraphics context, int scaledWindowWidth,
-                                      net.minecraft.scoreboard.Scoreboard scoreboard,
-                                      net.minecraft.scoreboard.ScoreboardObjective objective,
+    private void vesence$onRenderHead(GuiGraphicsExtractor context, int scaledWindowWidth,
+                                      net.minecraft.world.scores.Scoreboard scoreboard,
+                                      net.minecraft.world.scores.Objective objective,
                                       CallbackInfo ci) {
         Animations animations = Animations.getInstance();
         if (animations == null || !animations.isPlayerListEnabled()) {
@@ -48,24 +48,24 @@ public abstract class PlayerListHudAnimationMixin {
             return;
         }
 
-        float slideDistance = Minecraft.getInstance().getWindow().getScaledHeight();
+        float slideDistance = Minecraft.getInstance().getWindow().getGuiScaledHeight();
 
-        Matrix3x2fStack matrices = context.getMatrices();
+        Matrix3x2fStack matrices = context.pose();
         matrices.pushMatrix();
         matrices.translate(0.0F, -(1.0F - slideProgress) * slideDistance);
         vesence$pushed = true;
     }
 
     @Inject(
-            method = "render(Lnet/minecraft/client/gui/GuiGraphics;ILnet/minecraft/scoreboard/Scoreboard;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+            method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;ILnet/minecraft/world/scores/Scoreboard;Lnet/minecraft/world/scores/Objective;)V",
             at = @At("RETURN")
     )
-    private void vesence$onRenderTail(GuiGraphics context, int scaledWindowWidth,
-                                      net.minecraft.scoreboard.Scoreboard scoreboard,
-                                      net.minecraft.scoreboard.ScoreboardObjective objective,
+    private void vesence$onRenderTail(GuiGraphicsExtractor context, int scaledWindowWidth,
+                                      net.minecraft.world.scores.Scoreboard scoreboard,
+                                      net.minecraft.world.scores.Objective objective,
                                       CallbackInfo ci) {
         if (vesence$pushed) {
-            context.getMatrices().popMatrix();
+            context.pose().popMatrix();
             vesence$pushed = false;
         }
     }

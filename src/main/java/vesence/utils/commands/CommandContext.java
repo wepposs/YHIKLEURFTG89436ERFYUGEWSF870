@@ -3,7 +3,7 @@ package vesence.utils.commands;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -58,25 +58,25 @@ public final class CommandContext {
    private void send(Component payload) {
       int themeColor = Renderer2D.ColorUtil.getClientColor();
 
-      MutableText prefix = Component.literal(MESSAGE_PREFIX)
+      MutableComponent prefix = Component.literal(MESSAGE_PREFIX)
               .setStyle(Style.EMPTY
                       .withColor(TextColor.fromRgb(themeColor))
                       .withBold(true));
 
-      MutableText full = prefix
+      MutableComponent full = prefix
               .append(Component.literal(" ").setStyle(Style.EMPTY.withBold(false)))
               .append(payload.copy());
 
       dispatch(full);
    }
 
-   private void dispatch(MutableText text) {
+   private void dispatch(MutableComponent text) {
       Minecraft client = Minecraft.getInstance();
       if (client == null) return;
       if (client.player != null) {
-         client.player.sendMessage(text, false);
+         client.player.sendSystemMessage(text);
       } else if (client.gui != null) {
-         client.gui.getChatHud().addMessage(text);
+         client.gui.hud.getChat().addClientSystemMessage(text);
       }
    }
 }

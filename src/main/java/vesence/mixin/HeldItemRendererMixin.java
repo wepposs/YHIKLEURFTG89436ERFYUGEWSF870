@@ -6,16 +6,16 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.item.HeldItemRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
+import net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState;
+import net.minecraft.client.renderer.state.level.PlayerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.Arm;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.InteractionHand;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -32,23 +32,10 @@ import vesence.module.impl.movement.FreecamState;
 import vesence.module.impl.visuals.CustomHand;
 
 @Environment(EnvType.CLIENT)
-@Mixin({HeldItemRenderer.class})
+@Mixin({FirstPersonHandsAndItemsRenderer.class})
 public abstract class HeldItemRendererMixin {
-   @Shadow
-   private ItemStack mainHand;
-   @Shadow
-   private ItemStack offHand;
-   @Shadow
-   private float equipProgressMainHand;
-   @Shadow
-   private float lastEquipProgressMainHand;
-   @Shadow
-   private float equipProgressOffHand;
-   @Shadow
-   private float lastEquipProgressOffHand;
-
    @Inject(
-           method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+           method = {"submitHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;)V"},
            at = {@At("HEAD")},
            cancellable = true
    )
@@ -59,10 +46,10 @@ public abstract class HeldItemRendererMixin {
    }
 
    @Inject(
-           method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+           method = {"submitHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;)V"},
            at = {@At("HEAD")}
    )
-   private void onRenderItemPre(float tickProgress, PoseStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, LocalPlayer player, int light, CallbackInfo ci) {
+   private void onRenderItemPre(float tickProgress, PoseStack matrices, SubmitNodeCollector orderedRenderCommandQueue, PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState handsState, CallbackInfo ci) {
       if (FreecamState.pos == null && CustomHand.glassShouldRender()) {
          EventManager.call(new GlassHandsRenderEvent(GlassHandsRenderEvent.Phase.PRE, matrices, tickProgress));
       }
@@ -72,10 +59,10 @@ public abstract class HeldItemRendererMixin {
    }
 
    @Inject(
-           method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+           method = {"submitHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;)V"},
            at = {@At("TAIL")}
    )
-   private void onRenderItemPost(float tickProgress, PoseStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, LocalPlayer player, int light, CallbackInfo ci) {
+   private void onRenderItemPost(float tickProgress, PoseStack matrices, SubmitNodeCollector orderedRenderCommandQueue, PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState handsState, CallbackInfo ci) {
       if (FreecamState.pos == null && CustomHand.glassShouldRender()) {
          EventManager.call(new GlassHandsRenderEvent(GlassHandsRenderEvent.Phase.POST, matrices, tickProgress));
       }
@@ -85,11 +72,12 @@ public abstract class HeldItemRendererMixin {
    }
 
    @Inject(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At("HEAD")}
    )
    private void onRenderFirstPersonItem(
-           AbstractClientPlayer player,
+           PlayerRenderState playerState,
+           FirstPersonHandsAndItemsRenderState handsState,
            float tickProgress,
            float pitch,
            InteractionHand hand,
@@ -97,7 +85,7 @@ public abstract class HeldItemRendererMixin {
            ItemStack stack,
            float equipProgress,
            PoseStack matrices,
-           OrderedRenderCommandQueue queue,
+           SubmitNodeCollector queue,
            int light,
            CallbackInfo ci
    ) {
@@ -106,37 +94,40 @@ public abstract class HeldItemRendererMixin {
    }
 
    @Redirect(
-           method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+           method = {"submitHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;)V"},
            at = @At(
-                   value = "INVOKE",
-                   target = "Lnet/minecraft/client/network/LocalPlayer;getYaw(F)F"
+                   value = "FIELD",
+                   target = "Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;viewYRot:F",
+                   opcode = Opcodes.GETFIELD
            )
    )
-   private float redirectGetYaw(LocalPlayer instance, float tickProgress) {
-      return Minecraft.getInstance().gameRenderer.getCamera().getYRot();
+   private float redirectGetYaw(FirstPersonHandsAndItemsRenderState state) {
+      return Minecraft.getInstance().gameRenderer.mainCamera().yRot();
    }
 
    @Redirect(
-           method = {"renderItem(FLnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/network/LocalPlayer;I)V"},
+           method = {"submitHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;)V"},
            at = @At(
-                   value = "INVOKE",
-                   target = "Lnet/minecraft/client/network/LocalPlayer;getPitch(F)F"
+                   value = "FIELD",
+                   target = "Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;viewXRot:F",
+                   opcode = Opcodes.GETFIELD
            )
    )
-   private float redirectGetPitch(LocalPlayer instance, float tickProgress) {
-      return Minecraft.getInstance().gameRenderer.getCamera().getXRot();
+   private float redirectGetPitch(FirstPersonHandsAndItemsRenderState state) {
+      return Minecraft.getInstance().gameRenderer.mainCamera().xRot();
    }
 
    @Inject(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At(
                    value = "INVOKE",
-                   target = "Lnet/minecraft/client/util/math/PoseStack;push()V",
+                   target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V",
                    shift = At.Shift.AFTER
            )}
    )
    private void handOffsetHook(
-           AbstractClientPlayer player,
+           PlayerRenderState playerState,
+           FirstPersonHandsAndItemsRenderState handsState,
            float tickProgress,
            float pitch,
            InteractionHand hand,
@@ -144,7 +135,7 @@ public abstract class HeldItemRendererMixin {
            ItemStack stack,
            float equipProgress,
            PoseStack matrices,
-           OrderedRenderCommandQueue queue,
+           SubmitNodeCollector queue,
            int light,
            CallbackInfo ci
    ) {
@@ -158,15 +149,16 @@ public abstract class HeldItemRendererMixin {
    }
 
    @Inject(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At(
                    value = "INVOKE",
-                   target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V"
+                   target = "Lnet/minecraft/client/renderer/item/ItemStackRenderState;submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;III)V"
            )},
            require = 0
    )
    private void itemTransformHook(
-           AbstractClientPlayer player,
+           PlayerRenderState playerState,
+           FirstPersonHandsAndItemsRenderState handsState,
            float tickProgress,
            float pitch,
            InteractionHand hand,
@@ -174,7 +166,7 @@ public abstract class HeldItemRendererMixin {
            ItemStack stack,
            float equipProgress,
            PoseStack matrices,
-           OrderedRenderCommandQueue queue,
+           SubmitNodeCollector queue,
            int light,
            CallbackInfo ci
    ) {
@@ -182,20 +174,20 @@ public abstract class HeldItemRendererMixin {
    }
 
    @WrapOperation(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At(
                    value = "INVOKE",
-                   target = "Lnet/minecraft/client/render/item/HeldItemRenderer;swingArm(FLnet/minecraft/client/util/math/PoseStack;ILnet/minecraft/util/Arm;)V"
+                   target = "Lnet/minecraft/client/renderer/FirstPersonHandsAndItemsRenderer;swingArm(FLcom/mojang/blaze3d/vertex/PoseStack;ILnet/minecraft/world/entity/HumanoidArm;)V"
            )}
    )
    private void handAnimationHook(
-           HeldItemRenderer instance,
+           FirstPersonHandsAndItemsRenderer instance,
            float swingProgress,
            PoseStack matrices,
            int armX,
-           Arm arm,
+           HumanoidArm arm,
            Operation<Void> original,
-           @Local(ordinal = 0, argsOnly = true) AbstractClientPlayer player,
+           @Local(ordinal = 0, argsOnly = true) PlayerRenderState playerState,
            @Local(ordinal = 0, argsOnly = true) InteractionHand hand
    ) {
       CustomHand customHand = Vesence.get.getManager().get(CustomHand.class);
@@ -205,27 +197,27 @@ public abstract class HeldItemRendererMixin {
       // наложить ванильный свинг поверх кастомного.
       if (customHand != null
               && customHand.willHandleSwing(hand)
-              && !player.isUsingItem()
-              && !player.isUsingRiptide()) {
+              && !playerState.avatarRenderState.isUsingItem
+              && !playerState.avatarRenderState.isAutoSpinAttack) {
          return;
       }
       original.call(instance, swingProgress, matrices, armX, arm);
    }
 
    @WrapOperation(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At(
                    value = "INVOKE",
-                   target = "Lnet/minecraft/client/render/item/HeldItemRenderer;applyEquipOffset(Lnet/minecraft/client/util/math/PoseStack;Lnet/minecraft/util/Arm;F)V"
+                   target = "Lnet/minecraft/client/renderer/FirstPersonHandsAndItemsRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V"
            )}
    )
    private void wrapApplyEquipOffset(
-           HeldItemRenderer instance,
+           FirstPersonHandsAndItemsRenderer instance,
            PoseStack matrices,
-           Arm arm,
+           HumanoidArm arm,
            float equipProgress,
            Operation<Void> original,
-           @Local(ordinal = 0, argsOnly = true) AbstractClientPlayer player,
+           @Local(ordinal = 0, argsOnly = true) PlayerRenderState playerState,
            @Local(ordinal = 0, argsOnly = true) InteractionHand hand,
            @Local(ordinal = 2, argsOnly = true) float swingProgress
    ) {
@@ -248,8 +240,8 @@ public abstract class HeldItemRendererMixin {
       // нетронутая кастомная анимация для ВСЕХ предметов.
       if (customHand != null
               && customHand.willHandleSwing(hand)
-              && !player.isUsingItem()
-              && !player.isUsingRiptide()) {
+              && !playerState.avatarRenderState.isUsingItem
+              && !playerState.avatarRenderState.isAutoSpinAttack) {
          HandAnimationEvent event = new HandAnimationEvent(matrices, hand, swingProgress);
          EventManager.call(event);
          return;
@@ -261,10 +253,10 @@ public abstract class HeldItemRendererMixin {
    }
 
    @WrapOperation(
-           method = {"renderFirstPersonItem"},
+           method = {"submitArmWithItem(Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/level/FirstPersonHandsAndItemsRenderState;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"},
            at = {@At(
                    value = "INVOKE",
-                   target = "Lnet/minecraft/client/render/entity/state/Lancing;method_75391(FLnet/minecraft/client/util/math/PoseStack;ILnet/minecraft/util/Arm;)V"
+                   target = "Lnet/minecraft/client/model/effects/SpearAnimations;firstPersonAttack(FLcom/mojang/blaze3d/vertex/PoseStack;ILnet/minecraft/world/entity/HumanoidArm;)V"
            )},
            require = 0
    )
@@ -272,9 +264,9 @@ public abstract class HeldItemRendererMixin {
            float swingProgress,
            PoseStack matrices,
            int armX,
-           Arm arm,
+           HumanoidArm arm,
            Operation<Void> original,
-           @Local(ordinal = 0, argsOnly = true) AbstractClientPlayer player,
+           @Local(ordinal = 0, argsOnly = true) PlayerRenderState playerState,
            @Local(ordinal = 0, argsOnly = true) InteractionHand hand
    ) {
       CustomHand customHand = Vesence.get.getManager().get(CustomHand.class);
@@ -285,8 +277,8 @@ public abstract class HeldItemRendererMixin {
       // такого вызова нет — хук просто не применится, ничего не ломая.
       if (customHand != null
               && customHand.willHandleSwing(hand)
-              && !player.isUsingItem()
-              && !player.isUsingRiptide()) {
+              && !playerState.avatarRenderState.isUsingItem
+              && !playerState.avatarRenderState.isAutoSpinAttack) {
          return;
       }
       original.call(swingProgress, matrices, armX, arm);

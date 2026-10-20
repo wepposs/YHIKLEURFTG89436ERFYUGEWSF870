@@ -56,6 +56,6 @@ public class FriendManager {
 
    public static boolean getNearFriends(String name) {
       if (mc.level == null) return false;
-      return mc.level.getPlayers().stream().anyMatch(player -> player.getName().getString().equals(name));
+      return mc.level.players().stream().anyMatch(player -> player.getName().getString().equals(name));
    }
 }

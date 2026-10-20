@@ -252,7 +252,7 @@ public class AutoTroll extends Module {
                     }
                 }
 
-                mc.getConnection().sendChatMessage(outgoing);
+                mc.getConnection().sendChat(outgoing);
                 lastSent = outgoing;
             });
         }

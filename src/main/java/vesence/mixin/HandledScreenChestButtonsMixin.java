@@ -2,10 +2,10 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -23,26 +23,26 @@ import vesence.utils.inventory.ContainerTransfer;
  *
  * <p>Порт уникальной фичи из wave-клиента (там правился напрямую декомпил
  * {@code ChestScreen}/{@code ShulkerBoxScreen} 1.16.5). Под Fabric 1.21.11 то же
- * поведение реализовано миксином в {@link HandledScreen}: кнопки добавляются
+ * поведение реализовано миксином в {@link AbstractContainerScreen}: кнопки добавляются
  * только для контейнерных экранов (сундук/бочка/эндер-сундук/шалкер) как обычные
  * ванильные {@link Button}, а их состояние (вкл/выкл, видимость) обновляется
  * каждый кадр. На экранах аукциона/магазина кнопки скрываются.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenChestButtonsMixin extends Screen {
 
     @Shadow
-    protected int x;
+    protected int leftPos;
 
     @Shadow
-    protected int y;
+    protected int topPos;
 
     @Shadow
-    protected int backgroundWidth;
+    protected int imageWidth;
 
     @Shadow
-    protected int backgroundHeight;
+    protected int imageHeight;
 
     private HandledScreenChestButtonsMixin(Component title) {
         super(title);
@@ -60,33 +60,33 @@ public abstract class HandledScreenChestButtonsMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void vesence$addTransferButtons(CallbackInfo ci) {
         Object self = this;
-        if (!(self instanceof GenericContainerScreen) && !(self instanceof ShulkerBoxScreen)) {
+        if (!(self instanceof ContainerScreen) && !(self instanceof ShulkerBoxScreen)) {
             return;
         }
 
-        int buttonX = this.x + this.backgroundWidth + 4;
-        int buttonY = this.y + 3;
+        int buttonX = this.leftPos + this.imageWidth + 4;
+        int buttonY = this.topPos + 3;
 
         this.vesence$storeButton = Button
                 .builder(Component.literal("\u0421\u043b\u043e\u0436\u0438\u0442\u044c"), button -> ContainerTransfer.storeAll())
-                .dimensions(buttonX, buttonY, 85, 20)
+                .bounds(buttonX, buttonY, 85, 20)
                 .build();
         this.vesence$takeButton = Button
                 .builder(Component.literal("\u0412\u0437\u044f\u0442\u044c"), button -> ContainerTransfer.takeAll())
-                .dimensions(buttonX, buttonY + 26, 85, 20)
+                .bounds(buttonX, buttonY + 26, 85, 20)
                 .build();
         this.vesence$dropButton = Button
                 .builder(Component.literal("\u0412\u044b\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0432\u0441\u0435"), button -> ContainerTransfer.dropAll())
-                .dimensions(buttonX, buttonY + 52, 85, 20)
+                .bounds(buttonX, buttonY + 52, 85, 20)
                 .build();
 
-        this.addDrawableChild(this.vesence$storeButton);
-        this.addDrawableChild(this.vesence$takeButton);
-        this.addDrawableChild(this.vesence$dropButton);
+        this.addRenderableWidget(this.vesence$storeButton);
+        this.addRenderableWidget(this.vesence$takeButton);
+        this.addRenderableWidget(this.vesence$dropButton);
     }
 
-    @Inject(method = "render", at = @At("HEAD"))
-    private void vesence$updateTransferButtons(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void vesence$updateTransferButtons(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this.vesence$storeButton == null) {
             return;
         }

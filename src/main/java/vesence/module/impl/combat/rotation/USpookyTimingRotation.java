@@ -36,12 +36,12 @@ public class USpookyTimingRotation {
     public static boolean isSpookyTime() {
         if (mc.level == null) return false;
         var scoreboard = mc.level.getScoreboard();
-        var objective = scoreboard.getObjectiveForSlot(net.minecraft.scoreboard.ScoreboardDisplaySlot.SIDEBAR);
+        var objective = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.SIDEBAR);
         if (objective == null) return false;
 
         boolean hasTimer = false;
         boolean hasOpponent = false;
-        for (var entry : scoreboard.getScoreboardEntries(objective)) {
+        for (var entry : scoreboard.listPlayerScores(objective)) {
             String text = entry.owner();
             if (text.contains(BATTLE_TIMER_PREFIX)) hasTimer = true;
             else if (text.contains(OPPONENT_PREFIX)) hasOpponent = true;
@@ -70,7 +70,7 @@ public class USpookyTimingRotation {
      */
     public static float predictCooldown(float offsetTicks) {
         if (mc.player == null) return 0.0f;
-        float progress = mc.player.getAttackCooldownProgress(offsetTicks);
+        float progress = mc.player.getAttackStrengthScale(offsetTicks);
         return Math.max(0.0f, Math.min(1.0f, progress * COOLDOWN_MULTIPLIER));
     }
 
@@ -87,8 +87,8 @@ public class USpookyTimingRotation {
         if (!shouldSprintStop) return;
         shouldSprintStop = false;
         if (mc.player == null || mc.getConnection() == null) return;
-        mc.getConnection().sendPacket(
-                new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING));
+        mc.getConnection().send(
+                new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Action.STOP_SPRINTING));
         mc.player.setSprinting(true);
     }
 

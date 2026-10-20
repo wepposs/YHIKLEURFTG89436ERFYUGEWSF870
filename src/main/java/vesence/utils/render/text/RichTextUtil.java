@@ -25,7 +25,7 @@ public final class RichTextUtil {
             if (segment == null || segment.isEmpty()) {
                 return java.util.Optional.empty();
             }
-            Integer styleColor = style.getColor() != null ? style.getColor().getRgb() : null;
+            Integer styleColor = style.getColor() != null ? style.getColor().getValue() : null;
             Integer curColor = styleColor;
             StringBuilder pending = new StringBuilder();
             int i = 0;
@@ -33,12 +33,12 @@ public final class RichTextUtil {
                 char c = segment.charAt(i);
                 if (c == '\u00a7' && i + 1 < segment.length()) {
                     flushColored(result, pending, curColor, dr, dg, db, alpha);
-                    net.minecraft.util.ChatFormatting fmt = net.minecraft.util.ChatFormatting.byCode(segment.charAt(i + 1));
+                    net.minecraft.ChatFormatting fmt = net.minecraft.ChatFormatting.getByCode(segment.charAt(i + 1));
                     if (fmt != null) {
-                        if (fmt == net.minecraft.util.ChatFormatting.RESET) {
+                        if (fmt == net.minecraft.ChatFormatting.RESET) {
                             curColor = styleColor;
-                        } else if (fmt.isColor() && fmt.getColorValue() != null) {
-                            curColor = fmt.getColorValue();
+                        } else if (net.minecraft.network.chat.TextColor.fromLegacyFormat(fmt) != null) {
+                            curColor = net.minecraft.network.chat.TextColor.fromLegacyFormat(fmt).getValue();
                         }
                     }
                     i += 2;
@@ -75,11 +75,11 @@ public final class RichTextUtil {
         if (stack == null || stack.isEmpty()) {
             return "";
         }
-        String formatted = toColorFormat(stack.getName(), 0xFFFFFF, alpha);
+        String formatted = toColorFormat(stack.getHoverName(), 0xFFFFFF, alpha);
         if (formatted.isEmpty()) {
 
             return ColorFormat.color(255, 255, 255, alpha)
-                    + replaceSymbols(stripFormatting(stack.getName().getString()));
+                    + replaceSymbols(stripFormatting(stack.getHoverName().getString()));
         }
         return formatted;
     }

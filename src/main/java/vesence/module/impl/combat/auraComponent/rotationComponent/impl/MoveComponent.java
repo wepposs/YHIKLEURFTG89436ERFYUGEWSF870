@@ -18,8 +18,8 @@ public class MoveComponent extends Component {
             event.setStrafe(0.0F);
             event.setForward(0.0F);
             event.setJump(false);
-            if (mc.options != null && mc.options.sprintKey != null) {
-                mc.options.sprintKey.setPressed(false);
+            if (mc.options != null && mc.options.keySprint != null) {
+                mc.options.keySprint.setDown(false);
             }
             if (mc.player != null) {
                 mc.player.setSprinting(false);

@@ -2,7 +2,7 @@ package vesence.module.impl.movement;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
@@ -105,14 +105,14 @@ public class Jesus extends Module {
         /*
          * Shift / own jump = full vanilla physics.
          */
-        if (mc.player.isSneaking() || mc.options.jumpKey.isPressed()) {
+        if (mc.player.isShiftKeyDown() || mc.options.keyJump.isDown()) {
             this.releaseJump();
             holdTicksLeft = 0;
             airTicks = 0;
             return;
         }
 
-        boolean water = mc.player.isTouchingWater();
+        boolean water = mc.player.isInWater();
         boolean lava = mc.player.isInLava();
         boolean fluid = water || lava;
 
@@ -152,7 +152,7 @@ public class Jesus extends Module {
      * the physics remain fully vanilla on both sides.
      */
     private void tickDolphin() {
-        double fluidHeight = mc.player.isTouchingWater()
+        double fluidHeight = mc.player.isInWater()
                 ? mc.player.getFluidHeight(FluidTags.WATER)
                 : mc.player.getFluidHeight(FluidTags.LAVA);
 
@@ -215,7 +215,7 @@ public class Jesus extends Module {
                 double yaw = Math.toRadians(mc.player.getYRot());
                 double xt = -Math.sin(yaw);
                 double zt = Math.cos(yaw);
-                mc.player.addVelocity(xt * boost, 0.0D, zt * boost);
+                mc.player.push(xt * boost, 0.0D, zt * boost);
             }
         } else {
             if (mc.player.getDeltaMovement().y < 0.0D && mc.player.getDeltaMovement().y > -0.1D) {
@@ -232,7 +232,7 @@ public class Jesus extends Module {
         debugTickCounter = 0;
 
         Vec3 v = mc.player.getDeltaMovement();
-        double fluidHeight = mc.player.isTouchingWater()
+        double fluidHeight = mc.player.isInWater()
                 ? mc.player.getFluidHeight(FluidTags.WATER)
                 : mc.player.getFluidHeight(FluidTags.LAVA);
 
@@ -252,7 +252,7 @@ public class Jesus extends Module {
         }
 
         if (!event.isSend()
-                && event.getPacket() instanceof PlayerPositionLookS2CPacket) {
+                && event.getPacket() instanceof ClientboundPlayerPositionPacket) {
 
             setbackCooldown = 12;
             setbackCount++;
@@ -274,15 +274,15 @@ public class Jesus extends Module {
     private void holdJump() {
         if (!holdingJump) {
             holdingJump = true;
-            playerJumpWasPressed = mc.options.jumpKey.isPressed();
+            playerJumpWasPressed = mc.options.keyJump.isDown();
         }
-        mc.options.jumpKey.setPressed(true);
+        mc.options.keyJump.setDown(true);
     }
 
     private void releaseJump() {
         if (holdingJump) {
             holdingJump = false;
-            mc.options.jumpKey.setPressed(playerJumpWasPressed);
+            mc.options.keyJump.setDown(playerJumpWasPressed);
         }
     }
 
@@ -291,18 +291,17 @@ public class Jesus extends Module {
             return false;
         }
 
-        return mc.options.forwardKey.isPressed()
-                || mc.options.backKey.isPressed()
-                || mc.options.leftKey.isPressed()
-                || mc.options.rightKey.isPressed();
+        return mc.options.keyUp.isDown()
+                || mc.options.keyDown.isDown()
+                || mc.options.keyLeft.isDown()
+                || mc.options.keyRight.isDown();
     }
 
     private void debugMessage(String message) {
         if (mc.player == null) return;
         try {
-            mc.player.sendMessage(
-                    net.minecraft.text.Component.literal("[Jesus] " + message),
-                    false
+            mc.player.sendSystemMessage(
+                    net.minecraft.network.chat.Component.literal("[Jesus] " + message)
             );
         } catch (Throwable ignored) {
         }

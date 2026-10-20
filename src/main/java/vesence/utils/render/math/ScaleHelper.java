@@ -14,7 +14,7 @@ public class ScaleHelper {
    public static float getScale() {
       Minecraft mc = Minecraft.getInstance();
       if (mc != null && mc.getWindow() != null) {
-         return mc.getWindow().getScaleFactor();
+         return mc.getWindow().getGuiScale();
       }
       return size;
    }

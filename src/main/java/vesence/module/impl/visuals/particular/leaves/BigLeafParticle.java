@@ -1,20 +1,20 @@
 package vesence.module.impl.visuals.particular.leaves;
 
-import net.minecraft.client.particle.ParticleFactory;
+import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.util.RandomSource;
 
 public class BigLeafParticle extends LeafParticle {
-    protected BigLeafParticle(ClientLevel world, double x, double y, double z, double red, double green, double blue, SpriteSet provider) {
-        super(world, x, y, z, red, green, blue, provider);
+    protected BigLeafParticle(ClientLevel level, double x, double y, double z, double rCol, double gCol, double bCol, SpriteSet provider) {
+        super(level, x, y, z, rCol, gCol, bCol, provider);
         this.rotateFactor = 9.0F + this.random.nextFloat() * 3.0F;
-        this.scale = 9.0F / 32.0F;
+        this.quadSize = 9.0F / 32.0F;
     }
 
-    public static class Factory implements ParticleFactory<SimpleParticleType> {
+    public static class Factory implements ParticleProvider<SimpleParticleType> {
         private final SpriteSet provider;
 
         public Factory(SpriteSet provider) {
@@ -22,8 +22,8 @@ public class BigLeafParticle extends LeafParticle {
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientLevel world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, Random random) {
-            return new BigLeafParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.provider);
+        public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xd, double yd, double zd, RandomSource random) {
+            return new BigLeafParticle(level, x, y, z, xd, yd, zd, this.provider);
         }
     }
 }

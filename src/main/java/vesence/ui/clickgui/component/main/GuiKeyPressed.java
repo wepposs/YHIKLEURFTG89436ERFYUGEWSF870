@@ -9,7 +9,7 @@ import vesence.module.api.setting.impl.StringSetting;
 import vesence.ui.clickgui.GuiScreen;
 import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.utils.ClipboardUtil;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 @Environment(EnvType.CLIENT)
 public class GuiKeyPressed extends GuiScreen {
@@ -59,15 +59,15 @@ public class GuiKeyPressed extends GuiScreen {
          if (GuiScreen.activeStringSetting != null) {
             StringSetting ss = GuiScreen.activeStringSetting;
             boolean ctrl = ClipboardUtil.isCtrl(modifiers);
-            if (ctrl && keyCode == GLFW.GLFW_KEY_A) {
+            if (ctrl && keyCode == InputConstants.KEY_A) {
                GuiScreen.textSelectAll = ss.input != null && !ss.input.isEmpty();
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_C) {
+            if (ctrl && keyCode == InputConstants.KEY_C) {
                if (ss.input != null && !ss.input.isEmpty()) ClipboardUtil.set(ss.input);
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_X) {
+            if (ctrl && keyCode == InputConstants.KEY_X) {
                if (ss.input != null && !ss.input.isEmpty()) {
                   ClipboardUtil.set(ss.input);
                   ss.input = "";
@@ -76,7 +76,7 @@ public class GuiKeyPressed extends GuiScreen {
                GuiScreen.textSelectAll = false;
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_V) {
+            if (ctrl && keyCode == InputConstants.KEY_V) {
                String base = GuiScreen.textSelectAll ? "" : (ss.input == null ? "" : ss.input);
                ss.input = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), 16, ClipboardUtil.MODE_PRINTABLE);
                GuiScreen.textSelectAll = false;
@@ -110,15 +110,15 @@ public class GuiKeyPressed extends GuiScreen {
 
          if (GuiScreen.activeSearch) {
             boolean ctrl = ClipboardUtil.isCtrl(modifiers);
-            if (ctrl && keyCode == GLFW.GLFW_KEY_A) {
+            if (ctrl && keyCode == InputConstants.KEY_A) {
                GuiScreen.textSelectAll = !GuiScreen.searchText.isEmpty();
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_C) {
+            if (ctrl && keyCode == InputConstants.KEY_C) {
                if (!GuiScreen.searchText.isEmpty()) ClipboardUtil.set(GuiScreen.searchText);
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_X) {
+            if (ctrl && keyCode == InputConstants.KEY_X) {
                if (!GuiScreen.searchText.isEmpty()) {
                   ClipboardUtil.set(GuiScreen.searchText);
                   GuiScreen.searchText = "";
@@ -126,7 +126,7 @@ public class GuiKeyPressed extends GuiScreen {
                GuiScreen.textSelectAll = false;
                return true;
             }
-            if (ctrl && keyCode == GLFW.GLFW_KEY_V) {
+            if (ctrl && keyCode == InputConstants.KEY_V) {
                String base = GuiScreen.textSelectAll ? "" : GuiScreen.searchText;
                GuiScreen.searchText = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), 50, ClipboardUtil.MODE_ALNUM_SPACE);
                GuiScreen.textSelectAll = false;

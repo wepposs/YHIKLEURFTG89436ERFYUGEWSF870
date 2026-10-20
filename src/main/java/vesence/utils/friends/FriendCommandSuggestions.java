@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import vesence.utils.commands.suggestions.AbstractSubCommandSuggestions;
 import vesence.utils.commands.suggestions.CommandSuggestions;
 
@@ -80,7 +80,7 @@ public final class FriendCommandSuggestions extends AbstractSubCommandSuggestion
          return List.of();
       }
       TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-      for (PlayerListEntry entry : nh.getPlayerList()) {
+      for (PlayerInfo entry : nh.getOnlinePlayers()) {
          try {
             String name = entry.getProfile().name();
             if (name != null && !name.isBlank() && !FriendStorage.isFriend(name)) {

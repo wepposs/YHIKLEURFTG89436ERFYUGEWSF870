@@ -3,7 +3,7 @@ package vesence.event.player;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.client.util.math.Vector2f;
+import org.joml.Vector2f;
 import vesence.event.Event;
 
 @Environment(EnvType.CLIENT)
@@ -29,8 +29,8 @@ public class EventMotion extends Event {
    }
 
    public void setRotate(Vector2f vector2f) {
-      this.setYRot(vector2f.x());
-      this.setXRot(vector2f.y());
+      this.setYaw(vector2f.x());
+      this.setPitch(vector2f.y());
    }
 
    public AABB getAabbFrom() {

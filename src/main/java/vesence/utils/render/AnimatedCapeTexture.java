@@ -1,13 +1,13 @@
 package vesence.utils.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.AddressMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import net.minecraft.client.Minecraft;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 import vesence.mixin.AbstractTextureAccessor;
 
 import java.io.InputStream;
@@ -31,7 +31,7 @@ import java.util.Arrays;
  * Теперь тяжёлый ЦП-этап (декод + ресемпл всех кадров в {@link NativeImage})
  * вынесен в фоновый поток. Пока кадры не готовы — {@link #getCurrentFrame()}
  * возвращает {@code null}, и модуль {@link vesence.module.impl.visuals.Cape}
- * показывает статичный плащ. Загрузка кадра в GPU ({@link NativeImageBackedTexture})
+ * показывает статичный плащ. Загрузка кадра в GPU ({@link DynamicTexture})
  * обязана идти на render-потоке (нужен GL-контекст), поэтому делается ЛЕНИВО —
  * по одному кадру в момент его первого показа (1 загрузка на ~45 мс,
  * ~1-3 мс каждая = незаметно). Итог: фриза нет, визуал прежний.
@@ -52,7 +52,7 @@ public final class AnimatedCapeTexture {
     private static final int DST_W = 438;
     private static final int DST_H = 340;
 
-    private static final ResourceLocation[] frameIds = new ResourceLocation[FRAME_COUNT];
+    private static final Identifier[] frameIds = new Identifier[FRAME_COUNT];
 
     /** Ресемпленные на ЦП кадры (готовит фон-поток). Публикуется через volatile. */
     private static volatile NativeImage[] cpuFrames;
@@ -72,11 +72,11 @@ public final class AnimatedCapeTexture {
     private AnimatedCapeTexture() {}
 
     /**
-     * Возвращает ResourceLocation текущего кадра анимации.
+     * Возвращает Identifier текущего кадра анимации.
      * {@code null} если анимация ещё не готова (идёт фоновая подготовка) или
      * недоступна (файл не найден / ошибка) — тогда показывается статичный плащ.
      */
-    public static ResourceLocation getCurrentFrame() {
+    public static Identifier getCurrentFrame() {
         if (failed) {
             return null;
         }
@@ -130,12 +130,12 @@ public final class AnimatedCapeTexture {
                             float srcX = ((float) dx + 0.5f) / DST_W * srcFrameW - 0.5f;
                             float srcY = ((float) dy + 0.5f) / DST_H * srcFrameH - 0.5f;
                             int color = sampleBilinear(spriteSheet, srcX, srcY, frameOffsetY, srcFrameW, srcFrameH);
-                            capeFrame.setColorArgb(DST_X + dx, DST_Y + dy, color);
+                            capeFrame.setPixel(DST_X + dx, DST_Y + dy, color);
                         }
                     }
 
                     frames[i] = capeFrame;
-                    frameIds[i] = ResourceLocation.of("vesence", "cape/anim_" + i);
+                    frameIds[i] = Identifier.fromNamespaceAndPath("vesence", "cape/anim_" + i);
                 }
 
                 spriteSheet.close();
@@ -166,17 +166,17 @@ public final class AnimatedCapeTexture {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (linearSampler == null) {
-                linearSampler = RenderSystem.getSamplerCache().get(
+                linearSampler = RenderSystem.getSamplerCache().getSampler(
                         AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
                         FilterMode.LINEAR, FilterMode.LINEAR, false);
             }
             final int fi = i;
-            NativeImageBackedTexture tex =
-                    new NativeImageBackedTexture(() -> "vesence_cape_anim_" + fi, frames[i]);
+            DynamicTexture tex =
+                    new DynamicTexture(() -> "vesence_cape_anim_" + fi, frames[i]);
             try {
                 ((AbstractTextureAccessor) (Object) tex).vesence$setSampler(linearSampler);
             } catch (Throwable ignored) {}
-            mc.getTextureManager().registerTexture(frameIds[i], tex);
+            mc.getTextureManager().register(frameIds[i], tex);
             uploaded[i] = true;
             // Текстура теперь владеет NativeImage — снимаем нашу ссылку, чтобы
             // не держать ~3 МБ на кадр в куче дольше нужного.
@@ -202,10 +202,10 @@ public final class AnimatedCapeTexture {
         int y0c = clamp(y0, 0, frameH - 1);
         int y1c = clamp(y0 + 1, 0, frameH - 1);
 
-        int c00 = img.getColorArgb(x0c, frameOffsetY + y0c);
-        int c10 = img.getColorArgb(x1c, frameOffsetY + y0c);
-        int c01 = img.getColorArgb(x0c, frameOffsetY + y1c);
-        int c11 = img.getColorArgb(x1c, frameOffsetY + y1c);
+        int c00 = img.getPixel(x0c, frameOffsetY + y0c);
+        int c10 = img.getPixel(x1c, frameOffsetY + y0c);
+        int c01 = img.getPixel(x0c, frameOffsetY + y1c);
+        int c11 = img.getPixel(x1c, frameOffsetY + y1c);
 
         return lerpArgb(lerpArgb(c00, c10, wx), lerpArgb(c01, c11, wx), wy);
     }

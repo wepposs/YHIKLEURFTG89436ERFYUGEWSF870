@@ -10,10 +10,10 @@ package vesence.utils.shulker;
 //       серверах именно тут виден реальный контент, даже если CONTAINER
 //       компонент у предмета в инвентаре был обрезан.
 //    2) InventoryS2CPacket — когда игрок реально открыл шалкер: слоты 0-26
-//       ScreenHandler'а — это содержимое шалкера. Кешируется под последней
+//       AbstractContainerMenu'а — это содержимое шалкера. Кешируется под последней
 //       позицией, на которую смотрел игрок (см. ShulkerViewer.tick).
 //    3) ScreenHandlerSlotUpdateS2CPacket — обновление отдельного слота
-//       открытого ShulkerBoxScreenHandler, обновляем кеш.
+//       открытого ShulkerBoxMenu, обновляем кеш.
 //
 //  Чтение — getItems(BlockPos) или getItemsAround(pos, radius) из любой
 //  точки клиента.
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.collection.DefaultedList;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.BlockPos;
 
 @Environment(EnvType.CLIENT)
@@ -41,13 +41,13 @@ public final class ShulkerCache {
 
     private ShulkerCache() {}
 
-    public static void put(BlockPos pos, DefaultedList<ItemStack> items) {
+    public static void put(BlockPos pos, NonNullList<ItemStack> items) {
         if (pos == null || items == null || isAllEmpty(items)) return;
-        BY_POS.put(pos.toImmutable(), new Entry(items, System.currentTimeMillis()));
+        BY_POS.put(pos.immutable(), new Entry(items, System.currentTimeMillis()));
         cleanup();
     }
 
-    public static DefaultedList<ItemStack> getItems(BlockPos pos) {
+    public static NonNullList<ItemStack> getItems(BlockPos pos) {
         if (pos == null) return null;
         Entry e = BY_POS.get(pos);
         if (e == null) return null;
@@ -62,15 +62,15 @@ public final class ShulkerCache {
      * Поиск в радиусе r блоков — предмет-шалкер обычно валяется в той же
      * клетке или рядом с местом разрушения.
      */
-    public static DefaultedList<ItemStack> getItemsAround(BlockPos center, int r) {
+    public static NonNullList<ItemStack> getItemsAround(BlockPos center, int r) {
         if (center == null) return null;
-        DefaultedList<ItemStack> hit = getItems(center);
+        NonNullList<ItemStack> hit = getItems(center);
         if (hit != null) return hit;
         for (int dx = -r; dx <= r; dx++) {
             for (int dy = -r; dy <= r; dy++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (dx == 0 && dy == 0 && dz == 0) continue;
-                    DefaultedList<ItemStack> v = getItems(center.add(dx, dy, dz));
+                    NonNullList<ItemStack> v = getItems(center.offset(dx, dy, dz));
                     if (v != null) return v;
                 }
             }
@@ -79,7 +79,7 @@ public final class ShulkerCache {
     }
 
     public static void setLastOpenedPos(BlockPos pos) {
-        lastOpenedPos = pos == null ? null : pos.toImmutable();
+        lastOpenedPos = pos == null ? null : pos.immutable();
     }
 
     public static BlockPos getLastOpenedPos() {
@@ -96,7 +96,7 @@ public final class ShulkerCache {
         BY_POS.entrySet().removeIf(e -> now - e.getValue().timestamp > TTL_MS);
     }
 
-    private static boolean isAllEmpty(DefaultedList<ItemStack> items) {
+    private static boolean isAllEmpty(NonNullList<ItemStack> items) {
         for (ItemStack s : items) {
             if (!s.isEmpty()) return false;
         }
@@ -104,9 +104,9 @@ public final class ShulkerCache {
     }
 
     private static final class Entry {
-        final DefaultedList<ItemStack> items;
+        final NonNullList<ItemStack> items;
         final long timestamp;
-        Entry(DefaultedList<ItemStack> items, long timestamp) {
+        Entry(NonNullList<ItemStack> items, long timestamp) {
             this.items = items;
             this.timestamp = timestamp;
         }

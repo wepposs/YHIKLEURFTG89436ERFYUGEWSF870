@@ -81,8 +81,8 @@ public final class GrimBypass {
             && player.getDeltaMovement().y < 0.0;
       boolean attackReady = true;
       try {
-         attackReady = ((net.minecraft.client.network.LocalPlayer) player)
-               .getAttackCooldownProgress(0.0f) >= 1.0f;
+         attackReady = ((net.minecraft.client.player.LocalPlayer) player)
+               .getAttackStrengthScale(0.0f) >= 1.0f;
       } catch (Throwable ignored) {}
 
       if (!criticalState || !attackReady) return;

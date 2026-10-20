@@ -47,9 +47,9 @@ public final class Mathf implements IMinecraft {
       int[] viewport = new int[4];
       GL11.glGetIntegerv(2978, viewport);
       Vector3f target = new Vector3f();
-      double deltaX = pos.x - camera.getCameraPos().x;
-      double deltaY = pos.y - camera.getCameraPos().y;
-      double deltaZ = pos.z - camera.getCameraPos().z;
+      double deltaX = pos.x - camera.position().x;
+      double deltaY = pos.y - camera.position().y;
+      double deltaZ = pos.z - camera.position().z;
       Vector4f transformedCoordinates = new Vector4f((float)deltaX, (float)deltaY, (float)deltaZ, 1.0F).mul(lastWorldSpaceMatrix);
       Matrix4f matrixProj = new Matrix4f(lastProjMat);
       Matrix4f matrixModel = new Matrix4f(lastModMat);
@@ -58,7 +58,7 @@ public final class Mathf implements IMinecraft {
    }
 
    public static double getScaleFactor() {
-      return mc.getWindow().getScaleFactor();
+      return mc.getWindow().getGuiScale();
    }
 
    public static float map(float value, float fromMin, float fromMax, float toMin, float toMax) {
@@ -125,9 +125,9 @@ public final class Mathf implements IMinecraft {
 
    public static Vec3 interpolate(Vec3 end, Vec3 start, float multiple) {
       return new Vec3(
-         interpolate(end.getX(), start.getX(), multiple),
-         interpolate(end.getY(), start.getY(), multiple),
-         interpolate(end.getZ(), start.getZ(), multiple)
+         interpolate(end.x, start.x, multiple),
+         interpolate(end.y, start.y, multiple),
+         interpolate(end.z, start.z, multiple)
       );
    }
 
@@ -198,7 +198,7 @@ public final class Mathf implements IMinecraft {
    }
 
    public static float deltaTime() {
-      float debugFPS = mc.getCurrentFps();
+      float debugFPS = mc.getFps();
       return debugFPS > 0.0F ? 1.0F / debugFPS : 1.0F;
    }
 

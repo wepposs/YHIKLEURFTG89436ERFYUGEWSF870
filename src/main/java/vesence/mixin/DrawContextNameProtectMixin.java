@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -10,18 +10,18 @@ import vesence.module.impl.misc.NameProtect;
 
 /**
  * Streamer Mode: глобальная подмена никнейма (и грифер/серверных слов) во ВСЁМ
- * строковом тексте, который рисуется через {@link GuiGraphics} — чат, actionbar,
+ * строковом тексте, который рисуется через {@link GuiGraphicsExtractor} — чат, actionbar,
  * подсказки и т.п. Порт из RelevantPremiumpp4 (DrawContextNameProtectMixin).
  *
  * <p>В 1.21.11 {@code drawText}/{@code drawTextWithShadow} возвращают void
  * (в 1.21.4 возвращали int) — дескрипторы обновлены соответственно.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(GuiGraphics.class)
+@Mixin(GuiGraphicsExtractor.class)
 public class DrawContextNameProtectMixin {
 
     @ModifyVariable(
-        method = "drawTextWithShadow(Lnet/minecraft/client/font/Font;Ljava/lang/String;III)V",
+        method = "text(Lnet/minecraft/client/gui/Font;Ljava/lang/String;III)V",
         at = @At("HEAD"),
         argsOnly = true,
         ordinal = 0
@@ -31,7 +31,7 @@ public class DrawContextNameProtectMixin {
     }
 
     @ModifyVariable(
-        method = "drawText(Lnet/minecraft/client/font/Font;Ljava/lang/String;IIIZ)V",
+        method = "text(Lnet/minecraft/client/gui/Font;Ljava/lang/String;IIIZ)V",
         at = @At("HEAD"),
         argsOnly = true,
         ordinal = 0

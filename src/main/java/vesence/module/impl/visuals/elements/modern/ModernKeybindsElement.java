@@ -3,7 +3,7 @@ package vesence.module.impl.visuals.elements.modern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import vesence.Vesence;
 import vesence.module.api.Module;
@@ -53,9 +53,9 @@ public class ModernKeybindsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
-        boolean isChatOpen = mc.screen instanceof ChatScreen;
+        boolean isChatOpen = mc.gui.screen() instanceof ChatScreen;
 
         float totalSlotHeight = 0;
         float maxNameW = 0f, maxValueW = 0f;

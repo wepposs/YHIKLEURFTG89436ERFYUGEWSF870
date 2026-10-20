@@ -1,14 +1,15 @@
 package vesence.utils.render.world;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.systems.RenderPass;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import java.util.Map;
 import java.util.Objects;
-import java.util.OptionalDouble;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
@@ -17,96 +18,120 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 @Environment(EnvType.CLIENT)
 public final class WorldRenderLayers {
       private static final int QUAD_BUFFER_SIZE_BYTES = 1024;
       private static final int LINE_BUFFER_SIZE_BYTES = 256;
       private static final String PIPELINE_NAMESPACE = "vesence";
+      private static final DepthStencilState LEQUAL_DEPTH = new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true);
+      private static final DepthStencilState NO_DEPTH = new DepthStencilState(CompareOp.ALWAYS_PASS, false);
       private static final RenderPipeline POSITION_COLOR_QUADS_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/position_color_quads"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/position_color_quads"))
+                              .withVertexShader("core/position_color")
+                              .withFragmentShader("core/position_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                              .withDepthWrite(true)
+                              .withDepthStencilState(LEQUAL_DEPTH)
                               .build());
       private static final RenderPipeline POSITION_COLOR_QUADS_NO_DEPTH_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/position_color_quads_no_depth"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/position_color_quads_no_depth"))
+                              .withVertexShader("core/position_color")
+                              .withFragmentShader("core/position_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                              .withDepthWrite(false)
+                              .withDepthStencilState(NO_DEPTH)
                               .build());
       private static final RenderPipeline POSITION_COLOR_QUADS_NO_DEPTH_BLEND_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_COLOR_SNIPPET })
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
                               .withLocation(
-                                          ResourceLocation.of("vesence", "pipeline/world/position_color_quads_no_depth_blend"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+                                          Identifier.fromNamespaceAndPath("vesence", "pipeline/world/position_color_quads_no_depth_blend"))
+                              .withVertexShader("core/position_color")
+                              .withFragmentShader("core/position_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                              .withDepthWrite(false)
-                              .withBlend(BlendFunction.LIGHTNING)
+                              .withDepthStencilState(NO_DEPTH)
+                              .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
                               .build());
       private static final RenderPipeline LINES_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.RENDERTYPE_LINES_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/lines"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, DrawMode.LINES)
-                              .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                              .withDepthWrite(true)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.LINES_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/lines"))
+                              .withVertexShader("core/rendertype_lines")
+                              .withFragmentShader("core/rendertype_lines")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
+                              .withPrimitiveTopology(PrimitiveTopology.LINES)
+                              .withDepthStencilState(LEQUAL_DEPTH)
                               .build());
       private static final RenderPipeline LINES_NO_DEPTH_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.RENDERTYPE_LINES_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/lines_no_depth"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, DrawMode.LINES)
-                              .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                              .withDepthWrite(false)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.LINES_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/lines_no_depth"))
+                              .withVertexShader("core/rendertype_lines")
+                              .withFragmentShader("core/rendertype_lines")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
+                              .withPrimitiveTopology(PrimitiveTopology.LINES)
+                              .withDepthStencilState(NO_DEPTH)
                               .build());
       private static final RenderPipeline TEXTURED_QUADS_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads"))
+                              .withBindGroupLayout(net.minecraft.client.renderer.BindGroupLayouts.SAMPLER0)
+                              .withVertexShader("core/position_tex_color")
+                              .withFragmentShader("core/position_tex_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                              .withDepthWrite(false)
-                              .withBlend(BlendFunction.TRANSLUCENT)
+                              .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                              .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                               .build());
       private static final RenderPipeline TEXTURED_QUADS_ADDITIVE_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads_additive"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads_additive"))
+                              .withBindGroupLayout(net.minecraft.client.renderer.BindGroupLayouts.SAMPLER0)
+                              .withVertexShader("core/position_tex_color")
+                              .withFragmentShader("core/position_tex_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                              .withDepthWrite(false)
-                              .withBlend(BlendFunction.ADDITIVE)
+                              .withDepthStencilState(NO_DEPTH)
+                              .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
                               .build());
       private static final RenderPipeline TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads_no_depth_additive"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads_no_depth_additive"))
+                              .withBindGroupLayout(net.minecraft.client.renderer.BindGroupLayouts.SAMPLER0)
+                              .withVertexShader("core/position_tex_color")
+                              .withFragmentShader("core/position_tex_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                              .withDepthWrite(false)
-                              .withBlend(BlendFunction.ADDITIVE)
+                              .withDepthStencilState(NO_DEPTH)
+                              .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
                               .build());
       private static final RenderPipeline TEXTURED_QUADS_NO_DEPTH_PIPELINE = RenderPipelines.register(
-                  RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
-                              .withLocation(ResourceLocation.of("vesence", "pipeline/world/textured_quads_no_depth"))
-                              .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                  RenderPipeline.builder(new Snippet[] { RenderPipelines.MATRICES_FOG_SNIPPET })
+                              .withLocation(Identifier.fromNamespaceAndPath("vesence", "pipeline/world/textured_quads_no_depth"))
+                              .withBindGroupLayout(net.minecraft.client.renderer.BindGroupLayouts.SAMPLER0)
+                              .withVertexShader("core/position_tex_color")
+                              .withFragmentShader("core/position_tex_color")
+                              .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                              .withPrimitiveTopology(PrimitiveTopology.QUADS)
                               .withCull(false)
-                              .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                              .withDepthWrite(false)
-                              .withBlend(BlendFunction.TRANSLUCENT)
+                              .withDepthStencilState(NO_DEPTH)
+                              .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                               .build());
-      private static final RenderType POSITION_COLOR_QUADS_LAYER = RenderType.of("vesence/world/position_color_quads", RenderSetup.builder(POSITION_COLOR_QUADS_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType POSITION_COLOR_QUADS_NO_DEPTH_LAYER = RenderType.of("vesence/world/position_color_quads_no_depth", RenderSetup.builder(POSITION_COLOR_QUADS_NO_DEPTH_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType POSITION_COLOR_QUADS_NO_DEPTH_BLEND_LAYER = RenderType.of("vesence/world/position_color_quads_no_depth_blend", RenderSetup.builder(POSITION_COLOR_QUADS_NO_DEPTH_BLEND_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType TEXTURED_QUADS_LAYER = RenderType.of("vesence/world/textured_quads", RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType TEXTURED_QUADS_ADDITIVE_LAYER = RenderType.of("vesence/world/textured_quads_additive", RenderSetup.builder(TEXTURED_QUADS_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType TEXTURED_QUADS_NO_DEPTH_ADDITIVE_LAYER = RenderType.of("vesence/world/textured_quads_no_depth_additive", RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().build());
-      private static final RenderType TEXTURED_QUADS_NO_DEPTH_LAYER = RenderType.of("vesence/world/textured_quads_no_depth", RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_PIPELINE).expectedBufferSize(1024).translucent().build());
+      private static final RenderType POSITION_COLOR_QUADS_LAYER = RenderType.create("vesence/world/position_color_quads", RenderSetup.builder(POSITION_COLOR_QUADS_PIPELINE).createRenderSetup());
+      private static final RenderType POSITION_COLOR_QUADS_NO_DEPTH_LAYER = RenderType.create("vesence/world/position_color_quads_no_depth", RenderSetup.builder(POSITION_COLOR_QUADS_NO_DEPTH_PIPELINE).createRenderSetup());
+      private static final RenderType POSITION_COLOR_QUADS_NO_DEPTH_BLEND_LAYER = RenderType.create("vesence/world/position_color_quads_no_depth_blend", RenderSetup.builder(POSITION_COLOR_QUADS_NO_DEPTH_BLEND_PIPELINE).createRenderSetup());
+      private static final RenderType TEXTURED_QUADS_LAYER = RenderType.create("vesence/world/textured_quads", RenderSetup.builder(TEXTURED_QUADS_PIPELINE).createRenderSetup());
+      private static final RenderType TEXTURED_QUADS_ADDITIVE_LAYER = RenderType.create("vesence/world/textured_quads_additive", RenderSetup.builder(TEXTURED_QUADS_ADDITIVE_PIPELINE).createRenderSetup());
+      private static final RenderType TEXTURED_QUADS_NO_DEPTH_ADDITIVE_LAYER = RenderType.create("vesence/world/textured_quads_no_depth_additive", RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).createRenderSetup());
+      private static final RenderType TEXTURED_QUADS_NO_DEPTH_LAYER = RenderType.create("vesence/world/textured_quads_no_depth", RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_PIPELINE).createRenderSetup());
       private static final Map<Double, RenderType> LINES_CACHE = new ConcurrentHashMap<>();
       private static final Map<Double, RenderType> LINES_NO_DEPTH_CACHE = new ConcurrentHashMap<>();
 
@@ -129,20 +154,20 @@ public final class WorldRenderLayers {
             return TEXTURED_QUADS_LAYER;
       }
 
-      public static RenderType TEXTURED_QUADS_NO_DEPTH(ResourceLocation texture) {
-            return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+      public static RenderType TEXTURED_QUADS_NO_DEPTH(Identifier texture) {
+            return RenderType.create(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_PIPELINE).withTexture("Sampler0", texture).createRenderSetup());
       }
 
-      public static RenderType TEXTURED_QUADS(ResourceLocation texture) {
-            return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+      public static RenderType TEXTURED_QUADS(Identifier texture) {
+            return RenderType.create(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_PIPELINE).withTexture("Sampler0", texture).createRenderSetup());
       }
 
-      public static RenderType TEXTURED_QUADS_ADDITIVE(ResourceLocation texture) {
-            return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+      public static RenderType TEXTURED_QUADS_ADDITIVE(Identifier texture) {
+            return RenderType.create(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_ADDITIVE_PIPELINE).withTexture("Sampler0", texture).createRenderSetup());
       }
 
-      public static RenderType TEXTURED_QUADS_NO_DEPTH_ADDITIVE(ResourceLocation texture) {
-            return RenderType.of(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", texture).build());
+      public static RenderType TEXTURED_QUADS_NO_DEPTH_ADDITIVE(Identifier texture) {
+            return RenderType.create(texture.toString(), RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).withTexture("Sampler0", texture).createRenderSetup());
       }
 
       public static RenderType LINES(double width) {
@@ -158,12 +183,10 @@ public final class WorldRenderLayers {
       }
 
       private static RenderType createLineLayer(double width, String baseName, RenderPipeline pipeline) {
-            return RenderType.of(
+            return RenderType.create(
                         baseName + "/" + (width == 0.0 ? "default" : Double.toHexString(width)),
                         RenderSetup.builder(pipeline)
-                              .expectedBufferSize(256)
-                              .translucent()
-                              .build());
+                              .createRenderSetup());
       }
 
       public static RenderType withRenderPassSetup(RenderType renderLayer, Consumer<RenderPass> renderPassSetup) {

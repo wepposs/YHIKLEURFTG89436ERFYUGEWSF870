@@ -2,7 +2,7 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
 import vesence.module.api.Category;
@@ -34,7 +34,7 @@ public class AutoAccept extends Module {
         if (mc.player == null || mc.level == null) return;
         if (e.isSend()) return; // только RECEIVE
 
-        if (e.getPacket() instanceof GameMessageS2CPacket p) {
+        if (e.getPacket() instanceof ClientboundSystemChatPacket p) {
             String raw = p.content().getString().toLowerCase(Locale.ROOT);
             if (raw.contains("телепортироваться") || raw.contains("has requested teleport") || raw.contains("просит к вам телепортироваться")) {
                 if (onlyFriend.get()) {
@@ -47,7 +47,7 @@ public class AutoAccept extends Module {
                     }
                     if (!isFriend) return;
                 }
-                mc.player.connection.sendChatCommand("tpaccept");
+                mc.player.connection.sendCommand("tpaccept");
             }
         }
     }

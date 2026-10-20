@@ -12,14 +12,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import vesence.utils.TimerManager;
 
 @Environment(EnvType.CLIENT)
-@Mixin(DeltaTracker.Dynamic.class)
+@Mixin(DeltaTracker.Timer.class)
 public class RenderTickCounterMixin {
+    // TODO(port26): was RenderTickCounter.Dynamic#tickTime; 26.3 DeltaTracker.Timer#msPerTick
     @Shadow @Mutable
-    private float tickTime;
+    private float msPerTick;
 
-    @Inject(method = "beginRenderTick(J)I", at = @At("HEAD"))
+    @Inject(method = "advanceGameTime(J)I", at = @At("HEAD"))
     private void applyTimerSpeed(long timeMillis, CallbackInfoReturnable<Integer> cir) {
         float timer = TimerManager.getTimer();
-        tickTime = 50.0F / (timer == 0.0F ? 1.0F : timer);
+        msPerTick = 50.0F / (timer == 0.0F ? 1.0F : timer);
     }
 }

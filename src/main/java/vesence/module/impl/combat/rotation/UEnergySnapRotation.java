@@ -50,19 +50,19 @@ public class UEnergySnapRotation {
         lastTargetId = target.getId();
 
         Vec3 eye = mc.player.getEyePosition();
-        Vec3 look = mc.player.getRotationVec(1.0F);
+        Vec3 look = mc.player.getViewVector(1.0F);
         Rotation from = new Rotation(mc.player.getYRot(), mc.player.getXRot());
 
-        Rotation chosen = armed && !mc.player.isSneaking()
+        Rotation chosen = armed && !mc.player.isShiftKeyDown()
                 ? sampleBox(target, eye, from)
                 : sampleAway(target, eye, look, from);
 
-        Rotation rot = armed && !mc.player.isSneaking()
+        Rotation rot = armed && !mc.player.isShiftKeyDown()
                 ? new Rotation(chosen.yaw, chosen.pitch)
                 : chosen;
 
         URotations.update(rot, SPEED, SPEED, SPEED, SPEED, TIMEOUT, 0, false);
-        armed = !mc.player.isSneaking();
+        armed = !mc.player.isShiftKeyDown();
         pending = rot;
     }
 
@@ -85,8 +85,8 @@ public class UEnergySnapRotation {
             anyVisible |= traced;
             if (dist < bestDist) { bestDist = dist; best = rot; }
 
-            Vec3 probe = eye.add(sample.subtract(eye).normalize().multiply(reach));
-            if (box.contains(eye) || box.raycast(eye, probe).isPresent()) {
+            Vec3 probe = eye.add(sample.subtract(eye).normalize().scale(reach));
+            if (box.contains(eye) || box.clip(eye, probe).isPresent()) {
                 if (dist < reachDist) { reachDist = dist; reachable = rot; }
                 if (traced && dist < visDist) { visDist = dist; visible = rot; }
             }
@@ -100,8 +100,8 @@ public class UEnergySnapRotation {
     /** Energy: when not armed, aim along the current view direction. */
     private static Rotation sampleAway(LivingEntity target, Vec3 eye, Vec3 look, Rotation from) {
         double reach = reachDist(target);
-        Vec3 probe = eye.add(look.multiply(reach));
-        return target.getBoundingBox().raycast(eye, probe).isPresent()
+        Vec3 probe = eye.add(look.scale(reach));
+        return target.getBoundingBox().clip(eye, probe).isPresent()
                 ? toRotation(probe.subtract(eye)) : from;
     }
 
@@ -126,11 +126,11 @@ public class UEnergySnapRotation {
     }
 
     private static boolean hasLineOfSight(Vec3 eye, Vec3 point) {
-        ClipContext ctx = new ClipContext(eye, point, ClipContext.ShapeType.COLLIDER,
-                ClipContext.FluidHandling.NONE, mc.player);
-        HitResult hit = mc.level.raycast(ctx);
+        ClipContext ctx = new ClipContext(eye, point, ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, mc.player);
+        HitResult hit = mc.level.clip(ctx);
         return hit.getType() == HitResult.Type.MISS
-                || point.squaredDistanceTo(eye) <= hit.getPos().squaredDistanceTo(eye) + EPS;
+                || point.distanceToSqr(eye) <= hit.getLocation().distanceToSqr(eye) + EPS;
     }
 
     private static double angleDist(Rotation a, Rotation b) {

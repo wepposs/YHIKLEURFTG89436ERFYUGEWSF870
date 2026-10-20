@@ -2,13 +2,13 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.screen.slot.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import vesence.event.EventInit;
 import vesence.event.impl.ClickSlotEvent;
 import vesence.event.impl.EventPacket;
@@ -73,7 +73,7 @@ public class LockSlot extends Module {
 
    @EventInit
    public void onClickSlot(ClickSlotEvent event) {
-      if (!this.enable || mc.player == null || event.getActionType() != ClickType.THROW) {
+      if (!this.enable || mc.player == null || event.getActionType() != ContainerInput.THROW) {
          return;
       }
 
@@ -82,11 +82,11 @@ public class LockSlot extends Module {
       }
 
       Slot slot = mc.player.containerMenu.getSlot(event.getSlotId());
-      if (!(slot.inventory instanceof PlayerInventory)) {
+      if (!(slot.container instanceof net.minecraft.world.entity.player.Inventory)) {
          return;
       }
 
-      int inventorySlot = slot.getIndex();
+      int inventorySlot = slot.getContainerSlot();
       if (inventorySlot >= 0 && inventorySlot < 9 && isLockedHotbarSlot(inventorySlot)) {
          event.cancel();
       }
@@ -125,16 +125,16 @@ public class LockSlot extends Module {
 
       for (int slot = 0; slot < 9; slot++) {
          ItemStack stack = mc.player.getInventory().getItem(slot);
-         if (!stack.isIn(ItemTags.SWORDS)) {
+         if (!stack.is(ItemTags.SWORDS)) {
             continue;
          }
 
          float damage = stack.getOrDefault(
-               DataComponentTypes.ATTRIBUTE_MODIFIERS,
-               net.minecraft.component.type.AttributeModifiersComponent.DEFAULT
+               DataComponents.ATTRIBUTE_MODIFIERS,
+               net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY
          ).modifiers().stream()
                .filter(modifier -> modifier.modifier().id().toString().contains("attack_damage"))
-               .map(modifier -> (float) modifier.modifier().value())
+               .map(modifier -> (float) modifier.modifier().amount())
                .reduce(0.0F, Float::max);
 
          if (damage > bestDamage) {

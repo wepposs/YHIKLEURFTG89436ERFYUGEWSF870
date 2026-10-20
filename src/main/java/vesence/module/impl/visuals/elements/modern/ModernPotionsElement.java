@@ -4,11 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2fStack;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
@@ -68,9 +68,9 @@ public class ModernPotionsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
-        boolean chatOpen = mc.screen instanceof ChatScreen;
+        boolean chatOpen = mc.gui.screen() instanceof ChatScreen;
 
         for (RowState st : rows.values()) st.active = false;
         for (MobEffectInstance inst : sortedEffects(mc)) {
@@ -182,35 +182,35 @@ public class ModernPotionsElement extends HudElement {
         boundsH = panelH;
     }
 
-    private void drawEffectSprite(GuiGraphics ctx, MobEffectInstance inst, float px, float py, float size, float alpha) {
+    private void drawEffectSprite(GuiGraphicsExtractor ctx, MobEffectInstance inst, float px, float py, float size, float alpha) {
         if (inst == null || alpha <= 0.01f) return;
         try {
-            ResourceLocation effId = BuiltInRegistries.STATUS_EFFECT.getId(inst.getEffectType().value());
+            Identifier effId = BuiltInRegistries.MOB_EFFECT.getKey(inst.getEffect().value());
             if (effId == null) return;
-            ResourceLocation spriteId = ResourceLocation.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
+            Identifier spriteId = Identifier.fromNamespaceAndPath(effId.getNamespace(), "mob_effect/" + effId.getPath());
 
             float elemScale = getScale();
-            float guiScale = (float) Minecraft.getInstance().getWindow().getScaleFactor();
+            float guiScale = (float) Minecraft.getInstance().getWindow().getGuiScale();
             float sx = this.x + (px - this.x) * elemScale;
             float sy = this.y + (py - this.y) * elemScale;
             float drawSize = size * elemScale;
 
-            Matrix3x2fStack m = ctx.getMatrices();
+            Matrix3x2fStack m = ctx.pose();
             m.pushMatrix();
             m.translate(sx / guiScale, sy / guiScale);
             float sc = (drawSize / guiScale) / 18f;
             m.scale(sc, sc);
-            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, spriteId, 0, 0, 18, 18, alpha);
+            ctx.blitSprite(RenderPipelines.GUI_TEXTURED, spriteId, 0, 0, 18, 18, alpha);
             m.popMatrix();
         } catch (Exception ignored) {}
     }
 
     private String effectName(MobEffectInstance inst) {
-        return inst.getEffectType().value().getName().getString();
+        return inst.getEffect().value().getDisplayName().getString();
     }
 
     private String formatDuration(MobEffectInstance inst) {
-        if (inst.isInfinite()) return "\u221E";
+        if (inst.isInfiniteDuration()) return "\u221E";
         int totalSec = inst.getDuration() / 20;
         int min = totalSec / 60;
         int sec = totalSec % 60;
@@ -225,12 +225,12 @@ public class ModernPotionsElement extends HudElement {
 
     private List<MobEffectInstance> sortedEffects(Minecraft mc) {
         if (mc.player == null) return List.of();
-        Collection<MobEffectInstance> raw = mc.player.getStatusEffects();
+        Collection<MobEffectInstance> raw = mc.player.getActiveEffects();
         List<MobEffectInstance> beneficial = new ArrayList<>();
         List<MobEffectInstance> neutral = new ArrayList<>();
         List<MobEffectInstance> harmful = new ArrayList<>();
         for (MobEffectInstance e : raw) {
-            switch (e.getEffectType().value().getCategory()) {
+            switch (e.getEffect().value().getCategory()) {
                 case BENEFICIAL -> beneficial.add(e);
                 case HARMFUL    -> harmful.add(e);
                 default         -> neutral.add(e);

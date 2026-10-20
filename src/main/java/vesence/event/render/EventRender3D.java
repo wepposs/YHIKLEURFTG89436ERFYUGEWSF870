@@ -22,7 +22,7 @@ public class EventRender3D extends Event {
    }
 
    public EventRender3D(PoseStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Camera camera) {
-      this(matrixStack, tickDelta, projectionMatrix, camera.getRotation(), camera.getCameraPos());
+      this(matrixStack, tickDelta, projectionMatrix, camera.rotation(), camera.position());
    }
 
    private EventRender3D(PoseStack matrixStack, float tickDelta, Matrix4f projectionMatrix, Quaternionf cameraRotation, Vec3 cameraPos) {

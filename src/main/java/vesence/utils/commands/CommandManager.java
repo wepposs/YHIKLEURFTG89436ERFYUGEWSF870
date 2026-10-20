@@ -3,7 +3,7 @@ package vesence.utils.commands;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.text.MutableText;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -121,20 +121,20 @@ public final class CommandManager {
       Minecraft client = Minecraft.getInstance();
       if (client == null) return;
 
-      MutableText prefix  = buildGradient(PREFIX, ERROR_START, ERROR_END);
-      MutableText payload = Component.literal(" команда не найдена: " + input)
+      MutableComponent prefix  = buildGradient(PREFIX, ERROR_START, ERROR_END);
+      MutableComponent payload = Component.literal(" команда не найдена: " + input)
               .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555)));
-      MutableText full = prefix.append(payload);
+      MutableComponent full = prefix.append(payload);
 
       if (client.player != null) {
-         client.player.sendMessage(full, false);
+         client.player.sendSystemMessage(full);
       } else if (client.gui != null) {
-         client.gui.getChatHud().addMessage(full);
+         client.gui.hud.getChat().addClientSystemMessage(full);
       }
    }
 
-   private MutableText buildGradient(String text, int startColor, int endColor) {
-      MutableText result = Component.empty();
+   private MutableComponent buildGradient(String text, int startColor, int endColor) {
+      MutableComponent result = Component.empty();
       int[] codePoints = text.codePoints().toArray();
       int length = codePoints.length;
       for (int i = 0; i < length; i++) {

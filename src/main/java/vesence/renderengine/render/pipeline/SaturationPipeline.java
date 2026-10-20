@@ -1,51 +1,57 @@
 package vesence.renderengine.render.pipeline;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.UniformType;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
-import java.util.OptionalInt;
+import java.util.Optional;
 
 public class SaturationPipeline {
-    private static final ResourceLocation PIPELINE_ID = ResourceLocation.of("vesence", "pipeline/saturation");
-    private static final ResourceLocation VERTEX_SHADER = ResourceLocation.of("vesence", "core/saturation");
-    private static final ResourceLocation FRAGMENT_SHADER = ResourceLocation.of("vesence", "core/saturation");
-    private static final BlendFunction REPLACE_BLEND = new BlendFunction(SourceFactor.ONE, DestFactor.ZERO, SourceFactor.ONE, DestFactor.ZERO);
+    private static final Identifier PIPELINE_ID = Identifier.fromNamespaceAndPath("vesence", "pipeline/saturation");
+    private static final Identifier VERTEX_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/saturation");
+    private static final Identifier FRAGMENT_SHADER = Identifier.fromNamespaceAndPath("vesence", "core/saturation");
+    private static final BlendFunction REPLACE_BLEND = new BlendFunction(BlendFactor.ONE, BlendFactor.ZERO, BlendFactor.ONE, BlendFactor.ZERO);
     private static final RenderPipeline PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+        RenderPipeline.builder()
             .withLocation(PIPELINE_ID)
             .withVertexShader(VERTEX_SHADER)
             .withFragmentShader(FRAGMENT_SHADER)
-            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.DrawMode.TRIANGLES)
-            .withUniform("SaturationData", UniformType.UNIFORM_BUFFER)
-            .withSampler("SceneSampler")
-            .withBlend(REPLACE_BLEND)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+            .withBindGroupLayout(BindGroupLayout.builder()
+                    .withUniform("SaturationData", UniformType.UNIFORM_BUFFER)
+                    .withUniform("SceneSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+                    .build())
+            .withColorTargetState(new ColorTargetState(REPLACE_BLEND))
+            .withDepthStencilState(Optional.empty())
             .withCull(false)
             .build()
     );
@@ -90,7 +96,7 @@ public class SaturationPipeline {
         sceneCopyTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:saturation_scene_copy",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.RGBA8,
+            GpuFormat.RGBA8_UNORM,
             width,
             height,
             1,
@@ -116,18 +122,18 @@ public class SaturationPipeline {
     public void applySaturation(Minecraft mc, float saturation) {
         if (saturation == 1.0f) return;
 
-        RenderTarget mainFb = mc.getMainRenderTarget();
-        if (mainFb == null || mainFb.getColorAttachment() == null) return;
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
+        if (mainFb == null || mainFb.getColorTexture() == null) return;
 
-        int width = mainFb.textureWidth;
-        int height = mainFb.textureHeight;
+        int width = mainFb.width;
+        int height = mainFb.height;
         if (width <= 0 || height <= 0) return;
 
         ensureInitialized();
         ensureTextures(width, height);
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(mainFb.getColorAttachment(), sceneCopyTexture, 0, 0, 0, 0, 0, width, height);
+        encoder.copyTextureToTexture(mainFb.getColorTexture(), sceneCopyTexture, 0, 0, 0, 0, 0, width, height);
 
         prepareUniformData(saturation);
 
@@ -145,24 +151,24 @@ public class SaturationPipeline {
 
         encoder.writeToBuffer(uniformBuffer.slice(), dataBuffer);
 
-        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().write(
-            RenderSystem.getModelViewMatrix(),
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms().writeTransform(
+            RenderSystem.getModelViewMatrixCopy(),
             COLOR_MODULATOR,
             MODEL_OFFSET,
             TEXTURE_MATRIX
         );
 
-        GpuSampler linearSampler = RenderSystem.getSamplerCache().get(FilterMode.LINEAR);
-        GpuTextureView targetView = mainFb.getColorAttachmentView();
+        GpuSampler linearSampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        GpuTextureView targetView = mainFb.getColorTextureView();
 
-        try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:saturation_pass", targetView, OptionalInt.empty())) {
-            renderPass.setPipeline(PIPELINE);
-            renderPass.setVertexBuffer(0, dummyVertexBuffer);
-            renderPass.bindTexture("SceneSampler", sceneCopyTextureView, linearSampler);
+        try (RenderPass renderPass = encoder.createRenderPass(() -> "vesence:saturation_pass", targetView, Optional.empty())) {
+            renderPass.setPipeline(RenderSystem.getCompiledPipeline(PIPELINE));
+            renderPass.setVertexBuffer(0, dummyVertexBuffer.slice());
+            renderPass.setUniform("SceneSampler", sceneCopyTextureView, linearSampler);
             RenderSystem.bindDefaultUniforms(renderPass);
             renderPass.setUniform("DynamicTransforms", dynamicTransforms);
             renderPass.setUniform("SaturationData", uniformBuffer);
-            renderPass.draw(0, 6);
+            renderPass.draw(0, 6, 0, 1);
         }
     }
 

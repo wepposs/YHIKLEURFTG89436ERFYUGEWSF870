@@ -1,21 +1,21 @@
 package vesence.ui;
 
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.ResourceLocation;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.resources.Identifier;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import smile.stat.Hypothesis;
@@ -59,7 +59,7 @@ public class MainScreen extends Screen {
     private static final float TITLE_SIZE = 55;
     private static final float TITLE_GAP  = 32f;
 
-    private static final ResourceLocation BG_TEXTURE = ResourceLocation.of("vesence", "images/mac/figma.png");
+    private static final Identifier BG_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "images/mac/figma.png");
 
     // Видео-фон главного меню: заранее разложенные кадры JPEG в ресурсах
     // (assets/vesence/videos/menu/). Стримятся с префетчем — мгновенно, плавно,
@@ -157,9 +157,9 @@ public class MainScreen extends Screen {
     }
 
     private boolean splashFadeStarted(Minecraft mc) {
-        net.minecraft.client.gui.screen.Overlay overlay = mc.getOverlay();
+        net.minecraft.client.gui.screens.Overlay overlay = mc.gui.overlay();
         if (overlay == null) return true;
-        if (overlay instanceof net.minecraft.client.gui.screen.SplashOverlay) {
+        if (overlay instanceof net.minecraft.client.gui.screens.LoadingOverlay) {
             try {
                 long t = ((vesence.mixin.SplashOverlayAccessor) overlay).getReloadCompleteTime();
                 return t > -1L;
@@ -240,19 +240,19 @@ public class MainScreen extends Screen {
 
         buttons.add(new Button("SinglePlayer", "e",
                 "Here you can visually inspect and\nexperience functions without\nany restrictions with anti cheat", () ->
-                mc.setScreen(new net.minecraft.client.gui.screen.world.SelectWorldScreen(this))));
+                mc.gui.setScreen(new net.minecraft.client.gui.screens.worldselection.SelectWorldScreen(this))));
         buttons.add(new Button("MultiPlayer", "x",
                 "Here you can experience all the\nfunctionality of the client on\ndifferent servers", () ->
-                mc.setScreen(new vesence.ui.MultiplayerScreen(this).setRussian(settingsWindow.getSelectedLangMode() == 0))));
+                mc.gui.setScreen(new vesence.ui.MultiplayerScreen(this).setRussian(settingsWindow.getSelectedLangMode() == 0))));
         buttons.add(new Button("Accounts", "y",
                 "Manage your accounts", () ->
                 accountSwitcher.open()));
         buttons.add(new Button("Settings", "h",
                 "Here you can customize the game\nalong and across, removing\nunnecessary elementals.", () ->
-                mc.setScreen(new OptionsScreen(this, mc.options))));
+                mc.gui.setScreen(new OptionsScreen(this, mc.options))));
         buttons.add(new Button("Quit", "A",
                 "Meet me after a while again :)", () ->
-                mc.scheduleStop()));
+                mc.stop()));
 
         openAnim.set(1.0);
         introStartMillis = 0L;
@@ -295,9 +295,9 @@ public class MainScreen extends Screen {
     }
 
     private void drawBackground(Renderer2D renderer, int sw, int sh, float zoom) {
-        // 1) Пытаемся показать видео-кадр. currentFrameId() возвращает ResourceLocation
+        // 1) Пытаемся показать видео-кадр. currentFrameId() возвращает Identifier
         //    текущего (по времени) кадра или null, пока клип декодируется в фоне.
-        ResourceLocation vid = null;
+        Identifier vid = null;
         if (videoBg != null) {
             try {
                 vid = videoBg.currentFrameId();
@@ -315,7 +315,7 @@ public class MainScreen extends Screen {
             float zoomedHeight = sh * zoom;
             float offsetX = (sw - zoomedWidth) / 2f;
             float offsetY = (sh - zoomedHeight) / 2f;
-            ResourceLocation bg = ResourceLocation.of("vesence", "images/main_menu/background.png");
+            Identifier bg = Identifier.fromNamespaceAndPath("vesence", "images/main_menu/background.png");
             renderer.drawImage(bg, offsetX, offsetY, zoomedWidth, zoomedHeight);
         }
 
@@ -333,16 +333,16 @@ public class MainScreen extends Screen {
         buttons.get(4).name = lang.equals("ru") ? "Выход" : "Quit";
     }
 
-    private static int getGlId(ResourceLocation id) {
+    private static int getGlId(Identifier id) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null) return 0;
             AbstractTexture tex = mc.getTextureManager().getTexture(id);
             if (tex == null) return 0;
-            GpuTextureView view = tex.getGlTextureView();
+            GpuTextureView view = tex.getTextureView();
             if (view == null) return 0;
             GpuTexture gpuTex = view.texture();
-            if (gpuTex instanceof GlTexture glTex) return glTex.getGlId();
+            if (gpuTex instanceof GlTexture glTex) return glTex.glId();
         } catch (Exception ignored) {}
         return 0;
     }
@@ -353,14 +353,13 @@ public class MainScreen extends Screen {
         if (introStartMillis == 0L && splashFadeStarted(mc)) {
             introStartMillis = System.currentTimeMillis();
         }
-        double[] glfwX = new double[1], glfwY = new double[1];
-        GLFW.glfwGetCursorPos(mc.getWindow().getHandle(), glfwX, glfwY);
-        int fbMouseX = (int) glfwX[0];
-        int fbMouseY = (int) glfwY[0];
+        // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...); use MouseHandler positions
+        int fbMouseX = (int) mc.mouseHandler.xpos();
+        int fbMouseY = (int) mc.mouseHandler.ypos();
         double fbRatioX = (double) sw / mc.getWindow().getWidth();
         double fbRatioY = (double) sh / mc.getWindow().getHeight();
-        float fbMX = (float)(glfwX[0] * fbRatioX);
-        float fbMY = (float)(glfwY[0] * fbRatioY);
+        float fbMX = (float)(mc.mouseHandler.xpos() * fbRatioX);
+        float fbMY = (float)(mc.mouseHandler.ypos() * fbRatioY);
         updateSmoothedMouse(fbMouseX, fbMouseY);
         float lmx = toLogicalX(fbMouseX, sw);
         float lmy = toLogicalY(fbMouseY, sh);
@@ -442,8 +441,8 @@ public class MainScreen extends Screen {
         uniformExpandedH = COMPACT_H;
         float titleOffset = 0f;
 
-        int fbW = mc.getWindow().getFramebufferWidth();
-        int fbH = mc.getWindow().getFramebufferHeight();
+        int fbW = mc.getWindow().getScreenWidth();
+        int fbH = mc.getWindow().getScreenHeight();
         double guiScale = (double) fbW / sw;
 
         renderer.pushScale(currentMenuScale, centerX, sh / 2f);
@@ -522,7 +521,7 @@ public class MainScreen extends Screen {
             }
 
             if(i <= 1) {
-                ResourceLocation BG_TEXTURE = ResourceLocation.of("vesence", i == 0 ? "images/main_menu/single_player.png" : "images/main_menu/multi_player.png");
+                Identifier BG_TEXTURE = Identifier.fromNamespaceAndPath("vesence", i == 0 ? "images/main_menu/single_player.png" : "images/main_menu/multi_player.png");
                 renderer.drawImage(BG_TEXTURE, bx + 10, by + 38, bw - 20, 62, ColorUtil.overCol(ColorUtil.getColor(255, 125), -1, hT), false, 5);
             }
             float textPad = 10;
@@ -576,11 +575,11 @@ public class MainScreen extends Screen {
 
             int ruBaseA = ru ? 255 : (ruHov ? 200 : 110);
             int ruTint = ColorUtil.replAlpha(-1, Math.round(ruBaseA * ruIntro));
-            renderer.drawImage(ResourceLocation.of("vesence", "images/main_menu/ru.png"), ruX, ruY, flagW, flagH, ruTint, false, 4);
+            renderer.drawImage(Identifier.fromNamespaceAndPath("vesence", "images/main_menu/ru.png"), ruX, ruY, flagW, flagH, ruTint, false, 4);
 
             int ukBaseA = !ru ? 255 : (ukHov ? 200 : 110);
             int ukTint = ColorUtil.replAlpha(-1, Math.round(ukBaseA * ukIntro));
-            renderer.drawImage(ResourceLocation.of("vesence", "images/main_menu/uk.png"), ukX, ukY, flagW, flagH, ukTint, false, 4);
+            renderer.drawImage(Identifier.fromNamespaceAndPath("vesence", "images/main_menu/uk.png"), ukX, ukY, flagW, flagH, ukTint, false, 4);
         }
 
         if (!accountSwitcher.isOpen()) {
@@ -620,25 +619,25 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.getWindow() == null || !Vesence.isModInitialized()) {
             context.fill(0, 0, this.width, this.height, 0xFF000000);
             return;
         }
 
-        int width = mc.getWindow().getFramebufferWidth();
-        int height = mc.getWindow().getFramebufferHeight();
+        int width = mc.getWindow().getScreenWidth();
+        int height = mc.getWindow().getScreenHeight();
         if (width <= 0 || height <= 0) return;
 
-        GlState.Snapshot snapshot = GlState.pushPose();
-        RenderTarget mainFb = mc.getMainRenderTarget();
+        GlState.Snapshot snapshot = GlState.push();
+        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
         int tempFbo = 0;
         try {
-            if (mainFb != null && mainFb.getColorAttachment() instanceof GlTexture glColor) {
+            if (mainFb != null && mainFb.getColorTexture() instanceof GlTexture glColor) {
                 tempFbo = GL30.glGenFramebuffers();
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.getGlId(), 0);
+                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
                 GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
                 if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
                     GL30.glDeleteFramebuffers(tempFbo);
@@ -673,19 +672,19 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean bl) {
-        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean bl) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             mouseDown = true;
             Minecraft mc = Minecraft.getInstance();
             double scale = mc != null && mc.getWindow() != null
-                    ? (double) mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaledWidth()
+                    ? (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth()
                     : 1.0;
             int fbX = (int)(click.x() * scale);
             int fbY = (int)(click.y() * scale);
-            int fbW = mc.getWindow().getFramebufferWidth();
-            int fbH = mc.getWindow().getFramebufferHeight();
-            int sw = mc.getWindow().getScaledWidth();
-            int sh = mc.getWindow().getScaledHeight();
+            int fbW = mc.getWindow().getScreenWidth();
+            int fbH = mc.getWindow().getScreenHeight();
+            int sw = mc.getWindow().getGuiScaledWidth();
+            int sh = mc.getWindow().getGuiScaledHeight();
             float lx = toLogicalX(fbX, fbW);
             float ly = toLogicalY(fbY, fbH);
             if (accountSwitcher.click(fbX, fbY, fbW, fbH)) return true;
@@ -720,16 +719,16 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(net.minecraft.client.gui.Click click) {
-        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+    public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent click) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             Minecraft mc = Minecraft.getInstance();
             double scale = mc != null && mc.getWindow() != null
-                    ? (double) mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaledWidth()
+                    ? (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth()
                     : 1.0;
             int fbX = (int)(click.x() * scale);
             int fbY = (int)(click.y() * scale);
-            int fbW = mc.getWindow().getFramebufferWidth();
-            int fbH = mc.getWindow().getFramebufferHeight();
+            int fbW = mc.getWindow().getScreenWidth();
+            int fbH = mc.getWindow().getScreenHeight();
             float lx = toLogicalX(fbX, fbW);
             float ly = toLogicalY(fbY, fbH);
 
@@ -749,7 +748,7 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public boolean charTyped(CharInput input) {
+    public boolean charTyped(CharacterEvent input) {
         if (accountSwitcher.isOpen()) {
             return accountSwitcher.charTyped(input);
         }
@@ -757,8 +756,8 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
-        if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+    public boolean keyPressed(KeyEvent input) {
+        if (input.key() == InputConstants.KEY_ESCAPE) {
             if (accountSwitcher.isOpen()) {
                 accountSwitcher.close();
                 return true;
@@ -777,7 +776,7 @@ public class MainScreen extends Screen {
         return settingsWindow.shouldCloseOnEsc();
     }
 
-    @Override
+    // TODO(port26): Screen#shouldPause removed in 26.3
     public boolean shouldPause() {
         return false;
     }
@@ -796,6 +795,6 @@ public class MainScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+    public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
     }
 }

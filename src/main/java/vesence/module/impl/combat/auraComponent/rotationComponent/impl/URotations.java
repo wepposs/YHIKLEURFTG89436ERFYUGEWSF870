@@ -88,7 +88,7 @@ public class URotations extends Component {
    public void onEvent(EventRender3D event) {
       if (mc.player != null && isRotating()) {
          // Тело доворачиваем только визуально и только от applied-ротации.
-         mc.player.bodyYaw = PlayerUtil.calculateCorrectYawOffset(mc.player.getYRot());
+         mc.player.yBodyRot = PlayerUtil.calculateCorrectYawOffset(mc.player.getYRot());
       }
    }
 
@@ -115,21 +115,21 @@ public class URotations extends Component {
          return;
       }
 
-      float t = net.minecraft.util.math.Mth.clamp(event.getPartialTicks(), 0.0F, 1.0F);
+      float t = net.minecraft.util.Mth.clamp(event.getPartialTicks(), 0.0F, 1.0F);
 
       // В третьем лице камерой занимается InterpolateF5 (Cinematic Camera),
       // лезть туда вторым сглаживанием нельзя — они будут драться.
-      if (mc.options.getPerspective().isFirstPerson()) {
+      if (mc.options.getCameraType().isFirstPerson()) {
          // wrapDegrees-aware lerp: иначе на переходе через ±180° камера рвётся.
-         event.setYRot(net.minecraft.util.math.Mth.lerpAngleDegrees(t, previousAppliedYaw, appliedYaw));
-         event.setXRot(net.minecraft.util.math.Mth.lerp(t, previousAppliedPitch, appliedPitch));
+         event.setYaw(net.minecraft.util.Mth.rotLerp(t, previousAppliedYaw, appliedYaw));
+         event.setPitch(net.minecraft.util.Mth.lerp(t, previousAppliedPitch, appliedPitch));
       }
 
       // Модель головы интерполируется парой headYaw/lastHeadYaw, а ваниль в самом
       // конце тика делает lastHeadYaw = headYaw — то есть интерполяция вырождена.
       // Возвращаем её: это чисто визуальный слой, в пакеты не уходит.
-      mc.player.lastHeadYaw = previousHeadYaw;
-      mc.player.lastPitch = previousAppliedPitch;
+      mc.player.yHeadRotO = previousHeadYaw;
+      mc.player.xRotO = previousAppliedPitch;
    }
 
    @EventInit
@@ -202,7 +202,7 @@ public class URotations extends Component {
          // начнёт каждый тик пропиливать путь заново и камера будет дёргаться.
          previousAppliedYaw = mc.player.getYRot();
          previousAppliedPitch = mc.player.getXRot();
-         previousHeadYaw = mc.player.headYaw;
+         previousHeadYaw = mc.player.yHeadRot;
          hasPrevious = true;
          appliedYaw = mc.player.getYRot();
          appliedPitch = mc.player.getXRot();
@@ -236,7 +236,7 @@ public class URotations extends Component {
       // углы обратно: это клиентские поля только для рендера, в пакеты не идут.
       previousAppliedYaw = mc.player.getYRot();
       previousAppliedPitch = mc.player.getXRot();
-      previousHeadYaw = mc.player.headYaw;
+      previousHeadYaw = mc.player.yHeadRot;
       hasPrevious = true;
 
       mc.player.setYRot(newYaw);
@@ -245,9 +245,9 @@ public class URotations extends Component {
       // silent: bodyYaw (renderYawOffset) не трогаем — иначе тело развернётся.
       // headYaw держим на цели только на тике удара.
       if (headSnapTicks > 0) {
-         mc.player.headYaw = targetRotation.yaw;
+         mc.player.yHeadRot = targetRotation.yaw;
       } else {
-         mc.player.headYaw = newYaw;
+         mc.player.yHeadRot = newYaw;
       }
 
       appliedYaw = newYaw;

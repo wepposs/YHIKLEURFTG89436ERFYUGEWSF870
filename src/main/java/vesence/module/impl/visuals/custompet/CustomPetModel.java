@@ -1,9 +1,9 @@
 package vesence.module.impl.visuals.custompet;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
-import software.bernie.geckolib.model.GeoModel;
-import software.bernie.geckolib.renderer.base.GeoRenderState;
+import com.geckolib.model.GeoModel;
+import com.geckolib.renderer.base.GeoRenderState;
 
 /**
  * GeoModel питомца. Перенесено из RelevantPremiumpp4 (GeckoLib 4.8 -> GeckoLib 5.4).
@@ -13,22 +13,22 @@ import software.bernie.geckolib.renderer.base.GeoRenderState;
  * {@link CustomPetRenderer#adjustModelBonesForRender}, поэтому модель/текстура едины.
  */
 public class CustomPetModel extends GeoModel<CustomPetEntity> {
-    private static final ResourceLocation MODEL = ResourceLocation.of("vesence", "custom_pet");
-    private static final ResourceLocation ANIMATIONS = ResourceLocation.of("vesence", "custom_pet");
-    private static final ResourceLocation TEXTURE = ResourceLocation.of("vesence", "textures/entity/custom_pet.png");
+    private static final Identifier MODEL = Identifier.fromNamespaceAndPath("vesence", "custom_pet");
+    private static final Identifier ANIMATIONS = Identifier.fromNamespaceAndPath("vesence", "custom_pet");
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/entity/custom_pet.png");
 
     @Override
-    public ResourceLocation getModelResource(GeoRenderState renderState) {
+    public Identifier getModelResource(GeoRenderState renderState) {
         return MODEL;
     }
 
     @Override
-    public ResourceLocation getTextureResource(GeoRenderState renderState) {
+    public Identifier getTextureResource(GeoRenderState renderState) {
         return TEXTURE;
     }
 
     @Override
-    public ResourceLocation getAnimationResource(CustomPetEntity animatable) {
+    public Identifier getAnimationResource(CustomPetEntity animatable) {
         return ANIMATIONS;
     }
 }

@@ -3,11 +3,13 @@ package vesence.module.impl.misc;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -17,17 +19,15 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.entity.Display;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.joml.Matrix4f;
 import vesence.Vesence;
 import vesence.event.EventInit;
@@ -74,28 +74,33 @@ public class StructureHelper extends Module {
 
     private static final Pattern TIMER_PATTERN = Pattern.compile("(\\d{1,2}):(\\d{2})");
 
+    private static final DepthStencilState SH_NO_DEPTH = new DepthStencilState(CompareOp.ALWAYS_PASS, false);
     private static final RenderPipeline SH_LINES_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(ResourceLocation.of("vesence", "structure_helper_lines"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+        RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "structure_helper_lines"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
             .withCull(false)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
-            .withBlend(BlendFunction.LIGHTNING)
+            .withDepthStencilState(SH_NO_DEPTH)
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .build());
     private static final RenderPipeline SH_QUADS_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-            .withLocation(ResourceLocation.of("vesence", "structure_helper_quads"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+        RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+            .withLocation(Identifier.fromNamespaceAndPath("vesence", "structure_helper_quads"))
+            .withVertexShader("core/position_color")
+            .withFragmentShader("core/position_color")
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withCull(false)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withDepthWrite(false)
-            .withBlend(BlendFunction.LIGHTNING)
+            .withDepthStencilState(SH_NO_DEPTH)
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
             .build());
-    private static final RenderType SH_LINES_LAYER = RenderType.of("sh_lines",
-        RenderSetup.builder(SH_LINES_PIPELINE).expectedBufferSize(2048).translucent().build());
-    private static final RenderType SH_QUADS_LAYER = RenderType.of("sh_quads",
-        RenderSetup.builder(SH_QUADS_PIPELINE).expectedBufferSize(2048).translucent().build());
+    private static final RenderType SH_LINES_LAYER = RenderType.create("sh_lines",
+        RenderSetup.builder(SH_LINES_PIPELINE).createRenderSetup());
+    private static final RenderType SH_QUADS_LAYER = RenderType.create("sh_quads",
+        RenderSetup.builder(SH_QUADS_PIPELINE).createRenderSetup());
 
     private static final class ChestEntry {
         int initialSeconds;
@@ -197,50 +202,49 @@ public class StructureHelper extends Module {
             timersLoaded = true;
         }
 
-        Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
         PoseStack matrices = event.getMatrixStack();
-        Matrix4f matrix = matrices.last().getPositionMatrix();
+        Matrix4f matrix = matrices.last().pose();
 
         if (allocator == null) {
             allocator = new ByteBufferBuilder(262144);
         }
-        Immediate immediate = MultiBufferSource.immediate(allocator);
+        Immediate immediate = new Immediate(allocator);
 
         try {
             long now = System.currentTimeMillis();
 
-            int playerChunkX = mc.player.getChunkPos().x;
-            int playerChunkZ = mc.player.getChunkPos().z;
+            int playerChunkX = mc.player.chunkPosition().x();
+            int playerChunkZ = mc.player.chunkPosition().z();
 
-            int radius = mc.options.getViewDistance().getValue();
+            int radius = mc.options.renderDistance().get();
 
             List<BlockPos> loadedChests = new ArrayList<>();
             for (int cx = playerChunkX - radius; cx <= playerChunkX + radius; cx++) {
                 for (int cz = playerChunkZ - radius; cz <= playerChunkZ + radius; cz++) {
-                    if (!mc.level.getChunkManager().isChunkLoaded(cx, cz)) continue;
-                    WorldChunk chunk = mc.level.getChunkManager().getWorldChunk(cx, cz, false);
+                    LevelChunk chunk = mc.level.getChunkSource().getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
                     if (chunk == null) continue;
 
                     for (BlockEntity tile : chunk.getBlockEntities().values()) {
                         if (tile instanceof ChestBlockEntity || tile instanceof TrappedChestBlockEntity) {
-                            loadedChests.add(tile.getPos());
+                            loadedChests.add(tile.getBlockPos());
                         }
                     }
                 }
             }
 
-            for (net.minecraft.entity.Entity entity : mc.level.getEntities()) {
+            for (net.minecraft.world.entity.Entity entity : mc.level.entitiesForRendering()) {
                 int seconds;
                 if (entity instanceof ArmorStand) {
                     seconds = parseTimerFromEntity(entity);
-                } else if (entity instanceof DisplayEntity.TextDisplayEntity) {
+                } else if (entity instanceof Display.TextDisplay) {
                     seconds = parseTimerFromTextDisplay(entity);
                 } else {
                     continue;
                 }
                 if (seconds < 0) continue;
 
-                Vec3 entityPos = entity.getLerpedPos(1.0f);
+                Vec3 entityPos = entity.getPosition(1.0f);
                 BlockPos nearest = findNearestChest(loadedChests, entityPos);
                 if (nearest != null) {
 
@@ -340,7 +344,7 @@ public class StructureHelper extends Module {
 
     private boolean isChunkLoaded(BlockPos pos) {
         if (mc.level == null) return false;
-        return mc.level.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
+        return mc.level.getChunkSource().getChunk(pos.getX() >> 4, pos.getZ() >> 4, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) != null;
     }
 
     private int getColorByEntry(ChestEntry en, boolean loaded) {
@@ -357,13 +361,13 @@ public class StructureHelper extends Module {
         }
     }
 
-    private int parseTimerFromEntity(net.minecraft.entity.Entity entity) {
+    private int parseTimerFromEntity(net.minecraft.world.entity.Entity entity) {
         if (!(entity instanceof ArmorStand)) return -1;
         return parseTimeString(stripFormatting(entity.getName().getString()));
     }
 
-    private int parseTimerFromTextDisplay(net.minecraft.entity.Entity entity) {
-        if (!(entity instanceof DisplayEntity.TextDisplayEntity textDisplay)) return -1;
+    private int parseTimerFromTextDisplay(net.minecraft.world.entity.Entity entity) {
+        if (!(entity instanceof Display.TextDisplay textDisplay)) return -1;
         try {
             return parseTimeString(stripFormatting(textDisplay.getText().getString()));
         } catch (Exception e) {
@@ -401,6 +405,24 @@ public class StructureHelper extends Module {
         return nearest;
     }
 
+    // TODO(port26): MultiBufferSource was removed in 26.3; minimal immediate replacement.
+    // draw() builds meshes but cannot submit them without a frame-graph RenderPass.
+    private static final class Immediate {
+        private final ByteBufferBuilder allocator;
+        private final java.util.Map<RenderType, com.mojang.blaze3d.vertex.BufferBuilder> buffers = new java.util.HashMap<>();
+        Immediate(ByteBufferBuilder allocator) { this.allocator = allocator; }
+        VertexConsumer getBuffer(RenderType layer) {
+            return this.buffers.computeIfAbsent(layer, l -> new com.mojang.blaze3d.vertex.BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
+        }
+        void draw() {
+            for (java.util.Map.Entry<RenderType, com.mojang.blaze3d.vertex.BufferBuilder> e : this.buffers.entrySet()) {
+                com.mojang.blaze3d.vertex.MeshData mesh = e.getValue().build();
+                if (mesh != null) mesh.close();
+            }
+            this.buffers.clear();
+        }
+    }
+
     private void renderChestBox(Immediate immediate, Matrix4f matrix, BlockPos pos, int color, Vec3 cameraPos) {
         double minX = pos.getX() - cameraPos.x;
         double minY = pos.getY() - cameraPos.y;
@@ -417,35 +439,35 @@ public class StructureHelper extends Module {
             VertexConsumer quadBuf = immediate.getBuffer(SH_QUADS_LAYER);
             float fa = fillAlpha.get().floatValue();
 
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
 
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
 
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
 
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(r, g, b, fa);
 
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
 
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(r, g, b, fa);
-            quadBuf.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(r, g, b, fa);
+            quadBuf.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(r, g, b, fa);
         }
 
         VertexConsumer lineBuf = immediate.getBuffer(SH_LINES_LAYER);
@@ -472,8 +494,8 @@ public class StructureHelper extends Module {
     private static void drawLine3D(VertexConsumer buf, Matrix4f matrix,
                                    float x1, float y1, float z1, float x2, float y2, float z2,
                                    float r, float g, float b, float a) {
-        buf.vertex(matrix, x1, y1, z1).color(r, g, b, a);
-        buf.vertex(matrix, x2, y2, z2).color(r, g, b, a);
+        buf.addVertex(matrix, x1, y1, z1).setColor(r, g, b, a);
+        buf.addVertex(matrix, x2, y2, z2).setColor(r, g, b, a);
     }
 
     private static String stripFormatting(String text) {

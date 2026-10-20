@@ -3,7 +3,7 @@ package vesence.module.impl.misc;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
@@ -183,12 +183,12 @@ public class DiscordRCP extends Module {
     private ClientState detectState() {
         try {
             if (mc.player != null && mc.level != null) {
-                return mc.getCurrentServerEntry() != null
+                return mc.getCurrentServer() != null
                         ? ClientState.IN_GAME
                         : ClientState.SINGLEPLAYER;
             }
 
-            var screen = mc.screen;
+            var screen = mc.gui.screen();
 
             if (screen == null) {
                 return ClientState.LOADING;
@@ -198,7 +198,7 @@ public class DiscordRCP extends Module {
                 return ClientState.MAIN_MENU;
             }
 
-            if (screen instanceof MultiplayerScreen) {
+            if (screen instanceof JoinMultiplayerScreen) {
                 return ClientState.MULTIPLAYER_MENU;
             }
 
@@ -268,8 +268,8 @@ public class DiscordRCP extends Module {
                 return mc.player.getName().getString();
             }
 
-            if (mc.getSession() != null) {
-                return mc.getSession().getUsername();
+            if (mc.getUser() != null) {
+                return mc.getUser().getName();
             }
         } catch (Exception ignored) {
         }
@@ -279,10 +279,10 @@ public class DiscordRCP extends Module {
 
     private String getServerIp() {
         try {
-            var entry = mc.getCurrentServerEntry();
+            var entry = mc.getCurrentServer();
 
-            if (entry != null && entry.address != null) {
-                return entry.address;
+            if (entry != null && entry.ip != null) {
+                return entry.ip;
             }
         } catch (Exception ignored) {
         }

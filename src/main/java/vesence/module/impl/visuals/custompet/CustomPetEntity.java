@@ -4,37 +4,38 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.block.piston.PistonBehavior;
+import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.entity.MovementType;
-import net.minecraft.entity.passive.FrogEntity;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.BlockView;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 
-import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.animatable.manager.AnimatableManager;
-import software.bernie.geckolib.animation.AnimationController;
-import software.bernie.geckolib.animation.RawAnimation;
-import software.bernie.geckolib.animation.object.PlayState;
-import software.bernie.geckolib.animation.state.AnimationTest;
-import software.bernie.geckolib.util.GeckoLibUtil;
+import com.geckolib.animatable.GeoEntity;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
+import com.geckolib.animation.object.PlayState;
+import com.geckolib.animation.state.AnimationTest;
+import com.geckolib.util.GeckoLibUtil;
+import com.mojang.math.Axis;
 
-public class CustomPetEntity extends FrogEntity implements GeoEntity {
+public class CustomPetEntity extends Frog implements GeoEntity {
     private static final AtomicInteger NEXT_ENTITY_ID = new AtomicInteger(-20000);
     private static final double MOVEMENT_ANIMATION_THRESHOLD_SQR = 2.5E-5;
     private static final double MOVEMENT_VERTICAL_THRESHOLD = 0.003;
 
-    private static final SoundEvent AMBIENT_SOUND = SoundEvent.of(ResourceLocation.of("vesence", "entity.ribbit.ambient"));
-    private static final SoundEvent STEP_SOUND = SoundEvent.of(ResourceLocation.of("vesence", "entity.ribbit.step"));
+    private static final SoundEvent AMBIENT_SOUND = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "entity.ribbit.ambient"));
+    private static final SoundEvent STEP_SOUND = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("vesence", "entity.ribbit.step"));
 
     private static final RawAnimation IDLE = RawAnimation.begin().thenPlay("idle");
     private static final RawAnimation WALK = RawAnimation.begin().thenPlay("walk");
@@ -76,11 +77,11 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
 
     public CustomPetEntity(EntityType<? extends CustomPetEntity> type, Level level) {
         super(type, level);
-        this.noClip = false;
+        this.noPhysics = false;
         this.setNoGravity(false);
-        this.setAiDisabled(true);
+        this.setNoAi(true);
         this.setId(NEXT_ENTITY_ID.getAndDecrement());
-        this.setUuid(UUID.randomUUID());
+        this.setUUID(UUID.randomUUID());
         this.setDeltaMovement(Vec3.ZERO);
         this.targetYaw = this.getYRot();
         this.smoothedYaw = this.getYRot();
@@ -89,7 +90,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     public void setBehavior(Vec3 desiredPosition, double desiredSpeed, boolean desiredMoving, boolean desiredUmbrella, boolean desiredAirborne, double animationSpeed) {
-        if (desiredPosition.squaredDistanceTo(this.desiredPosition) > 0.2) {
+        if (desiredPosition.distanceToSqr(this.desiredPosition) > 0.2) {
             this.blockedTicks = 0;
             this.pauseTicks = 0;
             this.lastHorizontalDistance = Double.MAX_VALUE;
@@ -103,12 +104,12 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     public void snapTo(Vec3 pos, float yaw) {
-        this.setPosition(pos.x, pos.y, pos.z);
-        this.lastX = pos.x;
-        this.lastY = pos.y;
-        this.lastZ = pos.z;
-        this.lastYaw = yaw;
-        this.lastPitch = 0.0f;
+        this.setPos(pos.x, pos.y, pos.z);
+        this.xo = pos.x;
+        this.yo = pos.y;
+        this.zo = pos.z;
+        this.yRotO = yaw;
+        this.xRotO = 0.0f;
         this.moving = false;
         this.usingUmbrella = false;
         this.airborneMode = false;
@@ -128,8 +129,8 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         this.airMotion = Vec3.ZERO;
         this.setDeltaMovement(Vec3.ZERO);
         this.setYRot(yaw);
-        this.setHeadYaw(yaw);
-        this.setBodyYaw(yaw);
+        this.setYHeadRot(yaw);
+        this.setYBodyRot(yaw);
     }
 
     public boolean shouldUseUmbrella() {
@@ -176,22 +177,22 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     @Override
-    public int getMaxLookPitchChange() {
+    public int getMaxHeadXRot() {
         return 0;
     }
 
     @Override
-    public int getMaxHeadRotation() {
+    public int getMaxHeadYRot() {
         return 0;
     }
 
     @Override
-    public boolean shouldRender(double distance) {
+    public boolean shouldRenderAtSqrDistance(double distance) {
         return true;
     }
 
     @Override
-    public boolean canHit() {
+    public boolean canBeHitByProjectile() {
         return false;
     }
 
@@ -206,43 +207,43 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     @Override
-    public boolean isCollidable(Entity entity) {
+    public boolean canCollideWith(Entity entity) {
         return false;
     }
 
     @Override
-    public boolean collidesWith(Entity entity) {
+    public boolean canBeCollidedWith(Entity entity) {
         return false;
     }
 
     @Override
-    public void pushAwayFrom(Entity entity) {
+    public void push(Entity entity) {
     }
 
     @Override
-    protected void pushAway(Entity entity) {
+    protected void doPush(Entity entity) {
     }
 
     @Override
-    protected void tickCramming() {
+    protected void pushEntities() {
     }
 
     @Override
-    public boolean isInteractable() {
+    public boolean canInteractWithLevel() {
         return false;
     }
 
     @Override
-    public void addVelocity(double x, double y, double z) {
+    public void push(double x, double y, double z) {
     }
 
     @Override
-    public void addVelocity(Vec3 movement) {
+    public void addDeltaMovement(Vec3 movement) {
     }
 
     @Override
-    public PistonBehavior getPistonBehavior() {
-        return PistonBehavior.IGNORE;
+    public PushReaction getPistonPushReaction() {
+        return PushReaction.IGNORE_ENTITY;
     }
 
     private void tickCustomMovement() {
@@ -269,10 +270,10 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
             this.airMotion = Vec3.ZERO;
             this.setDeltaMovement(Vec3.ZERO);
             this.currentAnimationSpeed += (1.0 - this.currentAnimationSpeed) * 0.28;
-            this.lastYaw = this.smoothedYaw;
+            this.yRotO = this.smoothedYaw;
             this.setYRot(this.smoothedYaw);
-            this.setHeadYaw(this.smoothedYaw);
-            this.setBodyYaw(this.smoothedYaw);
+            this.setYHeadRot(this.smoothedYaw);
+            this.setYBodyRot(this.smoothedYaw);
             this.tickClientAudio(false, 0.0);
             return;
         }
@@ -281,18 +282,18 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
             return;
         }
         this.airMotion = Vec3.ZERO;
-        Vec3 current = this.getEntityPos();
+        Vec3 current = this.position();
         Vec3 toTarget = this.desiredPosition.subtract(current);
         Vec3 horizontal = new Vec3(toTarget.x, 0.0, toTarget.z);
-        double horizontalDistance = horizontal.horizontalLength();
+        double horizontalDistance = horizontal.horizontalDistance();
         wantsToMove = this.desiredMoving && horizontalDistance > 0.045;
         if (wantsToMove) {
             float desiredYaw = (float) Math.toDegrees(Mth.atan2(horizontal.z, horizontal.x)) - 90.0f;
             float yawApproach = (float) Math.clamp(9.5 + horizontalDistance * 2.4 + this.desiredSpeed * 68.0, 9.5, 24.0);
-            this.targetYaw = Mth.stepUnwrappedAngleTowards(this.targetYaw, desiredYaw, yawApproach);
+            this.targetYaw = Mth.approachDegrees(this.targetYaw, desiredYaw, yawApproach);
         }
         float turnSpeed = wantsToMove ? (float) Math.clamp(8.5 + horizontalDistance * 1.8 + this.desiredSpeed * 86.0, 9.0, 22.0) : 4.8f;
-        this.smoothedYaw = Mth.stepUnwrappedAngleTowards(this.smoothedYaw, this.targetYaw, turnSpeed);
+        this.smoothedYaw = Mth.approachDegrees(this.smoothedYaw, this.targetYaw, turnSpeed);
         float remainingYawDifference = Math.abs(Mth.wrapDegrees(this.targetYaw - this.smoothedYaw));
         double turnPenalty = wantsToMove ? Mth.clamp(1.0 - Math.max(0.0, (double) (remainingYawDifference - 6.0f)) / 78.0, 0.18, 1.0) : 0.0;
         double slowdownFactor = wantsToMove ? Mth.clamp((horizontalDistance - 0.06) / 1.2, 0.14, 1.0) : 0.0;
@@ -304,7 +305,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         }
         keepMoving = this.currentGroundSpeed > 0.012;
         this.moving = wantsToMove ? keepMoving || horizontalDistance > 0.18 : keepMoving;
-        Vec3 horizontalMove = this.currentGroundSpeed > 1.0E-5 && horizontalDistance > 1.0E-5 ? horizontal.normalize().multiply(Math.min(horizontalDistance, this.currentGroundSpeed)) : Vec3.ZERO;
+        Vec3 horizontalMove = this.currentGroundSpeed > 1.0E-5 && horizontalDistance > 1.0E-5 ? horizontal.normalize().scale(Math.min(horizontalDistance, this.currentGroundSpeed)) : Vec3.ZERO;
         double yDiff = this.desiredPosition.y - this.getY();
         if (this.onGround()) {
             if (yDiff > 0.55 && horizontalDistance <= 1.45 && wantsToMove && this.currentGroundSpeed > 0.035 && this.jumpCooldown <= 0 && this.blockedTicks < 3) {
@@ -317,18 +318,18 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
             this.verticalVelocity = Math.max(this.verticalVelocity - 0.08, -0.36);
         }
         Vec3 moveVec = new Vec3(horizontalMove.x, this.verticalVelocity, horizontalMove.z);
-        this.move(MovementType.SELF, moveVec);
-        Vec3 movedTo = this.getEntityPos();
+        this.move(MoverType.SELF, moveVec);
+        Vec3 movedTo = this.position();
         double actualHorizontalDeltaSqr = this.square(movedTo.x - current.x) + this.square(movedTo.z - current.z);
         actualMoving = actualHorizontalDeltaSqr > MOVEMENT_ANIMATION_THRESHOLD_SQR || Math.abs(movedTo.y - current.y) > MOVEMENT_VERTICAL_THRESHOLD;
         if (this.onGround() && this.verticalVelocity < 0.0) {
             this.verticalVelocity = 0.0;
         }
         if (this.onGround() && this.verticalVelocity <= 0.0 && this.desiredPosition.y <= this.getY() && Math.abs(this.desiredPosition.y - this.getY()) < 0.18) {
-            this.setPosition(this.getX(), this.desiredPosition.y, this.getZ());
+            this.setPos(this.getX(), this.desiredPosition.y, this.getZ());
         }
         this.moving = wantsToMove && actualMoving;
-        Vec3 remaining = this.desiredPosition.subtract(this.getEntityPos());
+        Vec3 remaining = this.desiredPosition.subtract(this.position());
         double remainingHorizontalDistance = Math.hypot(remaining.x, remaining.z);
         madeProgress = remainingHorizontalDistance + 0.025 < this.lastHorizontalDistance;
         if (this.currentGroundSpeed > 0.02 && this.horizontalCollision && this.onGround()) {
@@ -348,28 +349,28 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         double animationTarget = this.moving ? Math.max(1.0, this.animationSpeed) : 1.0;
         this.currentAnimationSpeed += (animationTarget - this.currentAnimationSpeed) * (this.moving ? 0.22 : 0.18);
         this.setDeltaMovement(Vec3.ZERO);
-        this.lastYaw = this.smoothedYaw;
+        this.yRotO = this.smoothedYaw;
         this.setYRot(this.smoothedYaw);
-        this.setHeadYaw(this.smoothedYaw);
-        this.setBodyYaw(this.smoothedYaw);
-        this.tickClientAudio(this.moving, horizontalMove.horizontalLengthSquared());
+        this.setYHeadRot(this.smoothedYaw);
+        this.setYBodyRot(this.smoothedYaw);
+        this.tickClientAudio(this.moving, horizontalMove.horizontalDistanceSqr());
     }
 
     private void tickAirMovement() {
         boolean idleVerticalHover;
         boolean wantsToMove;
-        Vec3 current = this.getEntityPos();
+        Vec3 current = this.position();
         Vec3 toTarget = this.desiredPosition.subtract(current);
         Vec3 horizontal = new Vec3(toTarget.x, 0.0, toTarget.z);
-        double horizontalDistance = horizontal.horizontalLength();
+        double horizontalDistance = horizontal.horizontalDistance();
         double totalDistance = toTarget.length();
         double verticalDistance = Math.abs(toTarget.y);
         wantsToMove = this.desiredMoving && totalDistance > 0.02;
         if (horizontalDistance > 1.0E-4) {
             float desiredYaw = (float) Math.toDegrees(Mth.atan2(horizontal.z, horizontal.x)) - 90.0f;
-            this.targetYaw = Mth.stepUnwrappedAngleTowards(this.targetYaw, desiredYaw, 10.5f);
+            this.targetYaw = Mth.approachDegrees(this.targetYaw, desiredYaw, 10.5f);
         }
-        this.smoothedYaw = Mth.stepUnwrappedAngleTowards(this.smoothedYaw, this.targetYaw, wantsToMove ? 14.0f : 6.0f);
+        this.smoothedYaw = Mth.approachDegrees(this.smoothedYaw, this.targetYaw, wantsToMove ? 14.0f : 6.0f);
         float remainingYawDifference = Math.abs(Mth.wrapDegrees(this.targetYaw - this.smoothedYaw));
         boolean canAdvance = wantsToMove && (remainingYawDifference <= 9.0f || totalDistance <= 0.35);
         this.movingTicks = 0;
@@ -383,7 +384,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         if (canAdvance && totalDistance > 1.0E-5 && !insideHoverDeadzone) {
             double slowdown = Mth.clamp((totalDistance - 0.2) / 1.6, 0.08, 1.0);
             double followStep = Math.clamp(this.desiredSpeed * slowdown, 0.012, 6.5);
-            desiredStep = toTarget.normalize().multiply(Math.min(totalDistance, followStep));
+            desiredStep = toTarget.normalize().scale(Math.min(totalDistance, followStep));
         } else if (!this.desiredMoving && verticalDistance > 0.001) {
             double verticalStep = Mth.clamp(verticalDistance * 0.38, 0.0025, 0.018);
             desiredStep = new Vec3(0.0, Math.copySign(Math.min(verticalDistance, verticalStep), toTarget.y), 0.0);
@@ -396,7 +397,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         double damping = insideHoverDeadzone ? 0.18 : (insideSettleZone ? 0.42 : (totalDistance < 1.5 ? 0.78 : 0.9));
         idleVerticalHover = !this.desiredMoving && verticalDistance > 0.001;
         if (!(canAdvance && !(desiredStep.lengthSqr() < 1.0E-6) || idleVerticalHover)) {
-            this.airMotion = this.airMotion.multiply(damping);
+            this.airMotion = this.airMotion.scale(damping);
         } else if (idleVerticalHover) {
             this.airMotion = new Vec3(this.airMotion.x, this.airMotion.y * 0.96, this.airMotion.z);
         }
@@ -404,23 +405,23 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
             this.airMotion = Vec3.ZERO;
         }
         Vec3 moveVec = this.airMotion.lengthSqr() > 0.0 ? (this.airMotion.length() > totalDistance ? toTarget : this.airMotion) : Vec3.ZERO;
-        this.move(MovementType.SELF, moveVec);
-        Vec3 movedTo = this.getEntityPos();
+        this.move(MoverType.SELF, moveVec);
+        Vec3 movedTo = this.position();
         double actualHorizontalDeltaSqr = this.square(movedTo.x - current.x) + this.square(movedTo.z - current.z);
         this.moving = wantsToMove && (actualHorizontalDeltaSqr > MOVEMENT_ANIMATION_THRESHOLD_SQR || Math.abs(movedTo.y - current.y) > MOVEMENT_VERTICAL_THRESHOLD);
         this.lastHorizontalDistance = wantsToMove ? horizontalDistance : Double.MAX_VALUE;
         double animationTarget = this.moving ? Math.max(1.0, this.animationSpeed) : 1.0;
         this.currentAnimationSpeed += (animationTarget - this.currentAnimationSpeed) * (this.moving ? 0.2 : 0.16);
         this.setDeltaMovement(Vec3.ZERO);
-        this.lastYaw = this.smoothedYaw;
+        this.yRotO = this.smoothedYaw;
         this.setYRot(this.smoothedYaw);
-        this.setHeadYaw(this.smoothedYaw);
-        this.setBodyYaw(this.smoothedYaw);
+        this.setYHeadRot(this.smoothedYaw);
+        this.setYBodyRot(this.smoothedYaw);
         this.tickClientAudio(false, 0.0);
     }
 
     private void snapToGroundIfClose() {
-        if (this.getEntityWorld() == null) {
+        if (this.level() == null) {
             return;
         }
         double x = this.getX();
@@ -429,23 +430,23 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
         int blockX = Mth.floor(x);
         int blockZ = Mth.floor(z);
         int baseY = Mth.floor(y + 0.2);
-        BlockPos.Mutable mutablePos = new BlockPos.Mutable(blockX, baseY + 1, blockZ);
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos(blockX, baseY + 1, blockZ);
         for (int blockY = baseY + 1; blockY >= baseY - 4; --blockY) {
             mutablePos.set(blockX, blockY, blockZ);
-            BlockState state = this.getEntityWorld().getBlockState(mutablePos);
-            VoxelShape shape = state.getCollisionShape((BlockView) this.getEntityWorld(), mutablePos);
+            BlockState state = this.level().getBlockState(mutablePos);
+            VoxelShape shape = state.getCollisionShape(this.level(), mutablePos);
             if (shape.isEmpty()) {
                 continue;
             }
-            double groundY = (double) blockY + shape.getMax(Direction.Axis.Y);
+            double groundY = (double) blockY + shape.max(Direction.Axis.Y);
             double drop = y - groundY;
             if (!(drop >= -0.08) || !(drop <= 0.72)) {
                 continue;
             }
-            this.setPosition(x, groundY, z);
-            this.lastX = x;
-            this.lastY = groundY;
-            this.lastZ = z;
+            this.setPos(x, groundY, z);
+            this.xo = x;
+            this.yo = groundY;
+            this.zo = z;
             this.verticalVelocity = 0.0;
             this.fallDistance = 0.0f;
             this.setDeltaMovement(Vec3.ZERO);
@@ -469,7 +470,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     private void tickClientAudio(boolean movingNow, double horizontalDeltaSqr) {
-        if (this.getEntityWorld() == null) {
+        if (this.level() == null) {
             return;
         }
         if (this.ambientSoundCooldown > 0) {
@@ -499,7 +500,7 @@ public class CustomPetEntity extends FrogEntity implements GeoEntity {
     }
 
     public float getLerpedYaw(float partialTick) {
-        return Mth.lerpAngleDegrees(partialTick, this.lastYaw, this.getYRot());
+        return Mth.rotLerp(partialTick, this.yRotO, this.getYRot());
     }
 
     private double square(double value) {

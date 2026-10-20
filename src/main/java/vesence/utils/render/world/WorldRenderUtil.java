@@ -17,30 +17,30 @@ public final class WorldRenderUtil {
       int r = color >> 16 & 0xFF;
       int g = color >> 8 & 0xFF;
       int b = color & 0xFF;
-      buffer.vertex(matrix, -halfSize, -halfSize, 0.0F)
-         .color(r, g, b, alpha)
-         .texture(0.0F, 1.0F)
-         .overlay(OverlayTexture.DEFAULT_UV)
-         .light(15728880)
-         .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, halfSize, -halfSize, 0.0F)
-         .color(r, g, b, alpha)
-         .texture(1.0F, 1.0F)
-         .overlay(OverlayTexture.DEFAULT_UV)
-         .light(15728880)
-         .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, halfSize, halfSize, 0.0F)
-         .color(r, g, b, alpha)
-         .texture(1.0F, 0.0F)
-         .overlay(OverlayTexture.DEFAULT_UV)
-         .light(15728880)
-         .normal(0.0F, 0.0F, 1.0F);
-      buffer.vertex(matrix, -halfSize, halfSize, 0.0F)
-         .color(r, g, b, alpha)
-         .texture(0.0F, 0.0F)
-         .overlay(OverlayTexture.DEFAULT_UV)
-         .light(15728880)
-         .normal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, -halfSize, -halfSize, 0.0F)
+         .setColor(r, g, b, alpha)
+         .setUv(0.0F, 1.0F)
+         .setOverlay(OverlayTexture.NO_OVERLAY)
+         .setLight(15728880)
+         .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, halfSize, -halfSize, 0.0F)
+         .setColor(r, g, b, alpha)
+         .setUv(1.0F, 1.0F)
+         .setOverlay(OverlayTexture.NO_OVERLAY)
+         .setLight(15728880)
+         .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, halfSize, halfSize, 0.0F)
+         .setColor(r, g, b, alpha)
+         .setUv(1.0F, 0.0F)
+         .setOverlay(OverlayTexture.NO_OVERLAY)
+         .setLight(15728880)
+         .setNormal(0.0F, 0.0F, 1.0F);
+      buffer.addVertex(matrix, -halfSize, halfSize, 0.0F)
+         .setColor(r, g, b, alpha)
+         .setUv(0.0F, 0.0F)
+         .setOverlay(OverlayTexture.NO_OVERLAY)
+         .setLight(15728880)
+         .setNormal(0.0F, 0.0F, 1.0F);
    }
 
    public static void drawBoxFill(
@@ -57,30 +57,30 @@ public final class WorldRenderUtil {
          rgba[i][3] = c[i] >> 24 & 0xFF;
       }
 
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)minX, (float)minY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)maxZ).color(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
-      buffer.vertex(matrix, (float)minX, (float)maxY, (float)minZ).color(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
-      buffer.vertex(matrix, (float)maxX, (float)minY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)minZ).color(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
-      buffer.vertex(matrix, (float)maxX, (float)maxY, (float)maxZ).color(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)minX, (float)minY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)maxZ).setColor(rgba[3][0], rgba[3][1], rgba[3][2], rgba[3][3]);
+      buffer.addVertex(matrix, (float)minX, (float)maxY, (float)minZ).setColor(rgba[0][0], rgba[0][1], rgba[0][2], rgba[0][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)minY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)minZ).setColor(rgba[1][0], rgba[1][1], rgba[1][2], rgba[1][3]);
+      buffer.addVertex(matrix, (float)maxX, (float)maxY, (float)maxZ).setColor(rgba[2][0], rgba[2][1], rgba[2][2], rgba[2][3]);
    }
 
    public static void drawBoxOutline(
@@ -163,13 +163,13 @@ public final class WorldRenderUtil {
                int g = (int)(g1 + (g2 - g1) * t);
                int b = (int)(b1 + (b2 - b1) * t);
                int a = (int)(a1 + (a2 - a1) * t);
-               buffer.vertex(matrix, (float)startX, (float)startY, (float)startZ).color(r, g, b, a);
+               buffer.addVertex(matrix, (float)startX, (float)startY, (float)startZ).setColor(r, g, b, a);
                t = dashEnd / length;
                r = (int)(r1 + (r2 - r1) * t);
                g = (int)(g1 + (g2 - g1) * t);
                b = (int)(b1 + (b2 - b1) * t);
                a = (int)(a1 + (a2 - a1) * t);
-               buffer.vertex(matrix, (float)endX, (float)endY, (float)endZ).color(r, g, b, a);
+               buffer.addVertex(matrix, (float)endX, (float)endY, (float)endZ).setColor(r, g, b, a);
             }
          }
       }

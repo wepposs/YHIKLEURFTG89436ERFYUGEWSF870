@@ -26,7 +26,7 @@ public class FullBright extends Module {
     public void onEnable() {
         super.onEnable();
         if (mc.levelRenderer != null && this.mode.is("Гамма")) {
-            mc.levelRenderer.reload();
+            mc.levelRenderer.invalidateCompiledGeometry(mc.level, mc.options, mc.gameRenderer.mainCamera(), mc.getBlockColors());
         }
     }
 
@@ -34,11 +34,11 @@ public class FullBright extends Module {
     public void onDisable() {
         super.onDisable();
         if (mc.levelRenderer != null && this.mode.is("Гамма")) {
-            mc.levelRenderer.reload();
+            mc.levelRenderer.invalidateCompiledGeometry(mc.level, mc.options, mc.gameRenderer.mainCamera(), mc.getBlockColors());
         }
 
         if (this.mode.is("Эффект")) {
-            mc.player.removeStatusEffect(MobEffects.NIGHT_VISION);
+            mc.player.removeEffect(MobEffects.NIGHT_VISION);
         }
     }
 
@@ -46,11 +46,11 @@ public class FullBright extends Module {
     public void onUpdate(ClientTickEvent e) {
         if (mc.player != null) {
             if (this.mode.is("Гамма")) {
-                mc.player.removeStatusEffect(MobEffects.NIGHT_VISION);
+                mc.player.removeEffect(MobEffects.NIGHT_VISION);
             }
 
             if (this.mode.is("Эффект")) {
-                mc.player.addStatusEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 300, 0, false, false));
+                mc.player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 300, 0, false, false));
             }
         }
     }

@@ -106,7 +106,7 @@ public class UEnergyAresFTRotation {
         float t = mc.player.tickCount + phaseOffset;
         float jump = boosting ? BOOST_YAW : 1.0F;
         float jumpPitch = boosting ? BOOST_PITCH : 1.0F;
-        if (mc.player.isSneaking()) jump /= 2.0F;
+        if (mc.player.isShiftKeyDown()) jump /= 2.0F;
 
         float yawDrift = yawDrift(t, jump);
         float pitchDrift = pitchDrift(t);
@@ -120,7 +120,7 @@ public class UEnergyAresFTRotation {
         float targetPitch = Mth.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
 
         float outYaw;
-        if (mc.player.isSneaking()) {
+        if (mc.player.isShiftKeyDown()) {
             smoothedYaw = targetYaw;
             outYaw = targetYaw;
         } else {
@@ -128,7 +128,7 @@ public class UEnergyAresFTRotation {
             outYaw = smoothedYaw;
         }
 
-        if (mc.player.isSneaking() && !isVisible(mc.player.getYRot(), targetPitch, target)) {
+        if (mc.player.isShiftKeyDown() && !isVisible(mc.player.getYRot(), targetPitch, target)) {
             lastPitchBase = lerpAngle(lastPitchBase, aim.pitch, BOOST_LERP_P);
             targetPitch = Mth.clamp(lastPitchBase + pitchDrift, -90.0F, 90.0F);
         }
@@ -174,8 +174,8 @@ public class UEnergyAresFTRotation {
 
     private static boolean isVisible(float yaw, float pitch, LivingEntity target) {
         Vec3 eye = mc.player.getEyePosition();
-        Vec3 end = eye.add(Vec3.fromPolar(pitch, yaw).multiply(24.0));
-        return target.getBoundingBox().raycast(eye, end).isPresent();
+        Vec3 end = eye.add(Vec3.directionFromRotation(pitch, yaw).scale(24.0));
+        return target.getBoundingBox().clip(eye, end).isPresent();
     }
 
     private static Rotation toRotation(Vec3 v) {

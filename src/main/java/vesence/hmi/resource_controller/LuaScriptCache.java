@@ -22,7 +22,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
-import net.minecraft.client.toast.ToastComponent;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.player.AbstractClientPlayer;
 import org.luaj.vm2.Globals;
@@ -102,7 +101,7 @@ public class LuaScriptCache {
         }
         catch (Exception e) {
             System.err.println("[HoldMyItems] Lua runtime error: " + e.getMessage());
-            SystemToast.show(Minecraft.getInstance().getToastManager(), SystemToast.Type.PACK_LOAD_FAILURE, Component.of("HMI Lua Runtime error!"), Component.of(e.getMessage()));
+            SystemToast.addOrUpdate(Minecraft.getInstance().gui.toastManager(), SystemToast.SystemToastId.PACK_LOAD_FAILURE, Component.literal("HMI Lua Runtime error!"), Component.literal(String.valueOf(e.getMessage())));
             this.canRun = false;
         }
     }

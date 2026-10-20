@@ -1,10 +1,14 @@
 package vesence.renderengine;
 
-import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import com.mojang.blaze3d.platform.Window;
@@ -13,19 +17,17 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.render.MultiBufferSource;
-import net.minecraft.client.gl.SimpleFramebuffer;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import net.minecraft.client.util.math.PoseStack.Entry;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
-import net.minecraft.client.render.entity.EntityRenderManager;
+import com.mojang.blaze3d.vertex.PoseStack.Pose;
+import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.render.command.OrderedRenderCommandQueueImpl;
-import net.minecraft.client.render.command.RenderDispatcher;
 import org.joml.Quaternionf;
+import org.joml.Vector4f;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import vesence.renderengine.render.Renderer2D;
@@ -33,23 +35,22 @@ import vesence.renderengine.render.Renderer2D;
 /**
  * Wave-стиль захвата силуэта сущностей в собственный офф-скрин фреймбуфер
  * (адаптация wave.client.utils.render.framebuffer.CustomFramebuffer + ручного
- * рендера сущностей через RenderManager из Wave 1.16.5 на конвейер 1.21.11).
+ * рендера сущностей через RenderManager из Wave 1.16.5 на конвейер 26.3).
  *
  * <p>В отличие от ванильного entityOutlineFramebuffer, здесь выбранные сущности
  * рендерятся <b>полными моделями</b> (с бронёй, предметами в руках и дропнутыми
- * ItemEntity) в свой SimpleFramebuffer через render-command-queue
- * ({@link EntityRenderManager#render}) + {@link RenderDispatcher}, с выводом в
- * захватный фреймбуфер через {@code RenderSystem.outputColorTextureOverride}.
- * Полученная текстура затем пост-обрабатывается ShaderEspPipeline (свечение,
- * заливка модели, обводка) — поэтому «предметы видны внутри».</p>
+ * ItemEntity) в свой TextureTarget через submit-очередь
+ * ({@link EntityRenderDispatcher#submit} + {@link SubmitNodeStorage}) с выводом
+ * через {@link FeatureRenderDispatcher.PreparedFrame}. Полученная текстура затем
+ * пост-обрабатывается ShaderEspPipeline (свечение, заливка модели, обводка) —
+ * поэтому «предметы видны внутри».</p>
  */
 @Environment(EnvType.CLIENT)
 public final class EntityFramebufferCaptureManager {
-   private static final int CAPTURE_BUFFER_CAPACITY_BYTES = 2097152;
    private static final Logger LOGGER = LogManager.getLogger("EntityFramebufferCapture");
    private static final EntityFramebufferCaptureManager INSTANCE = new EntityFramebufferCaptureManager();
 
-   private volatile SimpleFramebuffer captureFramebuffer;
+   private volatile TextureTarget captureFramebuffer;
    private volatile boolean enabled;
    private volatile boolean frameAvailable;
    private volatile boolean executingCapturePass;
@@ -59,10 +60,7 @@ public final class EntityFramebufferCaptureManager {
    private volatile int framebufferHeight = -1;
 
    // Кэшируемые ресурсы рендера (создаются один раз, переиспользуются между кадрами).
-   private ByteBufferBuilder captureAllocator;
-   private Immediate captureConsumers;
-   private OrderedRenderCommandQueueImpl captureQueue;
-   private RenderDispatcher captureDispatcher;
+   private SubmitNodeStorage captureQueue;
    private final CameraRenderState cameraRenderState = new CameraRenderState();
 
    private EntityFramebufferCaptureManager() {
@@ -125,18 +123,15 @@ public final class EntityFramebufferCaptureManager {
          this.resetFrameState();
          return;
       }
-      if (client.gameRenderer.isRenderingPanorama()) {
-         this.resetFrameState();
-         return;
-      }
-      RenderTarget mainFramebuffer = client.getMainRenderTarget();
+      // TODO(port26): was client.gameRenderer.isRenderingPanorama() — no equivalent flag in 26.3
+      RenderTarget mainFramebuffer = client.gameRenderer.mainRenderTarget();
       if (mainFramebuffer == null) {
          this.resetFrameState();
          return;
       }
       Window window = client.getWindow();
-      int width = window != null ? window.getFramebufferWidth() : mainFramebuffer.textureWidth;
-      int height = window != null ? window.getFramebufferHeight() : mainFramebuffer.textureHeight;
+      int width = window != null ? window.getWidth() : mainFramebuffer.width;
+      int height = window != null ? window.getHeight() : mainFramebuffer.height;
       if (width <= 0 || height <= 0) {
          this.resetFrameState();
          return;
@@ -146,12 +141,12 @@ public final class EntityFramebufferCaptureManager {
          return;
       }
 
-      SimpleFramebuffer framebuffer = this.captureFramebuffer;
+      TextureTarget framebuffer = this.captureFramebuffer;
       if (framebuffer == null) {
          this.resetFrameState();
          return;
       }
-      GpuTextureView colorView = framebuffer.getColorAttachmentView();
+      GpuTextureView colorView = framebuffer.getColorTextureView();
       if (colorView == null || colorView.isClosed()) {
          this.resetFrameState();
          return;
@@ -159,13 +154,13 @@ public final class EntityFramebufferCaptureManager {
 
       // Очистка захватного фреймбуфера (цвет + глубина) — как entityBuffer.setup(true) в Wave.
       try {
-         GpuTextureView depthView = framebuffer.getDepthAttachmentView();
+         GpuTextureView depthView = framebuffer.getDepthTextureView();
          CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
          GpuTexture colorTexture = colorView.texture();
          if (depthView != null && !depthView.isClosed()) {
-            encoder.clearColorAndDepthTextures(colorTexture, 0, depthView.texture(), 1.0);
+            encoder.clearColorAndDepthTextures(colorTexture, new Vector4f(0.0f, 0.0f, 0.0f, 0.0f), depthView.texture(), 1.0);
          } else {
-            encoder.clearColorTexture(colorTexture, 0);
+            encoder.clearColorTexture(colorTexture, new Vector4f(0.0f, 0.0f, 0.0f, 0.0f));
          }
       } catch (RuntimeException var10) {
          LOGGER.warn("Failed to clear capture framebuffer", var10);
@@ -178,17 +173,10 @@ public final class EntityFramebufferCaptureManager {
          return;
       }
 
-      // Сброс очереди перед новым кадром.
-      try {
-         this.captureQueue.onNextFrame();
-         this.captureQueue.clear();
-      } catch (RuntimeException ignored) {
-      }
-
       // CameraRenderState — как в ванильном world-render (для билбордов/ориентации).
       this.cameraRenderState.pos = cameraPos;
-      this.cameraRenderState.entityPos = cameraPos;
-      this.cameraRenderState.blockPos = BlockPos.ofFloored(cameraPos);
+      // TODO(port26): was cameraRenderState.entityPos — no such field in 26.3 CameraRenderState
+      this.cameraRenderState.blockPos = BlockPos.containing(cameraPos);
       this.cameraRenderState.orientation = new Quaternionf(cameraRotation);
       this.cameraRenderState.initialized = true;
 
@@ -214,7 +202,7 @@ public final class EntityFramebufferCaptureManager {
       if (client == null || client.level == null) {
          return;
       }
-      EntityRenderManager dispatcher = client.getEntityRenderDispatcher();
+      EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
       if (dispatcher == null) {
          return;
       }
@@ -224,16 +212,16 @@ public final class EntityFramebufferCaptureManager {
          if (captureMatrices == null) {
             return;
          }
-         Vec3 interpolated = entity.getLerpedPos(tickDelta);
+         Vec3 interpolated = entity.getPosition(tickDelta);
          double renderX = interpolated.x - cameraX;
          double renderY = interpolated.y - cameraY;
          double renderZ = interpolated.z - cameraZ;
 
-         EntityRenderState state = dispatcher.getAndUpdateRenderState(entity, tickDelta);
+         EntityRenderState state = dispatcher.extractEntity(entity, tickDelta);
          if (state == null) {
             return;
          }
-         dispatcher.render(state, this.cameraRenderState, renderX, renderY, renderZ, captureMatrices, this.captureQueue);
+         dispatcher.submit(state, this.cameraRenderState, renderX, renderY, renderZ, captureMatrices, this.captureQueue);
          this.submittedThisFrame = true;
       } catch (RuntimeException var16) {
          LOGGER.warn("Failed to submit entity {} into capture queue", entity.getName().getString(), var16);
@@ -251,36 +239,44 @@ public final class EntityFramebufferCaptureManager {
       }
       this.captureFrameActive = false;
 
-      SimpleFramebuffer framebuffer = this.captureFramebuffer;
-      if (framebuffer == null || this.captureDispatcher == null || !this.submittedThisFrame) {
+      TextureTarget framebuffer = this.captureFramebuffer;
+      if (framebuffer == null || !this.submittedThisFrame) {
          this.frameAvailable = false;
          return;
       }
-      GpuTextureView colorView = framebuffer.getColorAttachmentView();
+      Minecraft client = Minecraft.getInstance();
+      if (client == null || client.gameRenderer == null || this.captureQueue == null) {
+         this.frameAvailable = false;
+         return;
+      }
+      GpuTextureView colorView = framebuffer.getColorTextureView();
       if (colorView == null || colorView.isClosed()) {
          this.frameAvailable = false;
          return;
       }
-      GpuTextureView depthView = framebuffer.getDepthAttachmentView();
+      GpuTextureView depthView = framebuffer.getDepthTextureView();
 
-      GpuTextureView previousColorOverride = RenderSystem.outputColorTextureOverride;
-      GpuTextureView previousDepthOverride = RenderSystem.outputDepthTextureOverride;
-      RenderSystem.outputColorTextureOverride = colorView;
-      RenderSystem.outputDepthTextureOverride = (depthView != null && !depthView.isClosed()) ? depthView : null;
       this.executingCapturePass = true;
 
       try {
-         this.captureDispatcher.render();
-         this.captureDispatcher.endLayeredCustoms();
-         this.captureConsumers.draw();
-         this.frameAvailable = true;
+         FeatureRenderDispatcher dispatcher = client.gameRenderer.featureRenderDispatcher();
+         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+         try (FeatureRenderDispatcher.PreparedFrame prepared = dispatcher.prepareFrame(this.captureQueue);
+              RenderPass pass = encoder.createRenderPass(
+                      () -> "vesence:entity_capture",
+                      colorView,
+                      Optional.empty(),
+                      (depthView != null && !depthView.isClosed()) ? depthView : null,
+                      OptionalDouble.empty())) {
+            prepared.executeSolid(pass);
+            prepared.executeTranslucent(pass);
+            this.frameAvailable = true;
+         }
       } catch (RuntimeException var9) {
          LOGGER.warn("Failed to flush capture queue", var9);
          this.frameAvailable = false;
       } finally {
          this.executingCapturePass = false;
-         RenderSystem.outputColorTextureOverride = previousColorOverride;
-         RenderSystem.outputDepthTextureOverride = previousDepthOverride;
       }
 
       this.frameAvailable = this.frameAvailable && extractColorTextureId(this.captureFramebuffer) > 0;
@@ -300,7 +296,7 @@ public final class EntityFramebufferCaptureManager {
    // ------------------------------------------------------------------
 
    private boolean ensureRenderResources() {
-      if (this.captureDispatcher != null && this.captureQueue != null && this.captureConsumers != null) {
+      if (this.captureQueue != null) {
          return true;
       }
       Minecraft client = Minecraft.getInstance();
@@ -308,28 +304,7 @@ public final class EntityFramebufferCaptureManager {
          return false;
       }
       try {
-         if (this.captureConsumers == null) {
-            // Многобуферный entity-immediate из ванильного BufferBuilderStorage.
-            // Одиночный MultiBufferSource.immediate(allocator) держит только ОДИН
-            // строящийся слой за раз, из-за чего предметы с зачарованием падали с
-            // "Not building!" (glint рендерится через VertexConsumers.Dual — базовый
-            // слой + слой блеска одновременно). Ванильные entity-consumers многобуферные
-            // и корректно тянут glint / несколько RenderType сразу.
-            this.captureConsumers = client.getBufferBuilders().getEntityVertexConsumers();
-         }
-         if (this.captureQueue == null) {
-            this.captureQueue = new OrderedRenderCommandQueueImpl();
-         }
-         if (this.captureDispatcher == null) {
-            this.captureDispatcher = new RenderDispatcher(
-                    this.captureQueue,
-                    client.getBlockRenderManager(),
-                    this.captureConsumers,
-                    client.getAtlasManager(),
-                    client.getBufferBuilders().getOutlineVertexConsumers(),
-                    client.getBufferBuilders().getEffectVertexConsumers(),
-                    client.font);
-         }
+         this.captureQueue = new SubmitNodeStorage();
          return true;
       } catch (RuntimeException var2) {
          LOGGER.warn("Failed to allocate capture render resources", var2);
@@ -339,22 +314,7 @@ public final class EntityFramebufferCaptureManager {
    }
 
    private void disposeRenderResources() {
-      if (this.captureDispatcher != null) {
-         try {
-            this.captureDispatcher.close();
-         } catch (RuntimeException ignored) {
-         }
-         this.captureDispatcher = null;
-      }
       this.captureQueue = null;
-      this.captureConsumers = null;
-      if (this.captureAllocator != null) {
-         try {
-            this.captureAllocator.close();
-         } catch (RuntimeException ignored) {
-         }
-         this.captureAllocator = null;
-      }
    }
 
    private static PoseStack borrowMatrixStack(PoseStack source) {
@@ -362,18 +322,18 @@ public final class EntityFramebufferCaptureManager {
          return null;
       }
       PoseStack copy = new PoseStack();
-      Entry sourceEntry = source.last();
-      Entry copyEntry = copy.last();
-      copyEntry.getPositionMatrix().set(sourceEntry.getPositionMatrix());
-      copyEntry.getNormalMatrix().set(sourceEntry.getNormalMatrix());
+      Pose sourceEntry = source.last();
+      Pose copyEntry = copy.last();
+      copyEntry.pose().set(sourceEntry.pose());
+      copyEntry.normal().set(sourceEntry.normal());
       return copy;
    }
 
    private boolean ensureCaptureFramebuffer(int width, int height) {
-      SimpleFramebuffer framebuffer = this.captureFramebuffer;
+      TextureTarget framebuffer = this.captureFramebuffer;
       if (framebuffer == null) {
          try {
-            framebuffer = new SimpleFramebuffer("vesence_entity_capture", width, height, true);
+            framebuffer = new TextureTarget("vesence_entity_capture", width, height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
             this.captureFramebuffer = framebuffer;
             this.framebufferWidth = width;
             this.framebufferHeight = height;
@@ -407,7 +367,7 @@ public final class EntityFramebufferCaptureManager {
       RenderTarget framebuffer = this.captureFramebuffer;
       if (framebuffer != null) {
          try {
-            framebuffer.delete();
+            framebuffer.destroyBuffers();
          } catch (RuntimeException var3) {
             LOGGER.warn("Failed to delete capture framebuffer", var3);
          }
@@ -425,13 +385,13 @@ public final class EntityFramebufferCaptureManager {
       if (framebuffer == null) {
          return false;
       }
-      return framebuffer.getColorAttachment() instanceof GlTexture glTexture && glTexture.getGlId() > 0;
+      return framebuffer.getColorTexture() instanceof GlTexture glTexture && glTexture.glId() > 0;
    }
 
    private static int extractColorTextureId(RenderTarget framebuffer) {
       if (framebuffer == null) {
          return 0;
       }
-      return framebuffer.getColorAttachment() instanceof GlTexture glTexture ? glTexture.getGlId() : 0;
+      return framebuffer.getColorTexture() instanceof GlTexture glTexture ? glTexture.glId() : 0;
    }
 }

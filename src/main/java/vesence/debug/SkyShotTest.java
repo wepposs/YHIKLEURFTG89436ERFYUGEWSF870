@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.util.ScreenshotRecorder;
+import net.minecraft.client.Screenshot;
 import vesence.module.impl.visuals.Ambience;
 import vesence.renderengine.render.SkyShaderRenderer;
 
@@ -42,7 +42,7 @@ public final class SkyShotTest {
         // Фиксируем ракурс: как у оффлайн-рендера, только взгляд чуть вверх.
         mc.player.setYRot(35.0F);
         mc.player.setXRot(-12.0F);
-        mc.options.hudHidden = true;
+        if (!mc.gui.hud.isHidden()) mc.gui.hud.toggle();
 
         if (ticks < WARMUP_TICKS) return;
 
@@ -62,7 +62,7 @@ public final class SkyShotTest {
         if (target >= SkyShaderRenderer.MODE_NAMES.length) {
             finished = true;
             System.out.println("[skytest] all modes captured, stopping");
-            mc.scheduleStop();
+            mc.stop();
             return;
         }
 
@@ -76,8 +76,8 @@ public final class SkyShotTest {
         // Последний тик режима: скриншот.
         if (rel % TICKS_PER_MODE == TICKS_PER_MODE - 2) {
             String file = SkyShaderRenderer.SHADER_NAMES[modeIdx] + ".png";
-            ScreenshotRecorder.saveScreenshot(new File("skytest-shots"), file,
-                    mc.getMainRenderTarget(), 1, t -> System.out.println("[skytest] saved " + file));
+            Screenshot.grab(new File("skytest-shots"), file,
+                    mc.gameRenderer.mainRenderTarget(), 1, t -> System.out.println("[skytest] saved " + file));
         }
     }
 }

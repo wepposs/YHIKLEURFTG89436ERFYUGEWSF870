@@ -3,7 +3,7 @@ package vesence.module.impl.visuals.pet;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.math.Vector2f;
+import org.joml.Vector2f;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -23,12 +23,12 @@ public final class PetUtil {
       if (mc.level == null) {
          return false;
       }
-      BlockPos pos = BlockPos.ofFloored(x, y, z);
+      BlockPos pos = BlockPos.containing(x, y, z);
       BlockState state = mc.level.getBlockState(pos);
       try {
          return !state.getCollisionShape(mc.level, pos).isEmpty();
       } catch (Throwable ignored) {
-         return state.isSolidBlock(mc.level, pos);
+         return state.isSolidRender();
       }
    }
 
@@ -39,7 +39,7 @@ public final class PetUtil {
       double sqrt = Math.sqrt(posX * posX + posZ * posZ);
       float yaw = (float) (Math.atan2(posZ, posX) * 180.0 / Math.PI) - 90.0F;
       float pitch = (float) (-(Math.atan2(posY, sqrt) * 180.0 / Math.PI));
-      double sensitivity = Minecraft.getInstance().options.getMouseSensitivity().getValue();
+      double sensitivity = Minecraft.getInstance().options.sensitivity().get();
       float sens = (float) (Math.pow(sensitivity, 1.5) * 0.05F + 0.1F);
       float pow = sens * sens * sens * 1.2F;
       yaw -= yaw % pow;

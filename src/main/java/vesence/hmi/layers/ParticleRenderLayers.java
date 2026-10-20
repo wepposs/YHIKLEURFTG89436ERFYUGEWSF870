@@ -2,8 +2,8 @@ package vesence.hmi.layers;
 
 import java.util.function.Function;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.render.RenderLayers;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 
 /**
@@ -17,16 +17,16 @@ import net.minecraft.util.Util;
  * Это сохраняет визуальное поведение (свечение/полупрозрачность) на 1.21.11.
  */
 public class ParticleRenderLayers {
-    private static final Function<ResourceLocation, RenderType> PARTICLE_SOLID =
-            Util.memoize((ResourceLocation tex) -> RenderLayers.entityTranslucent(tex));
-    private static final Function<ResourceLocation, RenderType> PARTICLE_ADDITIVE =
-            Util.memoize((ResourceLocation tex) -> RenderLayers.entityTranslucentEmissive(tex));
+    private static final Function<Identifier, RenderType> PARTICLE_SOLID =
+            Util.memoize((Identifier tex) -> RenderTypes.entityTranslucent(tex));
+    private static final Function<Identifier, RenderType> PARTICLE_ADDITIVE =
+            Util.memoize((Identifier tex) -> RenderTypes.entityTranslucentEmissive(tex));
 
-    public static RenderType getSolidRenderLayer(ResourceLocation texture) {
+    public static RenderType getSolidRenderLayer(Identifier texture) {
         return PARTICLE_SOLID.apply(texture);
     }
 
-    public static RenderType getAdditiveRenderLayer(ResourceLocation texture) {
+    public static RenderType getAdditiveRenderLayer(Identifier texture) {
         return PARTICLE_ADDITIVE.apply(texture);
     }
 }

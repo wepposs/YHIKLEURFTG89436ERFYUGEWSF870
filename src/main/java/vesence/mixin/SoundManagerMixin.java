@@ -16,8 +16,8 @@ public class SoundManagerMixin {
 
     @Inject(method = "play", at = @At("HEAD"), cancellable = true)
     private void onPlaySound(SoundInstance sound, CallbackInfoReturnable<?> cir) {
-        if (Ambience.shouldMuteWeatherSounds() && sound != null && sound.getId() != null) {
-            String path = sound.getId().getPath();
+        if (Ambience.shouldMuteWeatherSounds() && sound != null && sound.getIdentifier() != null) {
+            String path = sound.getIdentifier().getPath();
             if (path.contains("weather") || path.contains("rain") || path.contains("thunder")) {
                 cir.setReturnValue(null);
             }

@@ -14,7 +14,7 @@ import vesence.Vesence;
 @Environment(EnvType.CLIENT)
 @Mixin({Player.class})
 public abstract class PlayerEntityMixin {
-   @Inject(method = { "isPushedByFluids" }, at = { @At("HEAD") }, cancellable = true)
+   @Inject(method = { "isPushedByFluid" }, at = { @At("HEAD") }, cancellable = true)
    private void onIsPushedByFluids(CallbackInfoReturnable<Boolean> cir) {
       if (!Vesence.isModInitialized()) return;
 
@@ -29,7 +29,9 @@ public abstract class PlayerEntityMixin {
       }
    }
 
-   @Inject(method = "isCriticalHit", at = @At("RETURN"), cancellable = true)
+   // TODO(port26): в 26.3 нет метода-запроса крита (crit(Entity) — действие).
+   // Нужен новый хук на решение о крите внутри Player.attack.
+   // @Inject(method = "crit", at = @At("HEAD"))
    private void onIsCriticalHit(Entity target, CallbackInfoReturnable<Boolean> cir) {
       if (!Vesence.isModInitialized()) return;
 

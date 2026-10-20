@@ -2,7 +2,7 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.ClientConnection;
+import net.minecraft.network.Connection;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
@@ -17,10 +17,10 @@ import vesence.event.player.ScreenCloseEvent;
 import vesence.utils.network.NetworkUtils;
 
 @Environment(EnvType.CLIENT)
-@Mixin({ClientConnection.class})
+@Mixin({Connection.class})
 public class ClientConnectionMixin {
    @Inject(
-      method = {"handlePacket"},
+      method = {"genericsFtw(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;)V"},
       at = {@At("HEAD")},
       cancellable = true
    )
@@ -38,7 +38,7 @@ public class ClientConnectionMixin {
    }
 
    @Inject(
-      method = {"send(Lnet/minecraft/network/packet/Packet;)V"},
+      method = {"send(Lnet/minecraft/network/protocol/Packet;)V"},
       at = {@At("HEAD")},
       cancellable = true
    )
@@ -55,7 +55,7 @@ public class ClientConnectionMixin {
 
          if (packet instanceof ServerboundContainerClosePacket closePacket) {
             Minecraft mc = Minecraft.getInstance();
-            ScreenCloseEvent screenCloseEvent = new ScreenCloseEvent(mc.screen, closePacket.getSyncId());
+            ScreenCloseEvent screenCloseEvent = new ScreenCloseEvent(mc.gui.screen(), closePacket.getContainerId());
             EventManager.call(screenCloseEvent);
             if (screenCloseEvent.isCancelled()) {
                info.cancel();

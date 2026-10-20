@@ -3,12 +3,12 @@ package vesence.module.impl.visuals.custompet;
 import java.util.HashSet;
 import java.util.Set;
 
-import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 
-import software.bernie.geckolib.renderer.GeoEntityRenderer;
-import software.bernie.geckolib.renderer.base.BoneSnapshots;
-import software.bernie.geckolib.renderer.base.RenderPassInfo;
+import com.geckolib.renderer.GeoEntityRenderer;
+import com.geckolib.renderer.base.BoneSnapshots;
+import com.geckolib.renderer.base.RenderPassInfo;
 
 /**
  * Рендерер питомца. Перенесено из RelevantPremiumpp4 (GeckoLib 4.8 -> GeckoLib 5.4).
@@ -38,13 +38,13 @@ public class CustomPetRenderer extends GeoEntityRenderer<CustomPetEntity, Living
     private static volatile boolean currentUmbrella = false;
     private static volatile boolean currentAirborne = false;
 
-    public CustomPetRenderer(EntityRendererFactory.Context context) {
+    public CustomPetRenderer(net.minecraft.client.renderer.entity.EntityRendererProvider.Context context) {
         super(context, new CustomPetModel());
         this.shadowRadius = 0.35f;
     }
 
     @Override
-    public void updateRenderState(CustomPetEntity entity, LivingEntityRenderState renderState, float partialTick) {
+    public void extractRenderState(CustomPetEntity entity, LivingEntityRenderState renderState, float partialTick) {
         currentVariant = entity.getPetVariant();
         currentUmbrella = entity.shouldUseUmbrella();
         currentAirborne = entity.isAirborneMode();
@@ -53,7 +53,7 @@ public class CustomPetRenderer extends GeoEntityRenderer<CustomPetEntity, Living
         float scale = entity.getPetScale();
         this.withScale(scale);
         this.shadowRadius = 0.35f * scale;
-        super.updateRenderState(entity, renderState, partialTick);
+        super.extractRenderState(entity, renderState, partialTick);
     }
 
     @Override

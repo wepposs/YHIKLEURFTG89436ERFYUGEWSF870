@@ -1,23 +1,26 @@
 package vesence.module.impl.visuals.world;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
+import vesence.module.impl.visuals.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -41,34 +44,40 @@ public final class LineGlyphsEngine {
 
    private static final Minecraft mc = Minecraft.getInstance();
 
-   private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.of("vesence", "textures/world/dashbloom.png");
+   private static final Identifier GLOW_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
 
    private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_glyphes_lines"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_glyphes_lines"))
+         .withVertexShader("core/position_color")
+         .withFragmentShader("core/position_color")
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(BlendFunction.ADDITIVE)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
          .build()
    );
-   private static final RenderType LINE_LAYER = RenderType.of(
-      "customworld_glyphes_lines", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(8192).translucent().build()
+   // TODO(port26): RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
+   private static final RenderType LINE_LAYER = RenderType.create(
+      "customworld_glyphes_lines", RenderSetup.builder(LINE_PIPELINE).createRenderSetup()
    );
 
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_glyphes_glow"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_glyphes_glow"))
+         .withVertexShader("core/position_tex_color")
+         .withFragmentShader("core/position_tex_color")
+         .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.QUADS)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(BlendFunction.ADDITIVE)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
          .build()
    );
-   private static final RenderType GLOW_LAYER = RenderType.of(
-      "customworld_glyphes_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(8192).translucent().texture("Sampler0", GLOW_TEXTURE).build()
+   private static final RenderType GLOW_LAYER = RenderType.create(
+      "customworld_glyphes_glow", RenderSetup.builder(GLOW_PIPELINE).withTexture("Sampler0", GLOW_TEXTURE).createRenderSetup()
    );
 
    private static final Vec3i[] AXIS_DIRECTIONS = new Vec3i[]{
@@ -133,11 +142,11 @@ public final class LineGlyphsEngine {
          this.colB = Renderer2D.ColorUtil.getClientColor2();
       }
 
-      Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
-      Vec3 cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      Matrix4f matrix = matrices.last().getPositionMatrix();
+      Immediate immediate = new Immediate();
+      Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
+      Matrix4f matrix = matrices.last().pose();
 
-      Quaternionf cameraRotation = mc.gameRenderer.getCamera().getRotation();
+      Quaternionf cameraRotation = mc.gameRenderer.mainCamera().rotation();
       Vector3f cameraRight = new Vector3f(1.0F, 0.0F, 0.0F).rotate(cameraRotation);
       Vector3f cameraUp = new Vector3f(0.0F, 1.0F, 0.0F).rotate(cameraRotation);
 
@@ -256,8 +265,8 @@ public final class LineGlyphsEngine {
 
    private void putGlow(VertexConsumer buffer, Matrix4f matrix, Vec3 center, float size, int color, Vector3f cameraRight, Vector3f cameraUp) {
       double half = size * 0.5;
-      Vec3 right = new Vec3(cameraRight.x(), cameraRight.y(), cameraRight.z()).multiply(half);
-      Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()).multiply(half);
+      Vec3 right = new Vec3(cameraRight.x(), cameraRight.y(), cameraRight.z()).scale(half);
+      Vec3 up = new Vec3(cameraUp.x(), cameraUp.y(), cameraUp.z()).scale(half);
       Vec3 v0 = center.subtract(right).subtract(up);
       Vec3 v1 = center.add(right).subtract(up);
       Vec3 v2 = center.add(right).add(up);
@@ -269,14 +278,14 @@ public final class LineGlyphsEngine {
    }
 
    private void putColorVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color) {
-      buffer.vertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
-         .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color));
+      buffer.addVertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
+         .setColor(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color));
    }
 
    private void putTexturedVertex(VertexConsumer buffer, Matrix4f matrix, Vec3 pos, int color, float u, float v) {
-      buffer.vertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
-         .color(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
-         .texture(u, v);
+      buffer.addVertex(matrix, (float) pos.x, (float) pos.y, (float) pos.z)
+         .setColor(ColorUtil.red(color), ColorUtil.green(color), ColorUtil.blue(color), ColorUtil.alpha(color))
+         .setUv(u, v);
    }
 
    private void updateGlyphs() {
@@ -379,11 +388,11 @@ public final class LineGlyphsEngine {
    }
 
    private Vec3 getCameraPos() {
-      Camera camera = mc.gameRenderer != null ? mc.gameRenderer.getCamera() : null;
+      Camera camera = mc.gameRenderer != null ? mc.gameRenderer.mainCamera() : null;
       if (camera != null) {
-         return camera.getCameraPos();
+         return camera.position();
       }
-      return mc.player != null ? mc.player.getEntityPos() : Vec3.ZERO;
+      return mc.player != null ? mc.player.position() : Vec3.ZERO;
    }
 
    private Vec3i randomAxisDirection() {

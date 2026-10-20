@@ -3,7 +3,7 @@ package vesence.utils.render.utils;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 /**
  * Утилита текстовых полей ClickGui: доступ к системному буферу обмена и общий
@@ -28,15 +28,15 @@ public final class ClipboardUtil {
 
    /** Зажат ли Ctrl (или Cmd на macOS) — по битовой маске модификаторов события. */
    public static boolean isCtrl(int modifiers) {
-      return (modifiers & GLFW.GLFW_MOD_CONTROL) != 0 || (modifiers & GLFW.GLFW_MOD_SUPER) != 0;
+      return (modifiers & InputConstants.MOD_CONTROL) != 0 || (modifiers & InputConstants.MOD_SUPER) != 0;
    }
 
    /** Текущее содержимое буфера обмена (никогда не null; при ошибке — пустая строка). */
    public static String get() {
       try {
          Minecraft mc = Minecraft.getInstance();
-         if (mc != null && mc.keyboard != null) {
-            String s = mc.keyboard.getClipboard();
+         if (mc != null && mc.keyboardHandler != null) {
+            String s = mc.keyboardHandler.getClipboard();
             return s == null ? "" : s;
          }
       } catch (Throwable ignored) {
@@ -48,8 +48,8 @@ public final class ClipboardUtil {
    public static void set(String text) {
       try {
          Minecraft mc = Minecraft.getInstance();
-         if (mc != null && mc.keyboard != null) {
-            mc.keyboard.setClipboard(text == null ? "" : text);
+         if (mc != null && mc.keyboardHandler != null) {
+            mc.keyboardHandler.setClipboard(text == null ? "" : text);
          }
       } catch (Throwable ignored) {
       }

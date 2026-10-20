@@ -80,12 +80,12 @@ public class NoRender extends Module {
     * Deluxe NoRender (Class149#m1689): нужно ли заглушить этот звук.
     * «Опыт» глушится только дальше 2 блоков от игрока.
     */
-   public static boolean shouldMute(net.minecraft.client.sound.SoundInstance sound) {
+   public static boolean shouldMute(net.minecraft.client.resources.sounds.SoundInstance sound) {
       try {
          NoRender inst = vesence.Vesence.get.manager.get(NoRender.class);
          if (inst == null || !inst.enable || sound == null) return false;
-         String path = sound.getId().getPath();
-         if (sounds.get("Пластинки") && sound.getCategory() == net.minecraft.sound.SoundSource.RECORDS) return true;
+         String path = sound.getIdentifier().getPath();
+         if (sounds.get("Пластинки") && sound.getSource() == net.minecraft.sounds.SoundSource.RECORDS) return true;
          if (sounds.get("Портал") && path.startsWith("block.portal.")) return true;
          if (sounds.get("Иссушитель") && path.startsWith("entity.wither.")) return true;
          if (sounds.get("Варден") && path.startsWith("entity.warden.")) return true;
@@ -106,9 +106,9 @@ public class NoRender extends Module {
    public void onUpdate(EventUpdate e) {
       if (mc.player != null) {
          if (elements.get("Плохие эффекты")) {
-            if (mc.player.hasStatusEffect(MobEffects.DARKNESS)) mc.player.removeStatusEffect(MobEffects.DARKNESS);
-            if (mc.player.hasStatusEffect(MobEffects.BLINDNESS)) mc.player.removeStatusEffect(MobEffects.BLINDNESS);
-            if (mc.player.hasStatusEffect(MobEffects.NAUSEA)) mc.player.removeStatusEffect(MobEffects.NAUSEA);
+            if (mc.player.hasEffect(MobEffects.DARKNESS)) mc.player.removeEffect(MobEffects.DARKNESS);
+            if (mc.player.hasEffect(MobEffects.BLINDNESS)) mc.player.removeEffect(MobEffects.BLINDNESS);
+            if (mc.player.hasEffect(MobEffects.NAUSEA)) mc.player.removeEffect(MobEffects.NAUSEA);
          }
       }
    }

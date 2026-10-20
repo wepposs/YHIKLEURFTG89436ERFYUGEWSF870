@@ -52,21 +52,21 @@ public class FreeCamera extends Module {
 
       mc.player.setYRot(savedYaw);
       mc.player.setXRot(savedPitch);
-      mc.player.setPosition(savedPos.x, savedPos.y, savedPos.z);
+      mc.player.setPos(savedPos.x, savedPos.y, savedPos.z);
       mc.player.setDeltaMovement(Vec3.ZERO);
-      mc.player.noClip = true;
+      mc.player.noPhysics = true;
       mc.player.fallDistance = 0;
 
       double s = speed.get();
       float yawRad = (float) Math.toRadians(cameraYaw);
       int forward = 0, sideways = 0;
-      if (mc.options.forwardKey.isPressed()) forward++;
-      if (mc.options.backKey.isPressed()) forward--;
-      if (mc.options.leftKey.isPressed()) sideways++;
-      if (mc.options.rightKey.isPressed()) sideways--;
+      if (mc.options.keyUp.isDown()) forward++;
+      if (mc.options.keyDown.isDown()) forward--;
+      if (mc.options.keyLeft.isDown()) sideways++;
+      if (mc.options.keyRight.isDown()) sideways--;
       double targetVertical = 0;
-      if (mc.options.jumpKey.isPressed()) targetVertical = 1;
-      if (mc.options.sneakKey.isPressed()) targetVertical = -1;
+      if (mc.options.keyJump.isDown()) targetVertical = 1;
+      if (mc.options.keyShift.isDown()) targetVertical = -1;
 
       smoothForward = smoothAxis(smoothForward, forward);
       smoothSideways = smoothAxis(smoothSideways, sideways);
@@ -89,13 +89,13 @@ public class FreeCamera extends Module {
    @Override
    public void onEnable() {
       if (mc.player == null) return;
-      savedPos = mc.player.getEntityPos();
+      savedPos = mc.player.position();
       savedYaw = mc.player.getYRot();
       savedPitch = mc.player.getXRot();
       cameraPos = savedPos;
       cameraYaw = savedYaw;
       cameraPitch = savedPitch;
-      prevNoClip = mc.player.noClip;
+      prevNoClip = mc.player.noPhysics;
       FreecamState.prevPos = cameraPos;
       FreecamState.pos = cameraPos;
       FreecamState.prevYaw = cameraYaw;
@@ -108,8 +108,8 @@ public class FreeCamera extends Module {
    @Override
    public void onDisable() {
       if (mc.player != null) {
-         mc.player.noClip = prevNoClip;
-         mc.player.setPosition(savedPos.x, savedPos.y, savedPos.z);
+         mc.player.noPhysics = prevNoClip;
+         mc.player.setPos(savedPos.x, savedPos.y, savedPos.z);
          mc.player.setYRot(savedYaw);
          mc.player.setXRot(savedPitch);
          mc.player.setDeltaMovement(Vec3.ZERO);

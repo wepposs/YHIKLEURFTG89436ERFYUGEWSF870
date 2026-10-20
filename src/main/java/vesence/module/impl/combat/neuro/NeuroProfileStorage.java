@@ -15,7 +15,7 @@ public class NeuroProfileStorage {
     private static NeuroSampler currentProfile;
 
     public static void init() {
-        PROFILE_PATH = mc.runDirectory.getPath() + "\\vesence\\neuro\\aura_neuro.json";
+        PROFILE_PATH = mc.gameDirectory.getPath() + "\\vesence\\neuro\\aura_neuro.json";
         gson = new GsonBuilder().setPrettyPrinting().create();
         profileFile = new File(PROFILE_PATH);
         currentProfile = load();

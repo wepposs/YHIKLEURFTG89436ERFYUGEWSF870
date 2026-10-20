@@ -49,7 +49,7 @@ public class InterpolateF5 extends Module {
     public void onUpdate(EventUpdate event) {
         if (mc.player == null || mc.level == null) return;
 
-        boolean isThirdPerson = !mc.options.getPerspective().isFirstPerson();
+        boolean isThirdPerson = !mc.options.getCameraType().isFirstPerson();
 
         if (isThirdPerson && !wasThirdPerson) initCamera(true);
         if (!isThirdPerson && wasThirdPerson) {
@@ -64,10 +64,10 @@ public class InterpolateF5 extends Module {
     @EventInit
     public void onRotation(EventRotation event) {
         if (mc.player == null || mc.level == null) return;
-        if (mc.options.getPerspective().isFirstPerson()) return;
+        if (mc.options.getCameraType().isFirstPerson()) return;
 
-        event.setYRot(getInterpolatedYaw(event.getPartialTicks()));
-        event.setXRot(getInterpolatedPitch(event.getPartialTicks()));
+        event.setYaw(getInterpolatedYaw(event.getPartialTicks()));
+        event.setPitch(getInterpolatedPitch(event.getPartialTicks()));
     }
 
     private void initCamera(boolean animateSwitch) {
@@ -106,7 +106,7 @@ public class InterpolateF5 extends Module {
         }
 
         float targetOffset = 0.0F;
-        if (mc.player.isSneaking()) {
+        if (mc.player.isCrouching()) {
             targetOffset = -SNEAK_OFFSET;
         }
         if (!mc.player.onGround()) {
@@ -160,7 +160,7 @@ public class InterpolateF5 extends Module {
         needsInit = true;
         wasThirdPerson = false;
 
-        if (mc.player != null && !mc.options.getPerspective().isFirstPerson()) {
+        if (mc.player != null && !mc.options.getCameraType().isFirstPerson()) {
             initCamera(true);
             wasThirdPerson = true;
         }

@@ -1,10 +1,10 @@
 package vesence.renderengine.postfx;
 
-import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import vesence.renderengine.render.pipeline.GlassCompositePipeline;
@@ -125,7 +125,7 @@ public class GlassHandsRenderer {
         sceneBeforeTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_scene_before",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.RGBA8,
+            GpuFormat.RGBA8_UNORM,
             width,
             height,
             1,
@@ -136,7 +136,7 @@ public class GlassHandsRenderer {
         sceneAfterTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_scene_after",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.RGBA8,
+            GpuFormat.RGBA8_UNORM,
             width,
             height,
             1,
@@ -147,7 +147,7 @@ public class GlassHandsRenderer {
         depthBeforeTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_depth_before",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.DEPTH32,
+            GpuFormat.D32_FLOAT,
             width,
             height,
             1,
@@ -158,7 +158,7 @@ public class GlassHandsRenderer {
         depthAfterTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_depth_after",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.DEPTH32,
+            GpuFormat.D32_FLOAT,
             width,
             height,
             1,
@@ -169,7 +169,7 @@ public class GlassHandsRenderer {
         maskTexture = RenderSystem.getDevice().createTexture(
             () -> "vesence:glass_mask",
             GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING | GpuTexture.USAGE_RENDER_ATTACHMENT,
-            TextureFormat.RGBA8,
+            GpuFormat.RGBA8_UNORM,
             width,
             height,
             1,
@@ -231,20 +231,20 @@ public class GlassHandsRenderer {
 
         ensureInitialized();
 
-        RenderTarget framebuffer = client.getMainRenderTarget();
-        if (framebuffer == null || framebuffer.getColorAttachment() == null) {
+        RenderTarget framebuffer = client.gameRenderer.mainRenderTarget();
+        if (framebuffer == null || framebuffer.getColorTexture() == null) {
             return;
         }
 
-        int width = framebuffer.textureWidth;
-        int height = framebuffer.textureHeight;
+        int width = framebuffer.width;
+        int height = framebuffer.height;
         ensureTextures(width, height);
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(framebuffer.getColorAttachment(), sceneBeforeTexture, 0, 0, 0, 0, 0, width, height);
+        encoder.copyTextureToTexture(framebuffer.getColorTexture(), sceneBeforeTexture, 0, 0, 0, 0, 0, width, height);
 
-        if (framebuffer.getDepthAttachment() != null) {
-            encoder.copyTextureToTexture(framebuffer.getDepthAttachment(), depthBeforeTexture, 0, 0, 0, 0, 0, width, height);
+        if (framebuffer.getDepthTexture() != null) {
+            encoder.copyTextureToTexture(framebuffer.getDepthTexture(), depthBeforeTexture, 0, 0, 0, 0, 0, width, height);
         }
 
         capturing = true;
@@ -255,16 +255,16 @@ public class GlassHandsRenderer {
             return;
         }
 
-        RenderTarget framebuffer = client.getMainRenderTarget();
-        if (framebuffer == null || framebuffer.getColorAttachment() == null) {
+        RenderTarget framebuffer = client.gameRenderer.mainRenderTarget();
+        if (framebuffer == null || framebuffer.getColorTexture() == null) {
             return;
         }
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        encoder.copyTextureToTexture(framebuffer.getColorAttachment(), sceneAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
+        encoder.copyTextureToTexture(framebuffer.getColorTexture(), sceneAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
 
-        if (framebuffer.getDepthAttachment() != null) {
-            encoder.copyTextureToTexture(framebuffer.getDepthAttachment(), depthAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
+        if (framebuffer.getDepthTexture() != null) {
+            encoder.copyTextureToTexture(framebuffer.getDepthTexture(), depthAfterTexture, 0, 0, 0, 0, 0, lastWidth, lastHeight);
         }
     }
 
@@ -273,8 +273,8 @@ public class GlassHandsRenderer {
             return;
         }
 
-        RenderTarget framebuffer = client.getMainRenderTarget();
-        if (framebuffer == null || framebuffer.getColorAttachment() == null) {
+        RenderTarget framebuffer = client.gameRenderer.mainRenderTarget();
+        if (framebuffer == null || framebuffer.getColorTexture() == null) {
             capturing = false;
             return;
         }
@@ -304,7 +304,7 @@ public class GlassHandsRenderer {
         }
 
         glassComposite.composite(
-            framebuffer.getColorAttachmentView(),
+            framebuffer.getColorTextureView(),
             sceneBeforeTextureView,
             blurredView,
             maskTextureView,

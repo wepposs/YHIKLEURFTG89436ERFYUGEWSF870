@@ -73,13 +73,13 @@ public class AutoSprint extends Module {
                     && AttackAura.extraSettings.get("\u0422\u043e\u043b\u044c\u043a\u043e \u043a\u0440\u0438\u0442\u044b"); // "Только криты"
             if (reset) {
                 if (sprint()) {
-                    mc.options.sprintKey.setPressed(true);
+                    mc.options.keySprint.setDown(true);
                 } else {
-                    mc.options.sprintKey.setPressed(false);
+                    mc.options.keySprint.setDown(false);
                     mc.player.setSprinting(false);
                 }
             } else {
-                mc.options.sprintKey.setPressed(true);
+                mc.options.keySprint.setDown(true);
             }
         }
     }
@@ -101,9 +101,9 @@ public class AutoSprint extends Module {
             return;
         }
         if (e.getPacket() instanceof ServerboundPlayerCommandPacket dcp) {
-            if (dcp.getMode() == ServerboundPlayerCommandPacket.Mode.START_SPRINTING) {
+            if (dcp.getAction() == ServerboundPlayerCommandPacket.Action.START_SPRINTING) {
                 serverSprintState = true;
-            } else if (dcp.getMode() == ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING) {
+            } else if (dcp.getAction() == ServerboundPlayerCommandPacket.Action.STOP_SPRINTING) {
                 serverSprintState = false;
             }
         }
@@ -120,29 +120,29 @@ public class AutoSprint extends Module {
     }
 
     public boolean RAGE() {
-        return !mc.player.isSneaking()
+        return !mc.player.isShiftKeyDown()
                 && !mc.player.horizontalCollision
-                && mc.player.input.playerInput.forward()
-                && !mc.player.isInSneakingPose()
-                && !mc.player.hasStatusEffect(MobEffects.SLOWNESS)
-                && !mc.player.hasStatusEffect(MobEffects.BLINDNESS)
-                && !mc.player.isInSwimmingPose()
+                && mc.player.input.keyPresses.forward()
+                && !mc.player.isCrouching()
+                && !mc.player.hasEffect(MobEffects.SLOWNESS)
+                && !mc.player.hasEffect(MobEffects.BLINDNESS)
+                && !mc.player.isSwimming()
                 && !mc.player.isUsingItem();
     }
 
     public boolean canSprint() {
-        return mc.level.getBlockState(mc.player.getBlockPos()).isOf(Blocks.COBWEB)
+        return mc.level.getBlockState(mc.player.blockPosition()).is(Blocks.COBWEB)
                 || mc.player.getAbilities().flying
-                || mc.player.isTouchingWater()
+                || mc.player.isInWater()
                 || mc.player.isInLava()
-                || mc.player.hasVehicle()
+                || mc.player.isPassenger()
                 || (mc.player.fallDistance <= 0.0F && mc.player.onGround());
     }
 
     @Override
     public void onDisable() {
-        if (mc.options != null && mc.options.sprintKey != null) {
-            mc.options.sprintKey.setPressed(false);
+        if (mc.options != null && mc.options.keySprint != null) {
+            mc.options.keySprint.setDown(false);
         }
         legitSprintResetTicks = 0;
         super.onDisable();
@@ -169,8 +169,8 @@ public class AutoSprint extends Module {
             if (serverSprintState) {
                 serverSprintState = false;
                 mc.player.setSprinting(false);
-                mc.player.connection.sendPacket(
-                        new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Mode.STOP_SPRINTING));
+                mc.player.connection.send(
+                        new ServerboundPlayerCommandPacket(mc.player, ServerboundPlayerCommandPacket.Action.STOP_SPRINTING));
             }
         }
     }
@@ -185,9 +185,9 @@ public class AutoSprint extends Module {
             return;
         }
         if (as.canSprint()) {
-            mc.options.sprintKey.setPressed(true);
+            mc.options.keySprint.setDown(true);
         } else {
-            mc.options.sprintKey.setPressed(false);
+            mc.options.keySprint.setDown(false);
             mc.player.setSprinting(false);
         }
     }

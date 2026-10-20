@@ -6,13 +6,13 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.entity.mob.SlimeEntity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.world.entity.monster.cubemob.Slime;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -303,7 +303,7 @@ public class AttackAura extends Module {
 
         float sw = event.viewportWidth() / 2.0f;
         float sh = event.viewportHeight() / 2.0f;
-        float fov = mc.options.getFov().getValue().floatValue();
+        float fov = mc.options.fov().get().floatValue();
         float baseFovValue = fovValue.get().floatValue();
         float radius = (float) (Math.tan(Math.toRadians(baseFovValue / 2.0))
                 / Math.tan(Math.toRadians(fov / 2.0))
@@ -414,24 +414,24 @@ public class AttackAura extends Module {
         // Deluxe (field2309): во время фриза свапа булавы позиционные пакеты
         // движения глушатся.
         if (event.isSend() && System.currentTimeMillis() < freezeUntilMs
-                && (event.getPacket() instanceof net.minecraft.network.packet.c2s.play.ServerboundMovePlayerPacket.PositionAndOnGround
-                    || event.getPacket() instanceof net.minecraft.network.packet.c2s.play.ServerboundMovePlayerPacket.Full)) {
+                && (event.getPacket() instanceof net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.Pos
+                    || event.getPacket() instanceof net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.PosRot)) {
             event.cancel();
             return;
         }
 
         if (event.getType() == vesence.event.impl.EventPacket.Type.RECEIVE) {
-            if (event.getPacket() instanceof net.minecraft.network.packet.s2c.play.ClientboundSoundPacket) {
+            if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundSoundPacket) {
                 heardHitSound = true;
             }
-            if (event.getPacket() instanceof net.minecraft.network.packet.s2c.play.GameJoinS2CPacket) {
+            if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundLoginPacket) {
                 resetAdaptiveTiming();
             }
             return;
         }
 
         if (earlyHit.is("Адаптивный")
-                && event.getPacket() instanceof net.minecraft.network.packet.c2s.play.ServerboundMovePlayerPacket) {
+                && event.getPacket() instanceof net.minecraft.network.protocol.game.ServerboundMovePlayerPacket) {
             packetsThisWindow++;
         }
     }
@@ -464,8 +464,8 @@ public class AttackAura extends Module {
                 && !mc.player.onGround()) {
             event.setStrafe(0.0F);
             event.setForward(0.0F);
-            if (mc.options != null && mc.options.sprintKey != null) {
-                mc.options.sprintKey.setPressed(false);
+            if (mc.options != null && mc.options.keySprint != null) {
+                mc.options.keySprint.setDown(false);
             }
             if (mc.player != null) {
                 mc.player.setSprinting(false);
@@ -568,7 +568,7 @@ public class AttackAura extends Module {
         long now = System.currentTimeMillis();
         if (now < nextHitAllowedAt) return false;
 
-        float cd = mc.player.getAttackCooldownProgress(0.5f);
+        float cd = mc.player.getAttackStrengthScale(0.5f);
         if (cd < legitCdThreshold) {
             legitHitDelayEnd = 0L;
             return false;
@@ -644,11 +644,11 @@ public class AttackAura extends Module {
 
     private boolean isOnSolidBlock() {
         if (mc.player == null || mc.level == null) return false;
-        net.minecraft.util.math.BlockPos below = net.minecraft.util.math.BlockPos.ofFloored(
+        net.minecraft.core.BlockPos below = net.minecraft.core.BlockPos.containing(
                 mc.player.getX(),
                 mc.player.getBoundingBox().minY - 0.05,
                 mc.player.getZ());
-        net.minecraft.util.math.BlockPos above = net.minecraft.util.math.BlockPos.ofFloored(
+        net.minecraft.core.BlockPos above = net.minecraft.core.BlockPos.containing(
                 mc.player.getX(),
                 mc.player.getBoundingBox().maxY + 0.2,
                 mc.player.getZ());
@@ -741,8 +741,8 @@ public class AttackAura extends Module {
         if (stack.isEmpty()) return 0.0;
         final double[] damage = {0.0};
         try {
-            stack.applyAttributeModifiers(EquipmentSlot.OFFHAND, (attribute, modifier) -> {
-                if (attribute == EntityAttributes.ATTACK_DAMAGE) damage[0] += modifier.value();
+            stack.forEachModifier(EquipmentSlot.OFFHAND, (attribute, modifier) -> {
+                if (attribute == Attributes.ATTACK_DAMAGE) damage[0] += modifier.amount();
             });
         } catch (Exception ignored) {}
         return damage[0];
@@ -820,7 +820,7 @@ public class AttackAura extends Module {
 
         AutoSprint.onPacketAttackReset();
 
-        boolean canPacket = !mc.player.hasStatusEffect(MobEffects.BLINDNESS)
+        boolean canPacket = !mc.player.hasEffect(MobEffects.BLINDNESS)
                 && !mc.player.isFlyingVehicle()
                 && !extraSettings.get("Легитный спринт");
 
@@ -831,7 +831,7 @@ public class AttackAura extends Module {
         // Deluxe (m997): «Максимальный урон» — на момент удара уводит названный
         // предмет в левую руку и сразу возвращает обратно.
         int swapSlot = maxDamage.get() && !swapItemName.get().isBlank()
-                ? findInventorySlot(stack -> !stack.isEmpty() && stack.getName().getString()
+                ? findInventorySlot(stack -> !stack.isEmpty() && stack.getHoverName().getString()
                         .toLowerCase().contains(swapItemName.get().toLowerCase().trim()))
                 : -1;
 
@@ -846,7 +846,7 @@ public class AttackAura extends Module {
             shieldPressBypass[1].run();
             skipSilentSprint[1].run();
             if (swapSlot != -1) {
-                mc.player.containerMenu.nextRevision();
+                mc.player.containerMenu.incrementStateId();
                 InventoryActionUtil.swapWithOffhand(swapSlot);
             }
         };
@@ -854,7 +854,7 @@ public class AttackAura extends Module {
         if (misc.get("Отжимать щит при ударе")
                 && mc.player.getActiveItem().getItem().equals(Items.SHIELD)
                 && mc.player.isUsingItem()) {
-            mc.gameMode.stopUsingItem(mc.player);
+            mc.gameMode.releaseUsingItem(mc.player);
         }
 
         // Deluxe (m997): удар через m1183 с cpsBypass=false.
@@ -888,27 +888,27 @@ public class AttackAura extends Module {
         Vec3 eye = mc.player.getEyePosition();
         Vec3 dir = Attack.directionVec(mc.player.getYRot(), mc.player.getXRot()).normalize();
         double hitDist = target.getBoundingBox()
-                .raycast(eye, eye.add(dir.multiply(Math.max(mc.player.distanceTo(target),
+                .clip(eye, eye.add(dir.scale(Math.max(mc.player.distanceTo(target),
                         attackRange.get().floatValue() + 2.0F))))
                 .map(eye::distanceTo)
                 .orElseGet(() -> boxDistance(target));
 
-        List<net.minecraft.util.math.BlockPos> visited = new ArrayList<>();
+        List<net.minecraft.core.BlockPos> visited = new ArrayList<>();
         for (double d = 0.0; d <= hitDist; d += 0.1) {
-            net.minecraft.util.math.BlockPos pos = net.minecraft.util.math.BlockPos.ofFloored(eye.add(dir.multiply(d)));
+            net.minecraft.core.BlockPos pos = net.minecraft.core.BlockPos.containing(eye.add(dir.scale(d)));
             if (visited.contains(pos)) continue;
             visited.add(pos);
             if (!mc.level.getBlockState(pos).isAir()
                     && !mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()) {
-                net.minecraft.util.hit.BlockHitResult hitResult = mc.level.raycast(new ClipContext(
-                        eye.add(dir.multiply(d - 0.2)), eye.add(dir.multiply(d + 0.2)),
-                        ClipContext.ShapeType.COLLIDER, ClipContext.FluidHandling.NONE, mc.player));
-                net.minecraft.util.math.Direction side = hitResult.getType() == HitResult.Type.BLOCK
-                        ? hitResult.getSide() : net.minecraft.util.math.Direction.UP;
-                mc.getConnection().sendPacket(new net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket(
-                        net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, side));
-                mc.getConnection().sendPacket(new net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket(
-                        net.minecraft.network.packet.c2s.play.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, side));
+                net.minecraft.world.phys.BlockHitResult hitResult = mc.level.clip(new ClipContext(
+                        eye.add(dir.scale(d - 0.2)), eye.add(dir.scale(d + 0.2)),
+                        ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
+                net.minecraft.core.Direction side = hitResult.getType() == HitResult.Type.BLOCK
+                        ? hitResult.getDirection() : net.minecraft.core.Direction.UP;
+                mc.getConnection().send(new net.minecraft.network.protocol.game.ServerboundPlayerActionPacket(
+                        net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, side));
+                mc.getConnection().send(new net.minecraft.network.protocol.game.ServerboundPlayerActionPacket(
+                        net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, side));
             }
         }
     }
@@ -977,7 +977,7 @@ public class AttackAura extends Module {
                         && funTestShouldCrit();
             case "1.8":
                 return AuraUtil.validDistance(target, ranges[0], true)
-                        && (misc.get("Бить через блоки") || mc.player.canSee(target));
+                        && (misc.get("Бить через блоки") || mc.player.hasLineOfSight(target));
             default:
                 return Attack.shouldAttack(target, false, true, true, offset, ranges);
         }
@@ -1083,8 +1083,8 @@ public class AttackAura extends Module {
         ElytraTarget elytra = ElytraTarget.INSTANCE;
         if (elytra != null && elytra.enable && elytra.overtake.get()
                 && elytra.aimRadius() > 0.0D
-                && mc.player != null && mc.player.isGliding()
-                && target.isGliding() && target instanceof Player) {
+                && mc.player != null && mc.player.isFallFlying()
+                && target.isFallFlying() && target instanceof Player) {
             return elytra.getPredictedPoint(target);
         }
 
@@ -1097,15 +1097,15 @@ public class AttackAura extends Module {
         List<Vec3> candidates = new ArrayList<>();
 
         if (isFunTime) {
-            double step = Math.max(box.getLengthY() / 10.0, 0.1);
+            double step = Math.max(box.getYsize() / 10.0, 0.1);
             for (double y = box.minY; y <= box.maxY + 1e-4; y += step) {
                 Vec3 p = new Vec3(center.x, y, center.z);
                 if (isValidPoint(p, range, ignoreWalls)) candidates.add(p);
             }
         } else {
-            double halfX   = box.getLengthX() * 0.5;
-            double halfZ   = box.getLengthZ() * 0.5;
-            double heightY = box.getLengthY();
+            double halfX   = box.getXsize() * 0.5;
+            double halfZ   = box.getZsize() * 0.5;
+            double heightY = box.getYsize();
             for (double[] preset : SPOOKY_PRESET) {
                 double y = box.minY + heightY * preset[1];
                 Vec3 p = new Vec3(center.x + halfX * preset[0], y, center.z + halfZ * preset[2]);
@@ -1130,7 +1130,7 @@ public class AttackAura extends Module {
                     Vec3 dir = p.subtract(eyePos);
                     float yaw   = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
                     float pitch = (float) Math.toDegrees(-Math.atan2(dir.y, Math.hypot(dir.x, dir.z)));
-                    float dy = net.minecraft.util.math.Mth.wrapDegrees(yaw - currentYaw);
+                    float dy = net.minecraft.util.Mth.wrapDegrees(yaw - currentYaw);
                     float dp = pitch - currentPitch;
                     return Math.hypot(dy, dp);
                 }))
@@ -1145,10 +1145,10 @@ public class AttackAura extends Module {
         Vec3 eyePos = mc.player.getEyePosition();
         if (eyePos.distanceTo(point) > range) return false;
         if (!ignoreWalls) {
-            return mc.level.raycast(new ClipContext(
+            return mc.level.clip(new ClipContext(
                     eyePos, point,
-                    ClipContext.ShapeType.COLLIDER,
-                    ClipContext.FluidHandling.NONE,
+                    ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE,
                     mc.player
             )).getType() == HitResult.Type.MISS;
         }
@@ -1163,31 +1163,31 @@ public class AttackAura extends Module {
         ElytraTarget elytra = ElytraTarget.INSTANCE;
         if (elytra != null && elytra.enable && elytra.overtake.get()
                 && elytra.aimRadius() > 0.0D
-                && mc.player != null && mc.player.isGliding()) {
+                && mc.player != null && mc.player.isFallFlying()) {
             LivingEntity elytraTarget = findElytraTarget(elytra);
             if (elytraTarget != null) { target = elytraTarget; return; }
         }
 
         Vec3 eyePos = mc.player.getEyePosition();
-        float camYaw   = mc.gameRenderer.getCamera().getYRot();
-        float camPitch = mc.gameRenderer.getCamera().getXRot();
-        Vec3 lookVec  = Vec3.fromPolar(camPitch, camYaw).normalize();
+        float camYaw   = mc.gameRenderer.mainCamera().yRot();
+        float camPitch = mc.gameRenderer.mainCamera().xRot();
+        Vec3 lookVec  = Vec3.directionFromRotation(camPitch, camYaw).normalize();
         double maxFov  = Math.max(1.0, targetFov.get().doubleValue()) * 0.5;
 
         List<LivingEntity> valid = new ArrayList<>();
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity living) || !this.isValidTarget(living)) continue;
 
             Vec3 targetPos = new Vec3(
                     living.getX(),
-                    living.getY() + living.getHeight() * 0.5,
+                    living.getY() + living.getBbHeight() * 0.5,
                     living.getZ());
             Vec3 delta = targetPos.subtract(eyePos);
             if (delta.lengthSqr() < 1e-8) continue;
 
             double angle = Math.toDegrees(Math.acos(
-                    net.minecraft.util.math.Mth.clamp(
-                            lookVec.dotProduct(delta.normalize()), -1.0, 1.0)));
+                    net.minecraft.util.Mth.clamp(
+                            lookVec.dot(delta.normalize()), -1.0, 1.0)));
             if (angle > maxFov) continue;
 
             valid.add(living);
@@ -1200,7 +1200,7 @@ public class AttackAura extends Module {
 
         // Deluxe (m1015): компараторы по режиму сортировки.
         Comparator<LivingEntity> comparator = switch (targetSorting.get()) {
-            case "Адаптивный" -> Comparator.comparingDouble((LivingEntity e) -> -e.getArmor())
+            case "Адаптивный" -> Comparator.comparingDouble((LivingEntity e) -> -e.getArmorValue())
                     .thenComparingDouble(this::angleTo)
                     .thenComparingDouble(AttackAura::boxDistance)
                     .thenComparingDouble((LivingEntity e) -> e.getHealth() + e.getAbsorptionAmount());
@@ -1211,7 +1211,7 @@ public class AttackAura extends Module {
             default -> Comparator.comparingDouble(this::angleTo)
                     .thenComparingDouble(AttackAura::boxDistance)
                     .thenComparingDouble((LivingEntity e) -> e.getHealth() + e.getAbsorptionAmount())
-                    .thenComparingDouble((LivingEntity e) -> -e.getArmor());
+                    .thenComparingDouble((LivingEntity e) -> -e.getArmorValue());
         };
         valid.sort(comparator);
         target = valid.get(0);
@@ -1222,7 +1222,7 @@ public class AttackAura extends Module {
         Vec3 dir = entity.getEyePosition().subtract(mc.player.getEyePosition());
         float yaw = (float) Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0F;
         float pitch = (float) -Math.toDegrees(Math.atan2(dir.y, Math.hypot(dir.x, dir.z)));
-        return Math.hypot(net.minecraft.util.math.Mth.wrapDegrees(yaw - mc.player.getYRot()),
+        return Math.hypot(net.minecraft.util.Mth.wrapDegrees(yaw - mc.player.getYRot()),
                 pitch - mc.player.getXRot());
     }
 
@@ -1231,10 +1231,10 @@ public class AttackAura extends Module {
         double maxDist = elytra.aimRadius();
         LivingEntity best = null;
         double bestDist = Double.MAX_VALUE;
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof Player player)) continue;
             if (player == mc.player) continue;
-            if (!player.isAlive() || !player.isGliding()) continue;
+            if (!player.isAlive() || !player.isFallFlying()) continue;
             if (!elytra.isElytraTarget(player)) continue;
             if (!isValidTarget(player, true)) continue;
             double dist = mc.player.distanceTo(player);
@@ -1251,7 +1251,7 @@ public class AttackAura extends Module {
     public float aimRange() {
         ElytraTarget elytra = ElytraTarget.INSTANCE;
         if (elytra != null && elytra.enable && elytra.overtake.get()
-                && mc.player != null && mc.player.isGliding()
+                && mc.player != null && mc.player.isFallFlying()
                 && elytra.aimDistance.get().doubleValue() > 0.0D) {
             return elytra.aimDistance.get().floatValue();
         }
@@ -1266,8 +1266,8 @@ public class AttackAura extends Module {
         ElytraTarget elytra = ElytraTarget.INSTANCE;
         return elytra != null && elytra.enable && elytra.overtake.get()
                 && elytra.aimRadius() > 0.0D
-                && mc.player != null && mc.player.isGliding()
-                && target != null && target.isGliding() && target instanceof Player;
+                && mc.player != null && mc.player.isFallFlying()
+                && target != null && target.isFallFlying() && target instanceof Player;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1282,24 +1282,24 @@ public class AttackAura extends Module {
         if (entity instanceof vesence.module.impl.visuals.custompet.CustomPetEntity) return false;
         if (entity instanceof LocalPlayer) return false;
         // Deluxe (m998): свежезаспавненные сущности не трогаем.
-        if (entity.age < 1) return false;
+        if (entity.tickCount < 1) return false;
         // Deluxe (m998): дистанция до цели — по трекинг-диапазону m991()[2].
         if (!ignoreDist) {
             float trackRange = getRanges().length > 2 ? getRanges()[2] : aimRange();
-            if (mc.player.squaredDistanceTo(entity) > (double) trackRange * trackRange) return false;
+            if (mc.player.distanceToSqr(entity) > (double) trackRange * trackRange) return false;
         }
-        if (!misc.get("Бить через блоки") && !ignoreDist && !mc.player.canSee(entity)) return false;
+        if (!misc.get("Бить через блоки") && !ignoreDist && !mc.player.hasLineOfSight(entity)) return false;
         if (entity instanceof Player p) {
             if (NoFriendDamage.isFriend(p)) return false;
             // Deluxe (m1008): боты бьются только при включённой опции «Боты».
             if (isDeluxeBot(p)) return targets.get("Боты") && !p.isInvulnerable() && p.isAlive();
             if (AntiBot.isBot(p)) return false;
             if (!targets.get("Игроки")) return false;
-            if (p.getArmor() == 0 && !targets.get("Голые")) return false;
+            if (p.getArmorValue() == 0 && !targets.get("Голые")) return false;
             if (p.isCreative()) return false;
         }
-        if ((entity instanceof Monster || entity instanceof SlimeEntity
-                || entity instanceof VillagerEntity || entity instanceof AnimalEntity)
+        if ((entity instanceof Monster || entity instanceof Slime
+                || entity instanceof Villager || entity instanceof Animal)
                 && !targets.get("Мобы")) return false;
         return !entity.isInvulnerable() && entity.isAlive() && !(entity instanceof ArmorStand);
     }
@@ -1310,7 +1310,7 @@ public class AttackAura extends Module {
      */
     private static boolean isDeluxeBot(Player player) {
         if (mc.getConnection() == null) return false;
-        net.minecraft.client.network.PlayerListEntry entry = mc.getConnection().getPlayerListEntry(player.getUuid());
+        net.minecraft.client.multiplayer.PlayerInfo entry = mc.getConnection().getPlayerInfo(player.getUUID());
         String name = player.getGameProfile().name();
         return entry == null || name == null || !name.matches("\\w{3,16}")
                 || !name.equals(entry.getProfile().name());
@@ -1325,12 +1325,12 @@ public class AttackAura extends Module {
         // еда или зелье (щит/сферы под спам не попадают).
         ItemStack active = mc.player.getActiveItem();
         boolean eating = mc.player.isUsingItem() && !active.isEmpty()
-                && (active.get(net.minecraft.component.DataComponentTypes.FOOD) != null
-                    || active.get(net.minecraft.component.DataComponentTypes.POTION_CONTENTS) != null);
+                && (active.get(net.minecraft.core.component.DataComponents.FOOD) != null
+                    || active.get(net.minecraft.core.component.DataComponents.POTION_CONTENTS) != null);
         return eating && misc.get("Не бить если ешь")
-                || mc.screen != null && misc.get("Не бить в гуишках")
-                || !mc.player.getMainHandItem().isIn(ItemTags.SWORDS)
-                && !mc.player.getMainHandItem().isIn(ItemTags.AXES)
+                || mc.gui.screen() != null && misc.get("Не бить в гуишках")
+                || !mc.player.getMainHandItem().is(ItemTags.SWORDS)
+                && !mc.player.getMainHandItem().is(ItemTags.AXES)
                 && !(mc.player.getMainHandItem().getItem() instanceof MaceItem)
                 && misc.get("Только с оружием");
     }
@@ -1356,16 +1356,16 @@ public class AttackAura extends Module {
             int hotbar = InventoryActionUtil.findItem(Items.MACE, true);
             int slot = hotbar != -1 ? hotbar : InventoryActionUtil.findItem(Items.MACE, false);
             if (slot != -1 && !maceSwapped && !maceReturned
-                    && !mc.player.getItemCooldownManager().isCoolingDown(mc.player.getInventory().getItem(slot))) {
+                    && !mc.player.getCooldowns().isOnCooldown(mc.player.getInventory().getItem(slot))) {
                 maceSwapped = true;
-                if (mc.player.getMainHandItem().isOf(Items.MACE)) {
+                if (mc.player.getMainHandItem().is(Items.MACE)) {
                     return;
                 }
                 // Deluxe: фриз на 200мс при свапе, если под ногами пусто на 3
                 // блока, но не на 8 (смэш безопасен) — только в режиме Spooky.
                 if (rotationType.is("Spooky")
-                        && mc.level.isSpaceEmpty(mc.player, mc.player.getBoundingBox().stretch(0.0, -3.0, 0.0))
-                        && !mc.level.isSpaceEmpty(mc.player, mc.player.getBoundingBox().stretch(0.0, -8.0, 0.0))) {
+                        && mc.level.noCollision(mc.player, mc.player.getBoundingBox().expandTowards(0.0, -3.0, 0.0))
+                        && !mc.level.noCollision(mc.player, mc.player.getBoundingBox().expandTowards(0.0, -8.0, 0.0))) {
                     freezeUntilMs = System.currentTimeMillis() + 200L;
                 }
                 macePrevSlot = mc.player.getInventory().getSelectedSlot();
@@ -1380,7 +1380,7 @@ public class AttackAura extends Module {
 
     /** Deluxe: Class62#m977 — можно ли сейчас смэшить (по физике падения). */
     private boolean canMaceSmash() {
-        if (mc.player.isTouchingWater() || mc.player.isInLava()) {
+        if (mc.player.isInWater() || mc.player.isInLava()) {
             return false;
         }
         if (maceSwapped && !mc.player.onGround()) {
@@ -1404,16 +1404,16 @@ public class AttackAura extends Module {
     private LivingEntity findSmashTarget() {
         LivingEntity best = null;
         double bestSq = Double.MAX_VALUE;
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity living)) continue;
-            if (living == mc.player || living.age < 1 || living instanceof ArmorStand) continue;
+            if (living == mc.player || living.tickCount < 1 || living instanceof ArmorStand) continue;
             if (!living.isAlive() || living.isInvulnerable() || living.isBlocking()) continue;
             if (living instanceof Player p) {
                 if (NoFriendDamage.isFriend(p) || p.isCreative() || AntiBot.isBot(p)) continue;
                 if (!targets.get("Игроки")) continue;
             } else if (!targets.get("Мобы")) continue;
             if (Math.hypot(living.getX() - mc.player.getX(), living.getZ() - mc.player.getZ()) > 6.0) continue;
-            double sq = mc.player.squaredDistanceTo(living);
+            double sq = mc.player.distanceToSqr(living);
             if (sq < bestSq) {
                 bestSq = sq;
                 best = living;
@@ -1429,11 +1429,11 @@ public class AttackAura extends Module {
     /** Deluxe: Class55#m929/#m941 — максимальный fallDistance за падение (до 60 тиков вперёд). */
     private static double predictedMaxFall() {
         if (mc.player == null || mc.level == null || mc.player.onGround()) return 0.0;
-        if (mc.player.getAbilities().flying || mc.player.isGliding() || mc.player.hasVehicle() || mc.player.isClimbing()) return 0.0;
-        if (mc.player.hasStatusEffect(MobEffects.LEVITATION) || mc.player.isTouchingWater() || mc.player.isInLava()) return 0.0;
+        if (mc.player.getAbilities().flying || mc.player.isFallFlying() || mc.player.isPassenger() || mc.player.onClimbable()) return 0.0;
+        if (mc.player.hasEffect(MobEffects.LEVITATION) || mc.player.isInWater() || mc.player.isInLava()) return 0.0;
         if (mc.player.tickCount == fallCacheAge) return fallCache;
 
-        double gravity = mc.player.getFinalGravity();
+        double gravity = mc.player.getGravity();
         double ox = 0.0, oy = 0.0, oz = 0.0;
         AABB box = mc.player.getBoundingBox();
         Vec3 vel = mc.player.getDeltaMovement();
@@ -1441,13 +1441,13 @@ public class AttackAura extends Module {
         double maxFall = fall;
         for (int i = 0; i < 60; i++) {
             double mx = vel.x * 0.98, my = (vel.y - gravity) * 0.98, mz = vel.z * 0.98;
-            Vec3 adjusted = Entity.adjustMovementForCollisions(mc.player, new Vec3(mx, my, mz),
-                    box.offset(ox, oy, oz), mc.level, java.util.Collections.emptyList());
+            Vec3 adjusted = Entity.collideBoundingBox(mc.player, new Vec3(mx, my, mz),
+                    box.move(ox, oy, oz), mc.level, java.util.Collections.emptyList());
             if (adjusted.y < 0.0) fall += -adjusted.y;
             if (fall > maxFall) maxFall = fall;
             if (my < -1.0E-4 && adjusted.y > my + 1.0E-4) break;  // приземлились
             ox += adjusted.x; oy += adjusted.y; oz += adjusted.z;
-            if (fluidInBox(box.offset(ox, oy, oz))) break;
+            if (fluidInBox(box.move(ox, oy, oz))) break;
             vel = new Vec3(Math.abs(adjusted.x - mx) > 1.0E-4 ? 0.0 : mx,
                             Math.abs(adjusted.y - my) > 1.0E-4 ? 0.0 : my,
                             Math.abs(adjusted.z - mz) > 1.0E-4 ? 0.0 : mz);
@@ -1461,25 +1461,25 @@ public class AttackAura extends Module {
     /** Deluxe: Class55#m946/#m942 — Y предсказанной точки приземления (до 400 тиков). */
     private static double predictedLandingY() {
         if (mc.player == null || mc.level == null || mc.player.onGround()) return Double.NaN;
-        if (mc.player.getAbilities().flying || mc.player.isGliding() || mc.player.hasVehicle() || mc.player.isClimbing()) return Double.NaN;
-        if (mc.player.hasStatusEffect(MobEffects.LEVITATION) || mc.player.isTouchingWater() || mc.player.isInLava()) return Double.NaN;
+        if (mc.player.getAbilities().flying || mc.player.isFallFlying() || mc.player.isPassenger() || mc.player.onClimbable()) return Double.NaN;
+        if (mc.player.hasEffect(MobEffects.LEVITATION) || mc.player.isInWater() || mc.player.isInLava()) return Double.NaN;
         if (mc.player.tickCount == landingCacheAge) return landingCacheY;
 
-        double gravity = mc.player.getFinalGravity();
+        double gravity = mc.player.getGravity();
         double ox = 0.0, oy = 0.0, oz = 0.0;
         AABB box = mc.player.getBoundingBox();
         Vec3 vel = mc.player.getDeltaMovement();
         double result = Double.NaN;
         for (int i = 0; i < 400; i++) {
             double mx = vel.x * 0.98, my = (vel.y - gravity) * 0.98, mz = vel.z * 0.98;
-            Vec3 adjusted = Entity.adjustMovementForCollisions(mc.player, new Vec3(mx, my, mz),
-                    box.offset(ox, oy, oz), mc.level, java.util.Collections.emptyList());
+            Vec3 adjusted = Entity.collideBoundingBox(mc.player, new Vec3(mx, my, mz),
+                    box.move(ox, oy, oz), mc.level, java.util.Collections.emptyList());
             if (my < -1.0E-4 && adjusted.y > my + 1.0E-4) {
                 result = mc.player.getY() + oy + adjusted.y;
                 break;
             }
             ox += adjusted.x; oy += adjusted.y; oz += adjusted.z;
-            if (fluidInBox(box.offset(ox, oy, oz))) {
+            if (fluidInBox(box.move(ox, oy, oz))) {
                 result = mc.player.getY() + oy;
                 break;
             }
@@ -1501,11 +1501,11 @@ public class AttackAura extends Module {
 
     /** Deluxe: Class55#m933 — есть ли вода/лава в боксе. */
     private static boolean fluidInBox(AABB box) {
-        for (net.minecraft.util.math.BlockPos pos : net.minecraft.util.math.BlockPos.iterate(
-                net.minecraft.util.math.BlockPos.ofFloored(box.minX, box.minY, box.minZ),
-                net.minecraft.util.math.BlockPos.ofFloored(box.maxX, box.maxY, box.maxZ))) {
-            net.minecraft.fluid.FluidState fluid = mc.level.getBlockState(pos).getFluidState();
-            if (fluid.isIn(net.minecraft.registry.tag.FluidTags.WATER) || fluid.isIn(net.minecraft.registry.tag.FluidTags.LAVA)) {
+        for (net.minecraft.core.BlockPos pos : net.minecraft.core.BlockPos.betweenClosed(
+                net.minecraft.core.BlockPos.containing(box.minX, box.minY, box.minZ),
+                net.minecraft.core.BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+            net.minecraft.world.level.material.FluidState fluid = mc.level.getBlockState(pos).getFluidState();
+            if (fluid.is(net.minecraft.tags.FluidTags.WATER) || fluid.is(net.minecraft.tags.FluidTags.LAVA)) {
                 return true;
             }
         }
@@ -1517,7 +1517,7 @@ public class AttackAura extends Module {
         if (mc.player == null || mc.player.fallDistance <= 1.0F) return false;
         double landing = predictedLandingY();
         if (Double.isNaN(landing)) return false;
-        double gravity = mc.player.getFinalGravity();
+        double gravity = mc.player.getGravity();
         double nextDrop = Math.max(0.0, -(mc.player.getDeltaMovement().y - gravity) * 0.98);
         return mc.player.getY() - landing <= nextDrop + 1.0E-4;
     }
@@ -1526,13 +1526,13 @@ public class AttackAura extends Module {
     private static boolean targetAboveFalling(LivingEntity target) {
         if (target == null || mc.player == null) return false;
         double dy = target.getY() - mc.player.getY();
-        return dy > 0.0 && dy <= 1.5 && target.getY() - target.lastRenderY < 0.0;
+        return dy > 0.0 && dy <= 1.5 && target.getY() - target.yOld < 0.0;
     }
 
     /** Deluxe: Class55#m931(1) — fallDistance на следующем тике. */
     private static float fallDistanceNextTick() {
         if (mc.player == null) return 0.0F;
-        double gravity = mc.player.getFinalGravity();
+        double gravity = mc.player.getGravity();
         double my = (mc.player.getDeltaMovement().y - gravity) * 0.98;
         return (float) (mc.player.fallDistance + (my < 0.0 ? -my : 0.0));
     }
@@ -1540,15 +1540,15 @@ public class AttackAura extends Module {
     /** Deluxe: Class55#m945 — цель достижима со следующей предсказанной позиции. */
     private static boolean targetReachableNextTick(LivingEntity target) {
         if (target == null || mc.player == null || mc.level == null) return false;
-        double gravity = mc.player.getFinalGravity();
-        Vec3 nextPos = mc.player.getEntityPos().add(mc.player.getDeltaMovement().x,
+        double gravity = mc.player.getGravity();
+        Vec3 nextPos = mc.player.position().add(mc.player.getDeltaMovement().x,
                 (mc.player.getDeltaMovement().y - gravity) * 0.98, mc.player.getDeltaMovement().z);
-        Vec3 eye = nextPos.add(0.0, mc.player.getStandingEyeHeight(), 0.0);
-        Vec3 targetVel = new Vec3((target.getX() - target.lastRenderX) * 2.0,
-                (target.getY() - target.lastRenderY) * 2.0, (target.getZ() - target.lastRenderZ) * 2.0);
-        AABB box = target.getBoundingBox().offset(targetVel);
+        Vec3 eye = nextPos.add(0.0, mc.player.getEyeHeight(), 0.0);
+        Vec3 targetVel = new Vec3((target.getX() - target.xOld) * 2.0,
+                (target.getY() - target.yOld) * 2.0, (target.getZ() - target.zOld) * 2.0);
+        AABB box = target.getBoundingBox().move(targetVel);
         if (!Attack.clearLineOfSight(eye, box.getCenter())) return false;
-        double range = mc.player.getMainHandItem().isOf(Items.MACE)
+        double range = mc.player.getMainHandItem().is(Items.MACE)
                 ? 3.0 : Math.max(3.0, attackRange.get().floatValue());
         double dx = Math.max(Math.max(box.minX - eye.x, eye.x - box.maxX), 0.0);
         double dy = Math.max(Math.max(box.minY - eye.y, eye.y - box.maxY), 0.0);
@@ -1584,7 +1584,7 @@ public class AttackAura extends Module {
     /** Deluxe: Class55#m935 — булава доступна и игрок падает. */
     public static boolean maceFallingState() {
         if (mc.player == null) return false;
-        if (mc.player.getMainHandItem().isOf(Items.MACE)) return true;
+        if (mc.player.getMainHandItem().is(Items.MACE)) return true;
         return mc.player.fallDistance >= 1.0F && extraSettings.get("Смэш булавой")
                 && InventoryActionUtil.findItem(Items.MACE, false) != -1;
     }
@@ -1592,7 +1592,7 @@ public class AttackAura extends Module {
     /** Deluxe: Class62#m1021 — булава в руке или доставлена аурой. */
     public static boolean maceReady() {
         return extraSettings.get("Смэш булавой") && maceSwapped
-                || mc.player != null && mc.player.getMainHandItem().isOf(Items.MACE);
+                || mc.player != null && mc.player.getMainHandItem().is(Items.MACE);
     }
 
     /** Deluxe: Class62#m1022 — крит-состояние булавы (в падении с булавой). */
@@ -1604,7 +1604,7 @@ public class AttackAura extends Module {
     public static boolean maceSmashActive() {
         return mc.player != null
                 && (maceCritState() || maceFallingState() && !mc.player.onGround())
-                && MaceItem.shouldDealAdditionalDamage(mc.player);
+                && MaceItem.canSmashAttack(mc.player);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -18,13 +18,13 @@ import vesence.module.impl.visuals.NoRender;
  * оставляя обычные красные.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(targets = "net.minecraft.client.gui.hud.Gui$HeartType")
+@Mixin(targets = "net.minecraft.client.gui.Hud$HeartType")
 public class NoRenderHeartTypeMixin {
     @Redirect(
-            method = "fromPlayerState(Lnet/minecraft/entity/player/Player;)Lnet/minecraft/client/gui/hud/Gui$HeartType;",
+            method = "forPlayer(Lnet/minecraft/world/entity/player/Player;)Lnet/minecraft/client/gui/Hud$HeartType;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/player/Player;hasStatusEffect(Lnet/minecraft/registry/entry/Holder;)Z"
+                    target = "Lnet/minecraft/world/entity/player/Player;hasEffect(Lnet/minecraft/core/Holder;)Z"
             )
     )
     private static boolean vesence$hasStatusEffect(Player player, Holder<MobEffect> effect) {
@@ -32,14 +32,14 @@ public class NoRenderHeartTypeMixin {
             NoRender nr = Vesence.get.manager.get(NoRender.class);
             if (nr != null && nr.enable) {
                 if (NoRender.elements.get("Плохие сердца")
-                        && (effect.matches(MobEffects.POISON) || effect.matches(MobEffects.HUNGER))) {
+                        && (effect.is(MobEffects.POISON) || effect.is(MobEffects.HUNGER))) {
                     return false;
                 }
-                if (NoRender.elements.get("Сердца визера") && effect.matches(MobEffects.WITHER)) {
+                if (NoRender.elements.get("Сердца визера") && effect.is(MobEffects.WITHER)) {
                     return false;
                 }
             }
         }
-        return player.hasStatusEffect(effect);
+        return player.hasEffect(effect);
     }
 }

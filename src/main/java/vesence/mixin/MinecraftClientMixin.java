@@ -5,7 +5,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.spongepowered.asm.mixin.Mixin;
@@ -43,8 +43,8 @@ public abstract class MinecraftClientMixin {
        }
    }
 
-   @Inject(method = "joinWorld", at = @At("TAIL"), require = 0)
-   public void loadWorld(CallbackInfo ci) {
+   @Inject(method = "setLevel", at = @At("TAIL"), require = 0)
+   public void loadWorld(ClientLevel world, CallbackInfo ci) {
       try {
          MainScreen.stopMenuMusic();
       } catch (Throwable ignored) {
@@ -55,7 +55,9 @@ public abstract class MinecraftClientMixin {
       }
    }
 
-   @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+   // TODO(port26): Minecraft#setScreen removed in 26.3 (screens go through Gui.setScreen /
+   // Minecraft.setScreenAndShow); hooking setScreenAndShow instead.
+   @Inject(method = "setScreenAndShow", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
    private void vesence$redirectTitleScreen(Screen screen, CallbackInfo ci) {
       try {
          if (screen instanceof TitleScreen) {
@@ -65,11 +67,11 @@ public abstract class MinecraftClientMixin {
             }
             Minecraft mc = (Minecraft) (Object) this;
             ci.cancel();
-            mc.setScreen(new MainScreen());
+            mc.gui.setScreen(new MainScreen());
             return;
          }
 
-         if (screen instanceof MultiplayerScreen
+         if (screen instanceof JoinMultiplayerScreen
                  && !(screen instanceof vesence.ui.MultiplayerScreen)) {
             if (MainScreenHelper.bypassOnce) {
                MainScreenHelper.bypassOnce = false;
@@ -82,13 +84,13 @@ public abstract class MinecraftClientMixin {
                ru = new vesence.ui.SettingsWindow().getSelectedLangMode() == 0;
             } catch (Throwable ignored) {
             }
-            mc.setScreen(new vesence.ui.MultiplayerScreen(new MainScreen()).setRussian(ru));
+            mc.gui.setScreen(new vesence.ui.MultiplayerScreen(new MainScreen()).setRussian(ru));
          }
       } catch (Throwable ignored) {
       }
    }
 
-   @Inject(method = "onResolutionChanged", at = @At("TAIL"), require = 0)
+   @Inject(method = "resizeGui", at = @At("TAIL"), require = 0)
    private void vesence$onResolutionChanged(CallbackInfo ci) {
       try {
          if (Vesence.isModInitialized()) {
@@ -98,7 +100,7 @@ public abstract class MinecraftClientMixin {
       }
    }
 
-   @Inject(method = "reloadResources", at = @At("HEAD"), require = 0)
+   @Inject(method = "reloadResourcePacks", at = @At("HEAD"), require = 0)
    private void vesence$onReloadResources(CallbackInfoReturnable<java.util.concurrent.CompletableFuture<Void>> cir) {
       try {
          if (Vesence.isModInitialized()) {
@@ -108,8 +110,8 @@ public abstract class MinecraftClientMixin {
       }
    }
 
-   @Inject(method = "hasOutline", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-   private void vesence$shaderEspHasOutline(net.minecraft.entity.Entity entity,
+   @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+   private void vesence$shaderEspHasOutline(net.minecraft.world.entity.Entity entity,
                                             CallbackInfoReturnable<Boolean> cir) {
       try {
          ShaderESP esp = ShaderESP.INSTANCE;

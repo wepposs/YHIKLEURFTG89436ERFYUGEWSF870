@@ -1,10 +1,9 @@
 package vesence.module.impl.visuals.attributes;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.model.geom.ModelPart;
@@ -12,19 +11,22 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.model.HumanoidModel;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import vesence.module.impl.visuals.Attributes;
 import vesence.utils.render.ColorUtil;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 
 /** China hat - 1:1 port of Minced ChinaHat (EventLayerHead, model space). */
 public final class AttributesChinaHat {
@@ -56,15 +58,15 @@ public final class AttributesChinaHat {
     public void deactivate() {
     }
 
-    public void renderOnHead(Player player, PoseStack matrices, BipedEntityModel<?> model,
-                             OrderedRenderCommandQueue queue) {
+    public void renderOnHead(Player player, PoseStack matrices, HumanoidModel<?> model,
+                             SubmitNodeCollector queue) {
         Minecraft client = Minecraft.getInstance();
         if (player == null || model == null || client.level == null || client.player == null) return;
         boolean local = player == client.player;
         boolean friend = vesence.utils.friends.FriendStorage.isFriend(player.getName().getString());
         if (!local && (!friend || !parent.showChinaHatOnFriends())) return;
 
-        ItemStack helmet = player.getEquippedStack(EquipmentSlot.HEAD);
+        ItemStack helmet = player.getItemBySlot(EquipmentSlot.HEAD);
         float offset = helmet.isEmpty() ? OFFSET_BARE : OFFSET_HELMET;
         float width = (float) (player.getBoundingBox().maxX - player.getBoundingBox().minX);
         int theme = this.parent.resolveThemeColor();
@@ -73,20 +75,20 @@ public final class AttributesChinaHat {
         // whichever head pose was written last and causes it to slide away from its owner.
         HeadTransform head = HeadTransform.capture(model.head);
 
-        queue.submitCustom(matrices, coneLayer(), (entry, consumer) -> {
+        queue.submitCustomGeometry(matrices, coneLayer(), (entry, consumer) -> {
             applyHead(entry, head);
             entry.translate(0.0F, -offset, 0.0F);
-            entry.rotate(RotationAxis.NEGATIVE_Z.rotationDegrees(ROT_Z_DEGREES));
-            entry.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(ROT_Y_DEGREES));
-            drawCone(entry.getPositionMatrix(), consumer, theme, width);
+            entry.rotate(Axis.ZN.rotationDegrees(ROT_Z_DEGREES));
+            entry.rotate(Axis.YP.rotationDegrees(ROT_Y_DEGREES));
+            drawCone(entry.pose(), consumer, theme, width);
         });
 
-        queue.submitCustom(matrices, rimLayer(), (entry, consumer) -> {
+        queue.submitCustomGeometry(matrices, rimLayer(), (entry, consumer) -> {
             applyHead(entry, head);
             entry.translate(0.0F, -offset, 0.0F);
-            entry.rotate(RotationAxis.NEGATIVE_Z.rotationDegrees(ROT_Z_DEGREES));
-            entry.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(ROT_Y_DEGREES));
-            drawRim(entry.getPositionMatrix(), consumer, theme, width);
+            entry.rotate(Axis.ZN.rotationDegrees(ROT_Z_DEGREES));
+            entry.rotate(Axis.YP.rotationDegrees(ROT_Y_DEGREES));
+            drawRim(entry.pose(), consumer, theme, width);
         });
     }
 
@@ -99,8 +101,8 @@ public final class AttributesChinaHat {
             int ringColor = ColorUtil.replAlpha(ring, ColorUtil.alpha(ring) / 255.0F * TOP_ALPHA);
             float x = (float) (Mth.sin(angle) * width);
             float z = (float) (Mth.cos(angle) * width);
-            consumer.vertex(matrix, x, 0.0F, z).color(ringColor);
-            consumer.vertex(matrix, 0.0F, CONE_APEX_HEIGHT, 0.0F).color(apex);
+            consumer.addVertex(matrix, x, 0.0F, z).setColor(ringColor);
+            consumer.addVertex(matrix, 0.0F, CONE_APEX_HEIGHT, 0.0F).setColor(apex);
         }
     }
 
@@ -124,15 +126,15 @@ public final class AttributesChinaHat {
             float innerX = (float) (Mth.sin(angle) * inner);
             float innerZ = (float) (Mth.cos(angle) * inner);
 
-            consumer.vertex(matrix, prevOuterX, yLow, prevOuterZ).color(color);
-            consumer.vertex(matrix, prevOuterX, yHigh, prevOuterZ).color(color);
-            consumer.vertex(matrix, outerX, yHigh, outerZ).color(color);
-            consumer.vertex(matrix, outerX, yLow, outerZ).color(color);
+            consumer.addVertex(matrix, prevOuterX, yLow, prevOuterZ).setColor(color);
+            consumer.addVertex(matrix, prevOuterX, yHigh, prevOuterZ).setColor(color);
+            consumer.addVertex(matrix, outerX, yHigh, outerZ).setColor(color);
+            consumer.addVertex(matrix, outerX, yLow, outerZ).setColor(color);
 
-            consumer.vertex(matrix, prevInnerX, yHigh, prevInnerZ).color(color);
-            consumer.vertex(matrix, innerX, yHigh, innerZ).color(color);
-            consumer.vertex(matrix, outerX, yHigh, outerZ).color(color);
-            consumer.vertex(matrix, prevOuterX, yHigh, prevOuterZ).color(color);
+            consumer.addVertex(matrix, prevInnerX, yHigh, prevInnerZ).setColor(color);
+            consumer.addVertex(matrix, innerX, yHigh, innerZ).setColor(color);
+            consumer.addVertex(matrix, outerX, yHigh, outerZ).setColor(color);
+            consumer.addVertex(matrix, prevOuterX, yHigh, prevOuterZ).setColor(color);
 
             prevOuterX = outerX;
             prevOuterZ = outerZ;
@@ -141,7 +143,7 @@ public final class AttributesChinaHat {
         }
     }
 
-    private static void applyHead(PoseStack.Entry entry, HeadTransform head) {
+    private static void applyHead(PoseStack.Pose entry, HeadTransform head) {
         entry.translate(head.originX / 16.0F, head.originY / 16.0F, head.originZ / 16.0F);
         if (head.pitch != 0.0F || head.yaw != 0.0F || head.roll != 0.0F) {
             entry.rotate(new Quaternionf().rotationZYX(head.roll, head.yaw, head.pitch));
@@ -155,8 +157,8 @@ public final class AttributesChinaHat {
                                  float pitch, float yaw, float roll,
                                  float xScale, float yScale, float zScale) {
         private static HeadTransform capture(ModelPart head) {
-            return new HeadTransform(head.originX, head.originY, head.originZ,
-                    head.pitch, head.yaw, head.roll,
+            return new HeadTransform(head.x, head.y, head.z,
+                    head.xRot, head.yRot, head.zRot,
                     head.xScale, head.yScale, head.zScale);
         }
     }
@@ -167,9 +169,9 @@ public final class AttributesChinaHat {
             synchronized (AttributesChinaHat.class) {
                 local = coneLayer;
                 if (local == null) {
-                    local = RenderType.of("vesence_china_hat_cone",
-                            RenderSetup.builder(hatPipeline(DrawMode.TRIANGLE_STRIP, "china_hat_cone"))
-                                    .expectedBufferSize(8192).translucent().build());
+                    local = RenderType.create("vesence_china_hat_cone",
+                            RenderSetup.builder(hatPipeline(PrimitiveTopology.TRIANGLE_STRIP, "china_hat_cone"))
+                                    .createRenderSetup());
                     coneLayer = local;
                 }
             }
@@ -183,9 +185,9 @@ public final class AttributesChinaHat {
             synchronized (AttributesChinaHat.class) {
                 local = rimLayer;
                 if (local == null) {
-                    local = RenderType.of("vesence_china_hat_rim",
-                            RenderSetup.builder(hatPipeline(DrawMode.QUADS, "china_hat_rim"))
-                                    .expectedBufferSize(16384).translucent().build());
+                    local = RenderType.create("vesence_china_hat_rim",
+                            RenderSetup.builder(hatPipeline(PrimitiveTopology.QUADS, "china_hat_rim"))
+                                    .createRenderSetup());
                     rimLayer = local;
                 }
             }
@@ -193,15 +195,16 @@ public final class AttributesChinaHat {
         return local;
     }
 
-    private static RenderPipeline hatPipeline(DrawMode mode, String path) {
+    private static RenderPipeline hatPipeline(PrimitiveTopology mode, String path) {
         return RenderPipelines.register(
-                RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                        .withLocation(ResourceLocation.of("vesence", path))
-                        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, mode)
+                RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+                        .withLocation(Identifier.fromNamespaceAndPath("vesence", path))
+                        .withVertexShader("core/position_color")
+                        .withFragmentShader("core/position_color")
+                        .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)                        .withPrimitiveTopology(mode)
                         .withCull(false)
-                        .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-                        .withDepthWrite(true)
-                        .withBlend(BlendFunction.TRANSLUCENT)
+                        .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+                        .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                         .build());
     }
 }

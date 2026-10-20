@@ -1,9 +1,9 @@
 package vesence.mixin;
 
-import net.minecraft.client.Keyboard;
+import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.KeyInput;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.KeyEvent;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,34 +12,34 @@ import vesence.Vesence;
 import vesence.module.impl.player.LockSlot;
 import vesence.ui.clickgui.GuiClient;
 
-@Mixin(Keyboard.class)
+@Mixin(KeyboardHandler.class)
 public class KeyboardMixin {
-    @Inject(method = "onKey", at = @At("HEAD"), cancellable = true)
-    private void onKey(long window, int action, KeyInput input, CallbackInfo ci) {
-        if (action != GLFW.GLFW_PRESS) {
+    @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
+    private void onKey(long window, int action, net.minecraft.client.input.KeyEvent input, CallbackInfo ci) {
+        if (action != InputConstants.PRESS) {
             return;
         }
         int key = input.key();
-        if (key == -1 || key == GLFW.GLFW_KEY_UNKNOWN) {
+        if (key == -1 || key == 0 /* SDL_SCANCODE_UNKNOWN */) {
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             return;
         }
 
         if (mc.player != null
-                && mc.options.dropKey.matchesKey(input)
+                && mc.options.keyDrop.matches(input)
                 && LockSlot.shouldCancelSelectedDrop()) {
             ci.cancel();
             return;
         }
 
-        if (key == GLFW.GLFW_KEY_RIGHT_SHIFT) {
-            mc.setScreen(new GuiClient());
-            if (mc.mouse != null) {
-                mc.mouse.unlockCursor();
+        if (key == InputConstants.KEY_RSHIFT) {
+            mc.gui.setScreen(new GuiClient());
+            if (mc.mouseHandler != null) {
+                mc.mouseHandler.releaseMouse();
             }
             ci.cancel();
             return;

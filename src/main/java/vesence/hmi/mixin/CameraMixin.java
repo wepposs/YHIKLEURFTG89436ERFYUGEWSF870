@@ -4,9 +4,8 @@ import vesence.hmi.access.CameraAccessor;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Camera;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import org.joml.Quaternionf;
-import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,29 +22,29 @@ implements CameraAccessor {
     @Final
     private Quaternionf rotation;
     @Shadow
-    private float pitch;
+    private float xRot;
     @Shadow
-    private float yaw;
-    @Shadow
-    @Final
-    private static Vector3f HORIZONTAL;
+    private float yRot;
     @Shadow
     @Final
-    private static Vector3f VERTICAL;
+    private static org.joml.Vector3fc FORWARDS;
     @Shadow
     @Final
-    private static Vector3f DIAGONAL;
+    private static org.joml.Vector3fc UP;
     @Shadow
     @Final
-    private Vector3f horizontalPlane;
+    private static org.joml.Vector3fc LEFT;
     @Shadow
     @Final
-    private Vector3f verticalPlane;
+    private Vector3f forwards;
     @Shadow
     @Final
-    private Vector3f diagonalPlane;
+    private Vector3f up;
     @Shadow
-    private Vec3 pos;
+    @Final
+    private Vector3f left;
+    @Shadow
+    private Vec3 position;
     @Unique
     private float pitchM = 0.0f;
     @Unique
@@ -60,12 +59,12 @@ implements CameraAccessor {
     private float zM = 0.0f;
 
     @Shadow
-    protected abstract void setPos(Vec3 var1);
+    protected abstract void setPosition(Vec3 var1);
 
     public void hMI5_0$applyRotation() {
-        this.rotation.add((Quaternionfc)RotationAxis.POSITIVE_X.rotationDegrees(this.pitchM));
-        this.rotation.add((Quaternionfc)RotationAxis.POSITIVE_Y.rotationDegrees(this.yawM));
-        this.rotation.add((Quaternionfc)RotationAxis.POSITIVE_Z.rotationDegrees(this.rollM));
+        this.rotation.add(Axis.XP.rotationDegrees(this.pitchM));
+        this.rotation.add(Axis.YP.rotationDegrees(this.yawM));
+        this.rotation.add(Axis.ZP.rotationDegrees(this.rollM));
     }
 
     public void hMI5_0$setRotationValues(float pitch, float yaw, float roll) {
@@ -86,25 +85,24 @@ implements CameraAccessor {
             return;
         }
         if (!FabricLoader.getInstance().isModLoaded("do_a_barrel_roll")) {
-            this.pitch = pitch;
-            this.yaw = yaw;
+            this.xRot = pitch;
+            this.yRot = yaw;
             this.rotation.rotationYXZ((float)Math.PI - (yaw + this.yawM) * ((float)Math.PI / 180), (-pitch + this.pitchM) * ((float)Math.PI / 180), this.rollM * ((float)Math.PI / 180));
-            HORIZONTAL.rotate((Quaternionfc)this.rotation, this.horizontalPlane);
-            VERTICAL.rotate((Quaternionfc)this.rotation, this.verticalPlane);
-            DIAGONAL.rotate((Quaternionfc)this.rotation, this.diagonalPlane);
+            FORWARDS.rotate(this.rotation, this.forwards);
+            UP.rotate(this.rotation, this.up);
+            LEFT.rotate(this.rotation, this.left);
             ci.cancel();
         }
     }
 
-    @Inject(method={"setPos(DDD)V"}, at={@At(value="HEAD")}, cancellable=true)
+    @Inject(method={"setPosition(DDD)V"}, at={@At(value="HEAD")}, cancellable=true)
     public void setRotationMixin(double x, double y, double z, CallbackInfo ci) {
         if (!vesence.module.impl.visuals.LivingHands.isEnabled()) {
             return;
         }
         if (!FabricLoader.getInstance().isModLoaded("do_a_barrel_roll")) {
-            this.setPos(new Vec3(x += (double)this.xM, y += (double)this.yM, z += (double)this.zM));
+            this.setPosition(new Vec3(x += (double)this.xM, y += (double)this.yM, z += (double)this.zM));
             ci.cancel();
         }
     }
 }
-

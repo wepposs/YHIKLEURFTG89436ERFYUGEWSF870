@@ -1,26 +1,29 @@
 package vesence.module.impl.visuals.world;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
-import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.BlendFactor;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.render.MultiBufferSource.Immediate;
+import vesence.module.impl.visuals.Immediate;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.math.Axis;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import vesence.module.api.setting.Setting;
@@ -51,7 +54,7 @@ public final class CubesEngine {
 
    private static final Minecraft mc = Minecraft.getInstance();
 
-   private static final ResourceLocation GLOW_TEX = ResourceLocation.of("vesence", "textures/particle/bloom.png");
+   private static final Identifier GLOW_TEX = Identifier.fromNamespaceAndPath("vesence", "textures/particle/bloom.png");
    private static final float PARTICLE_SIZE = 0.18F;
    private static final float PARTICLE_SPEED = 0.25F;
    private static final float GLOW_INTENSITY = 1.7F;
@@ -77,63 +80,73 @@ public final class CubesEngine {
     * выбитый в белый шар (что давал бы обычный ADDITIVE = ONE,ONE).
     */
    private static final BlendFunction SRC_ALPHA_ADDITIVE = new BlendFunction(
-      SourceFactor.SRC_ALPHA, DestFactor.ONE, SourceFactor.ZERO, DestFactor.ONE
+      BlendFactor.SRC_ALPHA, BlendFactor.ONE, BlendFactor.ZERO, BlendFactor.ONE
    );
 
    private static final RenderPipeline GLOW_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_TEX_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_glow"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_cubes_glow"))
+         .withVertexShader("core/position_tex_color")
+         .withFragmentShader("core/position_tex_color")
+         .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.QUADS)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(SRC_ALPHA_ADDITIVE)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(SRC_ALPHA_ADDITIVE))
          .build()
    );
-   private static final RenderType GLOW_LAYER = RenderType.of(
-      "customworld_cubes_glow", RenderSetup.builder(GLOW_PIPELINE).expectedBufferSize(4096).translucent().texture("Sampler0", GLOW_TEX).build()
+   // TODO(port26): RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
+   private static final RenderType GLOW_LAYER = RenderType.create(
+      "customworld_cubes_glow", RenderSetup.builder(GLOW_PIPELINE).withTexture("Sampler0", GLOW_TEX).createRenderSetup()
    );
 
    private static final RenderPipeline FACE_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_face"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.QUADS)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_cubes_face"))
+         .withVertexShader("core/position_color")
+         .withFragmentShader("core/position_color")
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.QUADS)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(BlendFunction.TRANSLUCENT)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
          .build()
    );
-   private static final RenderType FACE_LAYER = RenderType.of(
-      "customworld_cubes_face", RenderSetup.builder(FACE_PIPELINE).expectedBufferSize(4096).translucent().build()
+   private static final RenderType FACE_LAYER = RenderType.create(
+      "customworld_cubes_face", RenderSetup.builder(FACE_PIPELINE).createRenderSetup()
    );
 
    private static final RenderPipeline TRI_FACE_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_tri_face"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.TRIANGLES)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_cubes_tri_face"))
+         .withVertexShader("core/position_color")
+         .withFragmentShader("core/position_color")
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(BlendFunction.TRANSLUCENT)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
          .build()
    );
-   private static final RenderType TRI_FACE_LAYER = RenderType.of(
-      "customworld_cubes_tri_face", RenderSetup.builder(TRI_FACE_PIPELINE).expectedBufferSize(4096).translucent().build()
+   private static final RenderType TRI_FACE_LAYER = RenderType.create(
+      "customworld_cubes_tri_face", RenderSetup.builder(TRI_FACE_PIPELINE).createRenderSetup()
    );
 
    private static final RenderPipeline LINE_PIPELINE = RenderPipelines.register(
-      RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-         .withLocation(ResourceLocation.of("vesence", "customworld_cubes_line"))
-         .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, DrawMode.DEBUG_LINES)
+      RenderPipeline.builder(new Snippet[]{RenderPipelines.MATRICES_FOG_SNIPPET})
+         .withLocation(Identifier.fromNamespaceAndPath("vesence", "customworld_cubes_line"))
+         .withVertexShader("core/position_color")
+         .withFragmentShader("core/position_color")
+         .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+         .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
          .withCull(false)
-         .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-         .withDepthWrite(false)
-         .withBlend(SRC_ALPHA_ADDITIVE)
+         .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+         .withColorTargetState(new ColorTargetState(SRC_ALPHA_ADDITIVE))
          .build()
    );
-   private static final RenderType LINE_LAYER = RenderType.of(
-      "customworld_cubes_line", RenderSetup.builder(LINE_PIPELINE).expectedBufferSize(4096).translucent().build()
+   private static final RenderType LINE_LAYER = RenderType.create(
+      "customworld_cubes_line", RenderSetup.builder(LINE_PIPELINE).createRenderSetup()
    );
 
    public final ModeSetting animation = new ModeSetting("Анимация кубов", "Разлет", "Разлет", "Падение");
@@ -181,7 +194,7 @@ public final class CubesEngine {
          return;
       }
 
-      boolean attackPressed = mc.options.attackKey.isPressed();
+      boolean attackPressed = mc.options.keyAttack.isDown();
       if (attackPressed && !this.lastAttackPressed) {
          this.applyHitImpulseFromCrosshair(camera);
       }
@@ -200,9 +213,9 @@ public final class CubesEngine {
          return;
       }
 
-      Vec3 origin = camera.getCameraPos();
-      float yaw = (float) Math.toRadians(camera.getYRot());
-      float pitch = (float) Math.toRadians(camera.getXRot());
+      Vec3 origin = camera.position();
+      float yaw = (float) Math.toRadians(camera.yRot());
+      float pitch = (float) Math.toRadians(camera.xRot());
 
       double dirX = -Mth.sin(yaw) * Mth.cos(pitch);
       double dirY = -Mth.sin(pitch);
@@ -315,7 +328,7 @@ public final class CubesEngine {
     * перепривязывает при дальнем уходе игрока (телепорт/полёт).
     */
    private Vec3 ensureAnchor() {
-      Vec3 playerPos = mc.player.getEntityPos();
+      Vec3 playerPos = mc.player.position();
       if (this.spawnAnchor == null) {
          this.spawnAnchor = playerPos;
          return this.spawnAnchor;
@@ -335,7 +348,7 @@ public final class CubesEngine {
    }
 
    private void renderCubes(PoseStack ms, Camera camera) {
-      Vec3 cam = camera.getCameraPos();
+      Vec3 cam = camera.position();
       float s = PARTICLE_SIZE * this.size.get().floatValue();
       float glow = GLOW_INTENSITY;
 
@@ -354,8 +367,8 @@ public final class CubesEngine {
       // "запасу" в updateCubes.
       float renderMaxR = this.renderDistance.get().floatValue() * 2.5F;
       double renderCullSq = renderMaxR * renderMaxR;
-      float yaw = (float) Math.toRadians(camera.getYRot());
-      float pitch = (float) Math.toRadians(camera.getXRot());
+      float yaw = (float) Math.toRadians(camera.yRot());
+      float pitch = (float) Math.toRadians(camera.xRot());
       double lookX = -Mth.sin(yaw) * Mth.cos(pitch);
       double lookY = -Mth.sin(pitch);
       double lookZ = Mth.cos(yaw) * Mth.cos(pitch);
@@ -385,7 +398,7 @@ public final class CubesEngine {
          return;
       }
 
-      Immediate immediate = mc.getBufferBuilders().getEntityVertexConsumers();
+      Immediate immediate = new Immediate();
 
       this.drawGlowBatch(ms, camera, cam, s, glow, immediate);
 
@@ -413,20 +426,20 @@ public final class CubesEngine {
 
          ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYRot()));
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getXRot()));
+         ms.rotate(Axis.YP.rotationDegrees(-camera.yRot()));
+         ms.rotate(Axis.XP.rotationDegrees(camera.xRot()));
 
-         Matrix4f matrix = ms.last().getPositionMatrix();
+         Matrix4f matrix = ms.last().pose();
          for (int i = 0; i < 3; i++) {
             float scale = s * GLOW_SCALES[i] * glow;
             int a = (int) (alpha * GLOW_ALPHA_SCALES[i] * glow * 255.0F);
             a = Mth.clamp(a, 0, 255);
             float hs = scale * 0.5F;
 
-            builder.vertex(matrix, -hs, hs, 0).color(this.cr, this.cg, this.cb, a).texture(0F, 1F);
-            builder.vertex(matrix, hs, hs, 0).color(this.cr, this.cg, this.cb, a).texture(1F, 1F);
-            builder.vertex(matrix, hs, -hs, 0).color(this.cr, this.cg, this.cb, a).texture(1F, 0F);
-            builder.vertex(matrix, -hs, -hs, 0).color(this.cr, this.cg, this.cb, a).texture(0F, 0F);
+            builder.addVertex(matrix, -hs, hs, 0).setColor(this.cr, this.cg, this.cb, a).setUv(0F, 1F);
+            builder.addVertex(matrix, hs, hs, 0).setColor(this.cr, this.cg, this.cb, a).setUv(1F, 1F);
+            builder.addVertex(matrix, hs, -hs, 0).setColor(this.cr, this.cg, this.cb, a).setUv(1F, 0F);
+            builder.addVertex(matrix, -hs, -hs, 0).setColor(this.cr, this.cg, this.cb, a).setUv(0F, 0F);
          }
          ms.popPose();
       }
@@ -463,10 +476,10 @@ public final class CubesEngine {
          this.applyColor(p);
          ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
-         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendCubeFaces(buffer, ms.last().getPositionMatrix(), s, alpha);
+         ms.rotate(Axis.XP.rotationDegrees(p.rotX));
+         ms.rotate(Axis.YP.rotationDegrees(p.rotY));
+         ms.rotate(Axis.ZP.rotationDegrees(p.rotZ));
+         this.appendCubeFaces(buffer, ms.last().pose(), s, alpha);
          ms.popPose();
       }
    }
@@ -486,10 +499,10 @@ public final class CubesEngine {
          this.applyColor(p);
          ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
-         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendTriangleFaces(buffer, ms.last().getPositionMatrix(), s, alpha);
+         ms.rotate(Axis.XP.rotationDegrees(p.rotX));
+         ms.rotate(Axis.YP.rotationDegrees(p.rotY));
+         ms.rotate(Axis.ZP.rotationDegrees(p.rotZ));
+         this.appendTriangleFaces(buffer, ms.last().pose(), s, alpha);
          ms.popPose();
       }
    }
@@ -504,35 +517,35 @@ public final class CubesEngine {
    }
 
    private void appendCubeFaces(VertexConsumer buffer, Matrix4f m, float s, int a) {
-      buffer.vertex(m, -s, -s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, -s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, s, s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, s).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, -s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, -s).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, -s, s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, s, -s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, -s).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, -s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, -s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, -s, s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, s).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, s, -s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, s, s, s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, s, s, s).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, -s, -s, -s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, -s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, s, s).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -s, s, -s).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, -s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, -s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, s).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -s, s, -s).setColor(this.cr, this.cg, this.cb, a);
    }
 
    private void appendTriangleFaces(VertexConsumer buffer, Matrix4f m, float s, int a) {
@@ -540,29 +553,29 @@ public final class CubesEngine {
       float bottom = -s;
       float halfBase = s * 0.866F;
 
-      buffer.vertex(m, 0, top, 0).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, 0, top, 0).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, 0, top, 0).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, 0, top, 0).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, 0, top, 0).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, 0, top, 0).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, 0, top, 0).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, 0, top, 0).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, -halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
 
-      buffer.vertex(m, -halfBase, bottom, halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
-      buffer.vertex(m, -halfBase, bottom, -halfBase).color(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
+      buffer.addVertex(m, -halfBase, bottom, -halfBase).setColor(this.cr, this.cg, this.cb, a);
    }
 
    private void drawCubeDashedEdgesBatch(PoseStack ms, Vec3 cam, float s, Immediate immediate) {
@@ -574,10 +587,10 @@ public final class CubesEngine {
          this.applyColor(p);
          ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
-         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendCubeDashedEdges(buf, ms.last().getPositionMatrix(), s, alpha);
+         ms.rotate(Axis.XP.rotationDegrees(p.rotX));
+         ms.rotate(Axis.YP.rotationDegrees(p.rotY));
+         ms.rotate(Axis.ZP.rotationDegrees(p.rotZ));
+         this.appendCubeDashedEdges(buf, ms.last().pose(), s, alpha);
          ms.popPose();
       }
    }
@@ -591,10 +604,10 @@ public final class CubesEngine {
          this.applyColor(p);
          ms.pushPose();
          ms.translate(p.x - cam.x, p.y - cam.y, p.z - cam.z);
-         ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p.rotX));
-         ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(p.rotY));
-         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(p.rotZ));
-         this.appendTriangleDashedEdges(buf, ms.last().getPositionMatrix(), s, alpha);
+         ms.rotate(Axis.XP.rotationDegrees(p.rotX));
+         ms.rotate(Axis.YP.rotationDegrees(p.rotY));
+         ms.rotate(Axis.ZP.rotationDegrees(p.rotZ));
+         this.appendTriangleDashedEdges(buf, ms.last().pose(), s, alpha);
          ms.popPose();
       }
    }
@@ -666,8 +679,8 @@ public final class CubesEngine {
          float end = Math.min(pos + segLen, len);
 
          if (drawing) {
-            buf.vertex(mat, x1 + nx * pos, y1 + ny * pos, z1 + nz * pos).color(r, g, b, a);
-            buf.vertex(mat, x1 + nx * end, y1 + ny * end, z1 + nz * end).color(r, g, b, a);
+            buf.addVertex(mat, x1 + nx * pos, y1 + ny * pos, z1 + nz * pos).setColor(r, g, b, a);
+            buf.addVertex(mat, x1 + nx * end, y1 + ny * end, z1 + nz * end).setColor(r, g, b, a);
          }
 
          pos = end;

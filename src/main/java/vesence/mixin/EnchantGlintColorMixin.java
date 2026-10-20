@@ -22,7 +22,7 @@ import vesence.module.impl.visuals.EnchantmentColor;
 @Mixin(TextureTransform.class)
 public class EnchantGlintColorMixin {
 
-    @Inject(method = "getTransformSupplier", at = @At("RETURN"))
+    @Inject(method = "createMatrix", at = @At("RETURN"))
     private void vesence$injectGlintColor(CallbackInfoReturnable<Matrix4f> cir) {
         TextureTransform self = (TextureTransform) (Object) this;
         if (self == TextureTransform.GLINT_TEXTURING

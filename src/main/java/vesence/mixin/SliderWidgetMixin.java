@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -22,10 +22,10 @@ import vesence.module.impl.misc.BetterMinecraft;
 @Mixin(AbstractSliderButton.class)
 public abstract class SliderWidgetMixin {
 
-   @Inject(method = "renderWidget", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-   private void vesence$customSlider(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+   @Inject(method = "extractWidgetRenderState", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
+   private void vesence$customSlider(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
       Minecraft client = Minecraft.getInstance();
-      if (client != null && client.screen instanceof ChatScreen) {
+      if (client != null && client.gui.screen() instanceof ChatScreen) {
          return;
       }
       if (!BetterMinecraft.customButtonsEnabled() || !Vesence.isModInitialized()) {

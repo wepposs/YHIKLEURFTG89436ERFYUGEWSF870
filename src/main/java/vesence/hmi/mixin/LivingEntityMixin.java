@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Environment(value=EnvType.CLIENT)
 @Mixin(value={LivingEntity.class})
@@ -46,10 +47,12 @@ implements LivingEntityAccessor {
     private boolean swingOHand = false;
 
     @Shadow
-    protected abstract int getHandSwingDuration();
+    private int getModifiedSwingDuration(net.minecraft.world.item.component.SwingAnimation animation) {
+        throw new AssertionError();
+    }
 
     @Shadow
-    public abstract ItemStack getMainHandStack();
+    public abstract ItemStack getMainHandItem();
 
     public int hMI5_0$getSwingCount() {
         return this.mainSwingCount;
@@ -68,7 +71,7 @@ implements LivingEntityAccessor {
         this.swingMHand = !this.swingMHand;
         ++this.mainSwingCount;
         this.interactMainHand = interact;
-        if (Minecraft.getInstance().gameMode.isBreakingBlock()) {
+        if (Minecraft.getInstance().gameMode.isDestroying()) {
             this.blockBreaking = true;
         }
     }
@@ -114,7 +117,7 @@ implements LivingEntityAccessor {
         int i;
         this.lastOffHandSwingProgress = this.offHandSwingProgress;
         this.lastMainHandSwingProgress = this.mainHandSwingProgress;
-        int n = i = this.getMainHandItem().isOf(Items.MACE) ? 12 : 10;
+        int n = i = this.getMainHandItem().is(Items.MACE) ? 12 : 10;
         if (this.mainHandSwinging) {
             ++this.mainHandSwingTicks;
             if (this.mainHandSwingTicks >= i) {
@@ -147,8 +150,8 @@ implements LivingEntityAccessor {
         this.offHandSwingProgress = (float)this.offHandSwingTicks / (float)i2;
     }
 
-    @Inject(method={"swingHand(Lnet/minecraft/util/InteractionHand;Z)V"}, at={@At(value="HEAD")})
-    private void onSwingHand(InteractionHand hand, boolean fromServerPlayer, CallbackInfo ci) {
+    @Inject(method={"swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"}, at={@At(value="HEAD")})
+    private void onSwingHand(InteractionHand hand, net.minecraft.world.item.component.SwingAnimation animation, boolean updateOthers, CallbackInfoReturnable<Boolean> ci) {
         if (hand == InteractionHand.OFF_HAND) {
             int duration = 9;
             if (!this.offHandSwinging || this.offHandSwingTicks >= duration / 2 || this.offHandSwingTicks < 0) {
@@ -157,18 +160,18 @@ implements LivingEntityAccessor {
             }
         } else {
             int duration;
-            int n = duration = this.getMainHandItem().isOf(Items.MACE) ? 11 : 9;
+            int n = duration = this.getMainHandItem().is(Items.MACE) ? 11 : 9;
             if (!this.mainHandSwinging || this.mainHandSwingTicks >= duration / 2 || this.mainHandSwingTicks < 0) {
                 this.mainHandSwingTicks = -1;
                 this.mainHandSwinging = true;
-                if (Minecraft.getInstance().gameMode.isBreakingBlock()) {
+                if (Minecraft.getInstance().gameMode.isDestroying()) {
                     this.blockBreaking = true;
                 }
             }
         }
     }
 
-    @Inject(method = {"getHandSwingDuration"}, at = {@At("HEAD")}, cancellable = true)
+    @Inject(method = {"getModifiedSwingDuration"}, at = {@At("HEAD")}, cancellable = true)
     private void modifySwingDuration(CallbackInfoReturnable<Integer> cir) {
         if (!vesence.module.impl.visuals.LivingHands.isEnabled()) {
             return;

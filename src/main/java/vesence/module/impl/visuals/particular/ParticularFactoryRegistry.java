@@ -1,6 +1,6 @@
 package vesence.module.impl.visuals.particular;
 
-import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
+import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 import vesence.module.impl.visuals.particular.leaves.BigLeafParticle;
 import vesence.module.impl.visuals.particular.leaves.ConiferLeafParticle;
 import vesence.module.impl.visuals.particular.leaves.LeafParticle;
@@ -17,7 +17,7 @@ public final class ParticularFactoryRegistry {
     public static void register() {
         ParticularParticles.bootstrap();
 
-        ParticleFactoryRegistry registry = ParticleFactoryRegistry.getInstance();
+        ParticleProviderRegistry registry = ParticleProviderRegistry.getInstance();
 
         // Leaves
         registry.register(ParticularParticles.OAK_LEAF, LeafParticle.Factory::new);

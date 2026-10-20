@@ -1,75 +1,93 @@
 package vesence.utils.other;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 public class KeyUtil {
+
+    // TODO(port26): 26.3 uses SDL scancodes (InputConstants.KEY_*) instead of GLFW key codes;
+    // values below follow SDL ordering (layout-independent).
+    private static final int SDL_SCANCODE_KP_DIVIDE = 84;
+    private static final int SDL_SCANCODE_KP_MINUS = 86;
+    private static final int SDL_SCANCODE_KP_DECIMAL = 99;
 
     public static String getKey(int key) {
         if (key == -1) return "null";
 
-        // Letters (A-Z) and digits (0-9): GLFW key codes equal their ASCII values, so this is
-        // layout-independent (does not turn into Russian letters on a Russian layout).
-        if ((key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z)
-                || (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9)) {
-            return String.valueOf((char) key);
+        // Letters (A-Z): SDL scancodes are layout-independent (do not turn into Russian
+        // letters on a Russian layout).
+        if (key >= InputConstants.KEY_A && key <= InputConstants.KEY_Z) {
+            return String.valueOf((char) ('A' + key - InputConstants.KEY_A));
         }
 
-        if (key >= GLFW.GLFW_KEY_F1 && key <= GLFW.GLFW_KEY_F25) {
-            return "F" + (key - GLFW.GLFW_KEY_F1 + 1);
+        // Digits 1-9 then 0.
+        if (key >= InputConstants.KEY_1 && key <= InputConstants.KEY_9) {
+            return String.valueOf((char) ('1' + key - InputConstants.KEY_1));
+        }
+        if (key == InputConstants.KEY_0) {
+            return "0";
         }
 
-        if (key >= GLFW.GLFW_KEY_KP_0 && key <= GLFW.GLFW_KEY_KP_9) {
-            return "NUM" + (key - GLFW.GLFW_KEY_KP_0);
+        if (key >= InputConstants.KEY_F1 && key <= InputConstants.KEY_F12) {
+            return "F" + (key - InputConstants.KEY_F1 + 1);
+        }
+        if (key >= InputConstants.KEY_F13 && key <= InputConstants.KEY_F24) {
+            return "F" + (key - InputConstants.KEY_F13 + 13);
+        }
+
+        if (key >= InputConstants.KEY_NUMPAD1 && key <= InputConstants.KEY_NUMPAD9) {
+            return "NUM" + (key - InputConstants.KEY_NUMPAD1 + 1);
+        }
+        if (key == InputConstants.KEY_NUMPAD0) {
+            return "NUM0";
         }
 
         return switch (key) {
-            case GLFW.GLFW_KEY_SPACE -> "SPACE";
-            case GLFW.GLFW_KEY_ENTER -> "ENTER";
-            case GLFW.GLFW_KEY_KP_ENTER -> "ENTER";
-            case GLFW.GLFW_KEY_ESCAPE -> "ESC";
-            case GLFW.GLFW_KEY_TAB -> "TAB";
-            case GLFW.GLFW_KEY_BACKSPACE -> "BACK";
-            case GLFW.GLFW_KEY_INSERT -> "INS";
-            case GLFW.GLFW_KEY_DELETE -> "DEL";
-            case GLFW.GLFW_KEY_RIGHT -> "RIGHT";
-            case GLFW.GLFW_KEY_LEFT -> "LEFT";
-            case GLFW.GLFW_KEY_DOWN -> "DOWN";
-            case GLFW.GLFW_KEY_UP -> "UP";
-            case GLFW.GLFW_KEY_PAGE_UP -> "PGUP";
-            case GLFW.GLFW_KEY_PAGE_DOWN -> "PGDN";
-            case GLFW.GLFW_KEY_HOME -> "HOME";
-            case GLFW.GLFW_KEY_END -> "END";
-            case GLFW.GLFW_KEY_CAPS_LOCK -> "CAPS";
-            case GLFW.GLFW_KEY_SCROLL_LOCK -> "SCRL";
-            case GLFW.GLFW_KEY_NUM_LOCK -> "NUMLK";
-            case GLFW.GLFW_KEY_PRINT_SCREEN -> "PRINT";
-            case GLFW.GLFW_KEY_PAUSE -> "PAUSE";
-            case GLFW.GLFW_KEY_MINUS -> "-";
-            case GLFW.GLFW_KEY_EQUAL -> "=";
-            case GLFW.GLFW_KEY_LEFT_BRACKET -> "[";
-            case GLFW.GLFW_KEY_RIGHT_BRACKET -> "]";
-            case GLFW.GLFW_KEY_BACKSLASH -> "\\";
-            case GLFW.GLFW_KEY_SEMICOLON -> ";";
-            case GLFW.GLFW_KEY_APOSTROPHE -> "'";
-            case GLFW.GLFW_KEY_GRAVE_ACCENT -> "`";
-            case GLFW.GLFW_KEY_COMMA -> ",";
-            case GLFW.GLFW_KEY_PERIOD -> ".";
-            case GLFW.GLFW_KEY_SLASH -> "/";
-            case GLFW.GLFW_KEY_KP_DECIMAL -> "NUM.";
-            case GLFW.GLFW_KEY_KP_DIVIDE -> "NUM/";
-            case GLFW.GLFW_KEY_KP_MULTIPLY -> "NUM*";
-            case GLFW.GLFW_KEY_KP_SUBTRACT -> "NUM-";
-            case GLFW.GLFW_KEY_KP_ADD -> "NUM+";
-            case GLFW.GLFW_KEY_KP_EQUAL -> "NUM=";
-            case GLFW.GLFW_KEY_RIGHT_SHIFT -> "RSHIFT";
-            case GLFW.GLFW_KEY_LEFT_SHIFT -> "LSHIFT";
-            case GLFW.GLFW_KEY_RIGHT_CONTROL -> "RCTRL";
-            case GLFW.GLFW_KEY_LEFT_CONTROL -> "LCTRL";
-            case GLFW.GLFW_KEY_RIGHT_ALT -> "RALT";
-            case GLFW.GLFW_KEY_LEFT_ALT -> "LALT";
-            case GLFW.GLFW_KEY_RIGHT_SUPER -> "RWIN";
-            case GLFW.GLFW_KEY_LEFT_SUPER -> "LWIN";
-            case GLFW.GLFW_KEY_MENU -> "MENU";
+            case InputConstants.KEY_SPACE -> "SPACE";
+            case InputConstants.KEY_RETURN -> "ENTER";
+            case InputConstants.KEY_NUMPADENTER -> "ENTER";
+            case InputConstants.KEY_ESCAPE -> "ESC";
+            case InputConstants.KEY_TAB -> "TAB";
+            case InputConstants.KEY_BACKSPACE -> "BACK";
+            case InputConstants.KEY_INSERT -> "INS";
+            case InputConstants.KEY_DELETE -> "DEL";
+            case InputConstants.KEY_RIGHT -> "RIGHT";
+            case InputConstants.KEY_LEFT -> "LEFT";
+            case InputConstants.KEY_DOWN -> "DOWN";
+            case InputConstants.KEY_UP -> "UP";
+            case InputConstants.KEY_PAGEUP -> "PGUP";
+            case InputConstants.KEY_PAGEDOWN -> "PGDN";
+            case InputConstants.KEY_HOME -> "HOME";
+            case InputConstants.KEY_END -> "END";
+            case InputConstants.KEY_CAPSLOCK -> "CAPS";
+            case InputConstants.KEY_SCROLLLOCK -> "SCRL";
+            case InputConstants.KEY_NUMLOCK -> "NUMLK";
+            case InputConstants.KEY_PRINTSCREEN -> "PRINT";
+            case InputConstants.KEY_PAUSE -> "PAUSE";
+            case InputConstants.KEY_MINUS -> "-";
+            case InputConstants.KEY_EQUALS -> "=";
+            case InputConstants.KEY_LBRACKET -> "[";
+            case InputConstants.KEY_RBRACKET -> "]";
+            case InputConstants.KEY_BACKSLASH -> "\\";
+            case InputConstants.KEY_SEMICOLON -> ";";
+            case InputConstants.KEY_APOSTROPHE -> "'";
+            case InputConstants.KEY_GRAVE -> "`";
+            case InputConstants.KEY_COMMA -> ",";
+            case InputConstants.KEY_PERIOD -> ".";
+            case InputConstants.KEY_SLASH -> "/";
+            case SDL_SCANCODE_KP_DECIMAL -> "NUM.";
+            case SDL_SCANCODE_KP_DIVIDE -> "NUM/";
+            case InputConstants.KEY_MULTIPLY -> "NUM*";
+            case SDL_SCANCODE_KP_MINUS -> "NUM-";
+            case InputConstants.KEY_ADD -> "NUM+";
+            case InputConstants.KEY_NUMPADEQUALS -> "NUM=";
+            case InputConstants.KEY_RSHIFT -> "RSHIFT";
+            case InputConstants.KEY_LSHIFT -> "LSHIFT";
+            case InputConstants.KEY_RCONTROL -> "RCTRL";
+            case InputConstants.KEY_LCONTROL -> "LCTRL";
+            case InputConstants.KEY_RALT -> "RALT";
+            case InputConstants.KEY_LALT -> "LALT";
+            case InputConstants.KEY_RGUI -> "RWIN";
+            case InputConstants.KEY_LGUI -> "LWIN";
             default -> "KEY_" + key;
         };
     }

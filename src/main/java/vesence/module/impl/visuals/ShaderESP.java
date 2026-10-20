@@ -4,11 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.option.Perspective;
+import net.minecraft.client.CameraType;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import vesence.event.EventInit;
 import vesence.event.render.EventRender3D;
@@ -83,7 +83,7 @@ public class ShaderESP extends Module {
         if (!entity.isAlive() || entity.isRemoved()) {
             return false;
         }
-        if (mc.player.squaredDistanceTo(entity) > 16384.0) {
+        if (mc.player.distanceToSqr(entity) > 16384.0) {
             return false;
         }
         return isValidEntity(entity);
@@ -116,8 +116,8 @@ public class ShaderESP extends Module {
         boolean animate = effects.get("Анимация");
         float yOff = (float) animationOffset;
 
-        int fbW = mc.getWindow().getFramebufferWidth();
-        int fbH = mc.getWindow().getFramebufferHeight();
+        int fbW = mc.getWindow().getWidth();
+        int fbH = mc.getWindow().getHeight();
         if (fbW <= 0 || fbH <= 0) {
             return;
         }
@@ -155,14 +155,14 @@ public class ShaderESP extends Module {
         if (outlineFramebuffer == null) {
             return 0;
         }
-        return outlineFramebuffer.getColorAttachment() instanceof GlTexture texture ? texture.getGlId() : 0;
+        return outlineFramebuffer.getColorTexture() instanceof GlTexture texture ? texture.glId() : 0;
     }
 
     private boolean hasRenderableTarget() {
         if (mc.level == null) {
             return false;
         }
-        for (Entity entity : mc.level.getEntities()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
             if (shouldOutline(entity)) {
                 return true;
             }
@@ -202,7 +202,7 @@ public class ShaderESP extends Module {
         if (entity instanceof AbstractClientPlayer player) {
             if (player == mc.player) {
                 return selectEntities.get("Себя и друзей")
-                        && mc.options.getPerspective() != Perspective.FIRST_PERSON;
+                        && mc.options.getCameraType() != net.minecraft.client.CameraType.FIRST_PERSON;
             }
             if (selectEntities.get("Себя и друзей") && FriendStorage.isFriend(player.getGameProfile().name())) {
                 return true;
@@ -212,7 +212,7 @@ public class ShaderESP extends Module {
         if (entity instanceof Player) {
             return selectEntities.get("Игроков");
         }
-        if (entity instanceof MobEntity) {
+        if (entity instanceof net.minecraft.world.entity.Mob) {
             return selectEntities.get("Мобов");
         }
         if (entity instanceof ItemEntity) {

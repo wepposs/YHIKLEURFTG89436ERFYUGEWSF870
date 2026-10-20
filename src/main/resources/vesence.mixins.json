@@ -53,7 +53,7 @@
     "BufferBuilderAccessor",
     "DrawContextAccessor",
     "GameRendererAccessor",
-    "NativeImageAccessor",
+    
     "PostEffectPassAccessor",
     "PostEffectProcessorAccessor",
     "RenderSystemMixin",

@@ -2,7 +2,7 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.option.Perspective;
+import net.minecraft.client.CameraType;
 import net.minecraft.util.Mth;
 import vesence.event.EventInit;
 import vesence.event.impl.EventUpdate;
@@ -39,7 +39,7 @@ public class FreeLook extends Module {
         if (mc.player == null) return;
         if (bindSetting.key == -1) return;
 
-        boolean keyDown = bindSetting.isPressed();
+        boolean keyDown = bindSetting.isDown();
         String mode = modeSetting.get();
 
         if (mode.equals("По зажатию")) {
@@ -66,8 +66,8 @@ public class FreeLook extends Module {
     @EventInit
     public void onEvent(EventLook event) {
         if (!this.enable || !freeLookActive) return;
-        freePitch = Mth.clamp((float) (freePitch + event.getXRot() * 0.15), -90.0F, 90.0F);
-        freeYaw = (float) (freeYaw + event.getYRot() * 0.15);
+        freePitch = Mth.clamp((float) (freePitch + event.getPitch() * 0.15), -90.0F, 90.0F);
+        freeYaw = (float) (freeYaw + event.getYaw() * 0.15);
         event.cancel();
     }
 
@@ -75,8 +75,8 @@ public class FreeLook extends Module {
     public void onEvent(EventMotion event) {
         if (!this.enable) return;
         if (freeLookActive) {
-            event.setYRot(savedYaw);
-            event.setXRot(savedPitch);
+            event.setYaw(savedYaw);
+            event.setPitch(savedPitch);
         }
     }
 
@@ -84,11 +84,11 @@ public class FreeLook extends Module {
     public void onEvent(EventRotation event) {
         if (!this.enable) return;
         if (freeLookActive) {
-            event.setYRot(freeYaw);
-            event.setXRot(freePitch);
+            event.setYaw(freeYaw);
+            event.setPitch(freePitch);
         } else {
-            freeYaw = event.getYRot();
-            freePitch = event.getXRot();
+            freeYaw = event.getYaw();
+            freePitch = event.getPitch();
         }
     }
 
@@ -98,12 +98,12 @@ public class FreeLook extends Module {
         savedPitch = mc.player.getXRot();
         freeYaw = mc.player.getYRot();
         freePitch = mc.player.getXRot();
-        mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
+        mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
     }
 
     private void deactivateFreeLook() {
         freeLookActive = false;
-        mc.options.setPerspective(Perspective.FIRST_PERSON);
+        mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
     }
 
     @Override

@@ -2,12 +2,12 @@ package vesence.module.impl.misc;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.screen.slot.ClickType;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.world.inventory.ContainerInput;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.event.EventInit;
 import vesence.event.impl.ClickSlotEvent;
 import vesence.event.impl.HandledScreenEvent;
@@ -36,22 +36,22 @@ public final class ItemScroller extends Module {
         }
 
         Slot hoverSlot = event.getSlotHover();
-        ClickType actionType = isKeyDown(mc.options.dropKey)
-                ? ClickType.THROW
-                : isKeyDown(mc.options.attackKey) ? ClickType.QUICK_MOVE : null;
+        ContainerInput actionType = isKeyDown(mc.options.keyDrop)
+                ? ContainerInput.THROW
+                : isKeyDown(mc.options.keyAttack) ? ContainerInput.QUICK_MOVE : null;
 
-        if (isKeyDown(mc.options.sneakKey)
-                && !isKeyDown(mc.options.sprintKey)
+        if (isKeyDown(mc.options.keyShift)
+                && !isKeyDown(mc.options.keySprint)
                 && hoverSlot != null
-                && hoverSlot.hasStack()
+                && hoverSlot.hasItem()
                 && actionType != null
                 && stopWatch.every(scrollDelay.get())) {
             int slotId = menuSlotId(hoverSlot);
             if (slotId != -1) {
-                mc.gameMode.clickSlot(
-                        mc.player.containerMenu.syncId,
+                mc.gameMode.handleContainerInput(
+                        mc.player.containerMenu.containerId,
                         slotId,
-                        actionType == ClickType.THROW ? 1 : 0,
+                        actionType == ContainerInput.THROW ? 1 : 0,
                         actionType,
                         mc.player
                 );
@@ -71,23 +71,23 @@ public final class ItemScroller extends Module {
         }
 
         Slot slot = mc.player.containerMenu.getSlot(slotId);
-        if (!slot.hasStack()) {
+        if (!slot.hasItem()) {
             return;
         }
 
         Item item = slot.getItem().getItem();
-        if (isKeyDown(mc.options.sneakKey)
-                && isKeyDown(mc.options.sprintKey)
+        if (isKeyDown(mc.options.keyShift)
+                && isKeyDown(mc.options.keySprint)
                 && stopWatch.every(50.0)) {
             mc.player.containerMenu.slots.stream()
-                    .filter(scrolledSlot -> scrolledSlot.hasStack()
+                    .filter(scrolledSlot -> scrolledSlot.hasItem()
                             && scrolledSlot.getItem().getItem().equals(item)
-                            && scrolledSlot.inventory.equals(slot.inventory))
+                            && scrolledSlot.container.equals(slot.container))
                     .forEach(scrolledSlot -> {
                         int scrolledSlotId = menuSlotId(scrolledSlot);
                         if (scrolledSlotId != -1) {
-                            mc.gameMode.clickSlot(
-                                    mc.player.containerMenu.syncId,
+                            mc.gameMode.handleContainerInput(
+                                    mc.player.containerMenu.containerId,
                                     scrolledSlotId,
                                     1,
                                     event.getActionType(),
@@ -98,19 +98,27 @@ public final class ItemScroller extends Module {
         }
     }
 
-    private boolean isKeyDown(KeyBinding key) {
+    private boolean isKeyDown(KeyMapping key) {
         if (mc.getWindow() == null) {
             return false;
         }
-        InputUtil.Key bound = key.getDefaultKey();
-        int code = bound.getCode();
-        if (code == InputUtil.UNKNOWN_KEY.getCode()) {
+        InputConstants.Key bound = key.getDefaultKey();
+        int code = bound.getValue();
+        if (code == InputConstants.UNKNOWN.getValue()) {
             return false;
         }
-        long handle = mc.getWindow().getHandle();
-        return switch (bound.getCategory()) {
-            case KEYSYM -> GLFW.glfwGetKey(handle, code) == GLFW.GLFW_PRESS;
-            case MOUSE -> GLFW.glfwGetMouseButton(handle, code) == GLFW.GLFW_PRESS;
+        // TODO(port26): was GLFW.glfwGetKey/glfwGetMouseButton(window.handle(), code)
+        return switch (bound.getType()) {
+            case KEYBOARD -> InputConstants.isKeyDown(code);
+            case MOUSE -> {
+                net.minecraft.client.MouseHandler mouse = mc.mouseHandler;
+                yield switch (code) {
+                    case InputConstants.MOUSE_BUTTON_LEFT -> mouse.isLeftPressed();
+                    case InputConstants.MOUSE_BUTTON_RIGHT -> mouse.isRightPressed();
+                    case InputConstants.MOUSE_BUTTON_MIDDLE -> mouse.isMiddlePressed();
+                    default -> false;
+                };
+            }
             default -> false;
         };
     }
@@ -125,6 +133,6 @@ public final class ItemScroller extends Module {
                 return i;
             }
         }
-        return slot.id;
+        return slot.index;
     }
 }

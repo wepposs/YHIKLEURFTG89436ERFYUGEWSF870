@@ -3,7 +3,7 @@ package vesence.mixin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.session.Session;
+import net.minecraft.client.User;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -11,19 +11,19 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Environment(EnvType.CLIENT)
 @Mixin({Minecraft.class})
 public interface MinecraftClientAccessor {
-   @Accessor("attackCooldown")
+   @Accessor("missTime")
    void setAttackCooldown(int var1);
 
-   @Accessor("attackCooldown")
+   @Accessor("missTime")
    int getAttackCooldown();
 
-   @Accessor("itemUseCooldown")
+   @Accessor("rightClickDelay")
    void setItemUseCooldown(int var1);
 
-   @Accessor("itemUseCooldown")
+   @Accessor("rightClickDelay")
    int getItemUseCooldown();
 
    @Mutable
-   @Accessor("session")
-   void setSession(Session session);
+   @Accessor("user")
+   void setSession(User user);
 }

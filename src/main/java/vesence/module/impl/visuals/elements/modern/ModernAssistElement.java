@@ -3,7 +3,7 @@ package vesence.module.impl.visuals.elements.modern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,7 +19,7 @@ import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.utils.render.text.FontRegistry;
 
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ public class ModernAssistElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphics ctx) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
@@ -48,7 +48,7 @@ public class ModernAssistElement extends HudElement {
         if (hud != null && !hud.isElementEnabled(name)) return;
 
         Assist assist = Vesence.get.manager.get(Assist.class);
-        boolean preview = mc.screen instanceof ChatScreen;
+        boolean preview = mc.gui.screen() instanceof ChatScreen;
         if ((assist == null || !assist.enable) && !preview) return;
 
         List<BoundItem> boundItems = assist != null && assist.enable
@@ -78,11 +78,11 @@ public class ModernAssistElement extends HudElement {
             float centerY = scaledCenterY / guiScale + 1;
             float itemScale = 0.8f * elemScale;
 
-            ctx.getMatrices().pushMatrix();
-            ctx.getMatrices().translate(centerX, centerY);
-            ctx.getMatrices().scale(itemScale, itemScale);
-            ctx.drawItem(item.stack, -8, -8);
-            ctx.getMatrices().popMatrix();
+            ctx.pose().pushMatrix();
+            ctx.pose().translate(centerX, centerY);
+            ctx.pose().scale(itemScale, itemScale);
+            ctx.item(item.stack, -8, -8);
+            ctx.pose().popMatrix();
 
             float bindW = renderer.measureText(FontRegistry.SF_MEDIUM, item.bindKey, FONT_SIZE).width;
             String countStr = String.valueOf(item.totalCount);
@@ -159,7 +159,7 @@ public class ModernAssistElement extends HudElement {
     private void addBoundItem(List<BoundItem> items, Minecraft mc, BindSettings bind, Item item, String nameSubstring) {
         if (bind.key == -1) return;
 
-        if (mc.player.getItemCooldownManager().isCoolingDown(new ItemStack(item))) return;
+        if (mc.player.getCooldowns().isOnCooldown(new ItemStack(item))) return;
 
         int slot = findItemSlot(mc, nameSubstring, item);
         if (slot == -1) return;
@@ -181,14 +181,14 @@ public class ModernAssistElement extends HudElement {
             if (stack.isEmpty()) continue;
 
             if (nameSubstring != null) {
-                String displayName = normalizeName(stack.getName().getString());
+                String displayName = normalizeName(stack.getHoverName().getString());
                 String query = normalizeName(nameSubstring);
                 if (displayName.contains(query) || displayName.contains(decodeMojibake(query))) {
                     return i;
                 }
             }
 
-            if (fallbackItem != null && stack.isOf(fallbackItem)) {
+            if (fallbackItem != null && stack.is(fallbackItem)) {
                 return i;
             }
         }
@@ -197,20 +197,20 @@ public class ModernAssistElement extends HudElement {
 
     private int countItemsInInventory(Minecraft mc, String nameSubstring, Item fallbackItem) {
         int count = 0;
-        for (int i = 0; i < mc.player.getInventory().size(); i++) {
+        for (int i = 0; i < mc.player.getInventory().getContainerSize(); i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
 
             boolean matches = false;
             if (nameSubstring != null) {
-                String displayName = normalizeName(stack.getName().getString());
+                String displayName = normalizeName(stack.getHoverName().getString());
                 String query = normalizeName(nameSubstring);
                 if (displayName.contains(query) || displayName.contains(decodeMojibake(query))) {
                     matches = true;
                 }
             }
 
-            if (!matches && fallbackItem != null && stack.isOf(fallbackItem)) {
+            if (!matches && fallbackItem != null && stack.is(fallbackItem)) {
                 matches = true;
             }
 
@@ -237,9 +237,9 @@ public class ModernAssistElement extends HudElement {
     private String getKeyName(int keyCode) {
         if (keyCode == -1) return "";
         switch (keyCode) {
-            case GLFW.GLFW_MOUSE_BUTTON_1: return "LMB";
-            case GLFW.GLFW_MOUSE_BUTTON_2: return "RMB";
-            case GLFW.GLFW_MOUSE_BUTTON_3: return "MMB";
+            case InputConstants.MOUSE_BUTTON_LEFT: return "LMB";
+            case InputConstants.MOUSE_BUTTON_RIGHT: return "RMB";
+            case InputConstants.MOUSE_BUTTON_MIDDLE: return "MMB";
             default: return KeyUtil.getKey(keyCode);
         }
     }

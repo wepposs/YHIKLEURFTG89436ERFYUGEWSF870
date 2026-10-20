@@ -3,7 +3,7 @@ package vesence.renderengine.render.pipeline;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.backend.opengl.GlTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.MemoryUtil;
 import vesence.renderengine.providers.GlState;
@@ -68,12 +68,12 @@ public class BlurPipeline {
 
             int kawaseTex = FrameBlurCache.prepareForRadius(radius);
 
-            GlState.Snapshot state = GlState.pushPose();
+            GlState.Snapshot state = GlState.push();
             try {
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, state.drawFramebuffer);
                 GL11.glViewport(0, 0, iw, ih);
 
-                RenderTarget mainFb = Minecraft.getInstance().getMainRenderTarget();
+                RenderTarget mainFb = Minecraft.getInstance().gameRenderer.mainRenderTarget();
 
                 int srcTexId = kawaseTex;
                 int preBlurred = 1;
@@ -146,13 +146,13 @@ public class BlurPipeline {
     private static int extractGlTexId(RenderTarget framebuffer) {
         if (framebuffer == null) return 0;
         try {
-            GpuTextureView view = framebuffer.getColorAttachmentView();
+            GpuTextureView view = framebuffer.getColorTextureView();
             if (view != null && !view.isClosed()) {
-                if (view.texture() instanceof GlTexture glTex) return glTex.getGlId();
+                if (view.texture() instanceof GlTexture glTex) return glTex.glId();
             }
         } catch (Exception ignored) {}
         try {
-            if (framebuffer.getColorAttachment() instanceof GlTexture glTex) return glTex.getGlId();
+            if (framebuffer.getColorTexture() instanceof GlTexture glTex) return glTex.glId();
         } catch (Exception ignored) {}
         return 0;
     }

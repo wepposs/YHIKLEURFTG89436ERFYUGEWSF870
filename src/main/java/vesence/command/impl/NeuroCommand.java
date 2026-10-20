@@ -117,6 +117,6 @@ public class NeuroCommand implements Command {
         context.sendInfo("§e6. Сброс: настройка Neuro Reset в ауре (или команда .neuro reset).");
         context.sendInfo(" ");
         context.sendInfo("§bСохранить пресет: скопируй файл (выключи ауру перед копированием):");
-        context.sendInfo("§f" + mc.runDirectory.getPath() + "\\vesence\\neuro\\aura_neuro.json");
+        context.sendInfo("§f" + mc.gameDirectory.getPath() + "\\vesence\\neuro\\aura_neuro.json");
     }
 }

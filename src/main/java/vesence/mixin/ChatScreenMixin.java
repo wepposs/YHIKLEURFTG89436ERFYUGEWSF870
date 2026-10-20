@@ -2,11 +2,11 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.input.KeyEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -27,12 +27,12 @@ import java.util.List;
 public abstract class ChatScreenMixin extends Screen {
 
    @Shadow
-   protected EditBox chatField;
+   protected EditBox input;
 
    @Unique
    private final CommandSuggestionState vesence$suggestionState = new CommandSuggestionState();
 
-   protected ChatScreenMixin(net.minecraft.text.Component title) {
+   protected ChatScreenMixin(net.minecraft.network.chat.Component title) {
       super(title);
    }
 
@@ -40,22 +40,22 @@ public abstract class ChatScreenMixin extends Screen {
    private void vesence$initSuggestions(CallbackInfo ci) {
       if (!Vesence.isModInitialized()) return;
       vesence$suggestionState.clear();
-      if (chatField != null) {
-         vesence$suggestionState.refresh(chatField.getText());
+      if (input != null) {
+         vesence$suggestionState.refresh(input.getValue());
       }
    }
 
-   @Inject(method = "onChatFieldUpdate", at = @At("TAIL"))
+   @Inject(method = "onEdited", at = @At("TAIL"))
    private void vesence$onChatFieldUpdate(String chatText, CallbackInfo ci) {
       if (!Vesence.isModInitialized()) return;
       vesence$suggestionState.refresh(chatText);
    }
 
-   @Inject(method = "render", at = @At("TAIL"))
-   private void vesence$renderSuggestions(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+   @Inject(method = "extractRenderState", at = @At("TAIL"))
+   private void vesence$renderSuggestions(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
       if (!Vesence.isModInitialized()) return;
-      if (chatField == null) return;
-      vesence$suggestionState.refresh(chatField.getText());
+      if (input == null) return;
+      vesence$suggestionState.refresh(input.getValue());
       if (!vesence$suggestionState.isActive()) {
          vesence$suggestionState.setLayout(null);
          return;
@@ -64,7 +64,7 @@ public abstract class ChatScreenMixin extends Screen {
       CommandSuggestionOverlay.Layout layout = CommandSuggestionOverlay.render(
          context,
          this.font,
-         chatField,
+         input,
          this.width,
          entries,
          vesence$suggestionState.getSelectionIndex(),
@@ -82,27 +82,28 @@ public abstract class ChatScreenMixin extends Screen {
     * (ChatCensorMixin). В 1.21.11 подъём по Z заменён на {@code createNewRootLayer}
     * — новый слой гарантированно рисуется поверх текста поля.
     */
-   @Inject(method = "render", at = @At("TAIL"))
-   private void vesence$renderNameProtectCensor(GuiGraphics context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+   @Inject(method = "extractRenderState", at = @At("TAIL"))
+   private void vesence$renderNameProtectCensor(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
       NameProtect protect = NameProtect.getInstance();
       if (protect == null || !protect.isCensorChatEnabled()) return;
 
-      EditBox field = this.chatField;
+      EditBox field = this.input;
       if (field == null) return;
 
-      String text = field.getText();
+      String text = field.getValue();
       if (text == null || text.isEmpty()) return;
 
       int censorStart = protect.getCensorStartIndex(text);
       if (censorStart < 0) return;
 
-      // Координаты chatField (см. vanilla ChatScreen.init: x=4, y=height-12, w=width-4).
+      // Координаты input (см. vanilla ChatScreen.init: x=4, y=height-12, w=width-4).
       int fieldX = 4;
       int fieldY = this.height - 12;
       int fieldRight = this.width - 4;
 
-      float startX = field.getCharacterX(censorStart);
-      float endX = field.getCharacterX(text.length());
+      // TODO(port26): EditBox#getCharacterX removed; approximate via font width (no scroll offset)
+      float startX = field.getX() + 4 + this.font.width(text.substring(0, Math.min(censorStart, text.length())));
+      float endX = field.getX() + 4 + this.font.width(text);
 
       if (endX > fieldRight) endX = fieldRight;
       if (startX < fieldX) startX = fieldX;
@@ -110,27 +111,26 @@ public abstract class ChatScreenMixin extends Screen {
 
       int top = fieldY - 1;
       int bottom = fieldY + 9; // высота шрифта 8 + 1px отступ
-      // Новый корневой слой рисуется поверх ранее нарисованного текста поля.
-      context.createNewRootLayer();
+      // TODO(port26): createNewRootLayer removed in 26.3; draw order is submission order now
       context.fill((int) startX, top, (int) Math.ceil(endX), bottom, 0xFF000000);
    }
 
    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-   private void vesence$keyPressed(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
+   private void vesence$keyPressed(net.minecraft.client.input.KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
       if (!Vesence.isModInitialized()) return;
       if (!vesence$suggestionState.isActive()) return;
 
       int key = input.key();
       switch (key) {
-         case 264:
+         case com.mojang.blaze3d.platform.InputConstants.KEY_DOWN:
             vesence$suggestionState.move(1);
             cir.setReturnValue(true);
             break;
-         case 265:
+         case com.mojang.blaze3d.platform.InputConstants.KEY_UP:
             vesence$suggestionState.move(-1);
             cir.setReturnValue(true);
             break;
-         case 258:
+         case com.mojang.blaze3d.platform.InputConstants.KEY_TAB:
             vesence$applyCompletion();
             cir.setReturnValue(true);
             break;
@@ -151,10 +151,10 @@ public abstract class ChatScreenMixin extends Screen {
    }
 
    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-   private void vesence$mouseClicked(net.minecraft.client.gui.Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+   private void vesence$mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
       if (!Vesence.isModInitialized()) return;
       if (!vesence$suggestionState.isActive()) return;
-      if (click.button() != 0) return;
+      if (click.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) return;
       CommandSuggestionOverlay.Layout layout = vesence$suggestionState.getLayout();
       if (layout == null) return;
       int index = layout.entryIndexAt(click.x(), click.y());
@@ -168,11 +168,11 @@ public abstract class ChatScreenMixin extends Screen {
    @Unique
    private void vesence$applyCompletion() {
       CommandSuggestions.SuggestionEntry entry = vesence$suggestionState.getSelectedEntry();
-      if (entry == null || chatField == null) return;
+      if (entry == null || input == null) return;
       String suffix = entry.completionSuffix();
       if (suffix == null || suffix.isEmpty()) return;
-      chatField.setText(chatField.getText() + suffix);
-      chatField.setCursorToEnd(false);
-      vesence$suggestionState.refresh(chatField.getText());
+      input.setValue(input.getValue() + suffix);
+      input.moveCursorToEnd(false);
+      vesence$suggestionState.refresh(input.getValue());
    }
 }

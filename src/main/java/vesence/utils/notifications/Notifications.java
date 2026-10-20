@@ -3,7 +3,7 @@ package vesence.utils.notifications;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.impl.visuals.Hud;
@@ -118,11 +118,11 @@ public class Notifications {
     public static float modernBoundsWidth()  { return lastModernWidth; }
     public static float modernBoundsHeight() { return lastModernHeight; }
 
-    public static void render(Renderer2D renderer, GuiGraphics ctx, int screenWidth, int screenHeight) {
+    public static void render(Renderer2D renderer, GuiGraphicsExtractor ctx, int screenWidth, int screenHeight) {
         render(renderer, ctx, screenWidth / 2f, screenHeight / 2f + 30f, 1f);
     }
 
-    public static void render(Renderer2D renderer, GuiGraphics ctx, float centerX, float topY, float scale) {
+    public static void render(Renderer2D renderer, GuiGraphicsExtractor ctx, float centerX, float topY, float scale) {
         long now = System.currentTimeMillis();
 
         active.removeIf(n -> {
@@ -286,12 +286,12 @@ public class Notifications {
                     float pivotX = iconX + icoSize / 2f - 5 * scale;
                     float pivotY = iconY + icoSize / 2f;
 
-                    org.joml.Matrix3x2fStack matrices = ctx.getMatrices();
+                    org.joml.Matrix3x2fStack matrices = ctx.pose();
                     matrices.pushMatrix();
                     matrices.translate(pivotX / guiScale, pivotY / guiScale);
                     matrices.scale(iconScale, iconScale);
                     matrices.translate(-(icoSize / 2f) / guiScale, -(icoSize / 2f) / guiScale - 1.5f);
-                    ctx.drawItem(n.stack, 0, 0);
+                    ctx.item(n.stack, 0, 0);
                     matrices.popMatrix();
                 }
             } else {
@@ -301,7 +301,7 @@ public class Notifications {
     }
 
     /** Renders the separate pill-card layout used by the Modern HUD. */
-    public static void renderModern(Renderer2D renderer, GuiGraphics ctx, float centerX, float topY, float scale) {
+    public static void renderModern(Renderer2D renderer, GuiGraphicsExtractor ctx, float centerX, float topY, float scale) {
         long now = System.currentTimeMillis();
 
         active.removeIf(n -> {
@@ -406,18 +406,18 @@ public class Notifications {
         }
     }
 
-    private static void drawModernItemIcon(GuiGraphics ctx, ItemStack stack, float centerX, float centerY,
+    private static void drawModernItemIcon(GuiGraphicsExtractor ctx, ItemStack stack, float centerX, float centerY,
                                            float iconSize, float scale, float alpha) {
         if (alpha <= 0.01f) return;
 
         float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
         float drawScale = 0.92f * scale * alpha;
-        org.joml.Matrix3x2fStack matrices = ctx.getMatrices();
+        org.joml.Matrix3x2fStack matrices = ctx.pose();
         matrices.pushMatrix();
         matrices.translate(centerX / guiScale, centerY / guiScale);
         matrices.scale(drawScale, drawScale);
         matrices.translate(-8f, -8f);
-        ctx.drawItem(stack, 0, 0);
+        ctx.item(stack, 0, 0);
         matrices.popMatrix();
     }
 

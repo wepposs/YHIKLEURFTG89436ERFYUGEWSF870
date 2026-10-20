@@ -259,13 +259,13 @@ public class SettingsWindow {
             renderer.pushAlpha(p);
             renderer.getTransformStack().pushTranslation(0f, (1f - p) * 20f);
             renderTabContent(renderer, selectedTab, contentX, scrollY, contentW, scrollH, accentColor, lmx, lmy - scrollOffset);
-            renderer.getTransformStack().popPose();
+            renderer.getTransformStack().pop();
             renderer.popAlpha();
         } else {
             renderTabContent(renderer, selectedTab, contentX, scrollY, contentW, scrollH, accentColor, lmx, lmy - scrollOffset);
         }
 
-        renderer.getTransformStack().popPose();
+        renderer.getTransformStack().pop();
 
         renderer.popClipRect();
 
@@ -404,7 +404,7 @@ public class SettingsWindow {
                         guiScaleState, GUI_SCALE_LABELS, () -> {
                             Minecraft mc = Minecraft.getInstance();
                             if (mc != null) {
-                                try { mc.options.getGuiScale().setValue(GUI_SCALE_PRESETS[guiScaleState.selectedIndex]); mc.onResolutionChanged(); } catch (Exception ignored) {}
+                                try { mc.options.guiScale().set(GUI_SCALE_PRESETS[guiScaleState.selectedIndex]); mc.resizeGui(); } catch (Exception ignored) {}
                             }
                             menuScaleState.expanded = false;
                             menuScaleState.expandAnim.run(0.0, 0.25, Easings.CUBIC_IN);
@@ -475,14 +475,14 @@ public class SettingsWindow {
         if (soundSliderState.dragIndex >= 0) {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
-                try { mc.options.write(); } catch (Exception ignored) {}
+                try { mc.options.save(); } catch (Exception ignored) {}
             }
             soundSliderState.dragIndex = -1;
         }
     }
 
     public boolean keyPressed(int key) {
-        if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && windowOpen) {
+        if (key == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && windowOpen) {
             windowOpen = false;
             windowOpenAnim.run(0.0, 0.4, Easings.CUBIC_IN);
             return true;

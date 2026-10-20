@@ -8,7 +8,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Camera;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.util.math.PoseStack.Entry;
+import com.mojang.blaze3d.vertex.PoseStack.Pose;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -23,17 +23,17 @@ public final class WorldGeometryEmitter {
    private final VertexConsumer consumer;
    private final Vec3 cameraPosition;
 
-   public WorldGeometryEmitter(WorldRenderer renderer, Entry entry, VertexConsumer consumer) {
+   public WorldGeometryEmitter(WorldRenderer renderer, Pose entry, VertexConsumer consumer) {
       this(Objects.requireNonNull(renderer, "renderer").camera(), entry, consumer);
    }
 
-   public WorldGeometryEmitter(Camera camera, Entry entry, VertexConsumer consumer) {
+   public WorldGeometryEmitter(Camera camera, Pose entry, VertexConsumer consumer) {
       this.camera = Objects.requireNonNull(camera, "camera");
       Objects.requireNonNull(entry, "entry");
       this.consumer = Objects.requireNonNull(consumer, "consumer");
-      this.cameraPosition = this.camera.getCameraPos();
-      this.positionMatrix = new Matrix4f(entry.getPositionMatrix());
-      this.normalMatrix = new Matrix3f(entry.getNormalMatrix());
+      this.cameraPosition = this.camera.position();
+      this.positionMatrix = new Matrix4f(entry.pose());
+      this.normalMatrix = new Matrix3f(entry.normal());
    }
 
    public void emitQuad(Vec3 v0, Vec3 v1, Vec3 v2, Vec3 v3, int rgbaColor) {
@@ -135,26 +135,26 @@ public final class WorldGeometryEmitter {
    private void writeColorVertex(Vec3 worldPos, int rgbaColor) {
       Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
-         .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
-      vertex.color(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
+         .addVertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
+      vertex.setColor(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
       this.finalizeVertex(vertex);
    }
 
    private void writeTexturedVertex(Vec3 worldPos, float u, float v, int rgbaColor) {
       Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
-         .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
-      vertex.texture(u, v);
-      vertex.color(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
+         .addVertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
+      vertex.setUv(u, v);
+      vertex.setColor(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
       this.finalizeVertex(vertex);
    }
 
    private void writeLineVertex(Vec3 worldPos, int rgbaColor, Vector3f normal) {
       Vec3 cameraSpace = this.toCameraSpace(worldPos);
       VertexConsumer vertex = this.consumer
-         .vertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
-      vertex.color(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
-      vertex.normal(normal.x, normal.y, normal.z);
+         .addVertex(this.positionMatrix, (float)cameraSpace.x, (float)cameraSpace.y, (float)cameraSpace.z);
+      vertex.setColor(ColorUtil.red(rgbaColor), ColorUtil.green(rgbaColor), ColorUtil.blue(rgbaColor), ColorUtil.alpha(rgbaColor));
+      vertex.setNormal(normal.x, normal.y, normal.z);
       this.finalizeVertex(vertex);
    }
 
@@ -188,13 +188,13 @@ public final class WorldGeometryEmitter {
    private Vector3f computeLineNormal(Vec3 start, Vec3 end) {
       Vec3 delta = end.subtract(start);
       Vector3f normal = new Vector3f((float)delta.x, (float)delta.y, (float)delta.z);
-      if (normal.lengthSqr() <= 1.0E-6F) {
+      if (normal.lengthSquared() <= 1.0E-6F) {
          normal.set(0.0F, 1.0F, 0.0F);
       }
 
       normal.normalize();
       this.normalMatrix.transform(normal);
-      if (normal.lengthSqr() <= 1.0E-6F) {
+      if (normal.lengthSquared() <= 1.0E-6F) {
          normal.set(0.0F, 1.0F, 0.0F);
       }
 

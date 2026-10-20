@@ -3,7 +3,7 @@ package vesence.overlay;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import vesence.overlay.core.FloatingWindowManager;
 
 @Environment(EnvType.CLIENT)
@@ -20,9 +20,9 @@ public final class OverlayModule {
     }
 
     public static void handleKey(int key) {
-        if (key == GLFW.GLFW_KEY_B) WINDOWS.toggleBrowser();
-        else if (key == GLFW.GLFW_KEY_T) WINDOWS.toggleTelegram();
-        else if (key == GLFW.GLFW_KEY_G) WINDOWS.toggleDiscord();
+        if (key == InputConstants.KEY_B) WINDOWS.toggleBrowser();
+        else if (key == InputConstants.KEY_T) WINDOWS.toggleTelegram();
+        else if (key == InputConstants.KEY_G) WINDOWS.toggleDiscord();
     }
 
 }

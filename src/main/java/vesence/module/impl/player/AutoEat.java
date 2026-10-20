@@ -2,7 +2,7 @@ package vesence.module.impl.player;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.component.DataComponentTypes;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.InteractionHand;
 import vesence.event.EventInit;
@@ -33,7 +33,7 @@ public class AutoEat extends Module {
     public void onUpdate(EventUpdate e) {
         if (!this.enable) return;
         if (mc.player == null || mc.level == null || mc.gameMode == null) return;
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             if (isEating) {
                 stopEating();
             }
@@ -42,18 +42,18 @@ public class AutoEat extends Module {
 
         if (isEating) {
             if (mc.player.isUsingItem() && isFood(mc.player.getActiveItem())) {
-                mc.options.useKey.setPressed(true);
+                mc.options.keyUse.setDown(true);
                 return;
             }
             stopEating();
             return;
         }
 
-        int foodLevel = mc.player.getHungerManager().getFoodLevel();
+        int foodLevel = mc.player.getFoodData().getFoodLevel();
         if (foodLevel > getConfiguredHungerLevel()) return;
-        if (!mc.player.canConsume(false)) return;
+        if (!mc.player.canEat(false)) return;
 
-        ItemStack offhand = mc.player.getStackInHand(InteractionHand.OFF_HAND);
+        ItemStack offhand = mc.player.getItemInHand(InteractionHand.OFF_HAND);
         if (isFood(offhand)) {
             eatHand = InteractionHand.OFF_HAND;
             swappedFoodSlot = -1;
@@ -85,13 +85,13 @@ public class AutoEat extends Module {
     }
 
     private void startEating(InteractionHand hand) {
-        mc.options.useKey.setPressed(true);
-        mc.gameMode.interactItem(mc.player, hand);
+        mc.options.keyUse.setDown(true);
+        mc.gameMode.useItem(mc.player, hand);
         isEating = true;
     }
 
     private void stopEating() {
-        mc.options.useKey.setPressed(false);
+        mc.options.keyUse.setDown(false);
         isEating = false;
 
         restoreSwappedFood();
@@ -132,7 +132,7 @@ public class AutoEat extends Module {
     }
 
     private boolean isFood(ItemStack stack) {
-        return stack != null && !stack.isEmpty() && stack.contains(DataComponentTypes.FOOD);
+        return stack != null && !stack.isEmpty() && stack.has(DataComponents.FOOD);
     }
 
     @Override

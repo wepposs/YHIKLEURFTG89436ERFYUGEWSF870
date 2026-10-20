@@ -1,1 +1,7 @@
 accessWidener v1 official
+
+# 26.3: GuiRenderer$Draw — приватные поля пайплайна/текстуры/ножниц
+accessible class net/minecraft/client/gui/render/GuiRenderer$Draw
+accessible field net/minecraft/client/gui/render/GuiRenderer$Draw pipeline Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;
+accessible field net/minecraft/client/gui/render/GuiRenderer$Draw textureSetup Lnet/minecraft/client/gui/render/TextureSetup;
+accessible field net/minecraft/client/gui/render/GuiRenderer$Draw scissorArea Lnet/minecraft/client/gui/navigation/ScreenRectangle;

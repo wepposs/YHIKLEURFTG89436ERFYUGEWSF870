@@ -2,9 +2,9 @@ package vesence.mixin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.widget.ScrollableWidget;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,9 +20,9 @@ import vesence.module.impl.misc.BetterMinecraft;
 @Mixin(AbstractWidget.class)
 public abstract class ClickableWidgetScrollMixin {
 
-   @Inject(method = "render", at = @At("HEAD"), require = 0, expect = 0)
-   private void vesence$tickSmoothScroll(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-      if ((Object) this instanceof ScrollableWidget scrollable && BetterMinecraft.smoothScrollEnabled()) {
+   @Inject(method = "extractRenderState", at = @At("HEAD"), require = 0, expect = 0)
+   private void vesence$tickSmoothScroll(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+      if ((Object) this instanceof AbstractScrollArea scrollable && BetterMinecraft.smoothScrollEnabled()) {
          BetterMinecraft.tickSmoothScroll(scrollable);
       }
    }

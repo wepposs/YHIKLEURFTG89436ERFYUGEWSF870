@@ -126,7 +126,7 @@ public class SettingRenderer {
         float vol = state.volumeCache[index];
         if (mc != null && state.dragIndex != index) {
             try {
-                float mcVol = mc.options.getCategorySoundVolume(SoundSource.values()[index]);
+                float mcVol = mc.options.getSoundSourceVolume(SoundSource.values()[index]);
                 if (mcVol != state.volumeCache[index]) {
                     state.volumeCache[index] = mcVol;
                 }
@@ -139,7 +139,7 @@ public class SettingRenderer {
             vol = Math.max(0f, Math.min(1f, (lmx - sliderX) / Math.max(1f, sliderW)));
             state.volumeCache[index] = vol;
             if (mc != null) {
-                try { mc.options.getSoundVolumeOption(SoundSource.values()[index]).setValue((double) vol); } catch (Exception ignored) {}
+                try { mc.options.getSoundSourceOptionInstance(SoundSource.values()[index]).set((double) vol); } catch (Exception ignored) {}
             }
         }
 
@@ -254,7 +254,7 @@ public class SettingRenderer {
         if (lx >= sliderX - 5 && lx <= sliderX + sliderW + 5 && sly >= rowY && sly <= rowY + SLIDER_ROW_H) {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
-                float vol = mc.options.getCategorySoundVolume(SoundSource.values()[index]);
+                float vol = mc.options.getSoundSourceVolume(SoundSource.values()[index]);
                 state.volumeCache[index] = vol;
                 state.dragIndex = index;
                 state.dragStartX = lx;
