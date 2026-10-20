@@ -530,9 +530,30 @@ public final class Renderer2D {
 
    private static final java.util.Set<Identifier> textureManagerBacked = new java.util.HashSet<>();
 
+   /**
+    * Идентификаторы, для которых разрешение текстуры уже провалилось.
+    *
+    * <p>Раньше неудача не запоминалась: на каждом кадре снова вызывался
+    * {@code TextureManager#getTexture}, и для сплэша 7680x4320 это означало повторное
+    * декодирование PNG в потоке рендера. Кадр не успевал закрыться — клиент висел на
+    * загрузочном экране. Теперь неудача запоминается, и повторных попыток нет.
+    */
+   private static final java.util.Set<Identifier> textureManagerFailed = new java.util.HashSet<>();
+
    private static final Map<Identifier, Integer> textureManagerConfigured = new HashMap<>();
 
    private int resolveTextureId(Identifier identifier) {
+
+      // Свою (уже загруженную) текстуру проверяем ПЕРВОЙ: если менеджер не справился,
+      // мы грузим файл сами и кладём GL-id сюда — дальше это бесплатное попадание.
+      Integer cached = imageTextureCache.get(identifier);
+      if (cached != null && cached > 0 && GL11.glIsTexture(cached)) {
+         return cached;
+      }
+
+      if (textureManagerFailed.contains(identifier)) {
+         return 0;
+      }
 
       if (identifier.getPath().endsWith(".png")) {
          int live = resolveFromTextureManager(identifier);
@@ -549,11 +570,6 @@ public final class Renderer2D {
          if (textureManagerBacked.contains(identifier)) {
             return 0;
          }
-      }
-
-      Integer cached = imageTextureCache.get(identifier);
-      if (cached != null && cached > 0 && GL11.glIsTexture(cached)) {
-         return cached;
       }
 
       if (cached != null) {
@@ -588,6 +604,9 @@ public final class Renderer2D {
          System.err.println("[Renderer2D] ClassLoader failed for " + identifier + ": " + e.getMessage());
       }
 
+      // Запоминаем неудачу: повторная попытка снова читала бы файл с диска в потоке
+      // рендера, а результат всё равно нулевой.
+      textureManagerFailed.add(identifier);
       return 0;
    }
 
@@ -621,46 +640,46 @@ public final class Renderer2D {
 
    private int uploadImageToGl(InputStream is) throws Exception {
       this.batcher.flush();
-      BufferedImage img = ImageIO.read(is);
-      is.close();
-      if (img == null) {
-         System.err.println("[Renderer2D] ImageIO.read returned null");
-         return 0;
-      }
 
-      int w = img.getWidth();
-      int h = img.getHeight();
-      System.err.println("[Renderer2D] Image size: " + w + "x" + h);
+      // Раньше здесь был ImageIO.read + TYPE_INT_ARGB + попиксельный цикл по всей
+      // картинке. Для фона 7680x4320 это 33 млн итераций с четырьмя buf.put() на
+      // каждую — поток рендера застревал здесь на десятки секунд. Декодируем нативно
+      // (тот же STB-путь, что у ванили) и переворачиваем строки через memCopy.
+      try (com.mojang.blaze3d.platform.NativeImage img = com.mojang.blaze3d.platform.NativeImage.read(is)) {
+         int w = img.getWidth();
+         int h = img.getHeight();
+         if (w <= 0 || h <= 0) {
+            return 0;
+         }
 
-      BufferedImage converted = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-      converted.getGraphics().drawImage(img, 0, 0, null);
+         long src = img.getPointer();
+         long rowBytes = (long) w * 4L;
 
-      int[] pixels = new int[w * h];
-      converted.getRGB(0, 0, w, h, pixels, 0, w);
+         // OpenGL считает первую строку нижней, декодер отдаёт верхнюю первой.
+         java.nio.ByteBuffer flipped = org.lwjgl.system.MemoryUtil.memAlloc((int) (rowBytes * h));
+         try {
+            long dst = org.lwjgl.system.MemoryUtil.memAddress(flipped);
+            for (int row = 0; row < h; row++) {
+               org.lwjgl.system.MemoryUtil.memCopy(
+                       src + (long) (h - 1 - row) * rowBytes,
+                       dst + (long) row * rowBytes,
+                       rowBytes);
+            }
 
-      ByteBuffer buf = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder());
-      for (int row = h - 1; row >= 0; row--) {
-         for (int col = 0; col < w; col++) {
-            int p = pixels[row * w + col];
-            buf.put((byte)((p >> 16) & 0xFF));
-            buf.put((byte)((p >> 8) & 0xFF));
-            buf.put((byte)(p & 0xFF));
-            buf.put((byte)((p >> 24) & 0xFF));
+            int texId = GL11.glGenTextures();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texId);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, w, h, 0,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, flipped);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 33071);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 33071);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+            return texId;
+         } finally {
+            org.lwjgl.system.MemoryUtil.memFree(flipped);
          }
       }
-      buf.flip();
-
-      int texId = GL11.glGenTextures();
-      GL11.glBindTexture(GL11.GL_TEXTURE_2D, texId);
-      GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, w, h, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buf);
-      GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-      GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-      GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 33071);
-      GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 33071);
-      GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
-
-      System.err.println("[Renderer2D] Uploaded GL texture id=" + texId);
-      return texId;
    }
 
    public void drawImage(Identifier identifier, float x, float y, float w, float h) {

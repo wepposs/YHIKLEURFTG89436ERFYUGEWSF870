@@ -39,6 +39,14 @@ public final class MainTargetBinder {
         }
 
         int textureId = glColor.glId();
+
+        // Свёрнутое окно/смена режима вызывают invalidateSurfaceConfiguration: драйвер
+        // может пересоздать GL-ресурсы, и закэшированный FBO станет «висячим» id.
+        // Проверяем его живость и при необходимости заводим заново.
+        if (sharedFbo != 0 && !GL30.glIsFramebuffer(sharedFbo)) {
+            sharedFbo = 0;
+            attachedTexture = -1;
+        }
         if (sharedFbo == 0) {
             sharedFbo = GL30.glGenFramebuffers();
         }
@@ -55,6 +63,12 @@ public final class MainTargetBinder {
             return 0;
         }
         return sharedFbo;
+    }
+
+    /** Полный сброс кэша FBO (например, после потери/пересоздания GL-контекста). */
+    public static void invalidate() {
+        sharedFbo = 0;
+        attachedTexture = -1;
     }
 
     /** Отвязывает текстуру и возвращает биндинг FBO в состояние «по умолчанию». */

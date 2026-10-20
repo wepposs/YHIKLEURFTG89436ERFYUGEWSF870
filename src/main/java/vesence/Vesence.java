@@ -93,6 +93,17 @@ public class Vesence implements ClientModInitializer {
      */
     private static final int MAX_OVERLAY_TASKS = 4096;
 
+    /**
+     * Очередь HUD-слоя (прицел, ватермарка, список модулей, неймтеги и т.п.).
+     *
+     * <p>Проигрывается в {@link #onPreGuiRender()} — ПОСЛЕ отрисовки мира, но ДО
+     * ванильного GUI-прохода. Это принципиально: в 1.21.11 HUD рисовался внутри
+     * {@code InGameHud.render}, то есть под экранами, и потому меню ESC, инвентарь,
+     * чат и отладка F3 перекрывали его. Если рисовать HUD в пост-GUI проходе, он
+     * оказывается ПОВЕРХ всего — именно это и ломало F3 и меню паузы.
+     */
+    private static final java.util.ArrayDeque<Runnable> hudTasks = new java.util.ArrayDeque<>();
+
     /** Ставит отрисовку в очередь пост-GUI прохода (см. {@link #overlayTasks}). */
     public static void deferOverlay(Runnable task) {
         if (task != null) {
@@ -101,6 +112,68 @@ public class Vesence implements ClientModInitializer {
                 overlayTasks.clear();
             }
             overlayTasks.add(task);
+        }
+    }
+
+    /** Ставит отрисовку в очередь HUD-слоя (см. {@link #hudTasks}). */
+    public static void deferHudOverlay(Runnable task) {
+        if (task != null) {
+            if (hudTasks.size() >= MAX_OVERLAY_TASKS) {
+                hudTasks.clear();
+            }
+            hudTasks.add(task);
+        }
+    }
+
+    /**
+     * Точка отрисовки HUD: вызывается в {@code GameRenderer.render()} перед
+     * {@code GuiRenderer.render()}. Кадр к этому моменту уже очищен и мир отрисован,
+     * поэтому рисунок не затирается, а ванильный GUI ложится сверху — как в 1.21.11.
+     */
+    public static void onPreGuiRender() {
+        if (!modInitialized) {
+            hudTasks.clear();
+            return;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getWindow() == null) {
+            hudTasks.clear();
+            return;
+        }
+
+        // Свёрнутое окно не рисуем вообще: размеры кадра нулевые или невалидные,
+        // а любая работа здесь только мешает системе завершить сворачивание.
+        if (client.getWindow().isIconified()) {
+            hudTasks.clear();
+            return;
+        }
+
+        int width = client.getWindow().getScreenWidth();
+        int height = client.getWindow().getScreenHeight();
+        if (width <= 0 || height <= 0) {
+            hudTasks.clear();
+            return;
+        }
+
+        if (hudTasks.isEmpty()) {
+            return;
+        }
+
+        GlState.Snapshot snapshot = GlState.push();
+        int fbo = vesence.renderengine.MainTargetBinder.begin();
+        try {
+            Runnable task;
+            while ((task = hudTasks.poll()) != null) {
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    System.err.println("[weppos] hud task failed: " + t);
+                }
+            }
+        } finally {
+            vesence.renderengine.MainTargetBinder.end(fbo);
+            GlState.pop(snapshot);
         }
     }
 
@@ -127,6 +200,11 @@ public class Vesence implements ClientModInitializer {
 
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
+            overlayTasks.clear();
+            return;
+        }
+
+        if (client.getWindow().isIconified()) {
             overlayTasks.clear();
             return;
         }

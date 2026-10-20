@@ -262,7 +262,7 @@ public abstract class InGameHudMixin {
             if (width > 0 && height > 0) {
                // 26.3: extract-фаза только собирает состояние — рисовать здесь нельзя,
                // кадр очищается в GameRenderer.render(). Рисуем в пост-GUI проходе.
-               Vesence.deferOverlay(() -> vesence$drawHudLayer(client, context, width, height, true));
+               Vesence.deferHudOverlay(() -> vesence$drawHudLayer(client, context, width, height, true));
             }
          }
       }
@@ -276,7 +276,7 @@ public abstract class InGameHudMixin {
             int width = client.getWindow().getScreenWidth();
             int height = client.getWindow().getScreenHeight();
             if (width > 0 && height > 0) {
-               Vesence.deferOverlay(() -> vesence$drawHudLayer(client, context, width, height, false));
+               Vesence.deferHudOverlay(() -> vesence$drawHudLayer(client, context, width, height, false));
             }
          }
       }

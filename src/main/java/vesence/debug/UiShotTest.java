@@ -20,12 +20,22 @@ import java.io.File;
 public final class UiShotTest {
     private static final boolean ACTIVE = System.getenv("VESENCE_UITEST") != null
             || System.getenv("VESENCE_UITEST_WORLD") != null
-            || System.getenv("VESENCE_UITEST_GUI") != null;
+            || System.getenv("VESENCE_UITEST_GUI") != null
+            || System.getenv("VESENCE_UITEST_ESC") != null
+            || System.getenv("VESENCE_UITEST_F3") != null;
     /** В world-режиме ждём, пока загрузится мир (quickPlay), и только потом снимаем кадр. */
     private static final boolean WORLD_MODE = System.getenv("VESENCE_UITEST_WORLD") != null
-            || System.getenv("VESENCE_UITEST_GUI") != null;
+            || System.getenv("VESENCE_UITEST_GUI") != null
+            || System.getenv("VESENCE_UITEST_ESC") != null
+            || System.getenv("VESENCE_UITEST_F3") != null;
     /** Открыть ClickGui перед снятием кадров — проверка, что кастомный интерфейс рисуется. */
     private static final boolean GUI_MODE = System.getenv("VESENCE_UITEST_GUI") != null;
+    /** Открыть меню паузы: HUD должен оказаться ПОД ним, а не поверх. */
+    private static final boolean ESC_MODE = System.getenv("VESENCE_UITEST_ESC") != null;
+    /** Включить отладку F3: HUD не должен её перекрывать. */
+    private static final boolean F3_MODE = System.getenv("VESENCE_UITEST_F3") != null;
+    /** Печатать состояние экрана — чтобы отличать «застрял» от «ждёт нажатия». */
+    private static final boolean DIAG = System.getenv("VESENCE_UITEST_DIAG") != null;
     private static final int WARMUP_TICKS = 200;
     private static final int SHOTS = 2;
     private static final int SHOT_INTERVAL = 100;
@@ -34,6 +44,8 @@ public final class UiShotTest {
     private static int shots = 0;
     private static boolean finished = false;
     private static boolean guiOpened = false;
+    private static boolean backupSkipped = false;
+    private static int autoConfirms = 0;
 
     private UiShotTest() {}
 
@@ -45,24 +57,102 @@ public final class UiShotTest {
 
     private static void tick(Minecraft mc) {
         if (finished) return;
+
+        // Диагностика: без неё «клиент застрял на загрузке» не отличить от «клиент
+        // стоит на титульном экране и ждёт действия».
+        if (DIAG && ticks % 40 == 0) {
+            System.out.println("[uitest] diag ticks=" + ticks
+                    + " screen=" + (mc.gui.screen() == null ? "null" : mc.gui.screen().getClass().getSimpleName())
+                    + " overlay=" + mc.gui.overlay()
+                    + " level=" + (mc.level == null ? "null" : "present")
+                    + " player=" + (mc.player == null ? "null" : "present"));
+        }
+
+        // Экран онбординга доступности встаёт ПЕРЕД титульным и перед quickPlay —
+        // в автоматическом прогоне его никто не закроет, и клиент навсегда остаётся
+        // на нём. Для теста выключаем флаг и снимаем экран, иначе прогон не доходит
+        // до мира (и выглядит как «quickPlay сломался»).
+        if (mc.options != null && mc.options.onboardAccessibility) {
+            mc.options.onboardAccessibility = false;
+        }
+        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen onboarding) {
+            // onClose() прогоняет цепочку next -> quickPlay, поэтому не подменяем экран,
+            // а именно закрываем онбординг.
+            onboarding.onClose();
+            return;
+        }
+
+        // Мир skytest создан в 1.21.11, поэтому 26.3 при открытии предлагает сделать
+        // резервную копию. В автотесте нажимать некому — вызываем колбэк «продолжить
+        // без копии» напрямую. Поле protected, но это тестовый код, а не прод-логика.
+        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.BackupConfirmScreen backup) {
+            if (!backupSkipped) {
+                backupSkipped = true;
+                try {
+                    var field = net.minecraft.client.gui.screens.BackupConfirmScreen.class
+                            .getDeclaredField("onProceed");
+                    field.setAccessible(true);
+                    var listener = (net.minecraft.client.gui.screens.BackupConfirmScreen.Listener) field.get(backup);
+                    listener.proceed(true, false);
+                    System.out.println("[uitest] backup confirm skipped (proceed without backup)");
+                } catch (Throwable t) {
+                    System.out.println("[uitest] backup confirm skip failed: " + t);
+                }
+            }
+            return;
+        }
+
+        // Дальше 26.3 может показать ещё одно подтверждение (несовпадение версии мира
+        // и т.п.) — в автотесте нажимать некому, поэтому подтверждаем автоматически.
+        // Ограничиваем число срабатываний, чтобы не зациклиться на реально сломанном мире.
+        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.ConfirmScreen confirm
+                && mc.gui.screen() != null && autoConfirms < 4) {
+            autoConfirms++;
+            try {
+                var field = net.minecraft.client.gui.screens.ConfirmScreen.class.getDeclaredField("callback");
+                field.setAccessible(true);
+                ((it.unimi.dsi.fastutil.booleans.BooleanConsumer) field.get(confirm)).accept(true);
+                System.out.println("[uitest] auto-confirmed screen #" + autoConfirms);
+            } catch (Throwable t) {
+                System.out.println("[uitest] auto-confirm failed: " + t);
+            }
+            return;
+        }
+
         if (WORLD_MODE && (mc.level == null || mc.player == null)) return;
         ticks++;
 
-        // Открываем ClickGui за половину прогрева, чтобы к первому кадру он уже был отрисован.
-        if (GUI_MODE && !guiOpened && ticks >= WARMUP_TICKS / 2) {
+        // Открываем экран за половину прогрева, чтобы к первому кадру он уже был отрисован.
+        if (!guiOpened && ticks >= WARMUP_TICKS / 2) {
             guiOpened = true;
-            try {
-                mc.gui.setScreen(new vesence.ui.clickgui.GuiClient());
-                System.out.println("[uitest] ClickGui opened: " + mc.gui.screen());
-            } catch (Throwable t) {
-                System.out.println("[uitest] ClickGui open failed: " + t);
+            if (GUI_MODE) {
+                try {
+                    mc.gui.setScreen(new vesence.ui.clickgui.GuiClient());
+                    System.out.println("[uitest] ClickGui opened: " + mc.gui.screen());
+                } catch (Throwable t) {
+                    System.out.println("[uitest] ClickGui open failed: " + t);
+                }
+            } else if (ESC_MODE) {
+                try {
+                    mc.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(false));
+                    System.out.println("[uitest] PauseScreen opened: " + mc.gui.screen());
+                } catch (Throwable t) {
+                    System.out.println("[uitest] PauseScreen open failed: " + t);
+                }
+            } else if (F3_MODE) {
+                try {
+                    mc.debugEntries.setOverlayVisible(true);
+                    System.out.println("[uitest] debug overlay visible=" + mc.debugEntries.isOverlayVisible());
+                } catch (Throwable t) {
+                    System.out.println("[uitest] debug toggle failed: " + t);
+                }
             }
         }
 
         if (ticks < WARMUP_TICKS) return;
         if ((ticks - WARMUP_TICKS) % SHOT_INTERVAL != 0) return;
 
-        String name = (GUI_MODE ? "gui-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
+        String name = (GUI_MODE ? "gui-" : ESC_MODE ? "esc-" : F3_MODE ? "f3-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
         new File("uitest-shots").mkdirs();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
             try {
