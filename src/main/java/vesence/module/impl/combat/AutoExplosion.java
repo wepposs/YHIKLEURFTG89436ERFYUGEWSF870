@@ -242,7 +242,7 @@ public final class AutoExplosion extends Module {
    }
 
    private void attackCrystal(EndCrystal crystal) {
-      // TODO(port26): ServerboundInteractPacket.attack() удалён в 26.3 — атака кодируется hand=null.
+      // 26.3: ServerboundInteractPacket.attack() удалён — атака кодируется hand=null.
       mc.getConnection().send(new ServerboundInteractPacket(crystal.getId(), null, Vec3.ZERO, false));
       mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
    }

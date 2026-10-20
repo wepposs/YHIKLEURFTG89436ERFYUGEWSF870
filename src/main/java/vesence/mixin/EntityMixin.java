@@ -36,11 +36,8 @@ public abstract class EntityMixin {
         }
     }
 
-    // TODO(port26): Entity#getTargetingMargin removed in 26.3, no equivalent; handler was empty anyway
-    // @Inject(method = "getTargetingMargin", at = @At("RETURN"), cancellable = true, require = 0)
-    // private void client$getTargetingMargin(CallbackInfoReturnable<Float> cir) {
-    //     // пусто — тут ничего не делалось и раньше
-    // }
+    // 26.3: Entity#getTargetingMargin удалён, аналога нет. Хук был пустым и раньше,
+    // поэтому удалён без потери поведения.
 
     @Inject(method = "moveRelative", at = @At("TAIL"), require = 0)
     private void onUpdateVelocity(float speed, Vec3 movementInput, CallbackInfo ci) {

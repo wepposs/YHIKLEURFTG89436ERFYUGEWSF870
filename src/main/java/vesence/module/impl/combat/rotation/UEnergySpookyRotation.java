@@ -190,7 +190,7 @@ public class UEnergySpookyRotation {
                 * (1.0F - Mth.clamp(aimFatigue, 0.0F, 1.0F) * (crit ? 0.35F : 1.0F))
                 * (pulse ? 1.25F : 1.0F)
                 * (crit ? 3.2F : 1.0F)
-                // TODO(port26): поле handSwingTicks недоступно в 26.3, заменено на isSwinging()
+                // 26.3: поле handSwingTicks недоступно, заменено на isSwinging()
                 * ((mc.player.isSwinging() ? 1 : 0) > URotationMath.rand(0.2F, 0.4F) && !crit ? 0.5F : 1.0F);
         float accelCap = accelCapBase * (pulse ? 4.0F : 1.0F) * (crit ? 2.6F : 1.0F);
 

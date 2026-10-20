@@ -70,7 +70,7 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    // TODO(port26): в 26.3 нет LivingEntity#tickMovement — модификатор jumpTicks был no-op
+    // 26.3: LivingEntity#tickMovement отсутствует, а модификатор jumpTicks был no-op
     // (возвращал исходное значение), поэтому удалён без потери поведения.
 
     @Inject(method = { "push" }, at = { @At("HEAD") }, cancellable = true)
@@ -112,7 +112,7 @@ public abstract class LivingEntityMixin {
             return;
         }
 
-        // TODO(port26): EventOnTravelPost пока не имеет ни одного подписчика — хук
+        // EventOnTravelPost пока не имеет ни одного подписчика — хук
         // сохранён, чтобы восстановить поведение модов на планирование без переписывания
         // миксина. Множители взяты из прежнего calcGlidingVelocity.
         EventOnTravelPost event = new EventOnTravelPost(

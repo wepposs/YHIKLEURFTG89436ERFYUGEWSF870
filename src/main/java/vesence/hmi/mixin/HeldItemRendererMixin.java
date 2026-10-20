@@ -189,7 +189,7 @@ public abstract class HeldItemRendererMixin {
 
     @Unique
     private void hmi$renderItem(LivingEntity entity, ItemStack stack, ItemDisplayContext context, PoseStack matrices, SubmitNodeCollector queue, int light) {
-        // TODO(port26): was HeldItemRenderer.renderItem(entity, stack, context, matrices, queue, light)
+        // 26.3: HeldItemRenderer#renderItem удалён — собираем ItemStackRenderState и сабмитим его сами.
         ItemStackRenderState state = new ItemStackRenderState();
         Minecraft.getInstance().getItemModelResolver().updateForLiving(state, stack, context, entity);
         state.submit(matrices, queue, light, OverlayTexture.NO_OVERLAY, 0);
@@ -197,7 +197,7 @@ public abstract class HeldItemRendererMixin {
 
     @Unique
     private void hmi$submitBlock(PoseStack matrices, BlockState blockState, int light, SubmitNodeCollector queue) {
-        // TODO(port26): was OrderedRenderCommandQueue.submitBlock(matrices, blockState, light, overlay, outlineColor)
+        // 26.3: OrderedRenderCommandQueue#submitBlock удалён — собираем BlockModelRenderState и сабмитим его сами.
         if (this.hmi$blockModelResolver == null) {
             this.hmi$blockModelResolver = new BlockModelResolver(this.minecraft.getModelManager());
         }

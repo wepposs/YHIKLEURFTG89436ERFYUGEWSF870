@@ -58,7 +58,7 @@ public final class LineGlyphsEngine {
          .withColorTargetState(new ColorTargetState(BlendFunction.ADDITIVE))
          .build()
    );
-   // TODO(port26): RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
+   // 26.3: RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
    private static final RenderType LINE_LAYER = RenderType.create(
       "customworld_glyphes_lines", RenderSetup.builder(LINE_PIPELINE).createRenderSetup()
    );

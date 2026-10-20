@@ -256,7 +256,7 @@ public class Particle {
         } else if (this.particleRenderType == "TRANSLUCENT") {
             layer = ParticleRenderLayers.getSolidRenderLayer(this.texture);
         } else if (this.particleRenderType == "CUTOUT_L") {
-            // TODO(port26): was RenderTypes.entitySmoothCutout; removed in 26.3, using entityCutout
+            // 26.3: RenderTypes.entitySmoothCutout удалён, ближайший аналог — entityCutout.
             layer = RenderTypes.entityCutout(this.texture);
         } else { // TRANSLUCENT_L и значение по умолчанию
             layer = RenderTypes.entityTranslucent(this.texture);

@@ -96,7 +96,7 @@ public final class CubesEngine {
          .withColorTargetState(new ColorTargetState(SRC_ALPHA_ADDITIVE))
          .build()
    );
-   // TODO(port26): RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
+   // 26.3: RenderSetup больше не имеет expectedBufferSize/translucent — буферы динамические.
    private static final RenderType GLOW_LAYER = RenderType.create(
       "customworld_cubes_glow", RenderSetup.builder(GLOW_PIPELINE).withTexture("Sampler0", GLOW_TEX).createRenderSetup()
    );

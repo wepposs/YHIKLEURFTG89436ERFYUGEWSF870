@@ -19,9 +19,13 @@ import java.io.File;
 @Environment(EnvType.CLIENT)
 public final class UiShotTest {
     private static final boolean ACTIVE = System.getenv("VESENCE_UITEST") != null
-            || System.getenv("VESENCE_UITEST_WORLD") != null;
+            || System.getenv("VESENCE_UITEST_WORLD") != null
+            || System.getenv("VESENCE_UITEST_GUI") != null;
     /** В world-режиме ждём, пока загрузится мир (quickPlay), и только потом снимаем кадр. */
-    private static final boolean WORLD_MODE = System.getenv("VESENCE_UITEST_WORLD") != null;
+    private static final boolean WORLD_MODE = System.getenv("VESENCE_UITEST_WORLD") != null
+            || System.getenv("VESENCE_UITEST_GUI") != null;
+    /** Открыть ClickGui перед снятием кадров — проверка, что кастомный интерфейс рисуется. */
+    private static final boolean GUI_MODE = System.getenv("VESENCE_UITEST_GUI") != null;
     private static final int WARMUP_TICKS = 200;
     private static final int SHOTS = 2;
     private static final int SHOT_INTERVAL = 100;
@@ -29,6 +33,7 @@ public final class UiShotTest {
     private static int ticks = 0;
     private static int shots = 0;
     private static boolean finished = false;
+    private static boolean guiOpened = false;
 
     private UiShotTest() {}
 
@@ -42,10 +47,22 @@ public final class UiShotTest {
         if (finished) return;
         if (WORLD_MODE && (mc.level == null || mc.player == null)) return;
         ticks++;
+
+        // Открываем ClickGui за половину прогрева, чтобы к первому кадру он уже был отрисован.
+        if (GUI_MODE && !guiOpened && ticks >= WARMUP_TICKS / 2) {
+            guiOpened = true;
+            try {
+                mc.gui.setScreen(new vesence.ui.clickgui.GuiClient());
+                System.out.println("[uitest] ClickGui opened: " + mc.gui.screen());
+            } catch (Throwable t) {
+                System.out.println("[uitest] ClickGui open failed: " + t);
+            }
+        }
+
         if (ticks < WARMUP_TICKS) return;
         if ((ticks - WARMUP_TICKS) % SHOT_INTERVAL != 0) return;
 
-        String name = (WORLD_MODE ? "world-" : "menu-") + shots + ".png";
+        String name = (GUI_MODE ? "gui-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
         new File("uitest-shots").mkdirs();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
             try {

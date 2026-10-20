@@ -986,7 +986,7 @@ public class UHolyWorldRotation {
     }
 
     private static float swingCd() {
-        // TODO(port26): поле handSwingTicks недоступно в 26.3, заменено на isSwinging()
+        // 26.3: поле handSwingTicks недоступно, заменено на isSwinging()
         return Mth.clamp(
                 (mc.player.isSwinging() ? 1.0f : 0.0f) / (8.0f + fastRand.nextFloat() * 5.0f),
                 0.0f, 1.0f

@@ -55,7 +55,7 @@ public class LongJump extends vesence.module.api.Module {
                         }
 
                         mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, power.get(), mc.player.getDeltaMovement().z);
-                        mc.player.syncVelocity = true; // TODO(port26): was velocityDirty (yarn) / hurtMarked (old mojmap); 26.3 uses syncVelocity
+                        mc.player.syncVelocity = true; // 26.3: velocityDirty/hurtMarked переименован в syncVelocity
                         this.jumpsUsed++;
                      }
                   }
@@ -72,7 +72,7 @@ public class LongJump extends vesence.module.api.Module {
             double targetY = Math.min(currentY + waterAdd.get(), (double)waterMaxY.get());
             if (targetY > currentY) {
                mc.player.setDeltaMovement(mc.player.getDeltaMovement().x, targetY, mc.player.getDeltaMovement().z);
-               mc.player.syncVelocity = true; // TODO(port26): was velocityDirty (yarn) / hurtMarked (old mojmap); 26.3 uses syncVelocity
+               mc.player.syncVelocity = true; // 26.3: velocityDirty/hurtMarked переименован в syncVelocity
             }
          }
       }
