@@ -4,7 +4,6 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import org.joml.Vector2f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.dialog.Input;
 import net.minecraft.client.player.LocalPlayer;
@@ -41,7 +40,8 @@ public abstract class ClientPlayerEntityMixin {
    }
 
    // TODO(port26): в 26.3 нет applyMovementSpeedFactors — замедление при использовании
-   // инлайнится в LivingEntity.travel. Нужен новый хук там.
+   // предмета инлайнится в LocalPlayer.modifyInput через itemUseSpeedMultiplier()
+   // (см. vesence$preventItemUseSlowdown ниже).
    private boolean usingItemHook(boolean original) {
       if (original) {
          UsingItemEvent event = new UsingItemEvent((byte) 1);
@@ -94,21 +94,32 @@ public abstract class ClientPlayerEntityMixin {
       }
    }
 
-   // TODO(port26): точка applyMovementSpeedFactors удалена в 26.3 — хук SlowWalking отключён.
-   private Vector2f preventSlowdownMultiply(Vector2f vec, float multiplier) {
+   /**
+    * SlowWalking: гасит ванильное замедление при использовании предмета (еда/зелья).
+    *
+    * <p>Порт 26.3: {@code LivingEntity#applyMovementSpeedFactors(Vec2f)} удалён, а его
+    * логика переехала в {@code LocalPlayer#modifyInput(Vec2)}, где множитель берётся из
+    * {@code LocalPlayer#itemUseSpeedMultiplier()} (значение {@code UseEffects#speedMultiplier()},
+    * по умолчанию 0.2). Подменяем именно этот вызов на 1.0 — тогда масштабируется только
+    * «предметный» множитель, а ванильные sneak-множители остаются нетронутыми.
+    */
+   @ModifyExpressionValue(
+           method = "modifyInput",
+           at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;itemUseSpeedMultiplier()F"),
+           require = 0
+   )
+   private float vesence$preventItemUseSlowdown(float original, net.minecraft.world.phys.Vec2 input) {
       LocalPlayer player = (LocalPlayer) (Object) this;
-      if (multiplier == 0.2F && player.isUsingItem() && !player.isPassenger()) {
-         float moveForward = vec.y;
-         float moveStrafe = vec.x;
-         SlowWalkingEvent event = new SlowWalkingEvent(moveForward, moveStrafe);
+      if (original == 0.2F && player.isUsingItem() && !player.isPassenger()) {
+         SlowWalkingEvent event = new SlowWalkingEvent(input.y, input.x);
          EventManager.call(event);
          event.hook();
          if (event.isCancelled()) {
-            return vec;
+            return 1.0F;
          }
       }
 
-      return vec.mul(multiplier);
+      return original;
    }
 
    @Inject(method = "moveTowardsClosestSpace", at = @At("HEAD"), cancellable = true)

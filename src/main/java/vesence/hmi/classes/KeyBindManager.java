@@ -8,7 +8,8 @@ public class KeyBindManager {
 
     public boolean isKeyPressed(int keyCode) {
         if (keyCode != 0) {
-            // TODO(port26): was GLFW.glfwGetKey(windowHandle, keyCode); 26.3 uses SDL scancodes
+            // 26.3: GLFW.glfwGetKey(windowHandle, keyCode) удалён вместе с GLFW.
+            // InputConstants.isKeyDown(int) — его SDL-эквивалент (scancode).
             return InputConstants.isKeyDown(keyCode);
         }
         return false;

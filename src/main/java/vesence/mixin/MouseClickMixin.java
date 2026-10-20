@@ -23,19 +23,23 @@ public class MouseClickMixin {
       cancellable = true
    )
    private void handleMenuMouseClick(long window, net.minecraft.client.input.MouseButtonInfo input, int action, CallbackInfo ci) {
-      // TODO(port26): was GLFW.glfwGetCursorPos(window, ...)
+      // 26.3: GLFW.glfwGetCursorPos удалён. Курсор теперь отслеживает MouseHandler
+      // (обновляется в onMove); здесь берём его текущие (уже оконные) координаты.
       double[] xPos = new double[1];
       double[] yPos = new double[1];
       xPos[0] = Minecraft.getInstance().mouseHandler.xpos();
       yPos[0] = Minecraft.getInstance().mouseHandler.ypos();
 
       Minecraft client = Minecraft.getInstance();
+      vesence.debug.InputDebug.mouse("MouseHandler.onButton", input.button(), action, xPos[0], yPos[0]);
       if (action == InputConstants.PRESS
               && client != null
               && client.gui.screen() == null
               && Vesence.get != null
               && Vesence.get.manager != null) {
-         int mouseKey = -100 - (input.button() - 1); // TODO(port26): SDL buttons are 1-based; keep vesence 0-based encoding
+         // 26.3: input.button() теперь SDL (1=ЛКМ, 2=СКМ, 3=ПКМ), а бинд vesence
+         // кодируется как -100 - GLFW-индекс. MouseUtil.bind переводит одно в другое.
+         int mouseKey = vesence.utils.other.MouseUtil.bind(input.button());
          for (var module : Vesence.get.manager.getModules()) {
             if (module.bind == mouseKey) {
                module.toggle();

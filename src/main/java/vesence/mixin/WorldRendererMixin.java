@@ -30,11 +30,37 @@ import vesence.renderengine.render.Renderer2D;
 @Mixin({ LevelRenderer.class })
 public class WorldRendererMixin {
 
-   // TODO(port26): LevelRenderer.render больше не принимает view/projection Matrix4f и DeltaTracker —
-   // в 26.3 матрицы живут в CameraRenderState и строятся внутри. Смещение positionMatrix для
-   // ChunksAnimation (эффект «мир появляется») на этом хуке больше невозможно — vanilla-матрицы
-   // недоступны как аргументы; нужен отдельный хук в месте сборки view-матрицы.
-   // @Inject(method = "render", at = @At("HEAD")) — ChunksAnimation offset stubbed (see TODO above).
+   /**
+    * ChunksAnimation: сдвиг мира по Y в начале кадра — эффект «мир появляется».
+    *
+    * <p>Порт 26.3: {@code LevelRenderer#render} больше не принимает position/projection
+    * матрицы — они живут в {@link net.minecraft.client.renderer.state.level.CameraRenderState}.
+    * Внутри render'а view-матрица собирается как
+    * {@code modelViewStack * cameraState.viewRotationMatrix} (для сущностей/скайбокса) и как
+    * {@code new Matrix4f(cameraState.viewRotationMatrix)} (для террейна). Поэтому вносим
+    * translate прямо в {@code viewRotationMatrix} в HEAD — так смещается всё ровно так же,
+    * как раньше смещался positionMatrix. Матрица пересобирается в extract-фазе каждый кадр,
+    * так что правка не накапливается.
+    */
+   @Inject(method = {"render"}, at = {@At("HEAD")})
+   private void vesence$chunksAnimationHead(
+           GraphicsResourceAllocator allocator,
+           boolean renderBlockOutline,
+           net.minecraft.client.renderer.state.level.CameraRenderState cameraState,
+           GpuBufferSlice fog,
+           Vector4f fogColor,
+           boolean shouldRenderSky,
+           boolean renderSky,
+           CallbackInfo ci) {
+      ChunksAnimation anim = ChunksAnimation.INSTANCE;
+      if (anim == null || !anim.enable || cameraState == null || cameraState.viewRotationMatrix == null) {
+         return;
+      }
+      float offset = anim.computeOffsetY();
+      if (offset != 0.0F) {
+         cameraState.viewRotationMatrix.translate(0.0F, offset, 0.0F);
+      }
+   }
 
    @Inject(method = { "render" }, at = { @At("RETURN") })
    private void publishWorldRenderEvent(

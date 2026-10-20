@@ -52,15 +52,10 @@ public class BindSettings extends Setting<Integer> {
    private boolean isDown(int k) {
       if (k == -1) return false;
       if (k <= -100) {
-         int button = -k - 100;
-         // TODO(port26): was GLFW.glfwGetMouseButton(handle, button); SDL-era API only exposes named buttons
-         net.minecraft.client.MouseHandler mouse = Minecraft.getInstance().mouseHandler;
-         return switch (button) {
-            case 0 -> mouse.isLeftPressed();
-            case 1 -> mouse.isRightPressed();
-            case 2 -> mouse.isMiddlePressed();
-            default -> false;
-         };
+         // 26.3: GLFW.glfwGetMouseButton удалён вместе с GLFW; SDL-эквивалент и перевод
+         // нумерации кнопок (SDL 1=ЛКМ, 2=СКМ, 3=ПКМ → vesence 0=ЛКМ, 1=ПКМ, 2=СКМ)
+         // собраны в MouseUtil.
+         return vesence.utils.other.MouseUtil.isDown(vesence.utils.other.MouseUtil.indexOfBind(k));
       }
       return InputConstants.isKeyDown(k);
    }

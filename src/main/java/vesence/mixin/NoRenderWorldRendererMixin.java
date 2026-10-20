@@ -12,9 +12,10 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import vesence.Vesence;
 import vesence.module.impl.visuals.NoRender;
 
-// TODO(port26): LevelRenderer#renderWeather/renderClouds removed in 26.3 — weather and clouds are
-// rendered by WeatherEffectRenderer/CloudRenderer, called from LevelRenderer#executeClassicTransparency
-// (and #executeOit on the OIT path). We wrap those call sites to keep the NoRender switches working.
+// Порт 26.3: LevelRenderer#renderWeather/renderClouds удалены — погода и облака рисуются
+// WeatherEffectRenderer/CloudRenderer, которые вызываются из LevelRenderer#executeClassicTransparency
+// (и #executeOit на OIT-пути). Перехватываем именно эти точки вызова, поэтому переключатели
+// NoRender «Дождь» и «Облака» работают как раньше на обоих путях.
 @Environment(EnvType.CLIENT)
 @Mixin(LevelRenderer.class)
 public class NoRenderWorldRendererMixin {

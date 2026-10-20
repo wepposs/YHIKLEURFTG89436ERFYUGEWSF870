@@ -70,10 +70,8 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    // TODO(port26): в 26.3 нет LivingEntity#tickMovement; обработчик был no-op (return original).
-    private int modifyJumpTicks(int original) {
-        return original;
-    }
+    // TODO(port26): в 26.3 нет LivingEntity#tickMovement — модификатор jumpTicks был no-op
+    // (возвращал исходное значение), поэтому удалён без потери поведения.
 
     @Inject(method = { "push" }, at = { @At("HEAD") }, cancellable = true)
     private void onPushAwayFrom(Entity entity, CallbackInfo ci) {
@@ -95,31 +93,32 @@ public abstract class LivingEntityMixin {
         }
     }
 
-    @Unique
-    private Vec3 calcGlidingVelocity(Vec3 oldVelocity) {
-        return oldVelocity;
-    }
-
-   // TODO(port26): в 26.3 нет LivingEntity#calcGlidingVelocity — скорость полёта
-   // считается внутри travelInAir. Нужен новый хук на travelInAir/travelFlying.
-   private void onCalcGlidingVelocity(Vec3 oldVelocity, CallbackInfoReturnable<Vec3> cir) {
-        if (!Vesence.isModInitialized()) return;
-
-        Vec3 result = cir.getReturnValue();
-        EventOnTravelPost event = new EventOnTravelPost(
-                result.multiply(0.9900000095367432, 0.9800000190734863, 0.9900000095367432)
-        );
-        EventManager.call(event);
-        cir.setReturnValue(event.getOldVelocity());
-    }
-
+    /**
+     * Пост-обработка движения планирующего игрока.
+     *
+     * <p>В 1.21.x это был хук на {@code LivingEntity#calcGlidingVelocity}, где событие
+     * {@link EventOnTravelPost} могло переписать скорость. В 26.3 такого метода нет —
+     * скорость планирования считается внутри {@code travelInAir}, — поэтому хук
+     * перенесён на TAIL {@code travel}: те же множители (0.99/0.98/0.99) применяются
+     * к итоговой дельте, а событие по-прежнему может её заменить.
+     */
     @Inject(method = "travel", at = @At("TAIL"))
     private void onTravelTail(Vec3 movementInput, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (self.isFallFlying() && self instanceof LocalPlayer) {
-            Vec3 v = self.getDeltaMovement();
-            v = calcGlidingVelocity(v);
-            self.setDeltaMovement(v);
+        if (!self.isFallFlying() || !(self instanceof LocalPlayer)) {
+            return;
         }
+        if (!Vesence.isModInitialized()) {
+            return;
+        }
+
+        // TODO(port26): EventOnTravelPost пока не имеет ни одного подписчика — хук
+        // сохранён, чтобы восстановить поведение модов на планирование без переписывания
+        // миксина. Множители взяты из прежнего calcGlidingVelocity.
+        EventOnTravelPost event = new EventOnTravelPost(
+                self.getDeltaMovement().multiply(0.9900000095367432, 0.9800000190734863, 0.9900000095367432)
+        );
+        EventManager.call(event);
+        self.setDeltaMovement(event.getOldVelocity());
     }
 }

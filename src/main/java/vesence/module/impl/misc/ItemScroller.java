@@ -107,18 +107,12 @@ public final class ItemScroller extends Module {
         if (code == InputConstants.UNKNOWN.getValue()) {
             return false;
         }
-        // TODO(port26): was GLFW.glfwGetKey/glfwGetMouseButton(window.handle(), code)
+        // 26.3: GLFW.glfwGetKey/glfwGetMouseButton удалены. Клавиши — SDL-сканкоды через
+        // InputConstants.isKeyDown, кнопки мыши — SDL_BUTTON_*MASK через MouseUtil
+        // (SDL-нумерация 1/2/3 = ЛКМ/СКМ/ПКМ, поэтому переводим в индекс vesence).
         return switch (bound.getType()) {
             case KEYBOARD -> InputConstants.isKeyDown(code);
-            case MOUSE -> {
-                net.minecraft.client.MouseHandler mouse = mc.mouseHandler;
-                yield switch (code) {
-                    case InputConstants.MOUSE_BUTTON_LEFT -> mouse.isLeftPressed();
-                    case InputConstants.MOUSE_BUTTON_RIGHT -> mouse.isRightPressed();
-                    case InputConstants.MOUSE_BUTTON_MIDDLE -> mouse.isMiddlePressed();
-                    default -> false;
-                };
-            }
+            case MOUSE -> vesence.utils.other.MouseUtil.isDown(vesence.utils.other.MouseUtil.button(code));
             default -> false;
         };
     }

@@ -9,6 +9,8 @@ import vesence.renderengine.utils.animation.Animation;
 import vesence.renderengine.utils.animation.impl.EaseInOutQuad;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,12 +62,49 @@ public final class Config implements ConfigUpdater {
       }
 
       jsonObject.add("DraggablePositions", draggablePositions);
+      // 26.3: помечаем формат биндов, чтобы старые конфиги (GLFW-коды) мигрировали
+      // на SDL-сканкоды ровно один раз — см. KeyCodeMigration.
+      jsonObject.addProperty(vesence.utils.other.KeyCodeMigration.FORMAT_FIELD,
+              vesence.utils.other.KeyCodeMigration.FORMAT_SDL);
       return jsonObject;
    }
 
    @Override
    public void load(JsonObject object) {
       System.out.println("[Config] Loading config: " + this.name);
+      // Старый конфиг (до порта на 26.3) хранил GLFW-коды клавиш; новые — SDL-сканкоды.
+      // Конвертируем только если файл ЯВНО помечен как glfw: конфиги без маркера писались
+      // уже портированным клиентом, т.е. содержат SDL-коды, и трогать их нельзя.
+      String format = object.has(vesence.utils.other.KeyCodeMigration.FORMAT_FIELD)
+              ? object.get(vesence.utils.other.KeyCodeMigration.FORMAT_FIELD).getAsString()
+              : vesence.utils.other.KeyCodeMigration.FORMAT_SDL;
+      boolean legacy = vesence.utils.other.KeyCodeMigration.FORMAT_GLFW.equalsIgnoreCase(format);
+      vesence.utils.other.KeyCodeMigration.beginLoad(legacy);
+      try {
+         loadModules(object);
+      } finally {
+         vesence.utils.other.KeyCodeMigration.endLoad();
+      }
+
+      if (legacy) {
+         // Пересохраняем сразу, чтобы миграция не повторялась при следующем запуске.
+         System.out.println("[Config] Migrating legacy GLFW keycodes to SDL scancodes: " + this.name);
+         try {
+            java.io.File tmp = new java.io.File(this.file.getParentFile(),
+                    this.file.getName() + "." + System.nanoTime() + ".tmp");
+            try (FileWriter writer = new FileWriter(tmp)) {
+               writer.write(ConfigManager.PRETTY_GSON.toJson(this.save()));
+               writer.flush();
+            }
+            java.nio.file.Files.move(tmp.toPath(), this.file.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+         } catch (IOException e) {
+            System.out.println("[Config] Could not rewrite migrated config: " + e.getMessage());
+         }
+      }
+   }
+
+   private void loadModules(JsonObject object) {
       if (object.has("Features")) {
          JsonObject modulesObject = object.getAsJsonObject("Features");
          int enabledCount = 0;

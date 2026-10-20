@@ -8,17 +8,24 @@ import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import vesence.module.impl.visuals.AspectRatio;
 
+/**
+ * Растяжение картинки под выбранное соотношение сторон (модуль Screen Ratio).
+ *
+ * <p>Порт 26.3: {@code GameRenderer#getBasicProjectionMatrix} удалён. Матрица проекции
+ * теперь считается в extract-фазе и складывается в
+ * {@code GameRenderer.gameRenderState().levelRenderState.cameraRenderState.projectionMatrix},
+ * а render-фаза только читает её. Поэтому правим готовую матрицу на выходе
+ * {@code GameRenderer.extract} — до того, как её прочитает {@code render()}.
+ */
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
 public class GameRendererAspectMixin {
 
-    // TODO(port26): в 26.3 проекция — класс net.minecraft.client.renderer.Projection
-    // (setupPerspective), метода getBasicProjectionMatrix больше нет. Хук отключён.
-    // @Inject(method = {"getBasicProjectionMatrix"}, at = {@At("RETURN")}, cancellable = true)
-    private void onGetBasicProjectionMatrix(CallbackInfoReturnable<Matrix4f> cir) {
+    @Inject(method = "extract", at = @At("RETURN"), require = 0)
+    private void vesence$applyAspectStretch(CallbackInfo ci) {
         if (!AspectRatio.isEnabled()) {
             return;
         }
@@ -28,14 +35,23 @@ public class GameRendererAspectMixin {
             return;
         }
 
+        GameRenderer self = (GameRenderer) (Object) this;
+        var renderState = self.gameRenderState();
+        if (renderState == null || renderState.levelRenderState == null
+                || renderState.levelRenderState.cameraRenderState == null) {
+            return;
+        }
+        Matrix4f projection = renderState.levelRenderState.cameraRenderState.projectionMatrix;
+        if (projection == null) {
+            return;
+        }
+
         int fbWidth = mc.getWindow().getScreenWidth();
         int fbHeight = mc.getWindow().getScreenHeight();
 
         float stretch = AspectRatio.getInstance().computeAnimatedScale(fbWidth, fbHeight);
         if (stretch > 0.0f && Math.abs(stretch - 1.0f) > 1.0E-4f) {
-            Matrix4f matrix = new Matrix4f(cir.getReturnValue());
-            matrix.m00(matrix.m00() * stretch);
-            cir.setReturnValue(matrix);
+            projection.m00(projection.m00() * stretch);
         }
     }
 }

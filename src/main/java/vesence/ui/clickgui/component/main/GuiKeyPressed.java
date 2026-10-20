@@ -3,23 +3,29 @@ package vesence.ui.clickgui.component.main;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import vesence.Vesence;
-import vesence.module.api.Module;
-import vesence.module.api.setting.impl.BindSettings;
 import vesence.module.api.setting.impl.StringSetting;
 import vesence.ui.clickgui.GuiScreen;
 import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.utils.ClipboardUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 
+/**
+ * Обработка клавиш в ClickGui.
+ *
+ * <p>Порт 26.3: {@code KeyEvent#key()} — это SDL-сканкод, а не GLFW-код. Старые числовые
+ * литералы (256 = ESC, 259 = BACKSPACE, 261 = DELETE) в 26.3 означали бы совсем другие
+ * клавиши (41 = ESC, 42 = BACKSPACE, 76 = DELETE). Поэтому везде используем
+ * {@code InputConstants.KEY_*}.
+ */
 @Environment(EnvType.CLIENT)
 public class GuiKeyPressed extends GuiScreen {
 
    public static boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       if (GuiScreen.activeModuleBind != null) {
-         if (keyCode == 256) {
+         if (keyCode == InputConstants.KEY_ESCAPE) {
             GuiScreen.activeModuleBind.binding = false;
             GuiScreen.activeModuleBind = null;
-         } else if (keyCode == 261) {
+         } else if (keyCode == InputConstants.KEY_DELETE) {
              GuiScreen.activeModuleBind.bind = -1;
              GuiScreen.activeModuleBind.binding = false;
 
@@ -37,10 +43,10 @@ public class GuiKeyPressed extends GuiScreen {
 
          return true;
       } else if (GuiScreen.activeBindSetting != null) {
-         if (keyCode == 256) {
+         if (keyCode == InputConstants.KEY_ESCAPE) {
             GuiScreen.activeBindSetting.active = false;
             GuiScreen.activeBindSetting = null;
-         } else if (keyCode == 261) {
+         } else if (keyCode == InputConstants.KEY_DELETE) {
              GuiScreen.activeBindSetting.key = -1;
              GuiScreen.activeBindSetting.active = false;
 
@@ -84,7 +90,7 @@ public class GuiKeyPressed extends GuiScreen {
                return true;
             }
 
-            if (keyCode == 256) {
+            if (keyCode == InputConstants.KEY_ESCAPE) {
                GuiScreen.textSelectAll = false;
                GuiScreen.activeStringSetting.active = false;
                GuiScreen.activeStringSetting = null;
@@ -94,7 +100,7 @@ public class GuiKeyPressed extends GuiScreen {
                return true;
             }
 
-            if (keyCode == 259) {
+            if (keyCode == InputConstants.KEY_BACKSPACE) {
                if (GuiScreen.textSelectAll) {
                   ss.input = "";
                   GuiScreen.textSelectAll = false;
@@ -133,14 +139,14 @@ public class GuiKeyPressed extends GuiScreen {
                return true;
             }
 
-            if (keyCode == 256) {
+            if (keyCode == InputConstants.KEY_ESCAPE) {
                GuiScreen.activeSearch = false;
                GuiScreen.searchText = "";
                GuiScreen.textSelectAll = false;
                return true;
             }
 
-            if (keyCode == 259) {
+            if (keyCode == InputConstants.KEY_BACKSPACE) {
                if (GuiScreen.textSelectAll) {
                   GuiScreen.searchText = "";
                   GuiScreen.textSelectAll = false;

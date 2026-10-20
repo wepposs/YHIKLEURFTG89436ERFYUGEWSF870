@@ -4,8 +4,9 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 public class KeyUtil {
 
-    // TODO(port26): 26.3 uses SDL scancodes (InputConstants.KEY_*) instead of GLFW key codes;
-    // values below follow SDL ordering (layout-independent).
+    // 26.3: GLFW удалён, вместо GLFW-кодов везде используются SDL-сканкоды
+    // (InputConstants.KEY_*). Эти три константы — SDL-сканкоды клавиш цифрового
+    // блока, для которых в InputConstants нет именованных полей.
     private static final int SDL_SCANCODE_KP_DIVIDE = 84;
     private static final int SDL_SCANCODE_KP_MINUS = 86;
     private static final int SDL_SCANCODE_KP_DECIMAL = 99;

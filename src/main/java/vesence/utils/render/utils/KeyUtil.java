@@ -8,11 +8,31 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.platform.InputConstants;
 
+/**
+ * Таблица имён клавиш для биндов и команды {@code .bind}.
+ *
+ * <p>Порт 26.3: GLFW удалён, {@code KeyEvent#key()} — это <b>SDL-сканкод</b>, и именно он
+ * хранится в {@code Module#bind}. Раньше таблица содержала GLFW-коды (A = 65, ENTER = 257,
+ * ESCAPE = 256, F1 = 290, NUMPAD0 = 320 …), поэтому в 26.3:
+ * <ul>
+ *   <li>{@link #getKey(int)} не находил бинд в {@code reverseKeyMap} и показывал «KEY4»
+ *       вместо «A» — отсюда ощущение, что все кнопки перепутаны;</li>
+ *   <li>{@code .bind add <module> <key>} записывал GLFW-код, который никогда не совпадёт
+ *       с SDL-сканкодом в {@code KeyboardMixin}.</li>
+ * </ul>
+ * Теперь обе таблицы строятся из {@code InputConstants.KEY_*}, т.е. из реальных SDL-сканкодов.
+ */
 @Environment(EnvType.CLIENT)
 public class KeyUtil {
    public static final Map<String, Integer> keyMap = new HashMap<>();
    public static final Map<Integer, String> reverseKeyMap = new HashMap<>();
    public static Minecraft mc = Minecraft.getInstance();
+
+   /** SDL-сканкоды, для которых в {@link InputConstants} нет именованной константы. */
+   private static final int SDL_SCANCODE_KP_DIVIDE = 84;
+   private static final int SDL_SCANCODE_KP_MINUS = 86;
+   private static final int SDL_SCANCODE_KP_DECIMAL = 99;
+   private static final int SDL_SCANCODE_MENU = 101;
 
    public static boolean isKeyDown(int keyCode) {
       return InputConstants.isKeyDown(keyCode);
@@ -39,120 +59,78 @@ public class KeyUtil {
    }
 
    private static void getBindCMD() {
+      // Буквы A-Z: SDL-сканкоды идут подряд, начиная с KEY_A.
+      for (char c = 'A'; c <= 'Z'; c++) {
+         keyMap.put(String.valueOf(c), InputConstants.KEY_A + (c - 'A'));
+      }
 
-      keyMap.put("A", 65);
-      keyMap.put("B", 66);
-      keyMap.put("C", 67);
-      keyMap.put("D", 68);
-      keyMap.put("E", 69);
-      keyMap.put("F", 70);
-      keyMap.put("G", 71);
-      keyMap.put("H", 72);
-      keyMap.put("I", 73);
-      keyMap.put("J", 74);
-      keyMap.put("K", 75);
-      keyMap.put("L", 76);
-      keyMap.put("M", 77);
-      keyMap.put("N", 78);
-      keyMap.put("O", 79);
-      keyMap.put("P", 80);
-      keyMap.put("Q", 81);
-      keyMap.put("R", 82);
-      keyMap.put("S", 83);
-      keyMap.put("T", 84);
-      keyMap.put("U", 85);
-      keyMap.put("V", 86);
-      keyMap.put("W", 87);
-      keyMap.put("X", 88);
-      keyMap.put("Y", 89);
-      keyMap.put("Z", 90);
+      // Цифры 1-9 идут подряд, 0 стоит отдельно (SDL-порядок: 1..9, затем 0).
+      for (char c = '1'; c <= '9'; c++) {
+         keyMap.put(String.valueOf(c), InputConstants.KEY_1 + (c - '1'));
+      }
+      keyMap.put("0", InputConstants.KEY_0);
 
-      keyMap.put("0", 48);
-      keyMap.put("1", 49);
-      keyMap.put("2", 50);
-      keyMap.put("3", 51);
-      keyMap.put("4", 52);
-      keyMap.put("5", 53);
-      keyMap.put("6", 54);
-      keyMap.put("7", 55);
-      keyMap.put("8", 56);
-      keyMap.put("9", 57);
+      for (int i = 1; i <= 12; i++) {
+         keyMap.put("F" + i, InputConstants.KEY_F1 + (i - 1));
+      }
 
-      keyMap.put("F1", 290);
-      keyMap.put("F2", 291);
-      keyMap.put("F3", 292);
-      keyMap.put("F4", 293);
-      keyMap.put("F5", 294);
-      keyMap.put("F6", 295);
-      keyMap.put("F7", 296);
-      keyMap.put("F8", 297);
-      keyMap.put("F9", 298);
-      keyMap.put("F10", 299);
-      keyMap.put("F11", 300);
-      keyMap.put("F12", 301);
+      for (int i = 1; i <= 9; i++) {
+         keyMap.put("NUM" + i, InputConstants.KEY_NUMPAD1 + (i - 1));
+      }
+      keyMap.put("NUM0", InputConstants.KEY_NUMPAD0);
+      keyMap.put("NUMDECIMAL", SDL_SCANCODE_KP_DECIMAL);
+      keyMap.put("NUMDIVIDE", SDL_SCANCODE_KP_DIVIDE);
+      keyMap.put("NUMMULTIPLY", InputConstants.KEY_MULTIPLY);
+      keyMap.put("NUMSUBTRACT", SDL_SCANCODE_KP_MINUS);
+      keyMap.put("NUMADD", InputConstants.KEY_ADD);
+      keyMap.put("NUMENTER", InputConstants.KEY_NUMPADENTER);
+      keyMap.put("NUMEQUAL", InputConstants.KEY_NUMPADEQUALS);
 
-      keyMap.put("NUM0", 320);
-      keyMap.put("NUM1", 321);
-      keyMap.put("NUM2", 322);
-      keyMap.put("NUM3", 323);
-      keyMap.put("NUM4", 324);
-      keyMap.put("NUM5", 325);
-      keyMap.put("NUM6", 326);
-      keyMap.put("NUM7", 327);
-      keyMap.put("NUM8", 328);
-      keyMap.put("NUM9", 329);
-      keyMap.put("NUMDECIMAL", 330);
-      keyMap.put("NUMDIVIDE", 331);
-      keyMap.put("NUMMULTIPLY", 332);
-      keyMap.put("NUMSUBTRACT", 333);
-      keyMap.put("NUMADD", 334);
-      keyMap.put("NUMENTER", 335);
-      keyMap.put("NUMEQUAL", 336);
+      keyMap.put("SPACE", InputConstants.KEY_SPACE);
+      keyMap.put("ENTER", InputConstants.KEY_RETURN);
+      keyMap.put("ESCAPE", InputConstants.KEY_ESCAPE);
+      keyMap.put("TAB", InputConstants.KEY_TAB);
+      keyMap.put("BACKSPACE", InputConstants.KEY_BACKSPACE);
+      keyMap.put("INSERT", InputConstants.KEY_INSERT);
+      keyMap.put("DELETE", InputConstants.KEY_DELETE);
+      keyMap.put("HOME", InputConstants.KEY_HOME);
+      keyMap.put("END", InputConstants.KEY_END);
+      keyMap.put("PAGEUP", InputConstants.KEY_PAGEUP);
+      keyMap.put("PAGEDOWN", InputConstants.KEY_PAGEDOWN);
+      keyMap.put("RIGHT", InputConstants.KEY_RIGHT);
+      keyMap.put("LEFT", InputConstants.KEY_LEFT);
+      keyMap.put("DOWN", InputConstants.KEY_DOWN);
+      keyMap.put("UP", InputConstants.KEY_UP);
 
-      keyMap.put("SPACE", 32);
-      keyMap.put("ENTER", 257);
-      keyMap.put("ESCAPE", 256);
-      keyMap.put("TAB", 258);
-      keyMap.put("BACKSPACE", 259);
-      keyMap.put("INSERT", 260);
-      keyMap.put("DELETE", 261);
-      keyMap.put("HOME", 268);
-      keyMap.put("END", 269);
-      keyMap.put("PAGEUP", 266);
-      keyMap.put("PAGEDOWN", 267);
-      keyMap.put("RIGHT", 262);
-      keyMap.put("LEFT", 263);
-      keyMap.put("DOWN", 264);
-      keyMap.put("UP", 265);
+      keyMap.put("LSHIFT", InputConstants.KEY_LSHIFT);
+      keyMap.put("LCTRL", InputConstants.KEY_LCONTROL);
+      keyMap.put("LALT", InputConstants.KEY_LALT);
+      keyMap.put("LSUPER", InputConstants.KEY_LGUI);
+      keyMap.put("RSHIFT", InputConstants.KEY_RSHIFT);
+      keyMap.put("RCTRL", InputConstants.KEY_RCONTROL);
+      keyMap.put("RALT", InputConstants.KEY_RALT);
+      keyMap.put("RSUPER", InputConstants.KEY_RGUI);
+      keyMap.put("MENU", SDL_SCANCODE_MENU);
 
-      keyMap.put("LSHIFT", 340);
-      keyMap.put("LCTRL", 341);
-      keyMap.put("LALT", 342);
-      keyMap.put("LSUPER", 343);
-      keyMap.put("RSHIFT", 344);
-      keyMap.put("RCTRL", 345);
-      keyMap.put("RALT", 346);
-      keyMap.put("RSUPER", 347);
-      keyMap.put("MENU", 348);
+      keyMap.put("CAPSLOCK", InputConstants.KEY_CAPSLOCK);
+      keyMap.put("NUMLOCK", InputConstants.KEY_NUMLOCK);
+      keyMap.put("SCROLLLOCK", InputConstants.KEY_SCROLLLOCK);
+      keyMap.put("PRINTSCREEN", InputConstants.KEY_PRINTSCREEN);
+      keyMap.put("PAUSE", InputConstants.KEY_PAUSE);
 
-      keyMap.put("CAPSLOCK", 280);
-      keyMap.put("NUMLOCK", 282);
-      keyMap.put("SCROLLLOCK", 281);
-      keyMap.put("PRINTSCREEN", 283);
-      keyMap.put("PAUSE", 284);
+      keyMap.put("APOSTROPHE", InputConstants.KEY_APOSTROPHE);
+      keyMap.put("COMMA", InputConstants.KEY_COMMA);
+      keyMap.put("MINUS", InputConstants.KEY_MINUS);
+      keyMap.put("PERIOD", InputConstants.KEY_PERIOD);
+      keyMap.put("SLASH", InputConstants.KEY_SLASH);
+      keyMap.put("SEMICOLON", InputConstants.KEY_SEMICOLON);
+      keyMap.put("EQUAL", InputConstants.KEY_EQUALS);
+      keyMap.put("LBRACKET", InputConstants.KEY_LBRACKET);
+      keyMap.put("BACKSLASH", InputConstants.KEY_BACKSLASH);
+      keyMap.put("RBRACKET", InputConstants.KEY_RBRACKET);
+      keyMap.put("GRAVE", InputConstants.KEY_GRAVE);
 
-      keyMap.put("APOSTROPHE", 39);
-      keyMap.put("COMMA", 44);
-      keyMap.put("MINUS", 45);
-      keyMap.put("PERIOD", 46);
-      keyMap.put("SLASH", 47);
-      keyMap.put("SEMICOLON", 59);
-      keyMap.put("EQUAL", 61);
-      keyMap.put("LBRACKET", 91);
-      keyMap.put("BACKSLASH", 92);
-      keyMap.put("RBRACKET", 93);
-      keyMap.put("GRAVE", 96);
-
+      // Мышиные кнопки: vesence-кодировка -100 - индекс (0 = ЛКМ, 1 = ПКМ, 2 = СКМ).
       keyMap.put("LMB", -100);
       keyMap.put("RMB", -101);
       keyMap.put("MB3", -102);

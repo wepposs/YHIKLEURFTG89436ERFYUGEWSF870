@@ -13,12 +13,10 @@ import vesence.module.impl.visuals.NoRender;
 @Environment(EnvType.CLIENT)
 @Mixin(GameRenderer.class)
 public class NoRenderGameRendererMixin {
-   // TODO(port26): GameRenderer#showFloatingItem removed in 26.3 — totem/floating-item activation
-   // moved to LocalPlayer#displayItemActivation + PlayerRenderState.itemActivation rendered by
-   // ScreenEffectRenderer#renderItemActivationAnimation. Hook point lives in another class, so the
-   // «Анимация тотема» cancel is stubbed here.
-   // @Inject(method = "showFloatingItem", at = @At("HEAD"), cancellable = true)
-   // private void onShowFloatingItem(net.minecraft.world.item.ItemStack floatingItem, CallbackInfo ci) { ... }
+   // Порт 26.3: GameRenderer#showFloatingItem удалён — активация тотема переехала в
+   // LocalPlayer#displayItemActivation и рисуется ScreenEffectRenderer#renderItemActivationAnimation.
+   // Хук на этот метод живёт в InGameOverlayRendererMixin (тот же целевой класс, что и
+   // остальные экранные оверлеи), поэтому здесь ничего не остаётся.
 
    @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)
    private void onTiltViewWhenHurt(net.minecraft.client.renderer.state.level.CameraRenderState cameraRenderState,

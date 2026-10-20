@@ -54,6 +54,19 @@ public class Vesence implements ClientModInitializer {
     private static volatile boolean fontsInitialized = false;
     private static volatile long renderFrameId = 0L;
 
+    /**
+     * 26.3: GUI больше не рисуется «на месте» — {@code Gui}/{@code Hud} только собирают
+     * render state (extract*), а {@code GuiRenderer} проигрывает его позже, внутри
+     * {@code GameRenderer.render()}. Всё, что кастомный рендер нарисует во время extract,
+     * стирается {@code clearColorAndDepthTextures} в начале кадра — отсюда чёрный экран.
+     *
+     * <p>Поэтому UI-код кастомных экранов/HUD-элементов не рисует сразу, а кладёт задачу
+     * в эту очередь; она проигрывается в {@link #onPostGuiRender()} — после ванильного
+     * GUI-прохода и до {@code windowSurface.blitFromTexture()} (то самое место, где в
+     * 1.21.11 был {@code RenderSystem.flipFrame}).
+     */
+    private static final java.util.ArrayDeque<Runnable> overlayTasks = new java.util.ArrayDeque<>();
+
     @Generated
     public static boolean isModInitialized() {
         return modInitialized;
@@ -72,6 +85,58 @@ public class Vesence implements ClientModInitializer {
     @Generated
     public static long getRenderFrameId() {
         return renderFrameId;
+    }
+
+    /** Ставит отрисовку в очередь пост-GUI прохода (см. {@link #overlayTasks}). */
+    public static void deferOverlay(Runnable task) {
+        if (task != null) {
+            overlayTasks.add(task);
+        }
+    }
+
+    private static void flushOverlays() {
+        Runnable task;
+        while ((task = overlayTasks.poll()) != null) {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                System.err.println("[weppos] overlay task failed: " + t);
+            }
+        }
+    }
+
+    /**
+     * Точка отрисовки кастомного UI в 26.3: вызывается в конце {@code GameRenderer.render()},
+     * когда ванильный GUI уже проигран в main render target, а блит в swapchain ещё не сделан.
+     */
+    public static void onPostGuiRender() {
+        if (!modInitialized) {
+            overlayTasks.clear();
+            return;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getWindow() == null) {
+            overlayTasks.clear();
+            return;
+        }
+
+        int width = client.getWindow().getScreenWidth();
+        int height = client.getWindow().getScreenHeight();
+        if (width <= 0 || height <= 0) {
+            overlayTasks.clear();
+            return;
+        }
+
+        GlState.Snapshot snapshot = GlState.push();
+        int fbo = vesence.renderengine.MainTargetBinder.begin();
+        try {
+            flushOverlays();
+            onRender();
+        } finally {
+            vesence.renderengine.MainTargetBinder.end(fbo);
+            GlState.pop(snapshot);
+        }
     }
 
     @Generated
@@ -164,6 +229,7 @@ public class Vesence implements ClientModInitializer {
         // === /ПРОВЕРКА СЕССИИ ===
 
         vesence.debug.SkyShotTest.init();
+        vesence.debug.UiShotTest.init();
 
         try {
             vesence.utils.debug.FreezeWatchdog.start();
@@ -282,6 +348,7 @@ public class Vesence implements ClientModInitializer {
     public static void onRender() {
         vesence.utils.debug.FreezeWatchdog.beat("render");
         GlContextManager.onRenderFrame();
+        if (System.getenv("VESENCE_DISABLE_HUD") != null) return; // диагностика порта 26.3
         if (modInitialized) {
             long frameSection = vesence.utils.debug.FreezeWatchdog.sectionEnter("render.frame");
             GlState.Snapshot snapshot = GlState.push();

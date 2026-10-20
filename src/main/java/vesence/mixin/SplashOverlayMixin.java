@@ -74,7 +74,10 @@ public abstract class SplashOverlayMixin {
             try { mc.gui.screen().extractRenderState(context, 0, 0, deltaTicks); } catch (Exception ignored) {}
         }
 
-        vesence$draw(mc, width, height, alpha);
+        // 26.3: extract-фаза только собирает состояние кадра — он очищается в начале
+        // GameRenderer.render(). Поэтому сам сплэш рисуем в пост-GUI проходе.
+        final float drawAlpha = alpha;
+        Vesence.deferOverlay(() -> vesence$draw(mc, width, height, drawAlpha));
 
         if (fadeOut >= 2f) {
             mc.gui.setOverlay(null);
@@ -92,22 +95,8 @@ public abstract class SplashOverlayMixin {
         vesence$lastNanos = nowNanos;
 
         GlState.Snapshot snapshot = GlState.push();
-        com.mojang.blaze3d.pipeline.RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
-        int tempFbo = 0;
+        int tempFbo = vesence.renderengine.MainTargetBinder.begin();
         try {
-            if (mainFb != null && mainFb.getColorTexture() instanceof com.mojang.renderpearl.backend.opengl.GlTexture glColor) {
-                tempFbo = GL30.glGenFramebuffers();
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
-                GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
-                if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
-                    GL30.glDeleteFramebuffers(tempFbo);
-                    tempFbo = 0;
-                }
-            } else {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
-            }
-
             Vesence.ensureRendererInitialized();
             Renderer2D r = Vesence.getRenderer();
             if (r != null) {
@@ -121,12 +110,8 @@ public abstract class SplashOverlayMixin {
         } catch (Exception e) {
             System.err.println("[weppos] SplashOverlay render error: " + e.getMessage());
         } finally {
-            if (tempFbo != 0) {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, 0, 0);
-            }
+            vesence.renderengine.MainTargetBinder.end(tempFbo);
             GlState.pop(snapshot);
-            if (tempFbo != 0) GL30.glDeleteFramebuffers(tempFbo);
         }
     }
 

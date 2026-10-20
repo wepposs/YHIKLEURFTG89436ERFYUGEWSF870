@@ -91,7 +91,8 @@ public final class MacroManager {
    }
 
    public static String keyName(int key) {
-      // TODO(port26): was GLFW.glfwGetKeyName(key, 0); 26.3 uses SDL scancodes
+      // 26.3: GLFW.glfwGetKeyName удалён, но InputConstants.Type.KEYBOARD даёт имя клавиши
+      // по SDL-сканкоду — это и есть эквивалент.
       String name = InputConstants.Type.KEYBOARD.getOrCreate(key).getDisplayName().getString();
       if (name != null && !name.isEmpty()) {
          return name.toUpperCase(java.util.Locale.ROOT);
@@ -110,9 +111,16 @@ public final class MacroManager {
             return InputConstants.KEY_A + (c - 'A');
          }
          if (c >= '0' && c <= '9') {
-            // TODO(port26): SDL scancode order is 1..9,0
+            // SDL-сканкоды цифр идут 1..9, затем 0 (KEY_1 = 30 … KEY_9 = 38, KEY_0 = 39).
             return c == '0' ? InputConstants.KEY_0 : InputConstants.KEY_1 + (c - '1');
          }
+      }
+
+      // Остальные имена (F1..F12, NUM*, ESCAPE, стрелки, модификаторы, пунктуация) —
+      // из общей таблицы биндов, чтобы не дублировать сотню констант.
+      Integer mapped = vesence.utils.render.utils.KeyUtil.keyMap.get(up);
+      if (mapped != null) {
+         return mapped;
       }
 
       switch (up) {

@@ -197,26 +197,17 @@ public class MultiplayerScreen extends Screen {
         int height = mc.getWindow().getScreenHeight();
         if (width <= 0 || height <= 0) return;
 
+        // 26.3: рисовать в extract-фазе нельзя (кадр очищается в GameRenderer.render()).
+        Vesence.deferOverlay(() -> drawVesenceFrame(mc, width, height));
+    }
+
+    private void drawVesenceFrame(Minecraft mc, int width, int height) {
         GlState.Snapshot snapshot = GlState.push();
-        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
-        int tempFbo = 0;
+        int tempFbo = vesence.renderengine.MainTargetBinder.begin();
         try {
-            if (mainFb != null && mainFb.getColorTexture() instanceof com.mojang.renderpearl.backend.opengl.GlTexture glColor) {
-                tempFbo = GL30.glGenFramebuffers();
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
-                GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
-                if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
-                    GL30.glDeleteFramebuffers(tempFbo);
-                    tempFbo = 0;
-                }
-            } else {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
-            }
             Vesence.ensureRendererInitialized();
             Renderer2D renderer = Vesence.getRenderer();
             if (renderer != null) {
-
                 preloadFavicons();
                 renderer.begin(width, height);
                 try {
@@ -228,12 +219,8 @@ public class MultiplayerScreen extends Screen {
         } catch (Exception e) {
             System.err.println("[weppos] MultiplayerScreen render error: " + e.getMessage());
         } finally {
-            if (tempFbo != 0) {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, 0, 0);
-            }
+            vesence.renderengine.MainTargetBinder.end(tempFbo);
             GlState.pop(snapshot);
-            if (tempFbo != 0) GL30.glDeleteFramebuffers(tempFbo);
         }
     }
 
@@ -242,7 +229,7 @@ public class MultiplayerScreen extends Screen {
     private void renderVesence(Renderer2D r, int sw, int sh, Minecraft mc) {
         if (introStartMillis == 0L && splashFadeStarted(mc)) introStartMillis = System.currentTimeMillis();
 
-        // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...); use MouseHandler positions
+        // 26.3: GLFW.glfwGetCursorPos удалён; MouseHandler хранит актуальные координаты.
         double gx0 = mc.mouseHandler.xpos(), gy0 = mc.mouseHandler.ypos();
         mxFb = (float) (gx0 * ((double) sw / mc.getWindow().getWidth()));
         myFb = (float) (gy0 * ((double) sh / mc.getWindow().getHeight()));

@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 @Environment(EnvType.CLIENT)
 public final class ConfigManager extends Manager<Config> {
-   private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
+   static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
    private static final String OS = System.getProperty("os.name").toLowerCase();
    private static final boolean IS_WINDOWS = OS.contains("win");
    private static final boolean IS_LINUX = OS.contains("nix") || OS.contains("nux") || OS.contains("aix");
@@ -60,6 +60,15 @@ public final class ConfigManager extends Manager<Config> {
       }
 
       if (configDirectory != null) {
+         // Убираем недописанные .tmp от прерванных сохранений — они больше не нужны,
+         // потому что рабочий файл подменяется атомарно.
+         File[] stale = configDirectory.listFiles(fx -> fx.isFile() && fx.getName().endsWith(".tmp"));
+         if (stale != null) {
+            for (File s : stale) {
+               s.delete();
+            }
+         }
+
          File[] files = configDirectory.listFiles(fx -> !fx.isDirectory() && FilenameUtils.getExtension(fx.getName()).equals("json"));
 
          for (File f : files) {
@@ -96,7 +105,15 @@ public final class ConfigManager extends Manager<Config> {
             } catch (Exception var10) {
                // Повреждённый/обрезанный JSON конфига (например, прерванная запись)
                // не должен крашить клиент — просто пропускаем загрузку этого конфига.
+               // Испорченный файл откладываем в .corrupt, чтобы его можно было
+               // восстановить вручную, а не молча затереть при следующем автосейве.
                System.err.println("[weppos] Failed to parse config '" + configName + "': " + var10.getMessage());
+               try {
+                  java.nio.file.Files.move(config.getFile().toPath(),
+                          new File(config.getFile().getParentFile(), config.getFile().getName() + ".corrupt").toPath(),
+                          java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+               } catch (Exception ignored) {
+               }
                return false;
             }
          }
@@ -114,16 +131,37 @@ public final class ConfigManager extends Manager<Config> {
          }
 
          String contentPrettyPrint = PRETTY_GSON.toJson(config.save());
+         // Атомарная запись: сначала во временный файл, затем подмена.
+         // Раньше писали прямо в целевой файл на фоновом потоке автоСейва, и если
+         // JVM завершалась посреди записи (быстрый выход, краш), конфиг оставался
+         // обрезанным — при следующем запуске он не парсился и все настройки/бинды
+         // терялись. Теперь недописанным может остаться только .tmp, а рабочий
+         // файл всегда содержит либо старую, либо новую полную версию.
+         java.io.File target = config.getFile();
+         // Уникальное имя временного файла: автоСейв идёт в отдельном потоке, и два
+         // одновременных сохранения не должны писать в один и тот же .tmp.
+         java.io.File tmp = new java.io.File(target.getParentFile(),
+                 target.getName() + "." + System.nanoTime() + ".tmp");
 
          try {
-            boolean var5;
-            try (FileWriter writer = new FileWriter(config.getFile())) {
+            try (FileWriter writer = new FileWriter(tmp)) {
                writer.write(contentPrettyPrint);
-               var5 = true;
+               writer.flush();
             }
 
-            return var5;
+            try {
+               java.nio.file.Files.move(
+                       tmp.toPath(), target.toPath(),
+                       java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                       java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException notAtomic) {
+               java.nio.file.Files.move(
+                       tmp.toPath(), target.toPath(),
+                       java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
          } catch (IOException var9) {
+            tmp.delete();
             return false;
          }
       }

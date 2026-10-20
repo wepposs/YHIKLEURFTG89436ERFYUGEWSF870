@@ -216,7 +216,7 @@ public class Module extends Config {
          }
 
          if (object.has("keyIndex")) {
-            this.bind = object.get("keyIndex").getAsInt();
+            this.bind = vesence.utils.other.KeyCodeMigration.migrate(object.get("keyIndex").getAsInt());
          }
           // legacy-read: старые keyIndexExtra игнорируются, система биндов теперь single-bind only.
 
@@ -252,6 +252,7 @@ public class Module extends Config {
                   } else {
                      bs.key = propertiesObject.get(key).getAsInt();
                   }
+                  bs.key = vesence.utils.other.KeyCodeMigration.migrate(bs.key);
                } else if (set instanceof StringSetting) {
                   ((StringSetting)set).input = propertiesObject.get(key).getAsString();
                } else if (set instanceof HueSetting) {

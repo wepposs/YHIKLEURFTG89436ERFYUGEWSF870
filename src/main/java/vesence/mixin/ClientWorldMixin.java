@@ -25,7 +25,8 @@ public class ClientWorldMixin {
             if (ambience.shouldOverrideFog() || Ambience.skyShader.get()) {
                 int color = ambience.getFogColorValue();
                 float cr = ((color >> 16) & 0xFF) / 255.0f, cg = ((color >> 8) & 0xFF) / 255.0f, cb = (color & 0xFF) / 255.0f;
-                // TODO(port26): SkyRenderState colors are Vector3fc/Vector4fc in 26.3
+                // 26.3: поля имеют интерфейсные типы Vector3fc/Vector4fc — присваиваем
+                // конкретные Vector3f/Vector4f (они эти интерфейсы реализуют).
                 state.skyColor = new org.joml.Vector3f(cr, cg, cb);
                 state.sunriseAndSunsetColor = new org.joml.Vector4f(cr, cg, cb, 1.0f);
             }

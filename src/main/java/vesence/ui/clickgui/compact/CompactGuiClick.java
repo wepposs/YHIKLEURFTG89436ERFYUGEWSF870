@@ -100,7 +100,7 @@ public class CompactGuiClick {
         int mouseX = (int) CompactGuiScreen.toGuiX(rawMouseX);
         int mouseY = (int) CompactGuiScreen.toGuiY(rawMouseY);
 
-        // Любой клик снимает выделение "всё" (Ctrl+A) с текстовых полей.
+        // Р›СЋР±РѕР№ РєР»РёРє СЃРЅРёРјР°РµС‚ РІС‹РґРµР»РµРЅРёРµ "РІСЃС‘" (Ctrl+A) СЃ С‚РµРєСЃС‚РѕРІС‹С… РїРѕР»РµР№.
         CompactGuiScreen.searchSelectAll = false;
         GuiScreen.textSelectAll = false;
 
@@ -614,17 +614,17 @@ public class CompactGuiClick {
                 GuiScreen.textSelectAll = false;
                 return true;
             }
-            if (key == 257 || key == 335) {
+            if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
                 GuiScreen.textSelectAll = false;
                 vesence.ui.clickgui.compact.setting.CompactGuiMouseClickedSetting.commitSliderEdit(es);
                 return true;
             }
-            if (key == 256) {
+            if (key == InputConstants.KEY_ESCAPE) {
                 GuiScreen.textSelectAll = false;
                 vesence.ui.clickgui.compact.setting.CompactGuiMouseClickedSetting.cancelSliderEdit(es);
                 return true;
             }
-            if (key == 259) {
+            if (key == InputConstants.KEY_BACKSPACE) {
                 if (GuiScreen.textSelectAll) {
                     es.editBuffer = "";
                     GuiScreen.textSelectAll = false;
@@ -647,10 +647,10 @@ public class CompactGuiClick {
         }
 
         if (GuiScreen.activeBindSetting != null) {
-            if (key == 256) {
+            if (key == InputConstants.KEY_ESCAPE) {
                 GuiScreen.activeBindSetting.active = false;
                 GuiScreen.activeBindSetting = null;
-            } else if (key == 261) {
+            } else if (key == InputConstants.KEY_DELETE) {
                 GuiScreen.activeBindSetting.key = -1;
                 GuiScreen.activeBindSetting.active = false;
                 GuiScreen.activeBindSetting = null;
@@ -665,14 +665,14 @@ public class CompactGuiClick {
         }
 
         if (GuiScreen.activeStringSetting != null) {
-            if (key == 256) {
+            if (key == InputConstants.KEY_ESCAPE) {
                 GuiScreen.activeStringSetting.active = false;
                 GuiScreen.activeStringSetting = null;
                 vesence.utils.player.MovementManager.getInstance().unlockMovement("StringSetting");
                 if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
                 return true;
             }
-            if (key == 259) {
+            if (key == InputConstants.KEY_BACKSPACE) {
                 if (!GuiScreen.activeStringSetting.input.isEmpty()) {
                     GuiScreen.activeStringSetting.input = GuiScreen.activeStringSetting.input.substring(0, GuiScreen.activeStringSetting.input.length() - 1);
                     if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
@@ -709,7 +709,7 @@ public class CompactGuiClick {
             return true;
         }
 
-        if (key == 259) {
+        if (key == InputConstants.KEY_BACKSPACE) {
             if (CompactGuiScreen.searchSelectAll) {
                 CompactGuiScreen.searchText = "";
                 CompactGuiScreen.searchSelectAll = false;
@@ -722,7 +722,7 @@ public class CompactGuiClick {
             }
             return true;
         }
-        if (key == 256) {
+        if (key == InputConstants.KEY_ESCAPE) {
             if (CompactGuiScreen.searchActive) {
                 CompactGuiScreen.searchActive = false;
                 CompactGuiScreen.searchSelectAll = false;

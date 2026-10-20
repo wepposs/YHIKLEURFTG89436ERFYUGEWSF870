@@ -63,8 +63,10 @@ public class LuaTestHMI {
      * (замена WorldRenderEvents.START из оригинального мода).
      */
     public static void updateDeltaTime() {
-        // TODO(port26): was GLFW.glfwGetTime(); 26.3 has no GLFW
-        float currentTime = (float) (System.nanoTime() / 1.0e9);
+        // 26.3: GLFW.glfwGetTime() удалён. Прямой эквивалент — Blaze3D.getTime():
+        // те же секунды с плавающей точкой от запуска процесса, без накопления
+        // погрешности System.nanoTime()/1e9 в float-точности.
+        float currentTime = (float) com.mojang.blaze3d.Blaze3D.getTime();
         deltaTime = currentTime - prevTime;
         prevTime = currentTime;
         deltaTime = Minecraft.getInstance().isPaused() ? 0.0f : (float) Math.min(0.05, (double) deltaTime);

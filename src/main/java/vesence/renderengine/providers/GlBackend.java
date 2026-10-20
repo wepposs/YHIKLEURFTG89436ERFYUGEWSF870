@@ -178,9 +178,11 @@ public final class GlBackend {
          // GL debug output disabled in production.
          // GL_DEBUG_OUTPUT_SYNCHRONOUS forces a full GPU pipeline flush on every GL call,
          // causing 10-30% FPS loss. Enable only for debugging OpenGL issues.
-         // if (this.debugOutputSupported) {
-         //    this.installDebugCallback(caps);
-         // }
+         // 26.3: включается переменной окружения VESENCE_GLDEBUG=1 — печатает стек Java
+         // для каждого GL-сообщения, чтобы находить источник ошибок в сыром GL-коде.
+         if (System.getenv("VESENCE_GLDEBUG") != null && this.debugOutputSupported) {
+            this.installDebugCallback(caps);
+         }
       } else {
          throw new IllegalStateException(
                "OpenGL instanced rendering is required when shader storage buffers are unavailable");
@@ -362,11 +364,25 @@ public final class GlBackend {
             RenderFrameMetrics.getInstance().recordDrawCall(trianglesDrawn);
          }
 
+         // 26.3: flush() вызывается не только из begin/end кадра, но и посреди работы
+         // вложенных пайплайнов (blur/esp/shape) — те биндят СВОЙ VAO и программу, а на
+         // выходе оставляют VAO 0. В core-профиле рисовать с VAO 0 нельзя: GL выдаёт
+         // GL_INVALID_OPERATION "Array object is not active" и кадр теряет часть
+         // геометрии. Поэтому перед каждым батч-дро выставляем свои program+VAO и
+         // возвращаем прежние после него.
+         int previousVao = GL11.glGetInteger(34229);
+         int previousProgram = GL11.glGetInteger(35725);
+         GL20.glUseProgram(this.shapeProgram.id());
+         GL30.glBindVertexArray(this.vaoDraw);
+
          if (this.ssboSupported) {
             GL11.glDrawArrays(4, 0, this.instanceCount * 6);
          } else {
             GL31.glDrawArraysInstanced(4, 0, 6, this.instanceCount);
          }
+
+         GL30.glBindVertexArray(previousVao);
+         GL20.glUseProgram(previousProgram);
 
          // No need to restore texture bindings here — endFrame() restores full
          // GL state from snapshot, and between flushes only our code runs.
@@ -1453,6 +1469,18 @@ public final class GlBackend {
                   String text = GLDebugMessageCallback.getMessage(length, message);
                   if (severity != 33387) {
                      System.err.println("[OpenGL] " + text + " (severity=" + severityToString(severity) + ")");
+                     // Диагностика порта: стек Java показывает, какой сырой GL-вызов виноват.
+                     StackTraceElement[] trace = new Throwable().getStackTrace();
+                     int printed = 0;
+                     for (StackTraceElement element : trace) {
+                        if (element.getClassName().startsWith("vesence.")
+                              || element.getClassName().startsWith("com.mojang.renderpearl.")) {
+                           System.err.println("    at " + element);
+                           if (++printed >= 6) {
+                              break;
+                           }
+                        }
+                     }
                   }
                });
          if (caps.OpenGL43) {

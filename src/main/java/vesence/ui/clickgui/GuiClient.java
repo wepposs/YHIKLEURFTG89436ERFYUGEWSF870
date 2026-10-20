@@ -24,6 +24,7 @@ import vesence.ui.clickgui.component.main.GuiShouldCloseOnEsc;
 import vesence.ui.clickgui.component.mouse.GuiMouseClicked;
 import vesence.ui.clickgui.component.render.GuiRender;
 import vesence.utils.player.MovementManager;
+import vesence.utils.other.MouseUtil;
 import vesence.Vesence;
 import vesence.renderengine.render.Renderer2D;
 import vesence.ui.clickgui.compact.CompactGuiClick;
@@ -50,15 +51,18 @@ public class GuiClient extends Screen {
             public void onRender(RenderEvent event) {
                Minecraft client = event.client();
                if (client != null && client.gui.screen() instanceof GuiClient) {
-                  // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...)
+                  // 26.3: GLFW.glfwGetCursorPos удалён; MouseHandler уже хранит координаты курсора.
                   if (client.getWindow() != null) {
                      if (client.mouseHandler != null) {
                         client.mouseHandler.releaseMouse();
                      }
                   }
 
-                  int mouseXInt = (int) client.mouseHandler.xpos();
-                  int mouseYInt = (int) client.mouseHandler.ypos();
+                  // Координаты должны быть в GUI-масштабе (как click.x() в mouseClicked и как
+                  // sw/sh в CompactGuiRender). xpos()/ypos() — сырые пиксели окна, из-за них
+                  // подсветка под курсором не совпадала с реальной точкой клика.
+                  int mouseXInt = (int) client.mouseHandler.getScaledXPos(client.getWindow());
+                  int mouseYInt = (int) client.mouseHandler.getScaledYPos(client.getWindow());
                   GuiGraphicsExtractor drawContext = null;
                   GuiRender.render(event.renderer(), drawContext, mouseXInt, mouseYInt, client.getDeltaTracker().getGameTimeDeltaPartialTick(true));
                }
@@ -79,10 +83,14 @@ public class GuiClient extends Screen {
    @Override
    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean bl) {
       Renderer2D renderer = Vesence.getRenderer();
+      vesence.debug.InputDebug.mouse("GuiClient.mouseClicked", click.button(), 1, click.x(), click.y());
       if (renderer != null) {
          int scaledX = (int) click.x();
          int scaledY = (int) click.y();
-         if (CompactGuiClick.mouseClicked(renderer, scaledX, scaledY, click.button())) {
+         // 26.3: клик приходит с SDL-нумерацией (1=ЛКМ, 2=СКМ, 3=ПКМ), а весь ClickGui
+         // работает с GLFW-нумерацией (0=ЛКМ, 1=ПКМ, 2=СКМ). Нормализуем один раз здесь,
+         // чтобы внутри все сравнения вида `button == 0` остались верными.
+         if (CompactGuiClick.mouseClicked(renderer, scaledX, scaledY, MouseUtil.button(click.button()))) {
             return true;
          }
       }
@@ -98,10 +106,11 @@ public class GuiClient extends Screen {
 
    @Override
    public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent click, double pDragX, double pDragY) {
-      if (CompactGuiClick.mouseDragged((int) click.x(), (int) click.y(), click.button())) {
+      int button = MouseUtil.button(click.button());
+      if (CompactGuiClick.mouseDragged((int) click.x(), (int) click.y(), button)) {
          return true;
       }
-      if (GuiMouseDragged.mouseDragged(click.x(), click.y(), click.button(), pDragX, pDragY)) {
+      if (GuiMouseDragged.mouseDragged(click.x(), click.y(), button, pDragX, pDragY)) {
          return true;
       }
       return super.mouseDragged(click, pDragX, pDragY);
@@ -117,10 +126,14 @@ public class GuiClient extends Screen {
 
    @Override
    public boolean keyPressed(net.minecraft.client.input.KeyEvent input) {
-      if (CompactGuiClick.keyPressed(input.key(), input.keycode(), 0)) {
+      // 26.3: KeyEvent.key() — это SDL-сканкод (то же пространство, что InputConstants.KEY_*),
+      // а не GLFW-код. Модификаторы (Ctrl/Shift/Alt) больше не приходят третьим аргументом —
+      // их надо брать из input.modifiers(), иначе Ctrl+A/C/V/X в полях ClickGui не работают.
+      int mods = input.modifiers();
+      if (CompactGuiClick.keyPressed(input.key(), input.keycode(), mods)) {
          return true;
       }
-      if (GuiKeyPressed.keyPressed(input.key(), input.keycode(), 0)) {
+      if (GuiKeyPressed.keyPressed(input.key(), input.keycode(), mods)) {
          return true;
       }
       return super.keyPressed(input);
@@ -162,7 +175,10 @@ public class GuiClient extends Screen {
       MovementManager.getInstance().unlockMovement("SliderEdit");
       vesence.ui.clickgui.compact.CompactGuiScreen.unfreezeScale();
       this.saveGuiState();
-      onClose();
+      // 26.3: Screen#onClose() сам закрывает экран (gui.setScreen(null)) — здесь нужен
+      // вызов super, а не this (порт оставил this.onClose() → бесконечная рекурсия
+      // и StackOverflowError при первом закрытии ClickGui).
+      super.onClose();
    }
 
    /**

@@ -20,7 +20,7 @@ public class MouseScrollMixin {
       cancellable = true
    )
    private void handleMenuMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
-      // TODO(port26): was GLFW.glfwGetCursorPos(window, ...)
+      // 26.3: GLFW.glfwGetCursorPos удалён; MouseHandler хранит актуальные координаты курсора.
       double[] cursorX = new double[1];
       double[] cursorY = new double[1];
       cursorX[0] = net.minecraft.client.Minecraft.getInstance().mouseHandler.xpos();

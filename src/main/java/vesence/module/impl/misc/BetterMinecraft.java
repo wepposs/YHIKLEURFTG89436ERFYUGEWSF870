@@ -506,15 +506,77 @@ public class BetterMinecraft extends Module {
       renderCustomHotBar(ctx, tickCounter, true);
    }
 
+   /**
+    * Кастомный хотбар. Вызывается из extract-хуков {@code Hud#extractHotbarAndDecorations},
+    * а в 26.3 extract-фаза только собирает render state — кадр очищается в начале
+    * {@code GameRenderer.render()}. Поэтому:
+    * <ul>
+    *   <li>предметы сдаём в {@link GuiGraphicsExtractor} прямо здесь — они попадают в
+    *       {@code GuiRenderState} и ванильный {@code GuiRenderer} рисует их в GUI-проходе;</li>
+    *   <li>всё остальное (панели, бары, подсветка слота) рисуем сырым GL в пост-GUI проходе
+    *       через {@link Vesence#deferOverlay} — уже ПОВЕРХ предметов.</li>
+    * </ul>
+    */
    public static void renderCustomHotBar(GuiGraphicsExtractor ctx, DeltaTracker tickCounter, boolean renderValues) {
       Minecraft client = Minecraft.getInstance();
       if (client == null || client.player == null || client.getWindow() == null) {
          return;
       }
+      if (client.getWindow().getScreenWidth() <= 0 || client.getWindow().getScreenHeight() <= 0) {
+         return;
+      }
 
+      if (ctx != null) {
+         HotbarGeom geom = computeHotbarGeom(client);
+         if (geom != null) {
+            Player player = client.player;
+            net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+            for (int i = 0; i < 9; i++) {
+               float sx = geom.slotStartX() + i * (20f * geom.scale());
+               drawItemStack(ctx, inv.getItem(i), sx + (geom.slot() - geom.itemSize()) * 0.5f,
+                       geom.slotY() + (geom.slot() - geom.itemSize()) * 0.5f, geom.itemSize());
+            }
+            drawItemStack(ctx, player.getOffhandItem(), geom.offSlotX() + (geom.slot() - geom.itemSize()) * 0.5f,
+                    geom.offSlotY() + (geom.slot() - geom.itemSize()) * 0.5f, geom.itemSize());
+         }
+      }
+
+      Vesence.deferOverlay(() -> drawCustomHotBar(client, renderValues));
+   }
+
+   /** Геометрия хотбара, нужная и extract-фазе (предметы), и пост-GUI проходу (панели). */
+   private record HotbarGeom(float scale, float slot, float itemSize, float slotStartX, float slotY,
+                             float offSlotX, float offSlotY) {
+   }
+
+   private static HotbarGeom computeHotbarGeom(Minecraft client) {
+      if (client == null || client.player == null || client.getWindow() == null) {
+         return null;
+      }
       int fbW = client.getWindow().getScreenWidth();
       int fbH = client.getWindow().getScreenHeight();
       if (fbW <= 0 || fbH <= 0) {
+         return null;
+      }
+      float scale = (float) client.getWindow().getGuiScale();
+      float slot = 18 * scale;
+      float itemSize = 14f * scale;
+      float hotbarW = 182f * scale;
+      float hotbarH = 22f * scale;
+      float panelX = fbW * 0.5f - hotbarW * 0.5f;
+      float panelY = fbH - hotbarH - 8 * scale;
+      float slotStartX = panelX + 2f * scale;
+      float slotY = panelY + 2f * scale;
+      boolean offLeft = client.player.getMainArm() == HumanoidArm.RIGHT;
+      float offPanelX = offLeft ? (panelX - 27f * scale) : (panelX + hotbarW + 5f * scale);
+      return new HotbarGeom(scale, slot, itemSize, slotStartX, slotY,
+              offPanelX + 2f * scale, panelY + 2f * scale);
+   }
+
+   private static void drawCustomHotBar(Minecraft client, boolean renderValues) {
+      int fbW = client.getWindow().getScreenWidth();
+      int fbH = client.getWindow().getScreenHeight();
+      if (fbW <= 0 || fbH <= 0 || client.player == null) {
          return;
       }
 
@@ -633,16 +695,10 @@ public class BetterMinecraft extends Module {
             }
 
             renderer.flush();
-            for (int i = 0; i < 9; i++) {
-               float sx = slotStartX + i * (20f * scale);
-               drawItemStack(ctx, inv.getItem(i), sx + (slot - itemSize) * 0.5f, slotY + (slot - itemSize) * 0.5f, itemSize);
-            }
-            drawItemStack(ctx, player.getOffhandItem(), offSlotX + (slot - itemSize) * 0.5f, offSlotY + (slot - itemSize) * 0.5f, itemSize);
 
-            // Stack counts are NOT drawn here. In 1.21.11 the item textures above are only recorded
-            // into the GuiRenderState and painted later by the GuiRenderer, which would cover any
-            // counts drawn now. Capture the geometry and paint the counts in renderPostGuiOverlays(),
-            // hooked after GuiRenderer.render(), so they land on top of the items.
+            // Предметы уже сданы в GuiGraphicsExtractor из extract-фазы (см. renderCustomHotBar)
+            // и рисуются ванильным GuiRenderer'ом в GUI-проходе. Здесь остаются только счётчики,
+            // которые должны лечь ПОВЕРХ них.
             countsSlotStartX = slotStartX;
             countsSlotY = slotY;
             countsSlotSize = slot;
@@ -673,6 +729,11 @@ public class BetterMinecraft extends Module {
          return;
       }
 
+      // 26.3: хук extractHotbarAndDecorations — это extract-фаза, рисовать там нельзя.
+      Vesence.deferOverlay(() -> drawHeldItemNameOverlay(client, fbW, fbH));
+   }
+
+   private static void drawHeldItemNameOverlay(Minecraft client, int fbW, int fbH) {
       float scale = (float) client.getWindow().getGuiScale();
       float centerX = fbW * 0.5f;
       float baselineY = fbH - 81f * scale;

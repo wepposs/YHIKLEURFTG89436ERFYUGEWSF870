@@ -78,7 +78,9 @@ import java.util.concurrent.ThreadLocalRandom;
         name = "AttackAura",
         description = "Атакует сущностей в радиусе атаки",
         category = Category.COMBAT,
-        bind = 82
+        // 26.3: дефолтный бинд — SDL-сканкод клавиши R (InputConstants.KEY_R = 21).
+        // Старое значение 82 было GLFW-кодом 'R' и в SDL означало бы стрелку вверх.
+        bind = 21
 )
 @Environment(EnvType.CLIENT)
 public class AttackAura extends Module {

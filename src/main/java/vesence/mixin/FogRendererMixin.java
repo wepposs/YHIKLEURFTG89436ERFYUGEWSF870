@@ -60,7 +60,8 @@ public class FogRendererMixin {
         if (amb.isFogClearMode()) return 1.0E7f;
         if (amb.isFogOverrideMode()) {
             // Порт Relevant: fogEnd = viewDistance * endMul; fogStart = fogEnd * startMul.
-            float viewDistance = client.options.getEffectiveRenderDistance() * 64.0F /* TODO(port26): was gameRenderer.getFarPlaneDistance() */;
+            // 26.3: getFarPlaneDistance() удалён — дальняя плоскость живёт в CameraRenderState.depthFar.
+            float viewDistance = vesence$farPlaneDistance(client);
             float fogEnd = viewDistance * amb.getFogEndMultiplier();
             return fogEnd * amb.getFogStartMultiplier();
         }
@@ -83,10 +84,29 @@ public class FogRendererMixin {
         }
         if (amb.isFogClearMode()) return 1.0E7f + 1.0f;
         if (amb.isFogOverrideMode()) {
-            float viewDistance = client.options.getEffectiveRenderDistance() * 64.0F /* TODO(port26): was gameRenderer.getFarPlaneDistance() */;
+            float viewDistance = vesence$farPlaneDistance(client);
             return viewDistance * amb.getFogEndMultiplier();
         }
         return renderDistanceEnd;
+    }
+
+    /**
+     * 26.3: {@code GameRenderer#getFarPlaneDistance()} удалён. Дальняя плоскость кадра
+     * считается в extract-фазе и лежит в {@code CameraRenderState.depthFar}; если состояние
+     * ещё не заполнено (первый кадр), откатываемся на «дальность прорисовки в блоках».
+     */
+    @org.spongepowered.asm.mixin.Unique
+    private static float vesence$farPlaneDistance(net.minecraft.client.Minecraft client) {
+        try {
+            var state = client.gameRenderer.gameRenderState();
+            if (state != null && state.levelRenderState != null
+                    && state.levelRenderState.cameraRenderState != null
+                    && state.levelRenderState.cameraRenderState.depthFar > 0.0f) {
+                return state.levelRenderState.cameraRenderState.depthFar;
+            }
+        } catch (Throwable ignored) {
+        }
+        return client.options.getEffectiveRenderDistance() * 64.0F;
     }
 }
 

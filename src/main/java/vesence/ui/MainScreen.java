@@ -353,13 +353,16 @@ public class MainScreen extends Screen {
         if (introStartMillis == 0L && splashFadeStarted(mc)) {
             introStartMillis = System.currentTimeMillis();
         }
-        // TODO(port26): was GLFW.glfwGetCursorPos(window.getHandle(), ...); use MouseHandler positions
-        int fbMouseX = (int) mc.mouseHandler.xpos();
-        int fbMouseY = (int) mc.mouseHandler.ypos();
+        // 26.3: GLFW.glfwGetCursorPos удалён; MouseHandler хранит актуальные координаты
+        // в пикселях ОКНА. Рисуем мы в пикселях ФРЕЙМБУФЕРА (sw/sh), поэтому курсор надо
+        // привести к той же системе — иначе на HiDPI (масштаб интерфейса != 1) все
+        // попадания по кнопкам смещаются. mouseClicked уже работает во фреймбуфере.
         double fbRatioX = (double) sw / mc.getWindow().getWidth();
         double fbRatioY = (double) sh / mc.getWindow().getHeight();
         float fbMX = (float)(mc.mouseHandler.xpos() * fbRatioX);
         float fbMY = (float)(mc.mouseHandler.ypos() * fbRatioY);
+        int fbMouseX = (int) fbMX;
+        int fbMouseY = (int) fbMY;
         updateSmoothedMouse(fbMouseX, fbMouseY);
         float lmx = toLogicalX(fbMouseX, sw);
         float lmy = toLogicalY(fbMouseY, sh);
@@ -630,23 +633,15 @@ public class MainScreen extends Screen {
         int height = mc.getWindow().getScreenHeight();
         if (width <= 0 || height <= 0) return;
 
-        GlState.Snapshot snapshot = GlState.push();
-        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
-        int tempFbo = 0;
-        try {
-            if (mainFb != null && mainFb.getColorTexture() instanceof GlTexture glColor) {
-                tempFbo = GL30.glGenFramebuffers();
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, glColor.glId(), 0);
-                GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
-                if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
-                    GL30.glDeleteFramebuffers(tempFbo);
-                    tempFbo = 0;
-                }
-            } else {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
-            }
+        // 26.3: extract-фаза лишь собирает состояние кадра, рисовать в неё нельзя —
+        // кадр очищается в GameRenderer.render(). Кладём отрисовку в пост-GUI проход.
+        Vesence.deferOverlay(() -> drawVesenceFrame(mc, width, height));
+    }
 
+    private void drawVesenceFrame(Minecraft mc, int width, int height) {
+        GlState.Snapshot snapshot = GlState.push();
+        int tempFbo = vesence.renderengine.MainTargetBinder.begin();
+        try {
             Vesence.ensureRendererInitialized();
             Renderer2D renderer = Vesence.getRenderer();
             if (renderer != null) {
@@ -660,14 +655,8 @@ public class MainScreen extends Screen {
         } catch (Exception e) {
             System.err.println("[weppos] MainScreen render error: " + e.getMessage());
         } finally {
-            if (tempFbo != 0) {
-                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
-                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, 0, 0);
-            }
+            vesence.renderengine.MainTargetBinder.end(tempFbo);
             GlState.pop(snapshot);
-            if (tempFbo != 0) {
-                GL30.glDeleteFramebuffers(tempFbo);
-            }
         }
     }
 
@@ -687,6 +676,19 @@ public class MainScreen extends Screen {
             int sh = mc.getWindow().getGuiScaledHeight();
             float lx = toLogicalX(fbX, fbW);
             float ly = toLogicalY(fbY, fbH);
+            if (vesence.debug.InputDebug.enabled()) {
+                System.out.println("[input] MainScreen.mouseClicked click=" + (int) click.x() + "," + (int) click.y()
+                        + " fb=" + fbX + "," + fbY + " fbWxH=" + fbW + "x" + fbH
+                        + " logical=" + (int) lx + "," + (int) ly + " scale=" + currentMenuScale
+                        + " offY=" + currentOffsetY);
+                for (int i = 0; i < buttons.size(); i++) {
+                    Button b = buttons.get(i);
+                    System.out.println("[input]   button[" + i + "] '" + b.name + "' rect="
+                            + (int) b.x + "," + (int) b.y + " " + (int) b.w + "x" + (int) buttonHeight(i)
+                            + " hit=" + (lx >= b.x && lx <= b.x + b.w
+                                    && ly >= b.y && ly <= b.y + buttonHeight(i)));
+                }
+            }
             if (accountSwitcher.click(fbX, fbY, fbW, fbH)) return true;
 
             if (!settingsWindow.isOpen() && !accountSwitcher.isOpen()) {
@@ -776,8 +778,10 @@ public class MainScreen extends Screen {
         return settingsWindow.shouldCloseOnEsc();
     }
 
-    // TODO(port26): Screen#shouldPause removed in 26.3
-    public boolean shouldPause() {
+    // 26.3: Screen#shouldPause() заменён на isPauseScreen() (true по умолчанию).
+    // Главное меню мир не держит, поэтому пауза не нужна.
+    @Override
+    public boolean isPauseScreen() {
         return false;
     }
 

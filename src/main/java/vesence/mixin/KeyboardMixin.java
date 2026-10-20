@@ -16,6 +16,7 @@ import vesence.ui.clickgui.GuiClient;
 public class KeyboardMixin {
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKey(long window, int action, net.minecraft.client.input.KeyEvent input, CallbackInfo ci) {
+        vesence.debug.InputDebug.key("KeyboardHandler.keyPress", input.key(), input.keycode(), action, input.modifiers());
         if (action != InputConstants.PRESS) {
             return;
         }

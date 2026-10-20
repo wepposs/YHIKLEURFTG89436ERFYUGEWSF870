@@ -11,8 +11,13 @@ import vesence.Vesence;
 import vesence.module.impl.visuals.CameraClip;
 import vesence.module.impl.visuals.NoRender;
 
-// TODO(port26): renderFireOverlay/renderUnderwaterOverlay/renderInWallOverlay/getInWallBlockState
-// removed in 26.3 — screen effects are submitted via private submit* methods driven by PlayerRenderState.
+// Порт 26.3: старые renderFireOverlay/renderUnderwaterOverlay/renderInWallOverlay заменены
+// на submit* методы, которые управляются PlayerRenderState. Хуки перенесены 1:1:
+//   renderFireOverlay       -> submitFire
+//   renderUnderwaterOverlay -> submitWater
+//   renderInWallOverlay     -> submitBlockSprite
+//   getInWallBlockState     -> нет аналога (состояние блока извлекается в PlayerRenderState),
+//                              поэтому логика CameraClip перенесена в submitBlockSprite.
 @Environment(EnvType.CLIENT)
 @Mixin(ScreenEffectRenderer.class)
 public class InGameOverlayRendererMixin {
@@ -65,8 +70,21 @@ public class InGameOverlayRendererMixin {
         }
     }
 
-    // TODO(port26): ScreenEffectRenderer#getInWallBlockState removed in 26.3 (in-wall state is
-    // extracted into PlayerRenderState instead); CameraClip coverage moved to submitBlockSprite above.
-    // @Inject(method = "getInWallBlockState", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-    // private static void vesence$noInWallOverlay(CallbackInfoReturnable<BlockState> cir) { ... }
+    // Порт 26.3: GameRenderer#showFloatingItem удалён; активация тотема/предмета теперь
+    // рисуется здесь. Восстановлен переключатель NoRender «Анимация тотема».
+    @Inject(method = "renderItemActivationAnimation", at = @At("HEAD"), cancellable = true)
+    private void vesence$onRenderItemActivation(net.minecraft.client.renderer.state.level.PlayerRenderState playerState,
+                                                com.mojang.blaze3d.vertex.PoseStack matrices,
+                                                float partialTick,
+                                                net.minecraft.client.renderer.SubmitNodeCollector collector,
+                                                CallbackInfo ci) {
+        NoRender nr = Vesence.get.manager.get(NoRender.class);
+        if (nr != null && nr.enable && NoRender.elements.get("Анимация тотема")) {
+            ci.cancel();
+        }
+    }
+
+    // getInWallBlockState в 26.3 отсутствует: состояние блока для оверлея «в стене»
+    // извлекается в PlayerRenderState, отдельного метода-запроса нет. Покрытие
+    // CameraClip (раньше возвращали null из этого метода) перенесено в submitBlockSprite.
 }

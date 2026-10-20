@@ -259,29 +259,9 @@ public abstract class InGameHudMixin {
             int width = client.getWindow().getScreenWidth();
             int height = client.getWindow().getScreenHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.push();
-
-               int tempFbo = vesence$bindMainFramebuffer(client);
-
-               long section = vesence.utils.debug.FreezeWatchdog.sectionEnter("hud.pre");
-               try {
-                  Vesence.ensureRendererInitialized();
-                  Renderer2D renderer = Vesence.getRenderer();
-                  if (renderer != null) {
-                     renderer.begin(width, height);
-                     try {
-                        EventManager.call(new EventScreenPre(client, renderer, FontRegistry.SF_MEDIUM, width, height, context));
-                     } finally {
-                        renderer.end();
-                     }
-                  }
-               } catch (Exception e) {
-                  System.err.println("[weppos] Pre-HUD render error: " + e.getMessage());
-               } finally {
-                  vesence.utils.debug.FreezeWatchdog.sectionExit("hud.pre", section);
-                  vesence$detachMainFramebuffer(tempFbo);
-                  GlState.pop(snapshot);
-               }
+               // 26.3: extract-фаза только собирает состояние — рисовать здесь нельзя,
+               // кадр очищается в GameRenderer.render(). Рисуем в пост-GUI проходе.
+               Vesence.deferOverlay(() -> vesence$drawHudLayer(client, context, width, height, true));
             }
          }
       }
@@ -295,31 +275,41 @@ public abstract class InGameHudMixin {
             int width = client.getWindow().getScreenWidth();
             int height = client.getWindow().getScreenHeight();
             if (width > 0 && height > 0) {
-               GlState.Snapshot snapshot = GlState.push();
-
-               int tempFbo = vesence$bindMainFramebuffer(client);
-
-               long section = vesence.utils.debug.FreezeWatchdog.sectionEnter("hud.post");
-               try {
-                  Vesence.ensureRendererInitialized();
-                  Renderer2D renderer = Vesence.getRenderer();
-                  if (renderer != null) {
-                     renderer.begin(width, height);
-                     try {
-                        EventManager.call(new EventScreen(client, renderer, FontRegistry.SF_MEDIUM, width, height, context));
-                     } finally {
-                        renderer.end();
-                     }
-                  }
-               } catch (Exception e) {
-                  System.err.println("[weppos] HUD render error: " + e.getMessage());
-               } finally {
-                  vesence.utils.debug.FreezeWatchdog.sectionExit("hud.post", section);
-                  vesence$detachMainFramebuffer(tempFbo);
-                  GlState.pop(snapshot);
-               }
+               Vesence.deferOverlay(() -> vesence$drawHudLayer(client, context, width, height, false));
             }
          }
+      }
+   }
+
+   @org.spongepowered.asm.mixin.Unique
+   private static void vesence$drawHudLayer(Minecraft client, GuiGraphicsExtractor context,
+                                            int width, int height, boolean pre) {
+      GlState.Snapshot snapshot = GlState.push();
+      int tempFbo = vesence$bindMainFramebuffer(client);
+
+      String sectionName = pre ? "hud.pre" : "hud.post";
+      long section = vesence.utils.debug.FreezeWatchdog.sectionEnter(sectionName);
+      try {
+         Vesence.ensureRendererInitialized();
+         Renderer2D renderer = Vesence.getRenderer();
+         if (renderer != null) {
+            renderer.begin(width, height);
+            try {
+               if (pre) {
+                  EventManager.call(new EventScreenPre(client, renderer, FontRegistry.SF_MEDIUM, width, height, context));
+               } else {
+                  EventManager.call(new EventScreen(client, renderer, FontRegistry.SF_MEDIUM, width, height, context));
+               }
+            } finally {
+               renderer.end();
+            }
+         }
+      } catch (Exception e) {
+         System.err.println("[weppos] " + (pre ? "Pre-HUD" : "HUD") + " render error: " + e.getMessage());
+      } finally {
+         vesence.utils.debug.FreezeWatchdog.sectionExit(sectionName, section);
+         vesence$detachMainFramebuffer(tempFbo);
+         GlState.pop(snapshot);
       }
    }
 
