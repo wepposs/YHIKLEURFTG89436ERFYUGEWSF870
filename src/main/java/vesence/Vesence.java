@@ -87,9 +87,19 @@ public class Vesence implements ClientModInitializer {
         return renderFrameId;
     }
 
+    /**
+     * Максимум задач в очереди пост-GUI прохода. Если проход почему-то не выполняется
+     * (например, диагностический режим без HUD), очередь не должна расти бесконечно.
+     */
+    private static final int MAX_OVERLAY_TASKS = 4096;
+
     /** Ставит отрисовку в очередь пост-GUI прохода (см. {@link #overlayTasks}). */
     public static void deferOverlay(Runnable task) {
         if (task != null) {
+            if (overlayTasks.size() >= MAX_OVERLAY_TASKS) {
+                // Проход не успевает разбирать очередь — сбрасываем, чтобы не течь памятью.
+                overlayTasks.clear();
+            }
             overlayTasks.add(task);
         }
     }

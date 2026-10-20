@@ -262,8 +262,11 @@ public class Ambience extends Module {
     public void renderFogBlur() {
         if (!isBlurEnabled()) return;
         if (mc.player == null || mc.level == null) return;
-        // TODO(port26): GameRenderer.isRenderingPanorama() удалён в 26.3 (панорама перенесена в CubeMap) — флага нет.
+        // 26.3: GameRenderer#isRenderingPanorama удалён, флаг переехал в
+        // Camera#isPanoramicMode() — на панораме размытие не рисуем.
         if (mc.gameRenderer == null) return;
+        var activeCamera = mc.gameRenderer.mainCamera();
+        if (activeCamera != null && activeCamera.isPanoramicMode()) return;
         try {
             if (blurPipeline == null) {
                 blurPipeline = new vesence.renderengine.render.pipeline.FogBlurPipeline();

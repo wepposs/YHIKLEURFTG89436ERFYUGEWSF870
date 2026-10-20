@@ -183,8 +183,14 @@ public class WorldRenderer {
         }
     }
 
-    // TODO(port26): MultiBufferSource was removed in 26.3; this is a minimal immediate-mode replacement.
-    // draw() builds the accumulated meshes but cannot submit them without a frame-graph RenderPass.
+    // 26.3: MultiBufferSource удалён. Это его замена: копим геометрию по RenderType,
+    // а draw() отправляет её на GPU.
+    //
+    // ВАЖНО про момент отправки: эти draw() вызываются из EventRender3D, то есть
+    // ВНУТРИ отрисовки мира, когда frame graph ещё кодируется. Создавать там свой
+    // RenderPass нельзя — это вешает кадр. Поэтому draw() лишь складывает работу в
+    // Vesence.deferOverlay(...), а реальная отправка происходит в пост-GUI проходе
+    // GameRenderer.render() (тот же безопасный момент, где рисуются HUD и MainScreen).
     public static final class ImmediateBuffers {
         private final ByteBufferBuilder allocator;
         private final Map<RenderType, BufferBuilder> buffers = new HashMap<>();
@@ -193,17 +199,106 @@ public class WorldRenderer {
             this.allocator = allocator;
         }
 
+        /** Публичный конструктор для переиспользования из других модулей (AimBot). */
+        public static ImmediateBuffers create(ByteBufferBuilder allocator) {
+            return new ImmediateBuffers(allocator);
+        }
+
         public VertexConsumer getBuffer(RenderType layer) {
             return this.buffers.computeIfAbsent(layer,
                     l -> new BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
         }
 
         public void draw() {
-            for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
-                MeshData meshData = entry.getValue().build();
-                if (meshData != null) {
-                    // TODO(port26): actual GPU submission requires a RenderPass from the frame graph
-                    meshData.close();
+            draw(null);
+        }
+
+        /**
+         * Ставит отправку накопленной геометрии в очередь пост-GUI прохода.
+         * Меши строятся позже, поэтому в буферы нельзя добавлять вершины между
+         * вызовом draw() и концом кадра.
+         */
+        public void draw(com.mojang.blaze3d.pipeline.RenderTarget target) {
+            if (this.buffers.isEmpty()) {
+                return;
+            }
+            final com.mojang.blaze3d.pipeline.RenderTarget renderTarget = target;
+            vesence.Vesence.deferOverlay(() -> this.submitNow(renderTarget));
+        }
+
+        /**
+         * Собственно отправка на GPU. Выполняется в пост-GUI проходе, когда кадровый
+         * граф уже не кодируется — создавать здесь RenderPass безопасно.
+         */
+        private void submitNow(com.mojang.blaze3d.pipeline.RenderTarget target) {
+            if (this.buffers.isEmpty()) {
+                return;
+            }
+            if (target == null) {
+                Minecraft mc = Minecraft.getInstance();
+                target = mc != null && mc.gameRenderer != null
+                        ? mc.gameRenderer.mainRenderTarget()
+                        : null;
+            }
+            if (target == null) {
+                this.closeMeshes();
+                return;
+            }
+
+            com.mojang.renderpearl.api.device.GpuDevice device =
+                    com.mojang.blaze3d.systems.RenderSystem.getDevice();
+            com.mojang.renderpearl.api.commands.CommandEncoder encoder = device.createCommandEncoder();
+            try (com.mojang.renderpearl.api.commands.RenderPass pass = encoder.createRenderPass(
+                    () -> "vesence world",
+                    target.getColorTextureView(), java.util.Optional.empty(),
+                    target.getDepthTextureView(), java.util.OptionalDouble.empty())) {
+                for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
+                    RenderType layer = entry.getKey();
+                    MeshData mesh = entry.getValue().build();
+                    if (mesh == null) {
+                        continue;
+                    }
+                    try (mesh) {
+                        MeshData.DrawState state = mesh.drawState();
+                        java.nio.ByteBuffer indices = mesh.indexBuffer();
+                        if (state.indexCount() <= 0 || state.indexType() == null || indices == null) {
+                            continue;
+                        }
+                        com.mojang.renderpearl.api.buffers.GpuBuffer vertexBuffer = device.createBuffer(
+                                () -> "vesence/world/vertices",
+                                com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_VERTEX
+                                        | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
+                                mesh.vertexBuffer());
+                        com.mojang.renderpearl.api.buffers.GpuBuffer indexBuffer = null;
+                        try {
+                            indexBuffer = device.createBuffer(
+                                    () -> "vesence/world/indices",
+                                    com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_INDEX
+                                            | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
+                                    indices);
+                            net.minecraft.client.renderer.rendertype.PreparedRenderType prepared = layer.prepare();
+                            prepared.drawFromBuffer(new net.minecraft.client.renderer.StagedVertexBuffer.ExecuteInfo(
+                                    vertexBuffer, indexBuffer, state.indexType(), 0, 0,
+                                    state.indexCount(), state.primitiveTopology()), pass);
+                        } finally {
+                            vertexBuffer.close();
+                            if (indexBuffer != null) {
+                                indexBuffer.close();
+                            }
+                        }
+                    }
+                }
+            } finally {
+                this.buffers.clear();
+            }
+        }
+
+        /** Освобождает собранные mesh'и, ничего не рисуя. */
+        private void closeMeshes() {
+            for (BufferBuilder builder : this.buffers.values()) {
+                MeshData mesh = builder.build();
+                if (mesh != null) {
+                    mesh.close();
                 }
             }
             this.buffers.clear();

@@ -22,10 +22,10 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
- * TODO(port26): замена удалённому в 26.3 {@code Immediate}
- * (yarn {@code VertexConsumerProvider.Immediate}). В 26.3 нет публичного
- * батчера RenderType → VertexConsumer: геометрия собирается в {@link BufferBuilder}
- * на слой, а на flush загружается в GpuBuffer и рисуется через
+ * Замена удалённому в 26.3 {@code Immediate} (yarn {@code VertexConsumerProvider.Immediate}).
+ *
+ * <p>В 26.3 нет публичного батчера RenderType → VertexConsumer: геометрия собирается
+ * в {@link BufferBuilder} на слой, а на flush загружается в GpuBuffer и рисуется через
  * {@link PreparedRenderType#drawFromBuffer} в собственном RenderPass поверх
  * основного рендер-таргета (load = KEEP).
  *

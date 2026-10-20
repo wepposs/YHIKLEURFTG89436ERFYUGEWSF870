@@ -109,8 +109,8 @@ public class AimBot extends Module {
 
    // ── Рендер прицела (порт под pipeline API 1.21.11, паттерн ContainerESP) ──
    private static final Identifier CROSSHAIR_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/cross/hit.png");
-   // TODO(port26): старый кастомный RenderPipeline (POSITION_TEX_COLOR, no depth, LIGHTNING blend)
-   // заменён на слой из WorldRenderLayers (no-depth additive textured quads).
+   // 26.3: старый кастомный RenderPipeline (POSITION_TEX_COLOR, no depth, LIGHTNING blend)
+   // заменён слоем из WorldRenderLayers (no-depth additive textured quads).
    private static final RenderType CROSSHAIR_LAYER = WorldRenderLayers.TEXTURED_QUADS_NO_DEPTH_ADDITIVE(CROSSHAIR_TEXTURE);
    private ByteBufferBuilder allocator = null;
    private ImmediateBuffers immediate = null;
@@ -384,30 +384,23 @@ public class AimBot extends Module {
       return this.target;
    }
 
-   // TODO(port26): MultiBufferSource.immediate удалён в 26.3; минимальная immediate-замена
-   // (как WorldRenderer.ImmediateBuffers): буферы по RenderType, draw() только собирает mesh.
+   // 26.3: MultiBufferSource.immediate удалён. Используем общую реализацию
+   // WorldRenderer.ImmediateBuffers — она умеет реально отправлять геометрию на GPU.
+   // Раньше здесь был локальный дубль, который только собирал mesh и тут же выбрасывал
+   // его, из-за чего прицел AimBot никогда не рисовался.
    private static final class ImmediateBuffers {
-      private final ByteBufferBuilder allocator;
-      private final Map<RenderType, BufferBuilder> buffers = new HashMap<>();
+      private final vesence.utils.render.world.WorldRenderer.ImmediateBuffers delegate;
 
       ImmediateBuffers(ByteBufferBuilder allocator) {
-         this.allocator = allocator;
+         this.delegate = vesence.utils.render.world.WorldRenderer.ImmediateBuffers.create(allocator);
       }
 
       VertexConsumer getBuffer(RenderType layer) {
-         return this.buffers.computeIfAbsent(layer,
-            l -> new BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
+         return this.delegate.getBuffer(layer);
       }
 
       void draw() {
-         for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
-            MeshData meshData = entry.getValue().build();
-            if (meshData != null) {
-               // TODO(port26): реальная GPU-отправка требует RenderPass из frame graph
-               meshData.close();
-            }
-         }
-         this.buffers.clear();
+         this.delegate.draw();
       }
    }
 

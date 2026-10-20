@@ -123,7 +123,13 @@ public final class EntityFramebufferCaptureManager {
          this.resetFrameState();
          return;
       }
-      // TODO(port26): was client.gameRenderer.isRenderingPanorama() — no equivalent flag in 26.3
+      // 26.3: GameRenderer#isRenderingPanorama удалён, но флаг переехал в
+      // Camera#isPanoramicMode() — на панораме захват не нужен, пропускаем кадр.
+      net.minecraft.client.Camera activeCamera = client.gameRenderer.mainCamera();
+      if (activeCamera != null && activeCamera.isPanoramicMode()) {
+         this.resetFrameState();
+         return;
+      }
       RenderTarget mainFramebuffer = client.gameRenderer.mainRenderTarget();
       if (mainFramebuffer == null) {
          this.resetFrameState();
@@ -175,7 +181,9 @@ public final class EntityFramebufferCaptureManager {
 
       // CameraRenderState — как в ванильном world-render (для билбордов/ориентации).
       this.cameraRenderState.pos = cameraPos;
-      // TODO(port26): was cameraRenderState.entityPos — no such field in 26.3 CameraRenderState
+      // 26.3: отдельного поля entityPos в CameraRenderState больше нет — в 1.21.x
+      // и pos, и entityPos заполнялись одним и тем же cameraPos, так что pos его
+      // полностью покрывает. BlockPos.ofFloored переименован в BlockPos.containing.
       this.cameraRenderState.blockPos = BlockPos.containing(cameraPos);
       this.cameraRenderState.orientation = new Quaternionf(cameraRotation);
       this.cameraRenderState.initialized = true;

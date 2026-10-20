@@ -294,8 +294,21 @@ public class FogBlurPipeline {
 
         // Depth-данные для композита (как в Blade DepthShader).
         float near = 0.05f;
-        // TODO(port26): was mc.gameRenderer.getFarPlaneDistance(); approximated as vanilla depth-far
-        float far = Math.max(mc.options.getEffectiveRenderDistance(), 4) * 16 * 4.0f;
+        // 26.3: GameRenderer#getFarPlaneDistance удалён, точное значение дальности
+        // камеры лежит в CameraRenderState#depthFar (его же использует FogRenderer).
+        // Если состояния кадра ещё нет — падаем на прежнюю оценку по render distance.
+        float far = 0.0f;
+        try {
+            var renderState = mc.gameRenderer.gameRenderState();
+            if (renderState != null && renderState.levelRenderState != null
+                    && renderState.levelRenderState.cameraRenderState != null) {
+                far = renderState.levelRenderState.cameraRenderState.depthFar;
+            }
+        } catch (Throwable ignored) {
+        }
+        if (!(far > 0.0f)) {
+            far = Math.max(mc.options.getEffectiveRenderDistance(), 4) * 16 * 4.0f;
+        }
         float minThreshold = 0.10f * distance / 100f;
         float maxThreshold = 0.28f * distance / 100f;
         if (maxThreshold <= minThreshold) maxThreshold = minThreshold + 0.001f;

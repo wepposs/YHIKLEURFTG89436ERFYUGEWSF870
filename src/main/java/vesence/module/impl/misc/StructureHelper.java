@@ -405,21 +405,20 @@ public class StructureHelper extends Module {
         return nearest;
     }
 
-    // TODO(port26): MultiBufferSource was removed in 26.3; minimal immediate replacement.
-    // draw() builds meshes but cannot submit them without a frame-graph RenderPass.
+    // 26.3: MultiBufferSource удалён. Используем общую реализацию
+    // WorldRenderer.ImmediateBuffers — она реально отправляет геометрию на GPU.
+    // Раньше здесь был локальный дубль, который только собирал mesh и выбрасывал его,
+    // из-за чего подсветка структур не рисовалась.
     private static final class Immediate {
-        private final ByteBufferBuilder allocator;
-        private final java.util.Map<RenderType, com.mojang.blaze3d.vertex.BufferBuilder> buffers = new java.util.HashMap<>();
-        Immediate(ByteBufferBuilder allocator) { this.allocator = allocator; }
+        private final vesence.utils.render.world.WorldRenderer.ImmediateBuffers delegate;
+        Immediate(ByteBufferBuilder allocator) {
+            this.delegate = vesence.utils.render.world.WorldRenderer.ImmediateBuffers.create(allocator);
+        }
         VertexConsumer getBuffer(RenderType layer) {
-            return this.buffers.computeIfAbsent(layer, l -> new com.mojang.blaze3d.vertex.BufferBuilder(this.allocator, l.primitiveTopology(), l.format()));
+            return this.delegate.getBuffer(layer);
         }
         void draw() {
-            for (java.util.Map.Entry<RenderType, com.mojang.blaze3d.vertex.BufferBuilder> e : this.buffers.entrySet()) {
-                com.mojang.blaze3d.vertex.MeshData mesh = e.getValue().build();
-                if (mesh != null) mesh.close();
-            }
-            this.buffers.clear();
+            this.delegate.draw();
         }
     }
 
