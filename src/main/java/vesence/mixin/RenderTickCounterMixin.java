@@ -14,7 +14,8 @@ import vesence.utils.TimerManager;
 @Environment(EnvType.CLIENT)
 @Mixin(DeltaTracker.Timer.class)
 public class RenderTickCounterMixin {
-    // TODO(port26): was RenderTickCounter.Dynamic#tickTime; 26.3 DeltaTracker.Timer#msPerTick
+    // 26.3: RenderTickCounter.Dynamic#tickTime переименовано в DeltaTracker.Timer#msPerTick
+    // (поле final — @Mutable снимает final, чтобы Timer-модуль мог менять скорость тика).
     @Shadow @Mutable
     private float msPerTick;
 

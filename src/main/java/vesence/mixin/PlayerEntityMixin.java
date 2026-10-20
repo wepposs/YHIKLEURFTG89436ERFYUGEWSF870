@@ -29,9 +29,15 @@ public abstract class PlayerEntityMixin {
       }
    }
 
-   // TODO(port26): в 26.3 нет метода-запроса крита (crit(Entity) — действие).
-   // Нужен новый хук на решение о крите внутри Player.attack.
-   // @Inject(method = "crit", at = @At("HEAD"))
+   /**
+    * Хук на решение «будет ли удар критическим».
+    *
+    * <p>В 1.21.x это был {@code PlayerEntity#isCriticalHit} — метод-запрос. В 26.3 он
+    * заменён приватным {@code Player#canCriticalAttack(Entity)}, который вызывается
+    * внутри {@code Player#attack} прямо перед расчётом урона (×1.5). Сигнатура и
+    * семантика те же, поэтому режим Criticals «Плавное падение» снова работает.
+    */
+   @Inject(method = "canCriticalAttack", at = @At("RETURN"), cancellable = true)
    private void onIsCriticalHit(Entity target, CallbackInfoReturnable<Boolean> cir) {
       if (!Vesence.isModInitialized()) return;
 

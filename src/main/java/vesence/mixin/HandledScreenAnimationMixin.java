@@ -32,8 +32,8 @@ public abstract class HandledScreenAnimationMixin {
         return a != null && a.isInventoryEnabled();
     }
 
-    // TODO(port26): renderBackground/drawBackground removed in 26.3; extractContents (bg + slots + items)
-    // is the first thing extractRenderState draws, so the scale push moved to its HEAD.
+    // 26.3: renderBackground/drawBackground удалены; extractContents (фон + слоты + предметы)
+    // — первое, что рисует extractRenderState, поэтому push масштаба переехал в его HEAD.
     @Inject(method = "extractContents", at = @At("HEAD"))
     private void vesence$onBeforeDrawBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!vesence$animEnabled()) {

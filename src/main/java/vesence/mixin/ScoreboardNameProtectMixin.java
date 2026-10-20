@@ -37,7 +37,8 @@ import vesence.utils.other.SidebarEntry;
  * иначе имя/домены осталось бы видно в таблице.
  */
 @Environment(EnvType.CLIENT)
-@Mixin(Hud.class) // TODO(port26): Gui#renderScoreboardSidebar moved to Hud#displayScoreboardSidebar in 26.3
+// 26.3: Gui#renderScoreboardSidebar переехал в Hud#displayScoreboardSidebar — цель обновлена.
+@Mixin(Hud.class)
 public abstract class ScoreboardNameProtectMixin {
 
     @Inject(

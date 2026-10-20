@@ -27,8 +27,9 @@ import vesence.renderengine.providers.GlState;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.text.FontRegistry;
 
-// TODO(port26): net.minecraft.client.gui.Gui no longer renders the HUD in 26.3 — all render*
-// methods moved to net.minecraft.client.gui.Hud as extract* methods (extract render state pipeline).
+// 26.3: net.minecraft.client.gui.Gui больше не рисует HUD — все render* методы переехали
+// в net.minecraft.client.gui.Hud как extract* (конвейер извлечения состояния кадра).
+// Цель миксина обновлена на Hud, каждый хук перенацелен на свой extract* метод.
 @Environment(EnvType.CLIENT)
 @Mixin(net.minecraft.client.gui.Hud.class)
 public abstract class InGameHudMixin {

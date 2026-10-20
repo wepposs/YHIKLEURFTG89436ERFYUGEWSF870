@@ -31,7 +31,10 @@ public abstract class PlayerEntityModelMixin {
 
         net.minecraft.client.player.AbstractClientPlayer self = client.player;
         // Только локальный игрок и только третье лицо.
-        if (state.skin != self.getSkin()) return; // TODO(port26): render states carry no entity id in 26.3; match by skin
+        // 26.3: AvatarRenderer.extractRenderState заполняет state.id = entity.getId(),
+        // поэтому сравниваем по id сущности. Раньше здесь сравнивался скин — из-за этого
+        // поза применялась ко ВСЕМ игрокам с таким же скином, а не только к локальному.
+        if (state.id != self.getId()) return;
         if (client.options.getCameraType().isFirstPerson()) return;
         if (self.isSwimming() || self.isFallFlying() || self.isUsingItem() || self.isShiftKeyDown()) return;
 

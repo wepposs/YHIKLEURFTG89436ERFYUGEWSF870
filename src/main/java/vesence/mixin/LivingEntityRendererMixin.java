@@ -27,12 +27,16 @@ public class LivingEntityRendererMixin {
         if (!(state instanceof AvatarRenderState playerState) || !Vesence.isModInitialized()) return;
         Attributes attributes = Vesence.get.manager.get(Attributes.class);
         if (attributes == null || !attributes.isChinaHatActive()) return;
-        // TODO(port26): render states carry no entity id in 26.3; match by skin
+        // 26.3: AvatarRenderer.extractRenderState заполняет state.id = entity.getId(),
+        // поэтому ищем игрока по id — как в исходной версии (world.getEntityById).
+        // Прежний обход с поиском по скину брал ПЕРВОГО игрока с таким же скином,
+        // из-за чего шляпа рисовалась не тому игроку.
         Player player = null;
         net.minecraft.client.Minecraft mcInst = net.minecraft.client.Minecraft.getInstance();
         if (mcInst.level != null) {
-            for (net.minecraft.world.entity.Entity e : mcInst.level.entitiesForRendering()) {
-                if (e instanceof net.minecraft.client.player.AbstractClientPlayer p && p.getSkin() == playerState.skin) { player = p; break; }
+            net.minecraft.world.entity.Entity entity = mcInst.level.getEntity(playerState.id);
+            if (entity instanceof Player p) {
+                player = p;
             }
         }
         if (player == null) return;
@@ -45,7 +49,10 @@ public class LivingEntityRendererMixin {
             SeeInvisibles module = Vesence.get.manager.get(SeeInvisibles.class);
             if (module != null && module.enable) j = (module.alpha.get().intValue() << 24) | 0xFFFFFF;
         }
-        return ARGB.alphaBlend(j, mixColor); // TODO(port26): was ColorHelper.mix
+        // 26.3: ColorHelper.mix(II) переименован в ARGB.multiply(II) с той же
+        // семантикой (покомпонентное умножение, -1 = тождество). alphaBlend здесь
+        // использовать нельзя — это другая операция, она меняла цвет всех сущностей.
+        return ARGB.multiply(j, mixColor);
     }
 
     @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/LivingEntity;D)Z", at = @At("HEAD"), cancellable = true)

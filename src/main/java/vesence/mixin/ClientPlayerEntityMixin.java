@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import vesence.event.EventManager;
 import vesence.event.impl.EventUpdate;
 import vesence.event.player.EventMotion;
@@ -39,19 +40,24 @@ public abstract class ClientPlayerEntityMixin {
               : instance.getXRot();
    }
 
-   // TODO(port26): в 26.3 нет applyMovementSpeedFactors — замедление при использовании
-   // предмета инлайнится в LocalPlayer.modifyInput через itemUseSpeedMultiplier()
-   // (см. vesence$preventItemUseSlowdown ниже).
-   private boolean usingItemHook(boolean original) {
-      if (original) {
-         UsingItemEvent event = new UsingItemEvent((byte) 1);
-         EventManager.call(event);
-         if (event.isCancelled()) {
-            return false;
-         }
+   /**
+    * Замедление при использовании предмета.
+    *
+    * <p>В 1.21.x это был {@code ModifyExpressionValue} на {@code isUsingItem()} внутри
+    * {@code applyMovementSpeedFactors}. В 26.3 такого метода нет — решение принимает
+    * приватный {@code LocalPlayer#isSlowDueToUsingItem()}, вызываемый из {@code modifyInput}.
+    * Хук на него даёт то же поведение: отмена {@link UsingItemEvent} убирает замедление.
+    */
+   @Inject(method = "isSlowDueToUsingItem", at = @At("RETURN"), cancellable = true)
+   private void usingItemHook(CallbackInfoReturnable<Boolean> cir) {
+      if (!cir.getReturnValueZ()) {
+         return;
       }
-
-      return original;
+      UsingItemEvent event = new UsingItemEvent((byte) 1);
+      EventManager.call(event);
+      if (event.isCancelled()) {
+         cir.setReturnValue(false);
+      }
    }
 
    @Redirect(method = {
