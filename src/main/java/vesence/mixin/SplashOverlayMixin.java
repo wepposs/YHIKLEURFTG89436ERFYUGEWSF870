@@ -44,7 +44,8 @@ public abstract class SplashOverlayMixin {
         if (mc == null || mc.getWindow() == null) return;
 
         long now = net.minecraft.util.Util.getMillis();
-        // TODO(port26): LoadingOverlay#reloading removed in 26.3; "reload in progress" ≈ fade-out not started
+        // 26.3: LoadingOverlay#reloading удалён — «идёт перезагрузка» определяем по тому,
+        // что fade-out ещё не начался (fadeOutStart == -1).
         boolean vesence$reloading = this.fadeOutStart == -1L;
         if (vesence$reloading && this.fadeInStart == -1L) this.fadeInStart = now;
 

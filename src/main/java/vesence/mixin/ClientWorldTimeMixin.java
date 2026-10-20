@@ -13,7 +13,8 @@ import vesence.module.impl.visuals.Ambience;
 @Mixin(Level.class)
 public class ClientWorldTimeMixin {
 
-    // TODO(port26): Level#getTimeOfDay removed in 26.3 (clock-based time); hooking both clock-time getters
+    // 26.3: Level#getTimeOfDay удалён — время берётся из часов (clock-based), поэтому
+    // перехватываем оба геттера времени, чтобы Ambience мог сдвигать визуальное время суток.
     @Inject(method = {"getOverworldClockTime", "getDefaultClockTime"}, at = @At("RETURN"), cancellable = true)
     private void onGetTimeOfDay(CallbackInfoReturnable<Long> cir) {
         if ((Object) this instanceof net.minecraft.client.multiplayer.ClientLevel && Ambience.isEnabled()) {

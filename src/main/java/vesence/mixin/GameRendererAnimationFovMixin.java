@@ -21,8 +21,10 @@ import vesence.utils.render.math.animation.anim.util.Easings;
  * перспективы»). Зум 1.0→0.95 при открытии экрана и bump FOV 0.7→1.0 при
  * смене перспективы.
  */
+// 26.3: GameRenderer#getFov удалён — FOV считается покадрово в Camera#calculateFov,
+// поэтому цель миксина — Camera (ранее GameRenderer).
 @Environment(EnvType.CLIENT)
-@Mixin(Camera.class) // TODO(port26): GameRenderer#getFov removed in 26.3; FOV is computed per-frame by Camera#calculateFov
+@Mixin(Camera.class)
 public abstract class GameRendererAnimationFovMixin {
 
     @Unique

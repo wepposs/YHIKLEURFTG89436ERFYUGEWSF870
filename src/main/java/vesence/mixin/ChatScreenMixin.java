@@ -101,7 +101,10 @@ public abstract class ChatScreenMixin extends Screen {
       int fieldY = this.height - 12;
       int fieldRight = this.width - 4;
 
-      // TODO(port26): EditBox#getCharacterX removed; approximate via font width (no scroll offset)
+      // 26.3: EditBox#getCharacterX удалён (нет публичного доступа к горизонтальному
+      // скроллу). Ширину считаем по шрифту и обрезаем по границам поля ниже — для
+      // затемнения текста этого достаточно, хотя при прокрутке длинной строки
+      // позиция может смещаться.
       float startX = field.getX() + 4 + this.font.width(text.substring(0, Math.min(censorStart, text.length())));
       float endX = field.getX() + 4 + this.font.width(text);
 
@@ -111,7 +114,8 @@ public abstract class ChatScreenMixin extends Screen {
 
       int top = fieldY - 1;
       int bottom = fieldY + 9; // высота шрифта 8 + 1px отступ
-      // TODO(port26): createNewRootLayer removed in 26.3; draw order is submission order now
+      // 26.3: createNewRootLayer удалён — порядок отрисовки теперь определяется
+      // порядком отправки команд, а fill в extract-фазе ложится поверх текста.
       context.fill((int) startX, top, (int) Math.ceil(endX), bottom, 0xFF000000);
    }
 

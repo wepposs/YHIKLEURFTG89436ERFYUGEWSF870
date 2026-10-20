@@ -148,7 +148,8 @@ public class WorldRendererMixin {
     * рендерится (мы форсим его через Minecraft.hasOutline), а пост-обработку
     * (свечение/заливка) делает модуль в HUD-фазе, читая этот фреймбуфер как маску.
     */
-   @Inject(method = "blitEntityOutline", at = @At("HEAD"), cancellable = true) // TODO(port26): drawEntityOutlinesFramebuffer → blitEntityOutline in 26.3
+   // 26.3: drawEntityOutlinesFramebuffer переименован в blitEntityOutline.
+   @Inject(method = "blitEntityOutline", at = @At("HEAD"), cancellable = true)
    private void vesence$suppressVanillaEntityOutline(CallbackInfo ci) {
       vesence.module.impl.visuals.ShaderESP esp = vesence.module.impl.visuals.ShaderESP.INSTANCE;
       if (esp != null && esp.enable) {

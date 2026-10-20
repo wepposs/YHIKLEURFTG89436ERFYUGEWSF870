@@ -461,7 +461,8 @@ public class Nametags extends Module {
             matrices.pushMatrix();
             matrices.translate(headGuiX, headGuiY);
             matrices.scale(s, s);
-            // TODO(port26): PlayerSkinDrawer удалён в 26.3 — лицо рисуем blit'ом региона скина + слой шляпы.
+            // 26.3: PlayerSkinDrawer удалён — лицо рисуем двумя blit'ами региона скина
+            // (базовый слой 8,8 и слой шляпы 40,8 в атласе 64x64), как делал сам drawer.
             net.minecraft.resources.Identifier skinTex = tag.skin.body().texturePath();
             drawContext.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, skinTex, 0, 0, 8.0F, 8.0F, 8, 8, 64, 64);
             drawContext.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, skinTex, 0, 0, 40.0F, 8.0F, 8, 8, 64, 64);

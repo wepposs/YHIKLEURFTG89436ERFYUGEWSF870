@@ -55,8 +55,8 @@ public abstract class MinecraftClientMixin {
       }
    }
 
-   // TODO(port26): Minecraft#setScreen removed in 26.3 (screens go through Gui.setScreen /
-   // Minecraft.setScreenAndShow); hooking setScreenAndShow instead.
+   // 26.3: Minecraft#setScreen удалён — экраны ставятся через Minecraft#setScreenAndShow
+   // (он же вызывает Gui#setScreen), поэтому подменяем именно его.
    @Inject(method = "setScreenAndShow", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
    private void vesence$redirectTitleScreen(Screen screen, CallbackInfo ci) {
       try {

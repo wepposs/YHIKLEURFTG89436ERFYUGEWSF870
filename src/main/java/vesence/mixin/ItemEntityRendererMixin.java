@@ -55,25 +55,34 @@ public abstract class ItemEntityRendererMixin extends EntityRenderer<ItemEntity,
                     return;
                 }
                 matrixStack.pushPose();
-                AABB box = state.item.getModelBoundingBox();
-                float f6 = (float) -box.minY;
+                try {
+                    AABB box = state.item.getModelBoundingBox();
+                    float f6 = (float) -box.minY;
 
-                matrixStack.translate(0.0f, f6, 0.0f);
+                    matrixStack.translate(0.0f, f6, 0.0f);
 
-                float itemRotation = ItemEntity.getSpin(state.ageInTicks, state.seed);
-                boolean onGround = ((IItemEntityRenderState) state).isOnGround();
+                    float itemRotation = ItemEntity.getSpin(state.ageInTicks, state.seed);
+                    boolean onGround = ((IItemEntityRenderState) state).isOnGround();
 
-                if (onGround) {
-                    matrixStack.rotate(Axis.XP.rotationDegrees(90.0f));
-                    matrixStack.rotate(Axis.ZP.rotation(itemRotation));
-                } else {
-                    matrixStack.rotate(Axis.XP.rotationDegrees(itemRotation * 300.0f));
-                    matrixStack.rotate(Axis.YP.rotation(itemRotation));
+                    if (onGround) {
+                        matrixStack.rotate(Axis.XP.rotationDegrees(90.0f));
+                        matrixStack.rotate(Axis.ZP.rotation(itemRotation));
+                    } else {
+                        matrixStack.rotate(Axis.XP.rotationDegrees(itemRotation * 300.0f));
+                        matrixStack.rotate(Axis.YP.rotation(itemRotation));
+                    }
+
+                    // 26.3: статический helper ItemEntityRenderer.render(MatrixStack,...) удалён,
+                    // его работу выполняет submitMultipleFromCount — рисуем ИМЕННО ВНУТРИ нашей
+                    // позы. Раньше popPose() стоял до super.submit(), из-за чего поворот физики
+                    // (плоское лежание на земле + вращение) отбрасывался и предметы выглядели
+                    // как в ванилле.
+                    ItemEntityRenderer.submitMultipleFromCount(
+                            matrixStack, orderedRenderCommandQueue,
+                            state.lightCoords, state, this.random, box);
+                } finally {
+                    matrixStack.popPose();
                 }
-
-                // TODO(port26): ItemEntityRenderer.render(MatrixStack,...) helper removed in 26.3;
-                // super.render() below submits with the transformed pose.
-                matrixStack.popPose();
 
                 super.submit(state, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 

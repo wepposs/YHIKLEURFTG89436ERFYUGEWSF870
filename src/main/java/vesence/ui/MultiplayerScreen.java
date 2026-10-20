@@ -299,7 +299,8 @@ public class MultiplayerScreen extends Screen {
                             String key = e.info.ip == null ? e.info.name : e.info.ip;
                             e.iconId = Identifier.fromNamespaceAndPath("vesence", "favicon/" + Integer.toUnsignedString(key.hashCode(), 36));
                         }
-                        // TODO(port26): WorldIcon removed in 26.3; register DynamicTexture directly
+                        // 26.3: WorldIcon удалён — регистрируем DynamicTexture напрямую
+                        // (раньше WorldIcon.load(bytes) делал то же самое внутри).
                         NativeImage img = NativeImage.read(bytes);
                         net.minecraft.client.renderer.texture.DynamicTexture tex =
                                 new net.minecraft.client.renderer.texture.DynamicTexture(() -> "vesence_favicon", img);
