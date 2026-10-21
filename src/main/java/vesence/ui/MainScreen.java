@@ -653,7 +653,7 @@ public class MainScreen extends Screen {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[weppos] MainScreen render error: " + e.getMessage());
+            System.err.println("[weppos] MainScreen render error: " + e);
         } finally {
             vesence.renderengine.MainTargetBinder.end(tempFbo);
             GlState.pop(snapshot);

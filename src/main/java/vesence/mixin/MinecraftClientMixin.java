@@ -55,40 +55,8 @@ public abstract class MinecraftClientMixin {
       }
    }
 
-   // 26.3: Minecraft#setScreen удалён — экраны ставятся через Minecraft#setScreenAndShow
-   // (он же вызывает Gui#setScreen), поэтому подменяем именно его.
-   @Inject(method = "setScreenAndShow", at = @At("HEAD"), cancellable = true, require = 0, expect = 0)
-   private void vesence$redirectTitleScreen(Screen screen, CallbackInfo ci) {
-      try {
-         if (screen instanceof TitleScreen) {
-            if (MainScreenHelper.bypassOnce) {
-               MainScreenHelper.bypassOnce = false;
-               return;
-            }
-            Minecraft mc = (Minecraft) (Object) this;
-            ci.cancel();
-            mc.gui.setScreen(new MainScreen());
-            return;
-         }
-
-         if (screen instanceof JoinMultiplayerScreen
-                 && !(screen instanceof vesence.ui.MultiplayerScreen)) {
-            if (MainScreenHelper.bypassOnce) {
-               MainScreenHelper.bypassOnce = false;
-               return;
-            }
-            Minecraft mc = (Minecraft) (Object) this;
-            ci.cancel();
-            boolean ru = false;
-            try {
-               ru = new vesence.ui.SettingsWindow().getSelectedLangMode() == 0;
-            } catch (Throwable ignored) {
-            }
-            mc.gui.setScreen(new vesence.ui.MultiplayerScreen(new MainScreen()).setRussian(ru));
-         }
-      } catch (Throwable ignored) {
-      }
-   }
+   // 26.3: подмена экранов живёт в GuiScreenRedirectMixin (Gui#setScreen) — именно туда
+   // попадает TitleScreen из Gui#buildInitialScreens, минуя setScreenAndShow.
 
    @Inject(method = "resizeGui", at = @At("TAIL"), require = 0)
    private void vesence$onResolutionChanged(CallbackInfo ci) {
