@@ -52,6 +52,8 @@ public class ModuleManager {
       this.module.add(new vesence.module.impl.visuals.TargetESP());
       this.module.add(new vesence.module.impl.visuals.FakePlayer());
       this.module.add(new vesence.module.impl.visuals.SkeletonESP());
+      this.module.add(new vesence.module.impl.visuals.BloomTadpoles());
+      this.module.add(new vesence.module.impl.visuals.WorldStrips());
       this.module.add(new vesence.module.impl.visuals.ChunksAnimation());
       this.module.add(new vesence.module.impl.visuals.EnchantmentColor());
       this.module.add(new vesence.module.impl.visuals.HitBubbles());
@@ -80,6 +82,7 @@ public class ModuleManager {
 
       this.module.add(new AttackAura());
       this.module.add(new AimBot());
+      this.module.add(new vesence.module.impl.combat.AimAssist());
       this.module.add(new AutoExplosion());
       this.module.add(new TriggerBot());
       this.module.add(new AntiBot());

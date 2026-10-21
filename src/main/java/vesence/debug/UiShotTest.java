@@ -22,18 +22,22 @@ public final class UiShotTest {
             || System.getenv("VESENCE_UITEST_WORLD") != null
             || System.getenv("VESENCE_UITEST_GUI") != null
             || System.getenv("VESENCE_UITEST_ESC") != null
-            || System.getenv("VESENCE_UITEST_F3") != null;
+            || System.getenv("VESENCE_UITEST_F3") != null
+            || System.getenv("VESENCE_UITEST_INV") != null;
     /** В world-режиме ждём, пока загрузится мир (quickPlay), и только потом снимаем кадр. */
     private static final boolean WORLD_MODE = System.getenv("VESENCE_UITEST_WORLD") != null
             || System.getenv("VESENCE_UITEST_GUI") != null
             || System.getenv("VESENCE_UITEST_ESC") != null
-            || System.getenv("VESENCE_UITEST_F3") != null;
+            || System.getenv("VESENCE_UITEST_F3") != null
+            || System.getenv("VESENCE_UITEST_INV") != null;
     /** Открыть ClickGui перед снятием кадров — проверка, что кастомный интерфейс рисуется. */
     private static final boolean GUI_MODE = System.getenv("VESENCE_UITEST_GUI") != null;
     /** Открыть меню паузы: HUD должен оказаться ПОД ним, а не поверх. */
     private static final boolean ESC_MODE = System.getenv("VESENCE_UITEST_ESC") != null;
     /** Включить отладку F3: HUD не должен её перекрывать. */
     private static final boolean F3_MODE = System.getenv("VESENCE_UITEST_F3") != null;
+    /** Открыть инвентарь: проверка HandledScreen-хуков (кнопки сундука). */
+    private static final boolean INV_MODE = System.getenv("VESENCE_UITEST_INV") != null;
     /** Печатать состояние экрана — чтобы отличать «застрял» от «ждёт нажатия». */
     private static final boolean DIAG = System.getenv("VESENCE_UITEST_DIAG") != null;
     private static final int WARMUP_TICKS = 200;
@@ -139,6 +143,13 @@ public final class UiShotTest {
                 } catch (Throwable t) {
                     System.out.println("[uitest] PauseScreen open failed: " + t);
                 }
+            } else if (INV_MODE) {
+                try {
+                    mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+                    System.out.println("[uitest] InventoryScreen opened: " + mc.gui.screen());
+                } catch (Throwable t) {
+                    System.out.println("[uitest] InventoryScreen open failed: " + t);
+                }
             } else if (F3_MODE) {
                 try {
                     mc.debugEntries.setOverlayVisible(true);
@@ -152,7 +163,7 @@ public final class UiShotTest {
         if (ticks < WARMUP_TICKS) return;
         if ((ticks - WARMUP_TICKS) % SHOT_INTERVAL != 0) return;
 
-        String name = (GUI_MODE ? "gui-" : ESC_MODE ? "esc-" : F3_MODE ? "f3-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
+        String name = (GUI_MODE ? "gui-" : ESC_MODE ? "esc-" : F3_MODE ? "f3-" : INV_MODE ? "inv-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
         new File("uitest-shots").mkdirs();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
             try {

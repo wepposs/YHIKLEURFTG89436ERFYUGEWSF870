@@ -22,7 +22,8 @@ loom {
         if (System.getenv('VESENCE_SKYTEST') != null || System.getenv('VESENCE_UITEST_WORLD') != null
                 || System.getenv('VESENCE_UITEST_GUI') != null
                 || System.getenv('VESENCE_UITEST_ESC') != null
-                || System.getenv('VESENCE_UITEST_F3') != null) {
+                || System.getenv('VESENCE_UITEST_F3') != null
+                || System.getenv('VESENCE_UITEST_INV') != null) {
             programArgs('--quickPlaySingleplayer', 'skytest')
         }
         // Аудит миксинов: печатает в лог каждое применённое внедрение и ругается,
