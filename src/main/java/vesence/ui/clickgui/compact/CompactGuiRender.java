@@ -123,6 +123,7 @@ public class CompactGuiRender {
         float openValY =
                 (float) CompactGuiScreen.openAnimY.getValue();
 
+
         if (openVal < 0.01f || openValY < 0.01f) {
             return;
         }

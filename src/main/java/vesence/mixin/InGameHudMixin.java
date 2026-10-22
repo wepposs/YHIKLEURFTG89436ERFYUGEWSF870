@@ -49,6 +49,11 @@ public abstract class InGameHudMixin {
    @org.spongepowered.asm.mixin.Unique
    private static boolean vesence$fboStatusComplete = false;
 
+   // FBO, привязанный ДО vesence$bindMainFramebuffer — восстанавливаем в detach,
+   // иначе следующий проход (ClickGui через onRender) рисует в опустошённый FBO.
+   @org.spongepowered.asm.mixin.Unique
+   private static int vesence$prevBoundFbo = 0;
+
    @Inject(method = "extractCrosshair", at = @At("HEAD"), cancellable = true)
    private void onRenderCrosshair(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized() && Vesence.get.manager.get(vesence.module.impl.visuals.Crosshair.class).enable) {
@@ -318,13 +323,14 @@ public abstract class InGameHudMixin {
    private static int vesence$bindMainFramebuffer(Minecraft client) {
       long section = vesence.utils.debug.FreezeWatchdog.sectionEnter("framebuffer.attach");
       try {
+         vesence$prevBoundFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
          RenderTarget mainFramebuffer = client.gameRenderer.mainRenderTarget();
          if (mainFramebuffer == null) {
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, vesence$prevBoundFbo);
             return 0;
          }
          if (!(mainFramebuffer.getColorTexture() instanceof GlTexture glColor)) {
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, vesence$prevBoundFbo);
             return 0;
          }
 
@@ -349,7 +355,7 @@ public abstract class InGameHudMixin {
             vesence$fboStatusComplete = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) == GL30.GL_FRAMEBUFFER_COMPLETE;
          }
          if (!vesence$fboStatusComplete) {
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, vesence$prevBoundFbo);
             return 0;
          }
          return vesence$cachedFbo;
@@ -364,5 +370,8 @@ public abstract class InGameHudMixin {
          GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, tempFbo);
          GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, 0, 0);
       }
+      // Возвращаем тот FBO, что был привязан до begin — иначе следующий проход
+      // (ClickGui) окажется привязан к опустошённому cachedFbo и не отрисуется.
+      GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, vesence$prevBoundFbo);
    }
 }

@@ -468,6 +468,9 @@ public class Vesence implements ClientModInitializer {
                 renderFrameId++;
                 AnimationSystem.getInstance().tickOnceForFrame(renderFrameId);
                 boolean rendererBegun = false;
+                // HUD-оверлей своим GlState.pop сбрасывает биндинг FBO — поэтому для
+                // ClickGui/RenderEvent привязываем main target заново своим биндером.
+                int guiFbo = vesence.renderengine.MainTargetBinder.begin();
 
                 try {
                     long beginSection = vesence.utils.debug.FreezeWatchdog.sectionEnter("renderer2d.begin.render");
@@ -492,6 +495,7 @@ public class Vesence implements ClientModInitializer {
                 } catch (Exception e) {
                     System.err.println("[weppos] Error in onRender: " + e.getMessage());
                 } finally {
+                    vesence.renderengine.MainTargetBinder.end(guiFbo);
                 }
             } finally {
                 GlState.pop(snapshot);
