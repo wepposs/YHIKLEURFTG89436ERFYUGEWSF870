@@ -1,72 +1,25 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// КРОВАВАЯ ЛУНА — затмение луны.
-// Слои:
-//   1. багровая ночь;
-//   2. приглушённые тёплые звёзды;
-//   3. огромный алый диск: тёмные моря, кирпичный лимб;
-//   4. медный ореол и кровавая дымка;
-//   5. тёмные дымчатые облака, проплывающие по диску;
-//   6. кровавый туман у горизонта;
-//   7. пульсация всей сцены.
-// ============================================================================
+// Blood Moon — large low-red moon with atmospheric glow, dense stars, and soft clouds.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.28, 0.06, 0.10), vec3(0.10, 0.03, 0.06), vec3(0.01, 0.005, 0.02));
+    col += horizonHaze(d, worldDir(20.0, 3.0), vec3(0.30, 0.12, 0.20), 0.5);
 
-    float pulse = 0.88 + 0.12 * sin(Time * 0.35);
+    // Large red-tinted moon
+    vec3 moonPos = worldDir(25.0, 22.0);
+    col = detailedMoon(col, d, moonPos, 0.11, vec3(0.97, 0.35, 0.18), 1.8);
 
-    // --- 1. Багровая ночь ---
-    vec3 col = mix(vec3(0.22, 0.05, 0.07), vec3(0.07, 0.015, 0.04), pow(h, 0.8)) * pulse;
+    // Faint stars with warm tint
+    col += stars(d, 68.0, 1.0, 41.0) * vec3(1.0, 0.82, 0.75);
 
-    // --- 2. Тёплые звёзды ---
-    col += stars(dir, 36.0, 0.14, 0.5) * vec3(1.0, 0.72, 0.68);
+    // Subtle cloud layer
+    col = cloudLayer(col, d, moonPos, vec3(0.20, 0.08, 0.10), vec3(0.50, 0.15, 0.18), 0.58, 3.5, 0.75, 7.0);
 
-    // --- 3. Луна ---
-    vec3 md = worldDir(25.0, 20.0);
-    float ang = angDist(dir, md);
-    float R = 0.105;
-
-    vec3 t1 = normalize(cross(md, vec3(0.0, 1.0, 0.0)));
-    vec3 t2 = cross(md, t1);
-    vec2 muv = vec2(dot(dir, t1), dot(dir, t2)) / R;
-    float maria = fbm3(vec3(muv * 2.6, 2.2));
-    float craters = fbm3(vec3(muv * 8.0, 7.7));
-    vec3 moonCol = mix(vec3(0.50, 0.08, 0.07), vec3(1.12, 0.32, 0.16), smoothstep(0.40, 0.58, maria));
-    moonCol *= 0.85 + 0.30 * smoothstep(0.46, 0.62, craters);
-    float limb = sqrt(max(0.0, 1.0 - dot(muv, muv)));
-    moonCol *= 0.55 + 0.45 * limb;
-
-    float disc = 1.0 - smoothstep(R * 0.94, R, ang);
-    col += moonCol * disc * 1.2 * pulse;
-
-    // --- 4. Ореол ---
-    col += vec3(0.92, 0.16, 0.09) * exp(-ang * ang / 0.07) * 0.55 * pulse;
-    col += vec3(0.60, 0.08, 0.05) * exp(-ang * ang / 0.60) * 0.25 * pulse;
-
-    // --- 5. Дымчатые облака по диску ---
-    float smoke = fbm3(dir * 2.2 + vec3(Time * 0.012, 0.0, 0.0));
-    float smokeMask = smoothstep(0.45, 0.78, smoke);
-    col = mix(col, vec3(0.10, 0.02, 0.03), smokeMask * (0.35 + disc * 0.35));
-
-    // --- 6. Кровавый туман ---
-    col += vec3(0.55, 0.08, 0.05) * exp(-pow((dir.y + 0.02) / 0.22, 2.0)) * 0.5 * pulse;
-
-
-    // --- 7. Тень Земли медленно ползёт по диску ---
-    float umbra = smoothstep(0.45, 0.75, muv.x * 0.7 + 0.35 + 0.15 * sin(Time * 0.05));
-    col -= vec3(0.35, 0.10, 0.08) * umbra * disc * 0.5;
-
-    // --- 8. Красная пыль в воздухе ---
-    col += particles(dir, 24.0, 0.04, vec3(0.02, -0.06, 0.01), vec3(0.8, 0.2, 0.12), 160.0) * 0.3;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

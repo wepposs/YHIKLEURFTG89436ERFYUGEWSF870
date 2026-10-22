@@ -154,7 +154,7 @@ public class StructureHelper extends Module {
         chestCache.clear();
         File file = getTimersFile();
         if (!file.exists()) return;
-        try (FileReader reader = new FileReader(file)) {
+        try (FileReader reader = new FileReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             for (Map.Entry<String, com.google.gson.JsonElement> e : root.entrySet()) {
                 try {
@@ -188,7 +188,7 @@ public class StructureHelper extends Module {
             obj.addProperty("seen", en.seenHologram);
             root.add(p.getX() + "," + p.getY() + "," + p.getZ(), obj);
         }
-        try (FileWriter writer = new FileWriter(file)) {
+        try (FileWriter writer = new FileWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(root, writer);
         } catch (Exception ignored) {}
     }

@@ -1,57 +1,47 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ОКЕАН — под водой.
-// Слои:
-//   1. бирюзово-синяя толща воды;
-//   2. два слоя мягкой каустики;
-//   3. широкие лучи света сверху;
-//   4. яркое свечение поверхности (размытое солнце сквозь воду);
-//   5. медленное покачивание лучей;
-//   6. взвесь-планктон, дрейфующая в лучах.
-// ============================================================================
+// Ocean — looking up from underwater: refracted surface caustics overhead,
+// god-rays slanting down from the bright surface spot, drifting marine snow
+// and bioluminescent plankton, murk swallowing the horizon.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
 
-    // --- 1. Толща воды ---
-    vec3 col = mix(vec3(0.12, 0.52, 0.74), vec3(0.02, 0.18, 0.42), pow(h, 0.85));
+    // Water column: bright turquoise toward the surface, deep murk at horizon
+    vec3 col = atmosphere(d, vec3(0.03, 0.14, 0.22), vec3(0.05, 0.24, 0.36), vec3(0.12, 0.52, 0.62));
 
-    // --- 2. Каустика: два перетекающих поля ---
-    float w1 = fbm3(dir * 2.4 + vec3(Time * 0.022, 0.0, Time * 0.014));
-    float w2 = fbm3(dir * 3.2 + vec3(-Time * 0.018, 0.0, Time * 0.020) + 7.0);
-    float caustic = smoothstep(0.50, 0.72, w1 * 0.6 + w2 * 0.5);
-    col += vec3(0.22, 0.72, 0.86) * caustic * 0.55;
+    float up = max(d.y, 0.0);
 
-    // --- 3-5. Лучи сверху с покачиванием ---
-    float up = max(dot(dir, vec3(0.0, 1.0, 0.0)), 0.0);
-    float az = atan(dir.x, dir.z);
-    float sway = fbm3(vec3(az * 3.0, 1.0, Time * 0.06));
-    float rays = smoothstep(0.45, 0.72, sway);
-    col += vec3(0.35, 0.75, 0.85) * pow(up, 5.0) * (0.35 + 0.65 * rays) * 0.6;
+    // The shimmering surface spot — refracted sun high overhead
+    vec3 spot = normalize(vec3(0.25, 1.0, 0.10));
+    float sd = length(d - spot);
+    col += vec3(0.65, 0.95, 0.95) * exp(-sd * 7.0) * 0.55 * up;
 
-    // --- 4. Поверхность ---
-    col += vec3(0.60, 0.90, 0.92) * pow(up, 22.0) * 0.8;
-    col += vec3(0.45, 0.80, 0.85) * pow(up, 90.0) * 0.9;
+    // God-rays: slanting crepuscular shafts from the surface spot
+    vec2 tp = tangentUV(d, spot);
+    float rayAng = atan(tp.y, tp.x);
+    float rays = sin(rayAng * 9.0 + Time * 0.30 + sin(rayAng * 4.0 - Time * 0.17) * 1.4);
+    rays = pow(max(rays, 0.0), 2.2);
+    float shaft = rays * exp(-sd * 2.6) * smoothstep(0.05, 0.45, up);
+    col += vec3(0.35, 0.80, 0.85) * shaft * 0.38;
 
-    // --- 6. Планктон ---
-    col += particles(dir, 26.0, 0.06, vec3(0.01, 0.04, 0.02), vec3(0.65, 0.90, 0.85), 150.0) * (0.3 + rays * 0.4);
+    // Caustic ripple on the surface disc itself
+    float caus = cloudNoise(vec3(tp * 3.4, Time * 0.22));
+    col += vec3(0.55, 0.95, 0.95) * bell(sd, 0.32) * smoothstep(0.55, 0.85, caus) * 0.55 * up;
 
+    // Marine snow: slow drifting motes, denser low
+    col += starsSeeded(d, 55.0, 0.55, 2048.0) * vec3(0.55, 0.85, 0.85) * (1.0 - up * 0.5);
 
-    // --- 7. Пузыри, поднимающиеся к поверхности ---
-    col += particles(dir, 20.0, 0.05, vec3(0.01, 0.35, 0.01), vec3(0.70, 0.95, 1.0), 140.0) * 0.35;
+    // Bioluminescent plankton: sparse teal sparks that pulse
+    col += starsSeeded(d, 30.0, 0.85, 777.0) * vec3(0.20, 1.0, 0.80)
+         * (0.55 + 0.45 * sin(Time * 1.4 + d.x * 9.0 + d.z * 7.0));
 
-    // --- 8. Вторая система лучей, косая ---
-    vec3 sd2 = worldDir(80.0, 60.0);
-    float up2 = max(dot(dir, sd2), 0.0);
-    col += vec3(0.20, 0.55, 0.65) * pow(up2, 10.0) * 0.25;
+    // Suspended murk band above the horizon
+    col += vec3(0.04, 0.16, 0.20) * exp(-max(-d.y, 0.0) * 6.0) * 0.5;
 
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

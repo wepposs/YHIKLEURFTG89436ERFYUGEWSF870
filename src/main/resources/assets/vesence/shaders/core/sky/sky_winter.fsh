@@ -1,56 +1,44 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ЗИМА — морозное солнечное утро.
-// Слои:
-//   1. бледная морозная синь;
-//   2. низкое мягкое солнце;
-//   3. гало 22° — широкое кольцо ледяного света;
-//   4. паргелии: два светлых пятна по бокам от солнца;
-//   5. ледяная вуаль-стяжка;
-//   6. два слоя падающего снега с покачиванием;
-//   7. алмазная пыль — редкие мерцающие искры.
-// ============================================================================
+// Winter — crisp subzero day: steel-blue polar dome, pale low sun with a
+// chromatic 22° halo, parhelia spots, sun pillar, thin streaky cirrus.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y, -0.25, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
 
-    // --- 1. Морозная синь ---
-    vec3 col = mix(vec3(0.86, 0.91, 0.98), vec3(0.62, 0.74, 0.92), smoothstep(0.00, 0.30, h));
-    col = mix(col, vec3(0.44, 0.60, 0.90), smoothstep(0.30, 0.95, h));
+    // Cold clear ramp: pale ice horizon -> steel blue -> saturated arctic zenith
+    vec3 col = atmosphere(d, vec3(0.62, 0.74, 0.86), vec3(0.30, 0.48, 0.70), vec3(0.10, 0.24, 0.52));
 
-    vec3 sd = worldDir(330.0, 18.0);
+    vec3 sunPos = worldDir(330.0, 16.0);
+    float sunDist = length(d - sunPos);
 
-    // --- 2. Солнце ---
-    col += softSun(dir, sd, 0.038, vec3(1.45, 1.42, 1.32), vec3(0.88, 0.92, 1.0), 0.6);
+    // Pale winter sun + tight glare
+    col += sun(d, sunPos, 0.032, vec3(1.0, 0.93, 0.82));
+    col += vec3(0.90, 0.92, 0.97) * bell(sunDist, 0.14) * 0.28;
 
-    // --- 3. Гало 22° ---
-    col += halo22(dir, sd, vec3(0.88, 0.94, 1.05), 0.30);
+    // 22° halo with chromatic edge (red inside, blue outside)
+    float halo = bell(sunDist - 0.384, 0.014);
+    vec3 haloCol = vec3(0.85, 0.45, 0.30) * bell(sunDist - 0.372, 0.007)
+                 + vec3(0.55, 0.70, 0.95) * bell(sunDist - 0.394, 0.007);
+    col += haloCol * 0.75 + vec3(0.80, 0.88, 0.98) * halo * 0.15;
 
-    // --- 4. Паргелии по бокам ---
-    vec3 t1 = normalize(cross(sd, vec3(0.0, 1.0, 0.0)));
-    vec3 par1 = normalize(sd + t1 * 0.42);
-    vec3 par2 = normalize(sd - t1 * 0.42);
-    col += vec3(0.95, 0.97, 1.05) * exp(-pow(angDist(dir, par1) / 0.05, 2.0)) * 0.35;
-    col += vec3(0.95, 0.97, 1.05) * exp(-pow(angDist(dir, par2) / 0.05, 2.0)) * 0.35;
+    // Sun dogs: two bright spots on the halo, horizontally level with the sun
+    vec2 sp = tangentUV(d, sunPos);
+    float sag = sp.y / max(sunDist, 0.05);        // vertical offset relative to sun
+    float dogs = bell(sunDist - 0.384, 0.045) * bell(sag, 0.16);
+    col += vec3(1.0, 0.80, 0.55) * dogs * 0.55;
 
-    // --- 5. Ледяная вуаль ---
-    float veil = fbm3(dir * vec3(1.5, 6.0, 1.5) + vec3(0.0, Time * 0.006, 0.0));
-    col = mix(col, vec3(0.90, 0.95, 1.02), smoothstep(0.48, 0.70, veil) * 0.30);
+    // Sun pillar: vertical streak through the sun
+    float pillar = bell(sp.x, 0.014) * smoothstep(0.02, 0.10, abs(sp.y)) * exp(-abs(sp.y) * 4.0);
+    col += vec3(1.0, 0.88, 0.72) * pillar * 0.45;
 
-    // --- 6. Снег: два слоя ---
-    col += particles(dir, 14.0, 0.10, vec3(0.05, -0.22, 0.03), vec3(0.97, 0.99, 1.02), 110.0) * 0.75;
-    col += particles(dir, 24.0, 0.07, vec3(-0.03, -0.38, 0.05), vec3(0.95, 0.97, 1.0), 170.0) * 0.5;
+    // Streaky cirrus brushed along the wind, catching the light
+    col = cloudLayer(col, d, sunPos, vec3(0.56, 0.66, 0.78), vec3(0.97, 0.98, 1.0), 0.34, 5.5, 0.50, 17.4);
+    col = mix(col, vec3(0.90, 0.94, 1.0), wisps(d, 23.0) * 0.28);
 
-    // --- 7. Алмазная пыль ---
-    col += stars(dir, 55.0, 0.05, 0.45) * vec3(0.9, 0.97, 1.05);
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

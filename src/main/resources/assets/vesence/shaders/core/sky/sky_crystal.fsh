@@ -1,57 +1,52 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// КРИСТАЛЛ — живое стекло.
-// Слои:
-//   1. холодный стеклянный градиент;
-//   2. мягкие переливы: две варпленые волны цвета;
-//   3. переливающийся перламутр в плотных местах;
-//   4. плывущая широкая полоса блика;
-//   5. блёстки-искры;
-//   6. мягкое солнечное стекло-свечение.
-// ============================================================================
+// Crystal — frozen daylight: crisp periwinkle dome, a low cold sun wrapped in
+// an 8-spoke starburst, drifting shard-glints, thin crystal-veil near horizon.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
 
-    // --- 1. Стекло ---
-    vec3 col = mix(vec3(0.24, 0.52, 0.72), vec3(0.07, 0.22, 0.48), pow(h, 0.85));
+    // Cold clear ramp: pale ice horizon -> periwinkle -> deep sapphire zenith
+    vec3 col = atmosphere(d, vec3(0.55, 0.68, 0.80), vec3(0.24, 0.36, 0.58), vec3(0.06, 0.10, 0.30));
 
-    // --- 2. Переливы ---
-    vec3 w = warp3(dir * 2.4, Time * 0.006, 0.8);
-    float n1 = fbm3(w);
-    float n2 = fbm3(w * 2.1 + 7.0);
-    col = mix(col, vec3(0.42, 0.80, 0.95), smoothstep(0.42, 0.62, n1) * 0.45);
-    col = mix(col, vec3(0.65, 0.52, 0.95), smoothstep(0.60, 0.78, n2) * 0.35);
+    vec3 sunPos = worldDir(45.0, 26.0);
+    float sd = length(d - sunPos);
 
-    // --- 3. Перламутр ---
-    float nacr = smoothstep(0.60, 0.85, n1 * 0.6 + n2 * 0.5);
-    col = mix(col, hsv2rgb(vec3(fract(0.5 + n1 * 0.4 + Time * 0.01), 0.35, 1.05)), nacr * 0.30);
+    // Cold sun with a tight starburst: 4 long + 4 short spokes
+    col += sun(d, sunPos, 0.038, vec3(0.94, 0.96, 1.0));
+    vec2 tp = tangentUV(d, sunPos);
+    float ang = atan(tp.y, tp.x);
+    float r = length(tp);
+    float spokeL = pow(abs(cos(ang * 2.0)), 24.0);
+    float spokeS = pow(abs(cos(ang * 4.0 + 0.39)), 40.0) * 0.6;
+    float spokes = (spokeL + spokeS) * exp(-r * 5.0);
+    col += vec3(0.75, 0.85, 1.0) * spokes * 0.55;
 
-    // --- 4. Плывущий блик ---
-    float sheen = exp(-pow((dir.y - 0.25 - 0.16 * sin(Time * 0.18)) / 0.16, 2.0));
-    col += vec3(0.82, 0.95, 1.05) * sheen * 0.35;
+    // Tight cold halo
+    col += vec3(0.45, 0.62, 0.82) * bell(sd - 0.30, 0.010) * 0.22
+         * smoothstep(-0.02, 0.10, d.y);
 
-    // --- 5. Блёстки ---
-    col += stars(dir, 45.0, 0.06, 0.8) * vec3(0.85, 0.95, 1.1);
+    // Drifting shard glints: sharp little twinkles scattered mid-sky
+    float glint = starsSeeded(d, 90.0, 0.9, 313.0).g;
+    col += vec3(0.55, 0.75, 0.95) * glint
+         * (0.65 + 0.35 * sin(Time * 2.2 + d.x * 12.0 + d.z * 9.0))
+         * smoothstep(0.10, 0.45, d.y);
 
-    // --- 6. Свечение ---
-    col += softSun(dir, worldDir(60.0, 38.0), 0.03, vec3(1.2, 1.25, 1.3), vec3(0.65, 0.85, 1.05), 0.5);
+    // Sparse true stars high up
+    col += stars(d, 60.0, 0.9, 77.0) * smoothstep(0.45, 0.85, d.y);
 
+    // Veil of ice haze near horizon
+    col += horizonHaze(d, sunPos, vec3(0.70, 0.82, 0.92), 0.40);
 
-    // --- 7. Вторая полоса блика, контрфазная ---
-    float sheen2 = exp(-pow((dir.y - 0.55 + 0.12 * sin(Time * 0.14)) / 0.10, 2.0));
-    col += vec3(0.95, 0.75, 1.05) * sheen2 * 0.25;
+    // Mirror-dark frozen lake below the horizon: still, dim, catching the
+    // sun's glare as a soft vertical reflection
+    float below = smoothstep(0.0, 0.06, -d.y);
+    vec3 lake = mix(col, col * vec3(0.30, 0.34, 0.40) + vec3(0.02, 0.03, 0.04), below);
 
-    // --- 8. Глубокие холодные провалы ---
-    col *= 1.0 - smoothstep(0.62, 0.85, fbm3(dir * 1.6 + 21.0)) * 0.20;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    col = mix(col, lake, below);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

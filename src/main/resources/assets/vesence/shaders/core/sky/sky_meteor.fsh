@@ -1,57 +1,28 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// МЕТЕОРЫ — огненные болиды.
-// Слои:
-//   1. тёплая бронзовая ночь;
-//   2. дымная вуаль;
-//   3. звёзды;
-//   4. четыре огненных болида с дымными шлейфами;
-//   5. тлеющее зарево горизонта;
-//   6. вспышки-всплески при сгорании.
-// ============================================================================
+// METEOR — intense perseid shower, glowing dust streaks, luminous horizon and dense starry background.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
-
-    // --- 1. Бронзовая ночь ---
-    vec3 col = mix(vec3(0.11, 0.07, 0.14), vec3(0.03, 0.025, 0.09), pow(h, 0.8));
-
-    // --- 2. Дымная вуаль ---
-    float veil = fbm3(dir * 2.2 + vec3(Time * 0.004));
-    col += vec3(0.16, 0.11, 0.22) * veil * 0.45;
-
-    // --- 3. Звёзды ---
-    col += stars(dir, 34.0, 0.18, 0.8);
-
-    // --- 4. Огненные болиды ---
-    col += shootingStar(dir, 5.0, 11.0, vec3(1.15, 0.62, 0.30));
-    col += shootingStar(dir, 7.0, 17.0, vec3(1.15, 0.72, 0.35));
-    col += shootingStar(dir, 9.5, 23.0, vec3(1.15, 0.55, 0.25));
-    col += shootingStar(dir, 12.0, 29.0, vec3(1.10, 0.68, 0.38));
-
-    // --- 5. Зарево ---
-    col += vec3(0.55, 0.20, 0.07) * exp(-pow((dir.y + 0.04) / 0.32, 2.0)) * 0.6;
-
-    // --- 6. Тлеющие угли-вспышки ---
-    float embers = smoothstep(0.72, 0.95, fbm3(dir * 5.0 + vec3(0.0, -Time * 0.06, 0.0)));
-    col += vec3(1.0, 0.45, 0.12) * embers * (1.0 - h * 0.6) * 0.4;
-
-
-    // --- 7. Дымные шлейфы, тлеющие после болидов ---
-    float trails = fbm3(dir * 5.0 + vec3(Time * 0.006, -Time * 0.004, 0.0));
-    col += vec3(0.35, 0.20, 0.14) * smoothstep(0.62, 0.85, trails) * 0.25;
-
-    // --- 8. Ещё пара болидов ---
-    col += shootingStar(dir, 6.2, 41.0, vec3(1.12, 0.58, 0.28));
-    col += shootingStar(dir, 8.4, 47.0, vec3(1.12, 0.70, 0.40));
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.32, 0.18, 0.28), vec3(0.10, 0.08, 0.18), vec3(0.015, 0.02, 0.06));
+    col += horizonGaze(d, worldDir(70.0, 4.0), vec3(0.55, 0.30, 0.45), 0.5);
+    
+    // Faint zodiacal light & dust band
+    col += structuredDustBand(d, vec3(0.35, 0.65, -0.45), vec3(0.18, 0.28, 0.45), vec3(0.55, 0.38, 0.35), vec3(0.05, 0.03, 0.04), 0.75);
+    
+    // Multi-seeded meteor night stars
+    col += starsSeeded(d, 82.0, 1.7, 512.4);
+    
+    // Multiple active shooting stars with burning plasma tails;
+    // fractional seeds spread trail origins across the visible azimuths.
+    col += meteor(d, 0.24, 3.8, vec3(1.0, 0.88, 0.65));
+    col += meteor(d, 0.62, 5.2, vec3(0.65, 0.85, 1.0));
+    col += meteor(d, 0.95, 6.5, vec3(1.0, 0.65, 0.45));
+    col += meteor(d, 0.55, 4.93, vec3(0.95, 0.95, 1.00));
+    
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

@@ -22,10 +22,16 @@ public class ScrollUtil {
     }
 
     public void handleScroll(double scrollY) {
-        if (this.enabled) {
-            float wheel = (float) scrollY * speed;
-            target = Math.min(Math.max(target + wheel, max), 0);
-        }
+        // Флаг enabled сюда НЕ входит намеренно. Он выставляется во время
+        // отрисовки по позиции курсора, а позиция приходит из другого места и с
+        // другим масштабом координат, чем у события прокрутки. Из-за этого флаг
+        // почти всегда оставался false, и колесо не работало вовсе — при том что
+        // попадание курсора по элементам (клик) считалось верно.
+        //
+        // Вызывающий код и так вызывает handleScroll только когда курсор над
+        // нужной областью, а кламп по [max, 0] не даёт уехать за пределы списка.
+        float wheel = (float) scrollY * speed;
+        target = Math.min(Math.max(target + wheel, max), 0);
     }
 
     public void setMax(float max, float height) {

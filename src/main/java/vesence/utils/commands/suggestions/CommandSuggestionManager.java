@@ -6,6 +6,7 @@ import vesence.utils.config.ConfigCommandSuggestions;
 import vesence.utils.friends.FriendCommandSuggestions;
 import vesence.utils.macro.MacroCommandSuggestions;
 import vesence.utils.bind.BindCommandSuggestions;
+import vesence.pathing.command.BaritoneCommandSuggestions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,10 @@ public final class CommandSuggestionManager {
       ConfigCommandSuggestions.getInstance(),
       FriendCommandSuggestions.getInstance(),
       MacroCommandSuggestions.getInstance(),
-      BindCommandSuggestions.getInstance()
+      BindCommandSuggestions.getInstance(),
+      // Команды Baritone с решёткой. Идут последними: у них свой префикс, и
+      // перехватывать ввод с точкой они не должны.
+      BaritoneCommandSuggestions.getInstance()
    );
 
    private CommandSuggestionManager() {

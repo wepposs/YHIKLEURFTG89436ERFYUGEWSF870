@@ -34,6 +34,7 @@ public class ModuleManager {
       // =========================
 
       this.module.add(new vesence.module.impl.movement.AutoSprint());
+      this.module.add(new vesence.module.impl.movement.Baritone());
       this.module.add(new NoSlow());
       this.module.add(new Speed());
       this.module.add(new Jesus());
@@ -93,6 +94,7 @@ public class ModuleManager {
       this.module.add(new vesence.module.impl.movement.ElytraMotion());
       this.module.add(new vesence.module.impl.movement.ElytraBoost());
       this.module.add(new vesence.module.impl.movement.AirStuck());
+      this.module.add(new vesence.module.impl.movement.LongJump());
 
       this.module.add(new ScoreboardHealth());
       this.module.add(new Criticals());
@@ -258,8 +260,8 @@ public class ModuleManager {
 
       this.module.add(
               new vesence.module.impl.visuals.HudToggleModule(
-                      "РРІРµРЅС‚С‹",
-                      "РРІРµРЅС‚С‹"
+                      "Ивенты",
+                      "Ивенты"
               )
       );
 

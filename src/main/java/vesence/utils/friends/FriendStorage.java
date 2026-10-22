@@ -58,7 +58,7 @@ public class FriendStorage {
     private static void save() {
         try {
             FRIENDS_FILE.getParentFile().mkdirs();
-            try (FileWriter writer = new FileWriter(FRIENDS_FILE)) {
+            try (FileWriter writer = new FileWriter(FRIENDS_FILE, java.nio.charset.StandardCharsets.UTF_8)) {
                 GSON.toJson(friends, writer);
             }
         } catch (Exception e) {
@@ -81,7 +81,7 @@ public class FriendStorage {
             return;
         }
 
-        try (FileReader reader = new FileReader(FRIENDS_FILE)) {
+        try (FileReader reader = new FileReader(FRIENDS_FILE, java.nio.charset.StandardCharsets.UTF_8)) {
             Type type = new TypeToken<Set<String>>() {}.getType();
             Set<String> loaded = GSON.fromJson(reader, type);
             if (loaded != null) {

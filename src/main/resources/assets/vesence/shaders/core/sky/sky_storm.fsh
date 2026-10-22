@@ -1,70 +1,61 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ГРОЗА — свинцовое небо и вспышки.
-// Слои:
-//   1. тяжёлый свинцово-синий градиент;
-//   2. три слоя кружащих туч на разной скорости;
-//   3. зеленоватая грозовая подсветка у горизонта;
-//   4. внутренние вспышки: вся туча мягко загорается изнутри;
-//   5. двойная вспышка (щелчок) по грозовому циклу;
-//   6. дождливая вуаль: вытянутые вертикальные полосы внизу.
-// ============================================================================
-
-// Мягкая вспышка внутри туч в заданном направлении.
-vec3 inCloudFlash(vec3 dir, vec3 fdir, float spread, float power, vec3 tint) {
-    float d = angDist(dir, fdir);
-    return tint * exp(-d * d / (spread * spread)) * power;
-}
-
+// Storm — heavy anvil overcast lit from within, a forked lightning bolt that
+// actually flickers, shelf-cloud underlighting, no blue gaps left in the deck.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y, -0.25, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
 
-    // --- 1. Свинец ---
-    vec3 col = mix(vec3(0.26, 0.28, 0.36), vec3(0.10, 0.12, 0.18), pow(clamp(dir.y * 0.5 + 0.5, 0.0, 1.0), 0.75));
+    // Sulphur-grey storm light: bruised horizon, lead zenith
+    vec3 col = atmosphere(d, vec3(0.28, 0.27, 0.30), vec3(0.10, 0.11, 0.15), vec3(0.025, 0.03, 0.045));
 
-    // --- 2. Три слоя туч ---
-    float c1 = fbm3(dir * 1.6 + vec3(Time * 0.018, 0.0, Time * 0.006));
-    float c2 = fbm3(dir * 3.2 + vec3(7.7) + vec3(-Time * 0.028, 0.0, Time * 0.012));
-    float c3 = fbm3(dir * 6.0 + vec3(3.3) + vec3(0.0, 0.0, Time * 0.045));
-    float mass = smoothstep(0.38, 0.56, c1 * 0.55 + c2 * 0.35 + c3 * 0.20);
-    vec3 cloudCol = mix(vec3(0.16, 0.17, 0.22), vec3(0.38, 0.40, 0.48), c2 * 0.7 + c3 * 0.3);
-    col = mix(col, cloudCol, mass * 0.92);
+    vec3 boltSeed = worldDir(150.0, 55.0);
 
-    // --- 3. Грозовая зелень у горизонта ---
-    col += vec3(0.16, 0.24, 0.20) * exp(-pow((dir.y + 0.03) / 0.22, 2.0)) * 0.4;
+    // ---- Lightning: one bolt, 2-fork, on a ~3.2s cycle ----
+    float cycle = fract(Time / 3.2);
+    // Two quick strobes, then a lingering afterglow along the channel
+    float strobe = smoothstep(0.000, 0.012, cycle) * (1.0 - smoothstep(0.070, 0.110, cycle))
+                 + smoothstep(0.160, 0.172, cycle) * (1.0 - smoothstep(0.220, 0.260, cycle));
+    float after = (1.0 - smoothstep(0.28, 0.62, cycle)) * 0.30;
+    float glow = strobe + after;
 
-    // --- 4-5. Вспышки: цикл 6 секунд, двойной щелчок ---
-    float cycle = floor(Time / 6.0);
-    float local = fract(Time / 6.0);
-    float seed = cycle * 3.71;
-    float flash = max(0.0, sin(local * TAU * 2.0)) * step(local, 0.18)
-                + max(0.0, sin((local - 0.22) * TAU * 3.0)) * step(0.22, local) * step(local, 0.32) * 0.6;
-    vec3 fdir = worldDir(hash11(seed) * 360.0, 20.0 + hash11(seed * 1.7) * 25.0);
-    vec3 fdir2 = worldDir(hash11(seed * 2.3) * 360.0, 30.0);
-    col += inCloudFlash(dir, fdir, 0.9, flash * (0.5 + mass * 1.2), vec3(0.68, 0.75, 1.05));
-    col += inCloudFlash(dir, fdir2, 1.4, flash * 0.35, vec3(0.55, 0.62, 0.95));
+    // Main channel: vertical jagged descent from the cloud base
+    vec2 tp = tangentUV(d, boltSeed);
+    float fall = 1.0 - smoothstep(0.0, 1.1, tp.y);      // bright near cloud base, fading down
+    float jitter = sin(tp.y * 26.0 + Time * 0.0) * 0.018
+                 + sin(tp.y * 9.0 + 2.0) * 0.045;        // fixed zigzag path (stable per cycle)
+    float chan = abs(tp.x - jitter);
+    float w = max(0.006, pixelAngle(d) * 2.0);
+    float bolt = exp(-chan * chan / (w * w)) * fall;
 
-    // --- 6. Дождливая вуаль ---
-    float rain = fbm3(dir * vec3(9.0, 1.6, 9.0) + vec3(0.0, Time * 0.12, 0.0));
-    col = mix(col, vec3(0.30, 0.33, 0.40), smoothstep(0.45, 0.8, rain) * smoothstep(0.25, -0.05, dir.y) * 0.35);
+    // Two forked branches
+    float j2 = sin(tp.y * 18.0 + 5.0) * 0.06 + 0.10;
+    float j3 = sin(tp.y * 15.0 + 1.0) * 0.05 - 0.12;
+    float branch = exp(-abs(tp.x - j2) * abs(tp.x - j2) / (w*w*9.0)) * smoothstep(0.85, 0.2, tp.y)
+                 + exp(-abs(tp.x - j3) * abs(tp.x - j3) / (w*w*9.0)) * smoothstep(0.65, 0.1, tp.y) * 0.8;
 
+    // Cloud-base bloom where the bolt originates
+    float bloom = exp(-length(d - boltSeed) * 4.5) * 0.9 + exp(-length(d - boltSeed) * 1.8) * 0.25;
 
-    // --- 7. Широкий световой разряд-полоса между слоями ---
-    float sheet = exp(-pow((dir.y - 0.30 - 0.08 * sin(Time * 0.3)) / 0.10, 2.0));
-    float sheetFlash = max(0.0, sin(fract(Time / 9.0) * TAU)) * step(fract(Time / 9.0), 0.15);
-    col += vec3(0.55, 0.62, 0.95) * sheet * sheetFlash * 0.6;
+    float flash = glow * (bolt * 2.6 + branch * 1.5 + bloom * 0.5);
+    col += vec3(0.88, 0.90, 1.0) * flash;
 
-    // --- 8. Нижняя кромка темнее: тяжесть бури ---
-    col *= 1.0 - smoothstep(0.12, -0.05, dir.y) * 0.20;
+    // ---- Overcast deck: layered billows, inward-lit by the flash ----
+    vec3 deck = cloudLayer(col, d, boltSeed, vec3(0.14, 0.15, 0.19), vec3(0.36, 0.37, 0.44), 0.90, 2.6, 0.95, 3.0);
+    deck = cloudLayer(deck, d, boltSeed, vec3(0.18, 0.19, 0.24), vec3(0.42, 0.43, 0.52), 0.70, 4.8, 0.60, 9.0);
+    // Lightning backlights the cloud from inside
+    deck += vec3(0.45, 0.48, 0.60) * glow * cloudNoise(d * vec3(3.0, 6.0, 3.0) + vec3(0.0, 3.0, 0.0)) * 0.55;
+    col = mix(col, deck, 0.92);
 
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    // Rain veil dragging the horizon down
+    col = mix(col, col * vec3(0.75, 0.78, 0.85), exp(-max(d.y, 0.0) * 7.0) * 0.5);
+
+    // Very faint sky glow behind the deck
+    col += vec3(0.015, 0.02, 0.03) * smoothstep(0.2, 0.9, d.y);
+
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

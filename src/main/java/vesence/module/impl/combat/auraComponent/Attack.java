@@ -60,6 +60,11 @@ public final class Attack implements IMinecraft {
       ticksSinceHit++;
    }
 
+   /** Тики с последнего удара — для диагностики гейта. */
+   public static int ticksSinceHitForDebug() {
+      return ticksSinceHit;
+   }
+
    public static void hitCounterCPSBypassNext() {
       hitCounterCPSBypass++;
    }
@@ -281,6 +286,7 @@ public final class Attack implements IMinecraft {
       double threshold = airStuckActive() ? 0.0 : convenientFallOffset();
       return physical && mc.player.fallDistance > threshold && !mc.player.onGround()
             || smartCrits && mc.player.onGround() && !mc.player.input.keyPresses.jump()
+            || physical && mc.player.onGround() && !smartCrits
             || !physical;
    }
 

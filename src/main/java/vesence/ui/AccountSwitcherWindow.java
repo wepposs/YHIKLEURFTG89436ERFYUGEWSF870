@@ -663,7 +663,7 @@ public class AccountSwitcherWindow {
             root.addProperty("selected", selectedAccount);
             File f = new File(ConfigManager.configDirectory, ACCOUNTS_FILE);
             f.getParentFile().mkdirs();
-            try (FileWriter w = new FileWriter(f)) {
+            try (FileWriter w = new FileWriter(f, java.nio.charset.StandardCharsets.UTF_8)) {
                 w.write(new GsonBuilder().setPrettyPrinting().create().toJson(root));
             }
         } catch (Exception ignored) {}
@@ -673,7 +673,7 @@ public class AccountSwitcherWindow {
         try {
             File f = new File(ConfigManager.configDirectory, ACCOUNTS_FILE);
             if (!f.exists()) return;
-            try (FileReader reader = new FileReader(f)) {
+            try (FileReader reader = new FileReader(f, java.nio.charset.StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
                 if (root.has("accounts")) {
                     for (JsonElement el : root.getAsJsonArray("accounts")) {

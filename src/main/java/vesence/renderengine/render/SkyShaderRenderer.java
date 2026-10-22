@@ -160,11 +160,11 @@ public final class SkyShaderRenderer {
      * @param fogColorRgb 0xRRGGBB
      * @param fogBlend    сила слияния 0..1
      */
-    public boolean render(String mode, Camera camera, float speed, float intensity,
+    public boolean render(RenderTarget mainFb, String mode, Camera camera, float speed, float intensity,
                           boolean fogEnabled, int fogColorRgb, float fogBlend) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || camera == null) return false;
-        RenderTarget mainFb = mc.gameRenderer.mainRenderTarget();
+        // Use SkyRenderer's scene target, not the final post-processing/output target.
         if (mainFb == null || mainFb.getColorTexture() == null) return false;
 
         int w = mainFb.width;
@@ -203,7 +203,8 @@ public final class SkyShaderRenderer {
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform("DynamicTransforms", dyn);
             pass.setUniform("SkyData", skyUbo);
-            pass.draw(0, 6, 0, 1);
+            // RenderPearl: vertexCount, instanceCount, firstVertex, firstInstance.
+            pass.draw(6, 1, 0, 0);
         }
         return true;
     }

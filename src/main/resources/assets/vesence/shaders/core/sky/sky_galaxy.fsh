@@ -1,83 +1,59 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ГАЛАКТИЯ — спиральная галактика над горизонтом.
-// Слои:
-//   1. глубокий космический градиент;
-//   2. спираль: два логарифмических рукава с пылевыми нитями;
-//   3. ядро: тёплое многослойное свечение;
-//   4. балдж-гало вокруг ядра;
-//   5. голубые звёздные ассоциации вдоль рукавов;
-//   6. фоновые звёзды двух масштабов;
-//   7. медленное вращение всей структуры.
-// ============================================================================
-
-// Одна спиральная структура с произвольным поворотом фазы.
-float spiralArm(vec2 p, float phase, float tight, float time) {
-    float r = length(p);
-    float a = atan(p.y, p.x);
-    float s = 0.5 + 0.5 * sin(a * 2.0 - log(max(r, 0.02)) * tight + phase + time);
-    return smoothstep(0.35, 0.65, s);
-}
-
+// Galaxy — a great face-on spiral dominating the vault: blazing core, two
+// luminous arms wound with dust, H-II pink knots, surrounding deep starfield.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
 
-    // --- 1. Фон ---
-    vec3 col = mix(vec3(0.05, 0.045, 0.15), vec3(0.012, 0.015, 0.06), h);
+    // Deep space: near-black vault with the faintest indigo breath at horizon
+    vec3 col = atmosphere(d, vec3(0.10, 0.11, 0.22), vec3(0.03, 0.035, 0.10), vec3(0.008, 0.010, 0.028));
 
-    // --- Касательная плоскость вокруг центра галактики ---
-    vec3 gc = worldDir(25.0, 16.0);
-    vec3 t1 = normalize(cross(gc, vec3(0.0, 1.0, 0.0)));
-    vec3 t2 = cross(gc, t1);
-    vec2 p = vec2(dot(dir, t1), dot(dir, t2));
-    float r = length(p);
+    vec3 galCenter = worldDir(30.0, 42.0);
+    float gd = length(d - galCenter);
 
-    float rot = Time * 0.012;
-    float dust = fbm3(vec3(p * 3.5, Time * 0.003));
+    // Own tangent-plane projection for full control of the disk
+    vec2 uv = tangentUV(d, galCenter);
+    float tilt = 0.72;                       // mild foreshortening, face-on enough to read
+    vec2 q = vec2(uv.x, uv.y / tilt);
+    float r = length(q);
+    float a = atan(q.y, q.x);
 
-    // --- 2. Два рукава в противофазе ---
-    float arm1 = spiralArm(p, 0.0, 7.0, rot);
-    float arm2 = spiralArm(p, PI, 7.0, rot);
-    float arms = (arm1 + arm2) * 0.5 * exp(-r * 1.5) * (0.35 + 0.75 * dust);
-    vec3 armCol = mix(vec3(0.45, 0.26, 0.78), vec3(0.20, 0.42, 0.85), dust);
-    col += armCol * arms * 1.25;
+    // Two-armed logarithmic spiral, arms slightly offset in phase
+    float armPhase = a - log(max(r, 0.045)) * 2.6;
+    float arm1 = bell(fract(armPhase / TAU) - 0.25, 0.16);
+    float arm2 = bell(fract(armPhase / TAU + 0.5) - 0.25, 0.16);
+    float arms = (arm1 + arm2) * smoothstep(0.10, 0.30, r) * exp(-r * 1.35);
 
-    // --- 5. Голубые ассоциации вдоль рукавов ---
-    float knots = smoothstep(0.66, 0.80, fbm3(vec3(p * 6.0, 4.4)));
-    col += vec3(0.55, 0.75, 1.05) * knots * arms * 0.9;
+    // Dust lanes hugging the inner edge of each arm
+    float dust = bell(fract(armPhase / TAU) - 0.13, 0.06) + bell(fract(armPhase / TAU + 0.5) - 0.13, 0.06);
+    dust = clamp(dust, 0.0, 1.0) * smoothstep(0.14, 0.45, r) * exp(-r * 0.9);
 
-    // --- 3-4. Ядро и балдж ---
-    col += vec3(1.05, 0.75, 0.52) * exp(-r * r * 10.0) * 1.1;
-    col += vec3(0.85, 0.60, 0.48) * exp(-r * 3.0) * 0.30;
-    col += vec3(0.55, 0.42, 0.72) * exp(-r * 1.2) * 0.18;
+    // Star clumps sprinkled along the arms
+    float clump = starsSeeded(d, 40.0, 0.5, 900.0).g * smoothstep(0.1, 0.4, r) * exp(-r * 1.6);
 
-    // --- 6. Фоновые звёзды ---
-    col += stars(dir, 32.0, 0.18, 0.9);
-    col += stars(dir, 70.0, 0.28, 0.35);
+    // Core: overexposed center + warm bar
+    float core = bell(r, 0.07) * 2.6 + bell(r, 0.22) * 0.9;
 
-    // --- 7. Метеор ---
-    col += shootingStar(dir, 12.0, 5.0, vec3(0.9, 0.85, 1.0));
+    vec3 diskCol = vec3(0.45, 0.68, 0.95) * arms * 1.5;          // blue arms
+    diskCol += vec3(0.95, 0.60, 0.70) * clump * 0.9;             // H-II knots
+    diskCol *= 1.0 - 0.65 * dust;                                 // dust lanes cut in
+    diskCol += vec3(1.0, 0.88, 0.66) * core;                      // warm core
 
+    // Out-of-plane scatter: thin disk profile so the galaxy reads as a disk
+    float plane = exp(-abs(uv.y) / (0.10 + r * 0.28));
 
-    // --- 8. Далёкая галактика-спутник: мягкое эллиптическое пятно ---
-    vec3 sat = worldDir(300.0, 34.0);
-    vec3 st1 = normalize(cross(sat, vec3(0.0, 1.0, 0.0)));
-    vec3 st2 = cross(sat, st1);
-    vec2 sp = vec2(dot(dir, st1) / 0.10, dot(dir, st2) / 0.045);
-    float satG = exp(-dot(sp, sp));
-    col += vec3(0.55, 0.50, 0.75) * satG * (0.25 + 0.3 * fbm3(dir * 12.0)) * 0.5;
+    col += diskCol * plane * smoothstep(-0.02, 0.15, d.y);
 
-    // --- 9. Пылевая полоса через весь купол ---
-    col *= 1.0 - milkyWay(dir, vec3(-0.6, 0.1, 0.5), vec3(0.3), vec3(0.3), 0.5);
+    // Ambient glow around the whole galaxy
+    col += vec3(0.30, 0.40, 0.60) * exp(-gd * 3.2) * 0.16;
 
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    // Deep starfield with a few bright beacons
+    col += stars(d, 82.0, 1.5, 256.0);
+
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

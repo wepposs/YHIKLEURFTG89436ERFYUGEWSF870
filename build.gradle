@@ -23,7 +23,11 @@ loom {
                 || System.getenv('VESENCE_UITEST_GUI') != null
                 || System.getenv('VESENCE_UITEST_ESC') != null
                 || System.getenv('VESENCE_UITEST_F3') != null
-                || System.getenv('VESENCE_UITEST_INV') != null) {
+                || System.getenv('VESENCE_UITEST_INV') != null
+                || System.getenv('VESENCE_UITEST_SCROLL') != null
+                || System.getenv('VESENCE_PATHTEST') != null
+                || System.getenv('VESENCE_DIGTEST') != null
+                || System.getenv('VESENCE_CMDTEST') != null) {
             programArgs('--quickPlaySingleplayer', 'skytest')
         }
         // Аудит миксинов: печатает в лог каждое применённое внедрение и ругается,

@@ -226,7 +226,16 @@ public class URotations extends Component {
       snappedYawStep = enforceMinStep(snappedYawStep, appliedYawStep);
       snappedPitchStep = enforceMinStep(snappedPitchStep, appliedPitchStep);
 
-      float newYaw = mc.player.getYRot() + snappedYawStep;
+      // Не даём GCD-кванту проскочить цель: overshoot у самой цели даёт
+      // осцилляцию ±квант каждый тик = видимое дёрганье камеры.
+      if (Math.abs(snappedYawStep) > Math.abs(yawDelta)) {
+         snappedYawStep = yawDelta;
+      }
+      if (Math.abs(snappedPitchStep) > Math.abs(pitchDelta)) {
+         snappedPitchStep = pitchDelta;
+      }
+
+      float newYaw = net.minecraft.util.Mth.wrapDegrees(mc.player.getYRot() + snappedYawStep);
       float newPitch = Mth.clamp(mc.player.getXRot() + snappedPitchStep, -90.0F, 90.0F);
 
       // Кадровая интерполяция на рендере должна знать, ОТКУДА приехали. Ваниль в

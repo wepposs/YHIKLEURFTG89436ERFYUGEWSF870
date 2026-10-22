@@ -23,15 +23,18 @@ public final class UiShotTest {
             || System.getenv("VESENCE_UITEST_GUI") != null
             || System.getenv("VESENCE_UITEST_ESC") != null
             || System.getenv("VESENCE_UITEST_F3") != null
-            || System.getenv("VESENCE_UITEST_INV") != null;
+            || System.getenv("VESENCE_UITEST_INV") != null
+            || System.getenv("VESENCE_UITEST_SCROLL") != null;
     /** В world-режиме ждём, пока загрузится мир (quickPlay), и только потом снимаем кадр. */
     private static final boolean WORLD_MODE = System.getenv("VESENCE_UITEST_WORLD") != null
             || System.getenv("VESENCE_UITEST_GUI") != null
             || System.getenv("VESENCE_UITEST_ESC") != null
             || System.getenv("VESENCE_UITEST_F3") != null
-            || System.getenv("VESENCE_UITEST_INV") != null;
+            || System.getenv("VESENCE_UITEST_INV") != null
+            || System.getenv("VESENCE_UITEST_SCROLL") != null;
     /** Открыть ClickGui перед снятием кадров — проверка, что кастомный интерфейс рисуется. */
-    private static final boolean GUI_MODE = System.getenv("VESENCE_UITEST_GUI") != null;
+    private static final boolean GUI_MODE = System.getenv("VESENCE_UITEST_GUI") != null
+            || System.getenv("VESENCE_UITEST_SCROLL") != null;
     /** Открыть меню паузы: HUD должен оказаться ПОД ним, а не поверх. */
     private static final boolean ESC_MODE = System.getenv("VESENCE_UITEST_ESC") != null;
     /** Включить отладку F3: HUD не должен её перекрывать. */
@@ -40,6 +43,8 @@ public final class UiShotTest {
     private static final boolean INV_MODE = System.getenv("VESENCE_UITEST_INV") != null;
     /** Печатать состояние экрана — чтобы отличать «застрял» от «ждёт нажатия». */
     private static final boolean DIAG = System.getenv("VESENCE_UITEST_DIAG") != null;
+    /** Прокрутка ClickGui колесом: проверяет, что scroll доходит до списка модулей. */
+    private static final boolean SCROLL_MODE = System.getenv("VESENCE_UITEST_SCROLL") != null;
     private static final int WARMUP_TICKS = 200;
     private static final int SHOTS = 2;
     private static final int SHOT_INTERVAL = 100;
@@ -161,6 +166,14 @@ public final class UiShotTest {
         }
 
         if (ticks < WARMUP_TICKS) return;
+
+        // Прокрутка ClickGui: гоняем колесо над правой панелью и смотрим,
+        // сдвинулся ли список. Проверять глазами бессмысленно — визуально
+        // «не листается» и «листается, но не туда» выглядят одинаково.
+        if (SCROLL_MODE && ticks == WARMUP_TICKS) {
+            runScrollTest(mc);
+        }
+
         if ((ticks - WARMUP_TICKS) % SHOT_INTERVAL != 0) return;
 
         String name = (GUI_MODE ? "gui-" : ESC_MODE ? "esc-" : F3_MODE ? "f3-" : INV_MODE ? "inv-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";
@@ -179,6 +192,60 @@ public final class UiShotTest {
             finished = true;
             System.out.println("[uitest] done, stopping");
             mc.stop();
+        }
+    }
+
+    /**
+     * Проверка прокрутки ClickGui.
+     *
+     * <p>Берём точку в правой панели (список модулей), переводим её обратно в
+     * экранные координаты и крутим колесо через тот же {@code mouseScrolled},
+     * который вызывает ваниль. Смотрим, сдвинулся ли {@code moduleScroll}.
+     */
+    private static void runScrollTest(Minecraft mc) {
+        try {
+            var screen = mc.gui.screen();
+            System.out.println("[uitest] scroll screen=" + screen);
+
+            float cx = vesence.ui.clickgui.compact.CompactGuiScreen.x
+                    + vesence.ui.clickgui.compact.CompactGuiScreen.GUI_W / 2f;
+            float cy = vesence.ui.clickgui.compact.CompactGuiScreen.y
+                    + vesence.ui.clickgui.compact.CompactGuiScreen.GUI_H / 2f;
+
+            // Точка в правой панели, в виртуальных координатах compact-меню.
+            float vx = vesence.ui.clickgui.compact.CompactGuiScreen.x
+                    + vesence.ui.clickgui.compact.CompactGuiScreen.LEFT_PANEL_W
+                    + vesence.ui.clickgui.compact.CompactGuiScreen.LEFT_PANEL_GAP * 2 + 40f;
+            float vy = cy;
+
+            double s = Math.max(0.0001, vesence.ui.clickgui.compact.CompactGuiScreen.guiScale);
+            double rawX = cx + (vx - cx) * s;
+            double rawY = cy + (vy - cy) * s;
+
+            var scroll = vesence.ui.clickgui.compact.CompactGuiScreen.moduleScroll;
+            float before = scroll.getScroll();
+
+            boolean handled = false;
+            if (screen instanceof vesence.ui.clickgui.GuiClient client) {
+                handled = client.mouseScrolled(rawX, rawY, 0.0, -3.0);
+            }
+
+            System.out.println("[uitest] scroll at=" + (int) rawX + "," + (int) rawY
+                    + " guiScale=" + s
+                    + " handled=" + handled
+                    + " before=" + String.format("%.2f", before)
+                    + " targetAfter=" + String.format("%.2f", scroll.getScroll()));
+
+            // Доводим анимацию до конца, чтобы увидеть итоговое положение.
+            for (int i = 0; i < 40; i++) {
+                scroll.update();
+            }
+            float after = scroll.getScroll();
+            System.out.println("[uitest] scroll RESULT before=" + String.format("%.2f", before)
+                    + " after=" + String.format("%.2f", after)
+                    + " moved=" + (Math.abs(after - before) > 0.5f));
+        } catch (Throwable t) {
+            System.out.println("[uitest] scroll test failed: " + t);
         }
     }
 

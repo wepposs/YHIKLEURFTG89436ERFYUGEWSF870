@@ -100,7 +100,7 @@ public class CompactGuiClick {
         int mouseX = (int) CompactGuiScreen.toGuiX(rawMouseX);
         int mouseY = (int) CompactGuiScreen.toGuiY(rawMouseY);
 
-        // Р›СЋР±РѕР№ РєР»РёРє СЃРЅРёРјР°РµС‚ РІС‹РґРµР»РµРЅРёРµ "РІСЃС‘" (Ctrl+A) СЃ С‚РµРєСЃС‚РѕРІС‹С… РїРѕР»РµР№.
+        // Любой клик снимает выделение "всё" (Ctrl+A) с текстовых полей.
         CompactGuiScreen.searchSelectAll = false;
         GuiScreen.textSelectAll = false;
 

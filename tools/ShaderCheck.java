@@ -30,8 +30,11 @@ public class ShaderCheck {
             for (Path f : stream.filter(p -> p.toString().endsWith(".fsh")).sorted().toList()) {
                 String body = Files.readString(f);
                 body = body.replace("#version 150", "")
-                           .replace("#moj_import <vesence:sky_common.glsl>", "");
-                String src = "#version 150\n" + common + "\n" + body;
+                           .replace("#version 330", "")
+                           .replace("#extension GL_ARB_separate_shader_objects : require", "")
+                           .replace("#moj_import <vesence:sky_common.glsl>", "")
+                           .replace("#include <vesence:sky_common.glsl>", "");
+                String src = "#version 330\n" + common + "\n" + body;
 
                 int shader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
                 GL20.glShaderSource(shader, src);

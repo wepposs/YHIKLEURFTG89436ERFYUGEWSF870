@@ -101,7 +101,7 @@ public final class WaypointManager {
       waypoints.clear();
       File file = getFile();
       if (!file.exists()) return;
-      try (FileReader reader = new FileReader(file)) {
+      try (FileReader reader = new FileReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
          JsonElement parsed = JsonParser.parseReader(reader);
          if (!parsed.isJsonArray()) return;
          JsonArray array = parsed.getAsJsonArray();
@@ -135,7 +135,7 @@ public final class WaypointManager {
          obj.addProperty("z", w.z);
          array.add(obj);
       }
-      try (FileWriter writer = new FileWriter(file)) {
+      try (FileWriter writer = new FileWriter(file, java.nio.charset.StandardCharsets.UTF_8)) {
          new GsonBuilder().setPrettyPrinting().create().toJson(array, writer);
       } catch (Exception ignored) {
       }

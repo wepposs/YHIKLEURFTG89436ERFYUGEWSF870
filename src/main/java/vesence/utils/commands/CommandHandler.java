@@ -5,6 +5,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import vesence.event.EventInit;
 import vesence.event.impl.EventPacket;
+import vesence.pathing.command.BaritoneCommandRegistry;
 
 @Environment(EnvType.CLIENT)
 public final class CommandHandler {
@@ -30,6 +31,13 @@ public final class CommandHandler {
             if (message != null && !message.isEmpty()) {
                 CommandManager commandManager = CommandManager.getInstance();
                 if (commandManager.handleMessage(message)) {
+                    event.cancel();
+                    return;
+                }
+                // Baritone живёт под своим префиксом (#), чтобы не пересекаться с
+                // командами клиента (.). Сообщение с решёткой не должно уходить
+                // на сервер: это команда, а не разговор в общий чат.
+                if (BaritoneCommandRegistry.getInstance().handle(message)) {
                     event.cancel();
                 }
             }

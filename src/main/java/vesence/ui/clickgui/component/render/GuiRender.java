@@ -36,10 +36,16 @@ public class GuiRender extends GuiScreen {
          return;
       }
 
-      float actualScale = ScaleHelper.getScale();
-
-      int mouseX = (int) (mouseXRaw / actualScale);
-      int mouseY = (int) (mouseYRaw / actualScale);
+      /*
+       * Координаты курсора уже в GUI-масштабе: getScaledXPos() делит на guiScale.
+       * Делить ещё раз на ScaleHelper.getScale() (это тот же guiScale) нельзя —
+       * позиция уезжала к центру экрана вдвое ближе, чем настоящая. Из-за этого
+       * не срабатывало наведение: подсветка элементов и прокрутка колесом
+       * включались в неправильном месте, хотя клики (они берут click.x()
+       * напрямую) работали верно.
+       */
+      int mouseX = mouseXRaw;
+      int mouseY = mouseYRaw;
 
       /*
        * ==========================================

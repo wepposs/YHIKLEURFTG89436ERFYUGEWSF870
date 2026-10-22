@@ -143,7 +143,7 @@ public final class MacroManager {
       try {
          File f = file();
          if (f.exists()) {
-            try (FileReader reader = new FileReader(f)) {
+            try (FileReader reader = new FileReader(f, java.nio.charset.StandardCharsets.UTF_8)) {
                Type type = new TypeToken<LinkedHashMap<String, String>>() {}.getType();
                Map<String, String> raw = GSON.fromJson(reader, type);
                if (raw != null) {

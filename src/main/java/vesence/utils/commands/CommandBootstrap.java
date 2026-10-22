@@ -24,6 +24,7 @@ public final class CommandBootstrap {
          manager.register(vesence.utils.macro.MacroCommand.getInstance());
          manager.register(vesence.utils.bind.BindCommand.getInstance());
          manager.register(WaypointCommand.getInstance());
+         manager.register(GotoCommand.getInstance());
          manager.register(EventCommand.getInstance());
          manager.register(DebugCommand.getInstance());
          manager.register(NeuroCommand.getInstance());

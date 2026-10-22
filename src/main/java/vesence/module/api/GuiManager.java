@@ -103,7 +103,7 @@ public class GuiManager {
    }
 
    private void saveSettings() {
-      try (FileWriter writer = new FileWriter(this.file)) {
+      try (FileWriter writer = new FileWriter(this.file, java.nio.charset.StandardCharsets.UTF_8)) {
          Properties props = new Properties();
          props.setProperty("theme", this.currentTheme.name());
          props.setProperty("category", this.currentCategory.name());
@@ -118,7 +118,7 @@ public class GuiManager {
    }
 
    private void readSettings() {
-      try (FileReader reader = new FileReader(this.file)) {
+      try (FileReader reader = new FileReader(this.file, java.nio.charset.StandardCharsets.UTF_8)) {
          Properties props = new Properties();
          props.load(reader);
          this.currentTheme = Theme.valueOf(props.getProperty("theme", Theme.Blue.name()));

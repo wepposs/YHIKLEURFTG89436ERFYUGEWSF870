@@ -89,4 +89,25 @@ public abstract class MinecraftClientMixin {
       } catch (Throwable ignored) {
       }
    }
+
+   /**
+    * Подменяет прицел на блок, который в данный момент копает баритон.
+    *
+    * <p>Ваниль каждый кадр пересчитывает {@code hitResult} лучом из глаз игрока
+    * и уже потом, в тике, ломает именно его. Наш поворот головы применяется
+    * позже этого пересчёта, поэтому без подмены она бьёт по блоку, который был
+    * в прицеле до поворота, — то есть по соседнему. Снаружи это выглядело так:
+    * персонаж смотрит на нужный блок, держит атаку, вокруг крошатся случайные
+    * блоки, а цель остаётся целой.
+    *
+    * <p>Вмешиваемся только когда баритон действительно копает: во всех
+    * остальных случаях прицел должен быть настоящим.
+    */
+   @Inject(method = "pick", at = @At("TAIL"), require = 0)
+   private void vesence$forcePick(float partialTick, CallbackInfo ci) {
+      try {
+         vesence.pathing.BlockInteraction.overridePick((Minecraft) (Object) this);
+      } catch (Throwable ignored) {
+      }
+   }
 }

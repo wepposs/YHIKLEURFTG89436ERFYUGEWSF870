@@ -115,8 +115,8 @@ public class AttackAura extends Module {
     public static BooleanSetting neuroTrainBehavior;
 
     // ── LegitSnap FOV ─────────────────────────────────────────────────────────
-    public static BooleanSetting showFov = new BooleanSetting("Отображать Fov", true).hidden(() -> !rotationType.is("LegitSnap"));
-    public static SliderSetting fovValue = new SliderSetting("Fov", 40.0F, 10.0F, 90, 1.0F, true).hidden(() -> !rotationType.is("LegitSnap"));
+    public static BooleanSetting showFov = new BooleanSetting("Отображать Fov", true).hidden(() -> !rotationType.is("Snap"));
+    public static SliderSetting fovValue = new SliderSetting("Fov", 40.0F, 10.0F, 90, 1.0F, true).hidden(() -> !rotationType.is("Snap"));
     public static ModeSetting snapSetting = new ModeSetting("Режим снапа", "Fast", "Fast", "Smooth", "Random").hidden(() -> !rotationType.is("Snap"));
 
     // ── Цели ──────────────────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ public class AttackAura extends Module {
 
     @EventInit
     public void onRender2D(EventScreen event) {
-        if (!this.enable || !rotationType.is("LegitSnap") || !showFov.get()) return;
+        if (!this.enable || !rotationType.is("Snap") || !showFov.get()) return;
         if (mc.player == null || mc.level == null) return;
 
         float sw = event.viewportWidth() / 2.0f;
@@ -945,12 +945,15 @@ public class AttackAura extends Module {
         }
 
         if (AuraUtil.getStrictDistance(target) >= attackRange.get()) {
+            gateReason("дистанция " + String.format("%.2f", AuraUtil.getStrictDistance(target))
+                    + " >= " + attackRange.get());
             return false;
         }
 
         // Точность
         if (accuracy.get().floatValue() < 100.0F
                 && ThreadLocalRandom.current().nextFloat() * 100.0F > accuracy.get().floatValue()) {
+            gateReason("точность");
             return false;
         }
 
@@ -958,31 +961,64 @@ public class AttackAura extends Module {
         if (attackMode.is("1.8")) {
             long interval = Math.max(1L, (long) (1000.0 / Math.max(5.0, cps.get().doubleValue())));
             if (System.currentTimeMillis() - lastAttackMillis < interval) {
+                gateReason("CPS 1.8");
                 return false;
             }
         }
 
         // Легитное кд
         if (!canHitLegit()) {
+            gateReason("легитный кулдаун, scale="
+                    + String.format("%.2f", mc.player.getAttackStrengthScale(0.5f))
+                    + " порог=" + String.format("%.2f", legitCdThreshold));
             return false;
         }
 
         long offset = resolveEarlyHitOffset();
         float[] ranges = getRanges();
 
+        boolean result;
         switch (rotationType.get()) {
             case "Neuro":
-                return Attack.shouldAttack(target, false, true, true, offset, ranges)
+                result = Attack.shouldAttack(target, false, true, true, offset, ranges)
                         && neuroMode.isReadyToAttack(this, target);
+                break;
             case "FunTest":
-                return Attack.shouldAttack(target, false, true, true, offset, ranges)
+                result = Attack.shouldAttack(target, false, true, true, offset, ranges)
                         && funTestShouldCrit();
+                break;
             case "1.8":
-                return AuraUtil.validDistance(target, ranges[0], true)
+                result = AuraUtil.validDistance(target, ranges[0], true)
                         && (misc.get("Бить через блоки") || mc.player.hasLineOfSight(target));
+                break;
             default:
-                return Attack.shouldAttack(target, false, true, true, offset, ranges);
+                result = Attack.shouldAttack(target, false, true, true, offset, ranges);
+                break;
         }
+        if (!result) {
+            gateReason("Attack.shouldAttack: scale="
+                    + String.format("%.2f", mc.player.getAttackStrengthScale(0.5f))
+                    + " тиковСУдара=" + Attack.ticksSinceHitForDebug()
+                    + " режим=" + rotationType.get()
+                    + " дистанция=" + String.format("%.2f", AuraUtil.getStrictDistance(target)));
+        }
+        return result;
+    }
+
+    /** Диагностика гейта удара: включается {@code VESENCE_AURADEBUG}. */
+    private static final boolean AURA_DEBUG = System.getenv("VESENCE_AURADEBUG") != null;
+    private static long lastGateLog;
+
+    private static void gateReason(String reason) {
+        if (!AURA_DEBUG) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastGateLog < 1000L) {
+            return;
+        }
+        lastGateLog = now;
+        System.out.println("[aura] не бью: " + reason);
     }
 
     private void updateRotation() {

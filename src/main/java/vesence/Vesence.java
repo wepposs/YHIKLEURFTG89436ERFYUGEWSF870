@@ -318,6 +318,11 @@ public class Vesence implements ClientModInitializer {
 
         vesence.debug.SkyShotTest.init();
         vesence.debug.UiShotTest.init();
+        vesence.debug.PathTest.init();
+        vesence.debug.CommandTest.init();
+        vesence.debug.DigTest.init();
+        vesence.debug.HudDragTest.init();
+        vesence.debug.AuraTest.init();
 
         try {
             vesence.utils.debug.FreezeWatchdog.start();

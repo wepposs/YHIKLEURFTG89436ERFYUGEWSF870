@@ -27,6 +27,27 @@ import java.util.List;
 @IModule(name = "Hud", description = "Выводит разную информацию на экран", category = Category.VISUALS, bind = 0)
 public class Hud extends Module {
 
+    /** Диагностика перетаскивания элементов: включается {@code VESENCE_HUDDEBUG}. */
+    private static final boolean HUD_DEBUG = System.getenv("VESENCE_HUDDEBUG") != null;
+
+    /**
+     * Подмена мыши для автотеста: {@code x, y, нажата ли левая}.
+     *
+     * <p>Задаётся из {@link vesence.debug.HudDragTest}. В обычной игре всегда
+     * {@code null}, поэтому на реальное управление не влияет.
+     */
+    private static double[] testMouse;
+
+    /** Задаёт подмену мыши для автотеста; {@code null} — выключить. */
+    public static void setTestMouse(double x, double y, boolean leftDown) {
+        testMouse = new double[]{x, y, leftDown ? 1.0 : 0.0};
+    }
+
+    /** Снимает подмену мыши. */
+    public static void clearTestMouse() {
+        testMouse = null;
+    }
+
     public final MultiBooleanSetting elements = new MultiBooleanSetting("Элементы",
             new BooleanSetting("Watermark", true),
             new BooleanSetting("Informations", true),
@@ -246,6 +267,31 @@ public class Hud extends Module {
             mouseY = my[0] * ratioY;
         }
 
+        // Канал ввода для автотеста.
+        //
+        // Настоящую мышь в тесте не подставить: оконный цикл перезаписывает её
+        // позицию каждый кадр, поэтому подмена из тика не доживает до отрисовки.
+        // Здесь координаты и состояние кнопки задаются напрямую — так проверяется
+        // именно логика перетаскивания, без участия системы ввода.
+        if (testMouse != null && isGuiOpen) {
+            mouseX = testMouse[0];
+            mouseY = testMouse[1];
+            leftDown = testMouse[2] > 0.5;
+        }
+
+        // Диагностика перетаскивания: без неё «элементы не двигаются» невозможно
+        // отличить от «мышь приходит в других координатах» и от «экран не тот».
+        if (HUD_DEBUG && isChatOpen && (System.currentTimeMillis() / 500) % 2 == 0) {
+            HudElement first = getHudElements().isEmpty() ? null : getHudElements().get(0);
+            System.out.println("[hud] chat=true mouse=" + String.format("%.0f/%.0f", mouseX, mouseY)
+                    + " win=" + mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight()
+                    + " vp=" + event.viewportWidth() + "x" + event.viewportHeight()
+                    + " left=" + leftDown + " hovered="
+                    + (first == null ? "?" : (first.name + ":"
+                    + first.isHovered(mouseX, mouseY, event.renderer(), event.defaultFont())
+                    + " @" + String.format("%.0f/%.0f", first.x, first.y))));
+        }
+
         Renderer2D renderer = event.renderer();
         FontObject  font    = event.defaultFont();
 
@@ -394,8 +440,20 @@ public class Hud extends Module {
             float switchScale = 0.55f + 0.45f * easeOutBack(switchProg);
             float switchSlide = (1f - switchFade) * 26f;
             float switchTilt = (1f - switchFade) * ((idx & 1) == 0 ? 7f : -7f);
+
+            // Во время перетаскивания элемент рисуется там, куда его ведут.
+            //
+            // Раньше сам элемент оставался на месте, а двигался только контур
+            // под курсором: со стороны это выглядело как «элементы не двигаются».
+            // Позиция для отрисовки берётся из превью, а собственная координата
+            // элемента обновляется по отпускании кнопки.
+            float baseX = element.x;
             float baseY = element.y;
-            element.y = baseY + switchSlide;
+            if (element.isDragging()) {
+                element.x = element.getDragPreviewX();
+                element.y = element.getDragPreviewY();
+            }
+            element.y = element.y + switchSlide;
 
             float scale;
             float rawScale = element.scaleSetting.get().floatValue();
@@ -476,6 +534,7 @@ public class Hud extends Module {
                 if (pushedOuterScale) {
                     renderer.popScale();
                 }
+                element.x = baseX;
                 element.y = baseY;
             }
         }

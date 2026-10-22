@@ -68,7 +68,7 @@ public class StaffStorage {
     private static void save() {
         try {
             STAFF_FILE.getParentFile().mkdirs();
-            try (FileWriter writer = new FileWriter(STAFF_FILE)) {
+            try (FileWriter writer = new FileWriter(STAFF_FILE, java.nio.charset.StandardCharsets.UTF_8)) {
                 GSON.toJson(staff, writer);
             }
         } catch (Exception e) {
@@ -79,7 +79,7 @@ public class StaffStorage {
     private static void load() {
         if (!STAFF_FILE.exists()) return;
 
-        try (FileReader reader = new FileReader(STAFF_FILE)) {
+        try (FileReader reader = new FileReader(STAFF_FILE, java.nio.charset.StandardCharsets.UTF_8)) {
             Type type = new TypeToken<Set<String>>() {}.getType();
             Set<String> loaded = GSON.fromJson(reader, type);
             if (loaded != null) {

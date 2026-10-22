@@ -92,4 +92,23 @@ public abstract class ClientPlayerInteractionManagerMixin {
       EventManager.call(event);
       if (event.isCancelled()) ci.cancel();
    }
+
+   /**
+    * Не даёт ванили обнулить прогресс ломания, пока копает баритон.
+    *
+    * <p>Ваниль зовёт {@code stopDestroyBlock} каждый тик — когда кнопка атаки не
+    * нажата или мышь не захвачена. В автоматическом режиме верно и то, и другое,
+    * поэтому прогресс сбрасывался прежде, чем успевал накопиться. Снаружи это
+    * выглядело так: персонаж стоит вплотную к блоку, бьёт по нему, а блок не
+    * ломается никогда.
+    *
+    * <p>Вмешиваемся только пока баритон действительно копает: в остальных
+    * случаях поведение ванили должно остаться нетронутым.
+    */
+   @Inject(method = "stopDestroyBlock", at = @At("HEAD"), cancellable = true)
+   private void vesence$keepBreaking(CallbackInfo ci) {
+      if (vesence.pathing.BlockInteraction.isBreaking()) {
+         ci.cancel();
+      }
+   }
 }

@@ -20,7 +20,7 @@ public class LightmapTextureManagerMixin {
    private void vesence$forceGamma(LightmapRenderState state, float delta, CallbackInfo ci) {
       if (Vesence.get != null && Vesence.get.manager != null) {
          FullBright module = Vesence.get.manager.get(FullBright.class);
-         if (module != null && module.enable && module.mode.is("Р“Р°РјРјР°")) {
+         if (module != null && module.enable && module.mode.is("Гамма")) {
             state.brightness = 200.0F;
          }
       }

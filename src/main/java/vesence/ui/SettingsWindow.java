@@ -566,7 +566,7 @@ public class SettingsWindow {
             obj.addProperty("selectedLangMode", langState.selectedIndex);
             File f = new File(ConfigManager.configDirectory, SETTINGS_FILE);
             f.getParentFile().mkdirs();
-            try (FileWriter w = new FileWriter(f)) {
+            try (FileWriter w = new FileWriter(f, java.nio.charset.StandardCharsets.UTF_8)) {
                 w.write(new GsonBuilder().setPrettyPrinting().create().toJson(obj));
             }
         } catch (Exception ignored) {}
@@ -576,7 +576,7 @@ public class SettingsWindow {
         try {
             File f = new File(ConfigManager.configDirectory, SETTINGS_FILE);
             if (!f.exists()) return;
-            try (FileReader r = new FileReader(f)) {
+            try (FileReader r = new FileReader(f, java.nio.charset.StandardCharsets.UTF_8)) {
                 JsonObject obj = JsonParser.parseReader(r).getAsJsonObject();
                 if (obj.has("menuScaleIndex")) {
                     menuScaleState.selectedIndex = Math.max(0, Math.min(MENU_SCALE_PRESETS.length - 1, obj.get("menuScaleIndex").getAsInt()));

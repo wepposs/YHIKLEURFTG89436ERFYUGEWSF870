@@ -1,59 +1,29 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// МАТРИЦА — цифровой дождь.
-// Слои:
-//   1. глубокий зелёно-чёрный купол;
-//   2. широкие потоки кода, стекающие вниз;
-//   3. яркая рябь символов внутри потоков;
-//   4. светящиеся головки потоков;
-//   5. сканирующая волна яркости;
-//   6. зелёная дымка горизонта.
-// ============================================================================
+// Matrix — structured grid-like pattern across the vault, like a celestial coordinate map, with soft gradients and starfield.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.08, 0.22, 0.20), vec3(0.03, 0.08, 0.06), vec3(0.01, 0.02, 0.04));
 
-    // --- 1. Купол ---
-    vec3 col = mix(vec3(0.015, 0.07, 0.045), vec3(0.005, 0.025, 0.02), pow(h, 0.8));
+    // Grid-like structure that wraps around the sphere
+    float az = atan(d.x, d.z) / TAU + 0.5;
+    float cell = floor(az * 96.0);
+    float seed = hash12(vec2(mod(cell, 96.0), 11.0));
+    float y = d.y * 12.0 + Time * 0.08 + seed * 0.12;
+    float tail = pow(0.5 + 0.5 * sin(y + seed * TAU), 9.0);
+    float line = bell(fract(az * 96.0) - 0.5, 0.07);
+    line *= 1.0 - smoothstep(0.15, 0.7, pixelAngle(d) * 80.0);
+    float glyph = 0.40 + 0.60 * smoothstep(0.1, 0.45, sin(y * 20.0 + seed * 47.0));
 
-    float az = atan(dir.x, dir.z);
+    col += vec3(0.08, 0.55, 0.32) * tail * line * glyph * (1.0 - smoothstep(0.60, 0.85, abs(d.y)));
 
-    // --- 2. Потоки ---
-    float streams = fbm3(vec3(az * 5.0, dir.y * 1.2 - Time * 0.10, 3.0));
-    float streamMask = smoothstep(0.46, 0.68, streams);
-    col += vec3(0.08, 0.90, 0.38) * streamMask * 0.6;
+    // Starfield beneath the grid
+    col += stars(d, 68.0, 1.3, 33.0) * 0.4;
 
-    // --- 3. Рябь символов ---
-    float ripple = fbm3(vec3(az * 12.0, dir.y * 6.0 - Time * 0.40, 7.0));
-    col += vec3(0.30, 1.05, 0.55) * smoothstep(0.66, 0.82, ripple) * streamMask * 0.4;
-
-    // --- 4. Головки потоков ---
-    float heads = smoothstep(0.82, 0.93, fbm3(vec3(az * 7.0, dir.y * 2.5 - Time * 0.22, 11.0)));
-    col += vec3(0.60, 1.10, 0.75) * heads * streamMask * 0.5;
-
-    // --- 5. Сканирующая волна ---
-    float scan = 0.85 + 0.15 * sin(dir.y * 3.0 - Time * 0.5);
-    col *= scan;
-
-    // --- 6. Дымка ---
-    col += vec3(0.05, 0.22, 0.11) * exp(-pow((dir.y + 0.02) / 0.28, 2.0)) * 0.5;
-
-
-    // --- 7. Второй эшелон потоков, мельче и быстрее ---
-    float streams2 = fbm3(vec3(az * 11.0, dir.y * 2.2 - Time * 0.22, 17.0));
-    col += vec3(0.12, 0.70, 0.30) * smoothstep(0.50, 0.75, streams2) * 0.35;
-
-    // --- 8. Широкие вспышки «компиляции» ---
-    float comp = max(0.0, sin(fract(Time / 8.0) * TAU)) * step(fract(Time / 8.0), 0.12);
-    col += vec3(0.15, 0.60, 0.30) * comp * 0.3;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

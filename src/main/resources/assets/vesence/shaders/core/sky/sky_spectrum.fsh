@@ -1,51 +1,33 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// СПЕКТР — живое радужное небо.
-// Слои:
-//   1. полный спектр по высоте: плавный круговорот оттенка;
-//   2. две медленные волны яркости;
-//   3. перламутровые вуали;
-//   4. мягкое дыхание насыщенности;
-//   5. лёгкие световые облака.
-// ============================================================================
+// Spectrum — flowing iridescent silk with two phase-shifted spectral wave fields, prismatic ribbons and soft shimmer.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float az = atan(dir.x, dir.z);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.78, 0.65, 0.82), vec3(0.45, 0.52, 0.68), vec3(0.18, 0.24, 0.36));
+    vec3 sunPos = worldDir(40.0, 18.0);
+    col += horizonHaze(d, sunPos, vec3(0.92, 0.78, 0.88), 0.45);
 
-    // --- 1. Круговорот спектра ---
-    float hue = fract(dir.y * 0.28 - az * 0.05 - Time * 0.012);
-    float sat = 0.55 + 0.10 * sin(Time * 0.10);
-    vec3 col = hsv2rgb(vec3(hue, sat, 0.98));
+    // Two spectral wave fields, offset in phase and space
+    float w1 = dot(d, vec3(0.32, 0.82, -0.22)) + 0.11 * sin(d.x * 3.2 + Time * 0.07);
+    float w2 = dot(d, vec3(-0.22, 0.88, 0.33)) + 0.11 * sin(d.z * 3.6 - Time * 0.05);
+    vec3 silk = spectral(w1 * 0.6 - Time * 0.005) * 0.45
+              + spectral(w2 * 0.5 + Time * 0.004) * 0.30 + 0.18;
+    col = mix(col, silk, 0.42 * smoothstep(-0.02, 0.55, d.y));
 
-    // --- 2. Волны яркости ---
-    col *= 0.88 + 0.08 * sin(dir.y * 5.0 + Time * 0.10)
-               + 0.06 * sin(az * 3.0 - Time * 0.07);
+    // Prismatic ribbons
+    col += spectral(w1 * 1.7 + 0.25) * ribbon(d, vec3(0.32, 0.82, -0.22), 0.38, 0.022) * 0.85;
+    col += spectral(w2 * 1.8 + 0.45) * ribbon(d, vec3(-0.22, 0.88, 0.33), 0.58, 0.018) * 0.72;
 
-    // --- 3. Перламутровые вуали ---
-    float veil = fbm3(dir * 2.4 + vec3(0.0, Time * 0.008, 0.0));
-    vec3 veilCol = hsv2rgb(vec3(fract(hue + 0.5), 0.30, 1.05));
-    col = mix(col, veilCol, smoothstep(0.55, 0.72, veil) * 0.25);
+    // Soft wisps high in the sky
+    col = mix(col, vec3(0.88, 0.88, 0.96), wisps(d, 5.0) * 0.18);
 
-    // --- 5. Световые облака ---
-    vec4 cl = clouds(dir, vec3(Time * 0.010, 0.0, 0.0), 2.0, 0.40, worldDir(0.0, 40.0));
-    col = mix(col, vec3(1.02, 1.02, 1.05), cl.a * 0.30);
+    // Sparse stars
+    col += stars(d, 38.0, 0.45, 102.0) * smoothstep(0.25, 0.55, d.y);
 
-
-    // --- 6. Вторая волна оттенка: контрфаза ---
-    float hueB = fract(dir.y * 0.12 + az * 0.03 + Time * 0.008);
-    col = mix(col, hsv2rgb(vec3(hueB, 0.40, 1.0)), 0.20);
-
-    // --- 7. Белые всполохи ---
-    float flare = fbm3(dir * 3.0 + vec3(0.0, 0.0, Time * 0.02));
-    col += vec3(1.05, 1.05, 1.1) * smoothstep(0.68, 0.88, flare) * 0.25;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

@@ -1,51 +1,28 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ИЗУМРУД — зелёная ночь.
-// Слои:
-//   1. глубокая изумрудная ночь;
-//   2. два изумрудных занавеса сияния;
-//   3. звёзды с зеленоватым отливом;
-//   4. свечение горизонта;
-//   5. дрейфующие светлячки-вспышки;
-//   6. метеор.
-// ============================================================================
+// Emerald — tranquil forest-glade sky: soft green-white gradient, gentle auroral tendrils and faint stellar glow.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.18, 0.38, 0.26), vec3(0.08, 0.22, 0.14), vec3(0.02, 0.05, 0.06));
+    col += horizonHaze(d, worldDir(15.0, 4.0), vec3(0.22, 0.35, 0.28), 0.4);
 
-    // --- 1. Изумрудная ночь ---
-    vec3 col = mix(vec3(0.03, 0.15, 0.11), vec3(0.008, 0.05, 0.045), pow(h, 0.85));
+    // Soft green-white gradient
+    col += vec3(0.25, 0.48, 0.35) * smoothstep(0.0, 0.3, dot(d, worldDir(20.0, 5.0)));
 
-    // --- 2. Вуали ---
-    col += aurora(dir, vec3(0.08, 0.85, 0.38), vec3(0.20, 1.0, 0.62), 0.8, 2.0);
-    col += aurora(dir, vec3(0.05, 0.55, 0.42), vec3(0.38, 0.90, 0.55), 0.5, 6.3) * 0.6;
+    // Gentle aurora curtains confined to northern quadrant
+    col += aurora(d, vec3(0.30, 0.78, 0.52), vec3(0.52, 0.88, 0.62), 17.0) * 0.6;
 
-    // --- 3. Звёзды ---
-    col += stars(dir, 34.0, 0.18, 0.85) * vec3(0.80, 1.05, 0.90);
+    // Sparse stars with faint emerald cast
+    col += stars(d, 62.0, 1.1, 31.0) * vec3(1.0, 0.96, 0.92) * 0.7;
 
-    // --- 4. Свечение горизонта ---
-    col += vec3(0.07, 0.42, 0.24) * exp(-pow((dir.y + 0.02) / 0.26, 2.0)) * 0.5;
+    // Light high-altitude wisp clouds
+    vec3 sunPos = worldDir(15.0, 5.0);
+    col = cloudLayer(col, d, sunPos, vec3(0.12, 0.22, 0.18), vec3(0.28, 0.42, 0.34), 0.42, 5.0, 0.48, 9.0);
 
-    // --- 5. Светлячки ---
-    col += particles(dir, 22.0, 0.05, vec3(0.03, 0.02, 0.02), vec3(0.55, 1.0, 0.55), 160.0) * 0.4;
-
-    // --- 6. Метеор ---
-    col += shootingStar(dir, 13.0, 9.0, vec3(0.7, 1.0, 0.8));
-
-
-    // --- 7. Третья вуаль: редкое золото наверху ---
-    col += aurora(dir, vec3(0.30, 0.60, 0.25), vec3(0.60, 0.80, 0.30), 0.4, 9.1) * 0.35;
-
-    // --- 8. Светлячки вторым слоем ---
-    col += particles(dir, 34.0, 0.04, vec3(-0.02, 0.03, 0.01), vec3(0.45, 0.95, 0.50), 220.0) * 0.3;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }

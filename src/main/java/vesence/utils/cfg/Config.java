@@ -92,7 +92,7 @@ public final class Config implements ConfigUpdater {
          try {
             java.io.File tmp = new java.io.File(this.file.getParentFile(),
                     this.file.getName() + "." + System.nanoTime() + ".tmp");
-            try (FileWriter writer = new FileWriter(tmp)) {
+            try (FileWriter writer = new FileWriter(tmp, java.nio.charset.StandardCharsets.UTF_8)) {
                writer.write(ConfigManager.PRETTY_GSON.toJson(this.save()));
                writer.flush();
             }

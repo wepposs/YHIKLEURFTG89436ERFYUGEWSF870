@@ -144,7 +144,7 @@ public final class ConfigManager extends Manager<Config> {
                  target.getName() + "." + System.nanoTime() + ".tmp");
 
          try {
-            try (FileWriter writer = new FileWriter(tmp)) {
+            try (FileWriter writer = new FileWriter(tmp, java.nio.charset.StandardCharsets.UTF_8)) {
                writer.write(contentPrettyPrint);
                writer.flush();
             }

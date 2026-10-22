@@ -1,58 +1,32 @@
-#version 150
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#moj_import <vesence:sky_common.glsl>
+#include <vesence:sky_common.glsl>
 
-in vec2 TexCoord;
-in vec4 FragColor;
+layout(location = 0) out vec4 OutColor;
 
-out vec4 OutColor;
-
-// ============================================================================
-// ЗВЕЗДОПАД — ночь Персеид.
-// Слои:
-//   1. тёплая тёмная ночь;
-//   2. Млечный Путь с пылевыми провалами;
-//   3. звёзды двух масштабов;
-//   4. восемь метеоров с широкими следами и головками;
-//   5. слабое зеленоватое свечение атмосферы (airglow);
-//   6. синяя дымка горизонта.
-// ============================================================================
+// Starfall — continuous meteor shower with staggered trails, faint radiant glow and dense starfield.
 void main() {
-    vec3 dir = worldRay(gl_FragCoord.xy);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 col = atmosphere(d, vec3(0.14, 0.19, 0.28), vec3(0.06, 0.09, 0.16), vec3(0.018, 0.03, 0.08));
+    col += horizonHaze(d, worldDir(30.0, 4.0), vec3(0.28, 0.35, 0.48), 0.4);
 
-    // --- 1. Ночь ---
-    vec3 col = mix(vec3(0.08, 0.07, 0.20), vec3(0.02, 0.025, 0.09), pow(h, 0.8));
+    // Faint radiant where the shower originates
+    vec3 radiant = worldDir(46.0, 44.0);
+    col += vec3(0.40, 0.50, 0.65) * bell(length(d - radiant), 0.60) * 0.12;
 
-    // --- 2. Млечный Путь ---
-    col += milkyWay(dir, vec3(0.3, 0.35, -0.6), vec3(0.22, 0.24, 0.44), vec3(0.42, 0.38, 0.55), 0.75);
+    // Dust band / galactic plane
+    col += structuredDustBand(d, vec3(0.30, 0.65, -0.48), vec3(0.15, 0.22, 0.35), vec3(0.38, 0.30, 0.32), vec3(0.04, 0.03, 0.03), 0.65);
 
-    // --- 3. Звёзды ---
-    col += stars(dir, 32.0, 0.18, 1.0);
-    col += stars(dir, 68.0, 0.28, 0.4);
+    // Starfield
+    col += starsSeeded(d, 70.0, 1.5, 89.0);
 
-    // --- 4. Восемь метеоров ---
-    col += shootingStar(dir, 3.0, 1.0, vec3(0.92, 0.94, 1.08));
-    col += shootingStar(dir, 3.8, 2.0, vec3(0.92, 0.94, 1.08));
-    col += shootingStar(dir, 4.6, 3.0, vec3(0.98, 0.88, 0.80));
-    col += shootingStar(dir, 5.6, 4.0, vec3(0.92, 0.94, 1.08));
-    col += shootingStar(dir, 6.8, 5.0, vec3(0.98, 0.88, 0.80));
-    col += shootingStar(dir, 7.9, 6.0, vec3(0.92, 0.94, 1.08));
-    col += shootingStar(dir, 9.1, 7.0, vec3(0.98, 0.88, 0.80));
-    col += shootingStar(dir, 10.7, 8.0, vec3(0.92, 0.94, 1.08));
+    // Multiple meteors with staggered seeds so trails overlap continuously
+    col += meteor(d, 0.12, 4.1, vec3(0.88, 0.95, 1.00));
+    col += meteor(d, 0.48,5.6, vec3(0.78, 0.88, 1.00));
+    col += meteor(d, 0.79,4.8, vec3(1.00, 0.92, 0.70));
+    col += meteor(d, 1.12,5.3, vec3(0.88, 0.92, 1.00));
+    col += meteor(d, 0.23,3.7, vec3(1.00, 0.88, 0.60));
 
-    // --- 5. Airglow ---
-    col += vec3(0.08, 0.22, 0.14) * exp(-pow((dir.y - 0.15) / 0.30, 2.0)) * 0.25;
-
-    // --- 6. Дымка горизонта ---
-    col += vec3(0.10, 0.14, 0.28) * exp(-pow((dir.y + 0.02) / 0.16, 2.0)) * 0.4;
-
-
-    // --- 7. Радиант: мягкое свечение точки, откуда летят метеоры ---
-    col += vec3(0.40, 0.45, 0.70) * exp(-pow(angDist(dir, worldDir(60.0, 45.0)) / 0.25, 2.0)) * 0.3;
-
-    // --- 8. Зодиакальный конус ---
-    col += vec3(0.20, 0.18, 0.15) * exp(-pow(angDist(dir, worldDir(300.0, 10.0)) / 0.4, 2.0)) * 0.35;
-
-    OutColor = vec4(finishSky(softClip(col) * Intensity, dir), 1.0);
+    OutColor = vec4(finishSky(col, d), 1.0);
 }
