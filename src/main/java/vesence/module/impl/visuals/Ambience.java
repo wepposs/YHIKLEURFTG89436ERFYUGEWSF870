@@ -24,7 +24,7 @@ import vesence.renderengine.render.Renderer2D;
 import java.util.ArrayList;
 import java.util.List;
 
-@IModule(name = "Custom Level", description = "Изменяет время, туман, кубы и линии вокруг мира", category = Category.VISUALS, bind = -1)
+@IModule(name = "Custom World", description = "Изменяет время, туман, кубы и линии вокруг мира", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class Ambience extends Module {
 

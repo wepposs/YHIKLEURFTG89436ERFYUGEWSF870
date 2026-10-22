@@ -26,7 +26,7 @@ import vesence.renderengine.postfx.GlassHandsRenderer;
 import vesence.renderengine.postfx.HandShadowTrailRenderer;
 import vesence.renderengine.render.Renderer2D;
 
-@IModule(name = "Custom InteractionHand", description = "Кастомная рука: анимация взмаха, стекло и огонь", category = Category.VISUALS, bind = -1)
+@IModule(name = "Custom Hand", description = "Кастомная рука: анимация взмаха, стекло и огонь", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class CustomHand extends Module {
 

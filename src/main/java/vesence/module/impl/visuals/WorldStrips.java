@@ -38,7 +38,7 @@ import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import net.minecraft.client.renderer.BindGroupLayouts;
 
-@IModule(name = "Level Strips", description = "Smooth glowing strips drifting through the world", category = Category.VISUALS, bind = -1)
+@IModule(name = "World Strips", description = "Smooth glowing strips drifting through the world", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class WorldStrips extends Module {
    private static final Identifier GLOW_TEXTURE = Identifier.fromNamespaceAndPath("vesence", "textures/world/dashbloom.png");
