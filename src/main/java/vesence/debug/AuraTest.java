@@ -41,9 +41,11 @@ public final class AuraTest {
     private static float maxFrameYaw;
     private static int frames;
 
-    // Замер шага ротации по тикам: античит смотрит на разгон шага, поэтому
-    // тест обязан мерить не только «попал или нет», но и как менялся шаг.
+    // Замер шага ротации по тикам: ML-античит снимает с потока углов набор
+    // признаков, поэтому тест обязан мерить не «попал или нет», а то, как
+    // распределён шаг: гистограмму, разгон, связь осей, остаток.
     private static float prevTickYaw;
+    private static float prevTickPitch;
     private static boolean hasTickYaw;
     private static float prevStep;
     private static boolean hasStep;
@@ -51,6 +53,15 @@ public final class AuraTest {
     private static float maxAccel;
     private static int reversals;
     private static int stepTicks;
+
+    /** Выборка шагов для статистики распределения. */
+    private static final float[] yawSteps = new float[4096];
+    private static final float[] pitchSteps = new float[4096];
+    private static int sampleCount;
+
+    /** Остаток прицела на каждом тике — у бота он сходится в ноль. */
+    private static final float[] residuals = new float[4096];
+    private static int residualCount;
 
     private AuraTest() {
     }
@@ -131,6 +142,7 @@ public final class AuraTest {
                 mc.player.getInventory().setSelectedSlot(0);
                 mc.player.getInventory().setItem(0,
                         new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD));
+                vesence.module.impl.combat.auraComponent.Attack.setTicksSinceHit(20);
             }
 
             if (!aura.enable) {
@@ -195,8 +207,10 @@ public final class AuraTest {
      */
     private static void trackStep(Minecraft mc) {
         float yaw = mc.player.getYRot();
+        float pitch = mc.player.getXRot();
         if (hasTickYaw) {
             float step = net.minecraft.util.Mth.wrapDegrees(yaw - prevTickYaw);
+            float pitchStep = pitch - prevTickPitch;
             float abs = Math.abs(step);
             if (abs > maxStep) {
                 maxStep = abs;
@@ -211,12 +225,109 @@ public final class AuraTest {
                     reversals++;
                 }
             }
+            if (sampleCount < yawSteps.length) {
+                yawSteps[sampleCount] = step;
+                pitchSteps[sampleCount] = pitchStep;
+                sampleCount++;
+            }
             prevStep = step;
             hasStep = true;
             stepTicks++;
         }
+        float res = UShardRotation.residual();
+        if (residualCount < residuals.length && res < 1.0E4F) {
+            residuals[residualCount++] = res;
+        }
         prevTickYaw = yaw;
+        prevTickPitch = pitch;
         hasTickYaw = true;
+    }
+
+    /**
+     * Статистика распределения — то, что снимает ML-античит.
+     *
+     * <p>Печатаются ровно те признаки, по которым классификатор отличает руку от
+     * бота:
+     * <ul>
+     *   <li>среднее, разброс, асимметрия и эксцесс шага — у человека распределение
+     *       тяжёлохвостое (положительный эксцесс) и скошенное;</li>
+     *   <li>доля нулевых шагов — у clamp почти ноль, у человека заметная;</li>
+     *   <li>корреляция рысканья и тангажа — у человека высокая (одно движение
+     *       руки), у независимых клампов около нуля;</li>
+     *   <li>остаток: минимум не должен быть нулём, иначе сходимость выдаёт бота.</li>
+     * </ul>
+     */
+    private static void reportDistribution() {
+        if (sampleCount < 8) {
+            System.out.println("[auratest] статистика: мало данных (" + sampleCount + ")");
+            return;
+        }
+
+        double sumYaw = 0;
+        double sumPitch = 0;
+        int zeros = 0;
+        for (int i = 0; i < sampleCount; i++) {
+            sumYaw += yawSteps[i];
+            sumPitch += pitchSteps[i];
+            if (Math.abs(yawSteps[i]) < 1.0E-4F) {
+                zeros++;
+            }
+        }
+        double meanYaw = sumYaw / sampleCount;
+
+        double varYaw = 0;
+        double varPitch = 0;
+        double cov = 0;
+        for (int i = 0; i < sampleCount; i++) {
+            double dy = yawSteps[i] - meanYaw;
+            double dp = pitchSteps[i] - (sumPitch / sampleCount);
+            varYaw += dy * dy;
+            varPitch += dp * dp;
+            cov += dy * dp;
+        }
+        varYaw /= sampleCount;
+        varPitch /= sampleCount;
+        cov /= sampleCount;
+
+        double sdYaw = Math.sqrt(varYaw);
+        double sdPitch = Math.sqrt(varPitch);
+
+        // Асимметрия и эксцесс: главные признаки «нечеловеческого» распределения.
+        double m3 = 0;
+        double m4 = 0;
+        for (int i = 0; i < sampleCount; i++) {
+            double dy = yawSteps[i] - meanYaw;
+            m3 += dy * dy * dy;
+            m4 += dy * dy * dy * dy;
+        }
+        m3 /= sampleCount;
+        m4 /= sampleCount;
+        double skew = sdYaw > 1.0E-9 ? m3 / (sdYaw * sdYaw * sdYaw) : 0;
+        double kurtosis = sdYaw > 1.0E-9 ? m4 / (varYaw * varYaw) - 3.0 : 0;
+
+        double corr = (sdYaw > 1.0E-9 && sdPitch > 1.0E-9)
+                ? cov / (sdYaw * sdPitch) : 0;
+
+        double resMin = Double.MAX_VALUE;
+        double resSum = 0;
+        for (int i = 0; i < residualCount; i++) {
+            resMin = Math.min(resMin, residuals[i]);
+            resSum += residuals[i];
+        }
+        double resMean = residualCount > 0 ? resSum / residualCount : 0;
+
+        System.out.println("[auratest] шаг: среднее=" + String.format("%.2f", meanYaw)
+                + " sd=" + String.format("%.2f", sdYaw)
+                + " асимметрия=" + String.format("%.2f", skew)
+                + " эксцесс=" + String.format("%.2f", kurtosis)
+                + " нулевых=" + String.format("%.0f%%", 100.0 * zeros / sampleCount));
+        System.out.println("[auratest] оси: корреляция yaw/pitch="
+                + String.format("%.2f", corr));
+        System.out.println("[auratest] остаток: минимум=" + String.format("%.2f", resMin)
+                + " средний=" + String.format("%.2f", resMean)
+                + " (ноль был бы признаком бота)");
+        System.out.println("[auratest] выборка: " + sampleCount + " шагов, "
+                + residualCount + " замеров остатка");
     }
 
     private static void finish(Minecraft mc) {
@@ -226,6 +337,7 @@ public final class AuraTest {
                 + String.format("%.2f", maxStep) + " maxAccel="
                 + String.format("%.2f", maxAccel) + " разворотов=" + reversals
                 + " тиков=" + stepTicks);
+        reportDistribution();
         if (dummy != null) {
             dummy.discard();
             dummy = null;

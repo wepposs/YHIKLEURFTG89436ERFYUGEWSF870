@@ -267,6 +267,17 @@ public class Hud extends Module {
             mouseY = my[0] * ratioY;
         }
 
+        if (isChatOpen && testMouse == null && (System.currentTimeMillis() / 600) % 2 == 0) {
+            HudElement fe = getHudElements().isEmpty() ? null : getHudElements().get(0);
+            System.out.println("[huddbg] REAL xpos=" + String.format("%.0f", mc.mouseHandler.xpos())
+                    + " getWidth=" + mc.getWindow().getWidth()
+                    + " screenW=" + mc.getWindow().getScreenWidth()
+                    + " guiScaledW=" + mc.getWindow().getGuiScaledWidth()
+                    + " -> mouseX=" + String.format("%.0f", mouseX)
+                    + (fe == null ? "" : " elem[" + fe.name + "] x=" + String.format("%.0f", fe.x)
+                    + " hovered=" + fe.isHovered(mouseX, mouseY, event.renderer(), event.defaultFont())));
+        }
+
         // Канал ввода для автотеста.
         //
         // Настоящую мышь в тесте не подставить: оконный цикл перезаписывает её

@@ -60,6 +60,10 @@ public final class Attack implements IMinecraft {
       ticksSinceHit++;
    }
 
+   public static void setTicksSinceHit(int ticks) {
+      ticksSinceHit = ticks;
+   }
+
    /** Тики с последнего удара — для диагностики гейта. */
    public static int ticksSinceHitForDebug() {
       return ticksSinceHit;

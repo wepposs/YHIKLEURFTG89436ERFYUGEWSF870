@@ -27,6 +27,8 @@ loom {
                 || System.getenv('VESENCE_UITEST_SCROLL') != null
                 || System.getenv('VESENCE_PATHTEST') != null
                 || System.getenv('VESENCE_DIGTEST') != null
+                || System.getenv('VESENCE_AURATEST') != null
+                || System.getenv('VESENCE_HUDTEST') != null
                 || System.getenv('VESENCE_CMDTEST') != null) {
             programArgs('--quickPlaySingleplayer', 'skytest')
         }

@@ -4,316 +4,235 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import vesence.module.impl.combat.auraComponent.GCDUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.FreeLookUtil;
 import vesence.module.impl.combat.auraComponent.rotationComponent.impl.Rotation;
+import vesence.module.impl.combat.auraComponent.rotationComponent.impl.URotations;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 import static vesence.utils.other.IMinecraft.mc;
 
-/**
- * UShardRotation — профиль под античит Shard.
- *
- * <p>Чем он отличается от остальных профилей. Большинство профилей в этом пакете
- * ограничивают только ВЕЛИЧИНУ шага за тик: {@code step = clamp(Δ, ±MAX)}. Для
- * Shard этого мало, потому что проверка смотрит не на размер шага, а на его
- * производную — на то, как шаг меняется от тика к тику. Доворот на 180° за один
- * тик и доворот на 180° за восемь тиков имеют одинаковый итог, но у руки есть
- * разгон, а у {@code clamp} его нет. Отсюда четыре правила профиля:
- *
- * <ol>
- *   <li><b>Ограничен разгон.</b> Шаг не может вырасти больше чем на
- *       {@link #ACCEL_YAW}° за тик. Мгновенный доворот физически невозможен:
- *       даже цель за спиной набирается несколько тиков. Торможение при этом не
- *       ограничено — рука останавливается резко, и это позволяет гасить шаг у
- *       цели без перелёта.</li>
- *   <li><b>Разворот через ноль.</b> Смена знака шага за один тик запрещена:
- *       рука проходит через нулевую скорость. Один тик простоя дешевле, чем
- *       скачок на двойную амплитуду.</li>
- *   <li><b>Пауза после удара.</b> В первые {@link #POST_HIT_HOLD_MS} мс после
- *       удара шаг ограничен {@link #POST_HIT_YAW_CAP}°. Доворот сразу после
- *       пакета атаки — отдельная проверка: у живого игрока рука после клика не
- *       уезжает.</li>
- *   <li><b>Сначала прицел, потом удар.</b> Профиль публикует остаток
- *       {@link #isSettled()}, и аура не бьёт, пока прицел не сошёлся. Иначе
- *       пакет уходит с углом «мимо цели», и это ловится проверкой направления
- *       удара — самая дешёвая для античита и самая частая причина бана.</li>
- * </ol>
- *
- * <p>Общие для всех профилей правила тоже соблюдены: per-axis straight-line cap
- * (иначе траектория идёт дугой), GCD-снап ровно один раз на applied-delta (сетка
- * берётся из реальной сенсы игрока) и джиттер только вне окна атаки.
- *
- * <p>Константы — не измеренные пороги Shard, а разумная отправная точка:
- * скорость человеческого флика и предел разгона. Их имеет смысл подкручивать под
- * конкретный сервер, начиная с {@link #ACCEL_YAW}: это самый чувствительный
- * параметр — он один определяет, выглядит ли доворот как рывок.
- */
 @Environment(EnvType.CLIENT)
 public class UShardRotation {
 
-    // ── Скорость ──────────────────────────────────────────────────────────────
+    private static final float MAX_YAW_SPEED = 54.0F;
+    private static final float MAX_PITCH_SPEED = 38.0F;
+    private static final float MIN_ACCEL = 4.0F;
+    private static final float MAX_ACCEL = 12.0F;
+    private static final float SETTLE_THRESHOLD = 8.5F;
 
-    /**
-     * Предел шага по рысканью за тик в обычном режиме.
-     *
-     * <p>Восемнадцать градусов за тик — это 360°/с. Быстрее человек доводит
-     * прицел только флик-движением, а флик — это отдельная сигнатура, которую
-     * античиты ищут по разгону. Здесь разгон и так ограничен, поэтому сама
-     * величина шага может быть умеренно высокой.
-     */
-    private static final float YAW_STEP_MAX = 18.0F;
-
-    /** Предел шага по тангажу: шея медленнее кисти. */
-    private static final float PITCH_STEP_MAX = 11.0F;
-
-    /** Предел шага в тик удара — последние градусы перед пакетом. */
-    private static final float ATTACK_YAW_STEP_MAX = 26.0F;
-    private static final float ATTACK_PITCH_STEP_MAX = 15.0F;
-
-    /**
-     * Предел разгона: насколько шаг может вырасти за один тик.
-     *
-     * <p>Девять градусов — примерно половина обычного шага, то есть полная
-     * скорость набирается за два тика. Меньше делать нет смысла: цель, ушедшая
-     * вбок, перестанет догоняться. Больше — и разгон перестаёт отличаться от
-     * мгновенного доворота, ради чего профиль и написан.
-     */
-    private static final float ACCEL_YAW = 9.0F;
-    private static final float ACCEL_PITCH = 5.5F;
-
-    // ── Доводка у цели ────────────────────────────────────────────────────────
-
-    /** С какого остатка начинается торможение, в градусах. */
-    private static final float SLOW_RADIUS_YAW = 7.0F;
-    private static final float SLOW_RADIUS_PITCH = 5.0F;
-
-    /**
-     * Минимальный шаг доводки.
-     *
-     * <p>Без него квадратичный спад у самой цели даёт шаг, который GCD-снап
-     * округляет в ноль, и прицел замирает в полутора градусах от цели. Ровно
-     * столько, чтобы удар уходил мимо хитбокса при внешне «наведённой» камере.
-     */
-    private static final float MIN_STEP = 0.25F;
-
-    // ── Пауза после удара ─────────────────────────────────────────────────────
-
-    /** Сколько держим прицел после пакета атаки. */
-    private static final long POST_HIT_HOLD_MS = 90L;
-
-    /** Предел шага во время этой паузы. */
-    private static final float POST_HIT_YAW_CAP = 3.0F;
-    private static final float POST_HIT_PITCH_CAP = 2.0F;
-
-    // ── Джиттер ───────────────────────────────────────────────────────────────
-
-    /** Амплитуда покачивания вне боя. */
-    private static final float JITTER_MIN = 0.10F;
-    private static final float JITTER_MAX = 0.35F;
-
-    // ── Готовность к удару ────────────────────────────────────────────────────
-
-    /**
-     * Остаток, при котором прицел считается наведённым.
-     *
-     * <p>Три градуса на дистанции удара — это доли блока, то есть заведомо
-     * внутри хитбокса. Строже делать нельзя: цель движется, и профиль честно
-     * догонял бы её бесконечно, не нанося ударов.
-     */
-    private static final float SETTLE_DEG = 3.0F;
-
-    /** Пределы, отдаваемые в общий сток ротации. Заведомо больше шага профиля. */
-    private static final float SUBMIT_YAW_CAP = 40.0F;
-    private static final float SUBMIT_PITCH_CAP = 30.0F;
-
-    // ── Состояние ─────────────────────────────────────────────────────────────
-
-    /** Шаг прошлого тика — база для предела разгона. */
-    private static float lastYawStep;
-    private static float lastPitchStep;
-
-    private static long lastHitMs;
-    private static boolean hasHit;
-
-    /** Остаток до цели после последнего шага; читается аурой через {@link #isSettled()}. */
+    private static int targetId = Integer.MIN_VALUE;
+    private static float currentYawVelocity = 0.0F;
+    private static float currentPitchVelocity = 0.0F;
+    private static float lastYawDelta = 0.0F;
+    private static float lastPitchDelta = 0.0F;
     private static float residual = Float.MAX_VALUE;
+
+    private static double offsetSeedX = 0.0;
+    private static double offsetSeedY = 0.0;
+    private static double offsetSeedZ = 0.0;
+    private static long lastHitTime = 0L;
+    private static long targetStartTime = 0L;
+    private static int consecutiveHits = 0;
 
     private UShardRotation() {
     }
 
-    /**
-     * Наведён ли прицел на цель.
-     *
-     * <p>Аура обязана спрашивать это перед ударом: пакет атаки должен уходить с
-     * углом, который уже смотрит на цель. Проверять «попал ли луч» бесполезно —
-     * удар всё равно засчитается, а вот расхождение угла и направления на
-     * цель античит видит сразу.
-     */
     public static boolean isSettled() {
-        return residual <= SETTLE_DEG;
+        return residual <= SETTLE_THRESHOLD;
     }
 
-    /** Остаток до цели в градусах — для диагностики и настроек. */
     public static float residual() {
         return residual;
     }
 
-    public static void rotation(LivingEntity target, boolean attack, float attackDist, float rotateDist) {
+    public static void rotation(LivingEntity target, boolean attack, float attackDist, float rotateDist, Vec3 point) {
         if (mc.player == null || target == null) {
-            residual = Float.MAX_VALUE;
+            reset();
             return;
         }
 
-        // Аим-поинт — ближайшая ВИДИМАЯ точка хитбокса, а не центр коробки:
-        // наведение в центр даёт угол, который на дистанции удара уходит ниже
-        // головы, и проверка направления на это реагирует.
-        Vec3 aim = URotationMath.visibleAimPoint(target, attackDist + rotateDist, false);
-        if (aim == null) {
-            aim = target.getEyePosition();
-        }
-        Rotation goal = URotationMath.lookAt(aim);
-
-        float currentYaw = mc.player.getYRot();
-        float currentPitch = mc.player.getXRot();
-
-        float yawDelta = URotationMath.wrap(goal.yaw - currentYaw);
-        float pitchDelta = goal.pitch - currentPitch;
-        float total = URotationMath.total(yawDelta, pitchDelta);
-
-        // 1. Прямая к цели, а не дуга: каждая ось получает долю предела,
-        //    пропорциональную своему остатку.
-        float speedYaw = attack ? ATTACK_YAW_STEP_MAX : YAW_STEP_MAX;
-        float speedPitch = attack ? ATTACK_PITCH_STEP_MAX : PITCH_STEP_MAX;
-        float capYaw = URotationMath.axisCap(yawDelta, total, speedYaw);
-        float capPitch = URotationMath.axisCap(pitchDelta, total, speedPitch);
-
-        float stepYaw = URotationMath.clampDelta(yawDelta, capYaw);
-        float stepPitch = URotationMath.clampDelta(pitchDelta, capPitch);
-
-        // 2. Торможение у цели: шаг падает пропорционально остатку, иначе
-        //    полный шаг проскакивает цель и следующий тик тянет обратно —
-        //    это и есть видимое дрожание камеры.
-        stepYaw = decelerate(stepYaw, yawDelta, SLOW_RADIUS_YAW);
-        stepPitch = decelerate(stepPitch, pitchDelta, SLOW_RADIUS_PITCH);
-
-        // 3. Пауза после удара.
-        boolean hold = inPostHitHold();
-        if (hold) {
-            stepYaw = URotationMath.clampDelta(stepYaw, POST_HIT_YAW_CAP);
-            stepPitch = URotationMath.clampDelta(stepPitch, POST_HIT_PITCH_CAP);
+        long now = System.currentTimeMillis();
+        if (target.getId() != targetId) {
+            targetId = target.getId();
+            targetStartTime = now;
+            currentYawVelocity = 0.0F;
+            currentPitchVelocity = 0.0F;
+            lastYawDelta = 0.0F;
+            lastPitchDelta = 0.0F;
+            consecutiveHits = 0;
+            offsetSeedX = ThreadLocalRandom.current().nextDouble(-0.04, 0.04);
+            offsetSeedY = ThreadLocalRandom.current().nextDouble(-0.06, 0.06);
+            offsetSeedZ = ThreadLocalRandom.current().nextDouble(-0.04, 0.04);
         }
 
-        // 4. Разгон и запрет разворота за один тик.
-        stepYaw = limitAccel(stepYaw, lastYawStep, ACCEL_YAW);
-        stepPitch = limitAccel(stepPitch, lastPitchStep, ACCEL_PITCH);
+        Vec3 targetAim = calculateAimPoint(target);
+        Rotation targetRot = calculateAngle(targetAim);
 
-        float newYaw = currentYaw + stepYaw;
-        float newPitch = Mth.clamp(currentPitch + stepPitch, -90.0F, 90.0F);
+        float curYaw = mc.player.getYRot();
+        float curPitch = mc.player.getXRot();
 
-        // 5. Покачивание — только вне окна атаки и вне паузы после удара.
-        //    Амплитуда и частота держатся во времени: если пересчитывать их
-        //    каждый тик, синус превращается в белый шум.
-        if (!attack && !hold) {
-            newYaw += URotationMath.sinJitter(
-                    URotationMath.stableRand("sh.ampY", JITTER_MIN, JITTER_MAX, 130L),
-                    URotationMath.stableRand("sh.divY", 11.0F, 95.0F, 380L));
-            newPitch += URotationMath.sinJitter(
-                    URotationMath.stableRand("sh.ampP", JITTER_MIN, JITTER_MAX, 130L),
-                    URotationMath.stableRand("sh.divP", 11.0F, 95.0F, 380L));
+        float deltaYaw = Mth.wrapDegrees(targetRot.yaw - curYaw);
+        float deltaPitch = targetRot.pitch - curPitch;
+        float totalDist = (float) Math.hypot(deltaYaw, deltaPitch);
+
+        if (totalDist < 1.0E-4F) {
+            residual = 0.0F;
+            return;
         }
 
-        // 6. Отдаём в сток: он снапнет на GCD-сетку игрока ровно один раз.
-        URotationMath.submit(SUBMIT_YAW_CAP, SUBMIT_PITCH_CAP, 22.0F, 18.0F, 0, 15, newYaw, newPitch);
+        if (now - targetStartTime < 35L) {
+            residual = totalDist;
+            return;
+        }
 
-        lastYawStep = stepYaw;
-        lastPitchStep = stepPitch;
+        boolean postHit = now - lastHitTime < 65L;
+        float speedScale = postHit ? 0.65F : 1.0F;
 
-        // Остаток считается ПОСЛЕ шага: аура читает его на следующем тике, когда
-        // камера уже сдвинулась, и должна видеть то, что будет на экране.
+        float targetYawVel = computeVelocity(deltaYaw, totalDist, MAX_YAW_SPEED * speedScale, lastYawDelta);
+        float targetPitchVel = computeVelocity(deltaPitch, totalDist, MAX_PITCH_SPEED * speedScale, lastPitchDelta);
+
+        float accelLimit = ThreadLocalRandom.current().nextFloat() * (MAX_ACCEL - MIN_ACCEL) + MIN_ACCEL;
+        currentYawVelocity = approachVelocity(currentYawVelocity, targetYawVel, accelLimit);
+        currentPitchVelocity = approachVelocity(currentPitchVelocity, targetPitchVel, accelLimit * 0.85F);
+
+        float stepYaw = currentYawVelocity;
+        float stepPitch = currentPitchVelocity;
+
+        if (!attack && !postHit) {
+            double time = (double) now * 0.005;
+            float microJitterYaw = (float) (Math.sin(time * 3.7) * 0.06 + Math.cos(time * 1.3) * 0.04);
+            float microJitterPitch = (float) (Math.cos(time * 2.9) * 0.05 + Math.sin(time * 0.9) * 0.03);
+            stepYaw += microJitterYaw;
+            stepPitch += microJitterPitch;
+        }
+
+        float desiredYaw = curYaw + stepYaw;
+        float desiredPitch = Mth.clamp(curPitch + stepPitch, -90.0F, 90.0F);
+
+        float snappedYaw = GCDUtil.snapToCameraGCD(curYaw, desiredYaw);
+        float snappedPitch = GCDUtil.snapPitchToCameraGCD(curPitch, desiredPitch);
+
+        URotations.update(new Rotation(snappedYaw, snappedPitch), 360.0F, 360.0F, 24.0F, 20.0F, 0, 15, false);
+
+        lastYawDelta = deltaYaw;
+        lastPitchDelta = deltaPitch;
+
         residual = (float) Math.hypot(
-                Math.abs(yawDelta - stepYaw),
-                Math.abs(pitchDelta - stepPitch));
+                Mth.wrapDegrees(targetRot.yaw - snappedYaw),
+                targetRot.pitch - snappedPitch
+        );
 
         if (attack) {
-            lastHitMs = System.currentTimeMillis();
-            hasHit = true;
+            lastHitTime = now;
+            consecutiveHits++;
+            offsetSeedX += ThreadLocalRandom.current().nextDouble(-0.03, 0.03);
+            offsetSeedY += ThreadLocalRandom.current().nextDouble(-0.02, 0.02);
+            offsetSeedZ += ThreadLocalRandom.current().nextDouble(-0.03, 0.03);
         }
     }
 
-    /**
-     * Квадратичный спад шага в последних градусах до цели.
-     *
-     * <p>Квадрат, а не линейка: линейный спад даёт заметное «прилипание» —
-     * камера ползёт к цели с постоянной скоростью и останавливается рывком.
-     */
-    private static float decelerate(float step, float delta, float radius) {
-        float remaining = Math.abs(delta);
-        if (remaining >= radius) {
-            return step;
+    private static float computeVelocity(float delta, float total, float maxSpeed, float lastDelta) {
+        float dir = Math.signum(delta);
+        float absDelta = Math.abs(delta);
+
+        float dynamicMax = (absDelta / total) * maxSpeed;
+        float desiredSpeed;
+
+        if (absDelta > 20.0F) {
+            desiredSpeed = dynamicMax;
+        } else if (absDelta > 5.0F) {
+            float t = (absDelta - 5.0F) / 15.0F;
+            desiredSpeed = dynamicMax * (0.5F + 0.5F * smoothStep(t));
+        } else {
+            float t = absDelta / 5.0F;
+            desiredSpeed = Math.max(0.7F, dynamicMax * (0.25F + 0.45F * t));
         }
-        float ratio = remaining / radius;
-        float scaled = step * ratio * ratio;
-        if (Math.abs(scaled) >= MIN_STEP) {
-            return scaled;
+
+        if (lastDelta != 0.0F && Math.signum(delta) != Math.signum(lastDelta) && absDelta < 10.0F) {
+            desiredSpeed *= 0.8F;
         }
-        // У самой цели — ровно остаток, чтобы дойти до нуля, но не меньше
-        // одного кванта, иначе GCD-снап округлит шаг в ноль.
-        return Math.copySign(Math.min(MIN_STEP, remaining), step);
+
+        return dir * desiredSpeed;
     }
 
-    /**
-     * Предел разгона и запрет разворота за тик.
-     *
-     * <p>Ограничивается только рост шага. Торможение свободно: рука
-     * останавливается резко, и именно поэтому профиль успевает погасить шаг у
-     * цели и не перелетает её.
-     */
-    private static float limitAccel(float step, float previous, float accel) {
-        if (previous != 0.0F && step != 0.0F && Math.signum(step) != Math.signum(previous)) {
-            // Разворот за один тик невозможен: рука проходит через ноль.
-            return 0.0F;
+    private static float approachVelocity(float current, float target, float maxDelta) {
+        float diff = target - current;
+        if (Math.abs(diff) <= maxDelta) {
+            return target;
         }
-        if (Math.abs(step) <= Math.abs(previous) + accel) {
-            return step;
-        }
-        return Math.copySign(Math.abs(previous) + accel, step);
+        return current + Math.signum(diff) * maxDelta;
     }
 
-    private static boolean inPostHitHold() {
-        return hasHit && System.currentTimeMillis() - lastHitMs < POST_HIT_HOLD_MS;
+    private static float smoothStep(float t) {
+        t = Mth.clamp(t, 0.0F, 1.0F);
+        return t * t * (3.0F - 2.0F * t);
     }
 
-    /**
-     * Плавный отвод камеры, когда цели больше нет.
-     *
-     * <p>Возврат идёт тем же ограниченным разгоном, что и наведение: иначе после
-     * боя камера одним тиком прыгает туда, куда игрок смотрел до боя.
-     */
+    private static Vec3 calculateAimPoint(LivingEntity target) {
+        AABB bb = target.getBoundingBox();
+        Vec3 center = bb.getCenter();
+        double targetY = bb.minY + bb.getYsize() * 0.72;
+        center = new Vec3(center.x, targetY, center.z);
+
+        double dynamicWobble = Math.sin((double) System.currentTimeMillis() * 0.0024) * 0.025;
+        return center.add(offsetSeedX + dynamicWobble, offsetSeedY, offsetSeedZ);
+    }
+
+    private static Rotation calculateAngle(Vec3 point) {
+        Vec3 eyes = mc.player.getEyePosition();
+        Vec3 diff = point.subtract(eyes);
+        float yaw = (float) Math.toDegrees(Math.atan2(-diff.x, diff.z));
+        float pitch = (float) Mth.clamp(-Math.toDegrees(Math.atan2(diff.y, Math.hypot(diff.x, diff.z))), -90.0F, 90.0F);
+        return new Rotation(yaw, pitch);
+    }
+
     public static boolean smoothBack() {
         if (mc.player == null) {
             return true;
         }
         float toYaw = FreeLookUtil.freeYaw;
         float toPitch = FreeLookUtil.freePitch;
-        boolean done = Math.abs(URotationMath.wrap(toYaw - mc.player.getYRot())) < 1.0F
-                && Math.abs(toPitch - mc.player.getXRot()) < 1.0F;
-        if (!done) {
-            URotationMath.submit(16.0F, 13.0F, 16.0F, 13.0F, 0, 15, toYaw, toPitch);
+
+        float deltaYaw = Mth.wrapDegrees(toYaw - mc.player.getYRot());
+        float deltaPitch = toPitch - mc.player.getXRot();
+
+        if (Math.abs(deltaYaw) < 1.0F && Math.abs(deltaPitch) < 1.0F) {
+            return true;
         }
-        return done;
+
+        float stepY = Math.signum(deltaYaw) * Math.min(Math.abs(deltaYaw) * 0.35F, 18.0F);
+        float stepP = Math.signum(deltaPitch) * Math.min(Math.abs(deltaPitch) * 0.35F, 14.0F);
+
+        float targetY = mc.player.getYRot() + stepY;
+        float targetP = Mth.clamp(mc.player.getXRot() + stepP, -90.0F, 90.0F);
+
+        float snappedY = GCDUtil.snapToCameraGCD(mc.player.getYRot(), targetY);
+        float snappedP = GCDUtil.snapPitchToCameraGCD(mc.player.getXRot(), targetP);
+
+        URotations.update(new Rotation(snappedY, snappedP), 24.0F, 20.0F, 24.0F, 20.0F, 0, 15, false);
+        return false;
     }
 
-    /**
-     * Сброс состояния захода.
-     *
-     * <p>Обязателен: остаток разгона от прошлой цели иначе переносится на новую,
-     * и первый тик новой цели начинается с чужого шага — то есть с рывка.
-     */
     public static void state() {
-        lastYawStep = 0.0F;
-        lastPitchStep = 0.0F;
-        hasHit = false;
-        lastHitMs = 0L;
+        reset();
+    }
+
+    private static void reset() {
+        targetId = Integer.MIN_VALUE;
+        currentYawVelocity = 0.0F;
+        currentPitchVelocity = 0.0F;
+        lastYawDelta = 0.0F;
+        lastPitchDelta = 0.0F;
         residual = Float.MAX_VALUE;
+        offsetSeedX = 0.0;
+        offsetSeedY = 0.0;
+        offsetSeedZ = 0.0;
+        lastHitTime = 0L;
+        targetStartTime = 0L;
+        consecutiveHits = 0;
     }
 }

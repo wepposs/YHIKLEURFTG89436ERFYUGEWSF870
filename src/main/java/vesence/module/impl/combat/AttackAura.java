@@ -1002,6 +1002,9 @@ public class AttackAura extends Module {
                 result = Attack.shouldAttack(target, false, true, true, offset, ranges)
                         && funTestShouldCrit();
                 break;
+            case "Shard":
+                result = Attack.shouldAttack(target, false, true, false, offset, ranges);
+                break;
             case "1.8":
                 result = AuraUtil.validDistance(target, ranges[0], true)
                         && (misc.get("Бить через блоки") || mc.player.hasLineOfSight(target));
@@ -1076,10 +1079,11 @@ public class AttackAura extends Module {
                 USlothRotation.rotation(target, canAttack, attackRange.get().floatValue(), preRange.get().floatValue());
                 break;
             case "Shard":
-                // Профиль под Shard: ограниченный разгон, пауза после удара и
-                // запрет удара до того, как прицел сошёлся с целью.
+                // Профиль под ML-античит: движение по модели моторики, а не
+                // ограничение шага. Точка прицеливания передаётся из ауры —
+                // своя у профиля перетёрла бы гистерезис общего выбора.
                 UShardRotation.rotation(target, canAttack, attackRange.get().floatValue(),
-                        preRange.get().floatValue());
+                        preRange.get().floatValue(), point);
                 break;
             case "Neuro":
                 neuroMode.updateRotation(this, target);
