@@ -1,115 +1,94 @@
 package vesence.module.impl.visuals;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.commands.CommandEncoder;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.device.GpuDevice;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.StagedVertexBuffer;
-import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import net.minecraft.client.renderer.rendertype.RenderType;
-
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import vesence.utils.render.world.WorldRenderer;
 
 /**
- * Замена удалённому в 26.3 {@code Immediate} (yarn {@code VertexConsumerProvider.Immediate}).
+ * Батчер геометрии по слоям — замена удалённому в 26.3 {@code MultiBufferSource.immediate}.
  *
- * <p>В 26.3 нет публичного батчера RenderType → VertexConsumer: геометрия собирается
- * в {@link BufferBuilder} на слой, а на flush загружается в GpuBuffer и рисуется через
- * {@link PreparedRenderType#drawFromBuffer} в собственном RenderPass поверх
- * основного рендер-таргета (load = KEEP).
+ * <p>Изначально этот класс собирал mesh и тут же рисовал его своим
+ * {@code RenderPass} прямо из {@code EventRender3D}. В 26.3 так нельзя: событие
+ * приходит внутрь отрисовки мира, когда кадровый граф ещё кодируется, и
+ * создание собственного прохода там либо вешает кадр, либо не даёт ничего —
+ * геометрия собирается и молча выбрасывается. Именно поэтому после порта
+ * перестала рисоваться почти вся визуальная часть мода.
  *
- * <p>Каждый вызов {@link #draw()} закрывает и пересоздаёт буферы, как это делал
- * ванильный immediate.draw().
+ * <p>Теперь отправка отложенная: {@link WorldRenderer.ImmediateBuffers} ставит
+ * задачу в пост-GUI проход, где кадровый граф уже не кодируется. API класса
+ * остался прежним, поэтому все модули, которые его используют, заработали без
+ * правок.
+ *
+ * <p><b>Один экземпляр на всех.</b> Это не оптимизация, а условие корректности.
+ * {@code ByteBufferBuilder} — bump-аллокатор: если каждый модуль создаёт свой
+ * батчер, они растут в разных аренах и все, кроме последнего, до экрана не
+ * доходят. А если закрывать арену сразу после отправки, модуль, который пишет
+ * вершины повторно, попадает в освобождённую память — это уже не «не рисуется»,
+ * а падение JVM с {@code EXCEPTION_ACCESS_VIOLATION}. Поэтому арена одна,
+ * живёт весь сеанс и переиспользуется между кадрами.
+ *
+ * <p>Флага «уже отправлено» здесь намеренно нет. Отправка идемпотентна: слои
+ * общие, первый же поставленный в очередь проход выводит всё накопленное, а
+ * остальные находят пустые буферы и ничего не делают. Флаг был бы опасен —
+ * если очередь задач переполнится и её очистят, он залипнет и отрисовка
+ * замолчит навсегда.
  */
 public final class Immediate implements AutoCloseable {
 
-   private static final int BUFFER_CAPACITY_BYTES = 262144;
+   /**
+    * Размер арены.
+    *
+    * <p>Арена общая, поэтому запас взят с большим избытком: вершина
+    * {@code POSITION_COLOR} занимает 16 байт, и 4 МиБ — это четверть миллиона
+    * вершин, то есть кадр целиком со всеми эффектами мода.
+    */
+   private static final int BUFFER_CAPACITY_BYTES = 4 * 1024 * 1024;
 
-   private final Map<RenderType, BufferBuilder> builders = new HashMap<>();
-   private final Map<RenderType, ByteBufferBuilder> allocators = new HashMap<>();
+   /** Арена на весь сеанс: освобождать её между кадрами нельзя (см. описание класса). */
+   private static ByteBufferBuilder allocator;
+
+   /** Общий батчер: все модули пишут в одни и те же builders. */
+   private static WorldRenderer.ImmediateBuffers buffers;
+
+   public Immediate() {
+      ensureShared();
+   }
+
+   private static void ensureShared() {
+      if (buffers == null) {
+         allocator = new ByteBufferBuilder(BUFFER_CAPACITY_BYTES);
+         buffers = WorldRenderer.ImmediateBuffers.create(allocator);
+      }
+   }
 
    public VertexConsumer getBuffer(RenderType layer) {
-      BufferBuilder builder = this.builders.get(layer);
-      if (builder == null) {
-         ByteBufferBuilder allocator = new ByteBufferBuilder(BUFFER_CAPACITY_BYTES);
-         builder = new BufferBuilder(allocator, layer.primitiveTopology(), layer.format());
-         this.allocators.put(layer, allocator);
-         this.builders.put(layer, builder);
-      }
-      return builder;
+      ensureShared();
+      return buffers.getBuffer(layer);
    }
 
+   /**
+    * Ставит накопленную геометрию в очередь пост-GUI прохода.
+    *
+    * <p>Вызывать можно сколько угодно раз за кадр: слои общие, поэтому первый
+    * проход выводит всё, а последующие не находят геометрии.
+    */
    public void draw() {
-      RenderTarget target = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-      if (target == null) {
-         this.reset();
-         return;
-      }
-      this.draw(target);
+      ensureShared();
+      buffers.draw();
    }
 
+   /** То же, но с явным целевым таргетом. */
    public void draw(RenderTarget target) {
-      if (this.builders.isEmpty()) {
-         return;
-      }
-      GpuDevice device = RenderSystem.getDevice();
-      CommandEncoder encoder = device.createCommandEncoder();
-      try (RenderPass pass = encoder.createRenderPass(() -> "vesence visuals",
-            target.getColorTextureView(), Optional.empty(),
-            target.getDepthTextureView(), OptionalDouble.empty())) {
-         for (Map.Entry<RenderType, BufferBuilder> entry : this.builders.entrySet()) {
-            RenderType layer = entry.getKey();
-            MeshData mesh = entry.getValue().build();
-            if (mesh == null) {
-               continue;
-            }
-            try (mesh) {
-               MeshData.DrawState state = mesh.drawState();
-               ByteBuffer indices = mesh.indexBuffer();
-               if (state.indexCount() <= 0 || state.indexType() == null || indices == null) {
-                  continue;
-               }
-               GpuBuffer vertexBuffer = device.createBuffer(() -> "vesence/" + layer + "/vertices",
-                     GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST, mesh.vertexBuffer());
-               GpuBuffer indexBuffer = null;
-               try {
-                  indexBuffer = device.createBuffer(() -> "vesence/" + layer + "/indices",
-                        GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_COPY_DST, indices);
-                  PreparedRenderType prepared = layer.prepare();
-                  prepared.drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(
-                        vertexBuffer, indexBuffer, state.indexType(), 0, 0,
-                        state.indexCount(), state.primitiveTopology()), pass);
-               } finally {
-                  vertexBuffer.close();
-                  if (indexBuffer != null) {
-                     indexBuffer.close();
-                  }
-               }
-            }
-         }
-      } finally {
-         this.reset();
-      }
+      ensureShared();
+      buffers.draw(target);
    }
 
-   /** Сбрасывает все буферы (после draw или при выключении модуля). */
+   /** Сбрасывает накопленное, ничего не рисуя. */
    public void reset() {
-      for (ByteBufferBuilder allocator : this.allocators.values()) {
-         allocator.close();
-      }
-      this.allocators.clear();
-      this.builders.clear();
+      ensureShared();
+      buffers.discard();
    }
 
    @Override

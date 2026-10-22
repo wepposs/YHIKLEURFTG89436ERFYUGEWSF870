@@ -13,13 +13,18 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 @Environment(EnvType.CLIENT)
 public class WorldRenderer {
     private static final int DEFAULT_BUFFER_CAPACITY_BYTES = 262144;
+
+    /** Диагностика отправки: печатает, сколько слоёв реально ушло на GPU. */
+    static final boolean SUBMIT_DEBUG = System.getenv("VESENCE_RENDERDEBUG") != null;
     private final Camera camera;
     private final PoseStack matrixStack;
     private final Matrix4f positionMatrix;
@@ -214,6 +219,16 @@ public class WorldRenderer {
         }
 
         /**
+         * Выбрасывает накопленную геометрию, ничего не рисуя.
+         *
+         * <p>Нужно модулям, которые сбрасывают батчер при выключении: рисовать в
+         * этот момент уже нельзя — слои принадлежат прошлому кадру.
+         */
+        public void discard() {
+            this.closeMeshes();
+        }
+
+        /**
          * Ставит отправку накопленной геометрии в очередь пост-GUI прохода.
          * Меши строятся позже, поэтому в буферы нельзя добавлять вершины между
          * вызовом draw() и концом кадра.
@@ -227,10 +242,44 @@ public class WorldRenderer {
         }
 
         /**
+         * Отправляет накопленное и вызывает {@code afterSubmit} уже после отправки.
+         *
+         * <p>Обратный вызов нужен общему батчеру, чтобы снять флаг «отправка уже
+         * поставлена»: сделать это раньше нельзя, иначе следующий кадр начнёт
+         * писать в буферы, которые ещё не выгружены.
+         */
+        public void drawAndReset(Runnable afterSubmit) {
+            drawAndReset(null, afterSubmit);
+        }
+
+        /** То же, но с явным целевым таргетом. */
+        public void drawAndReset(com.mojang.blaze3d.pipeline.RenderTarget target, Runnable afterSubmit) {
+            if (this.buffers.isEmpty()) {
+                if (afterSubmit != null) {
+                    afterSubmit.run();
+                }
+                return;
+            }
+            final com.mojang.blaze3d.pipeline.RenderTarget renderTarget = target;
+            vesence.Vesence.deferOverlay(() -> {
+                try {
+                    this.submitNow(renderTarget);
+                } finally {
+                    if (afterSubmit != null) {
+                        afterSubmit.run();
+                    }
+                }
+            });
+        }
+
+        /**
          * Собственно отправка на GPU. Выполняется в пост-GUI проходе, когда кадровый
          * граф уже не кодируется — создавать здесь RenderPass безопасно.
          */
         private void submitNow(com.mojang.blaze3d.pipeline.RenderTarget target) {
+            if (SUBMIT_DEBUG) {
+                System.out.println("[render] submitNow entered, buffers=" + this.buffers.size());
+            }
             if (this.buffers.isEmpty()) {
                 return;
             }
@@ -248,49 +297,121 @@ public class WorldRenderer {
             com.mojang.renderpearl.api.device.GpuDevice device =
                     com.mojang.blaze3d.systems.RenderSystem.getDevice();
             com.mojang.renderpearl.api.commands.CommandEncoder encoder = device.createCommandEncoder();
+            int layers = 0;
+            int verts = 0;
+
+            // Подготовка слоёв выполняется ДО открытия прохода. `prepare()`
+            // подгружает текстуры и пишет юниформы — обе операции сами заводят
+            // команды на устройстве, а внутри уже открытого прохода это
+            // запрещено: движок отвечает ReportedException «Uploading texture»,
+            // и задача отрисовки падает целиком.
+            List<PreparedLayer> prepared = new ArrayList<>();
+            for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
+                RenderType layer = entry.getKey();
+                MeshData mesh = entry.getValue().build();
+                if (mesh == null) {
+                    continue;
+                }
+                MeshData.DrawState state = mesh.drawState();
+                int indexCount = state.indexCount();
+                if (indexCount <= 0 || state.vertexCount() <= 0) {
+                    mesh.close();
+                    continue;
+                }
+
+                // Индексный буфер есть только у сортированной геометрии. У обычной
+                // его НЕТ — и это норма, а не ошибка: индексы подставляет
+                // последовательный буфер движка (0,1,2,3,…). Раньше здесь стояла
+                // проверка `indices == null → пропустить`, и она отбрасывала
+                // вообще все слои: ни один эффект мода не доходил до экрана.
+                java.nio.ByteBuffer indices = mesh.indexBuffer();
+                com.mojang.renderpearl.api.pipeline.IndexType indexType = state.indexType();
+                if (indices == null) {
+                    com.mojang.blaze3d.systems.RenderSystem.AutoStorageIndexBuffer auto =
+                            com.mojang.blaze3d.systems.RenderSystem
+                                    .getSequentialBuffer(state.primitiveTopology());
+                    // Именно getBuffer(count), а не requestIndexCount: второй только
+                    // запоминает размер, а сам буфер остаётся null до конца кадра.
+                    // Без этого вызова проход падал с NPE на indexBuffer.
+                    auto.getBuffer(indexCount);
+                    indexType = auto.type();
+                }
+                if (indexType == null) {
+                    mesh.close();
+                    continue;
+                }
+
+                com.mojang.renderpearl.api.buffers.GpuBuffer vertexBuffer = device.createBuffer(
+                        () -> "vesence/world/vertices",
+                        com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_VERTEX
+                                | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
+                        mesh.vertexBuffer());
+                com.mojang.renderpearl.api.buffers.GpuBuffer indexBuffer = null;
+                if (indices != null) {
+                    indexBuffer = device.createBuffer(
+                            () -> "vesence/world/indices",
+                            com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_INDEX
+                                    | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
+                            indices);
+                }
+                mesh.close();
+
+                net.minecraft.client.renderer.rendertype.PreparedRenderType type;
+                try {
+                    type = layer.prepare();
+                } catch (Throwable t) {
+                    vertexBuffer.close();
+                    if (indexBuffer != null) {
+                        indexBuffer.close();
+                    }
+                    if (SUBMIT_DEBUG) {
+                        System.out.println("[render] prepare failed for " + layer + ": " + t);
+                    }
+                    continue;
+                }
+
+                prepared.add(new PreparedLayer(type,
+                        new net.minecraft.client.renderer.StagedVertexBuffer.ExecuteInfo(
+                                vertexBuffer, indexBuffer, indexType, 0, 0,
+                                indexCount, state.primitiveTopology()),
+                        vertexBuffer, indexBuffer));
+            }
+
+            if (prepared.isEmpty()) {
+                this.buffers.clear();
+                return;
+            }
+
             try (com.mojang.renderpearl.api.commands.RenderPass pass = encoder.createRenderPass(
                     () -> "vesence world",
                     target.getColorTextureView(), java.util.Optional.empty(),
                     target.getDepthTextureView(), java.util.OptionalDouble.empty())) {
-                for (Map.Entry<RenderType, BufferBuilder> entry : this.buffers.entrySet()) {
-                    RenderType layer = entry.getKey();
-                    MeshData mesh = entry.getValue().build();
-                    if (mesh == null) {
-                        continue;
-                    }
-                    try (mesh) {
-                        MeshData.DrawState state = mesh.drawState();
-                        java.nio.ByteBuffer indices = mesh.indexBuffer();
-                        if (state.indexCount() <= 0 || state.indexType() == null || indices == null) {
-                            continue;
-                        }
-                        com.mojang.renderpearl.api.buffers.GpuBuffer vertexBuffer = device.createBuffer(
-                                () -> "vesence/world/vertices",
-                                com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_VERTEX
-                                        | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
-                                mesh.vertexBuffer());
-                        com.mojang.renderpearl.api.buffers.GpuBuffer indexBuffer = null;
-                        try {
-                            indexBuffer = device.createBuffer(
-                                    () -> "vesence/world/indices",
-                                    com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_INDEX
-                                            | com.mojang.renderpearl.api.buffers.GpuBuffer.USAGE_COPY_DST,
-                                    indices);
-                            net.minecraft.client.renderer.rendertype.PreparedRenderType prepared = layer.prepare();
-                            prepared.drawFromBuffer(new net.minecraft.client.renderer.StagedVertexBuffer.ExecuteInfo(
-                                    vertexBuffer, indexBuffer, state.indexType(), 0, 0,
-                                    state.indexCount(), state.primitiveTopology()), pass);
-                        } finally {
-                            vertexBuffer.close();
-                            if (indexBuffer != null) {
-                                indexBuffer.close();
-                            }
-                        }
-                    }
+                for (PreparedLayer entry : prepared) {
+                    entry.type().drawFromBuffer(entry.info(), pass);
+                    layers++;
+                    verts += entry.info().indexCount();
                 }
             } finally {
+                for (PreparedLayer entry : prepared) {
+                    entry.vertexBuffer().close();
+                    if (entry.indexBuffer() != null) {
+                        entry.indexBuffer().close();
+                    }
+                }
                 this.buffers.clear();
             }
+            if (WorldRenderer.SUBMIT_DEBUG) {
+                System.out.println("[render] submit layers=" + layers + " indices=" + verts
+                        + " target=" + (target != null));
+            }
+        }
+
+        /** Готовый к отрисовке слой: подготовленный тип, его буферы и параметры вызова. */
+        private record PreparedLayer(
+                net.minecraft.client.renderer.rendertype.PreparedRenderType type,
+                net.minecraft.client.renderer.StagedVertexBuffer.ExecuteInfo info,
+                com.mojang.renderpearl.api.buffers.GpuBuffer vertexBuffer,
+                com.mojang.renderpearl.api.buffers.GpuBuffer indexBuffer) {
         }
 
         /** Освобождает собранные mesh'и, ничего не рисуя. */
