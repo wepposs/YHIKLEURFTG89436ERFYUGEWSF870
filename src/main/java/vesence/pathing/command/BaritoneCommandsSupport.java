@@ -8,8 +8,8 @@ import vesence.pathing.VesenceBaritone;
 /**
  * Мелкие общие действия команд Baritone.
  *
- * <p>Вынесено отдельно, чтобы каждая команда не повторяла одно и то же: включить
- * модуль, если он выключен, и сообщить, куда идём.
+ * <p>Вынесено отдельно, чтобы каждая команда не повторяла одно и то же:
+ * убедиться, что движок включён, и сообщить, куда идём.
  */
 @Environment(EnvType.CLIENT)
 public final class BaritoneCommandsSupport {
@@ -18,23 +18,19 @@ public final class BaritoneCommandsSupport {
     }
 
     /**
-     * Включает модуль Baritone, если он выключен.
+     * Включает движок, если он выключен.
      *
      * <p>Без этого команда молча ничего бы не делала: движок отключён — значит
      * тик не идёт, значит цель никто не обрабатывает. Игрок бы решил, что
      * команда сломана.
      */
-    public static void enableModule() {
-        var module = vesence.Vesence.get.getManager()
-                .get(vesence.module.impl.movement.Baritone.class);
-        if (module != null && !module.enable) {
-            module.toggle();
-        }
+    public static void enableEngine() {
+        VesenceBaritone.get().setEnabled(true);
     }
 
     /** Сообщает, куда идём, и запускает путь. */
     public static void startPath(BaritoneCommandContext ctx, BlockPos target) {
-        enableModule();
+        enableEngine();
         VesenceBaritone.get().setGoalAndPath(target);
         ctx.success("иду в " + target.getX() + " " + target.getY() + " " + target.getZ());
     }

@@ -384,6 +384,9 @@ public class Vesence implements ClientModInitializer {
         EventManager.register(vesence.utils.waypoint.WaypointManager.getInstance());
         EventManager.register(vesence.utils.waypoint.EventWaypointStorage.getInstance());
         vesence.overlay.OverlayModule.init();
+        // Baritone — встроенная часть клиента, а не модуль: подключаем движок
+        // к событиям напрямую, без записи в списке модулей.
+        vesence.pathing.VesenceBaritone.get().init();
         GuiClient.registerEventHandlers();
         vesence.ui.MainScreen.registerEventHandler();
         EventManager.register(this);

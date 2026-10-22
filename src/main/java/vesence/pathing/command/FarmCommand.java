@@ -52,7 +52,7 @@ public final class FarmCommand implements BaritoneCommand {
         }
         radius = Math.max(2, Math.min(48, radius));
 
-        BaritoneCommandsSupport.enableModule();
+        BaritoneCommandsSupport.enableEngine();
         VesenceBaritone.get().setProcess(new FarmProcess(radius));
         ctx.success("собираю урожай в радиусе " + radius);
     }

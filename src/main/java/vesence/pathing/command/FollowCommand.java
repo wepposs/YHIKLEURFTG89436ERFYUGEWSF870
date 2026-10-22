@@ -46,7 +46,7 @@ public final class FollowCommand implements BaritoneCommand {
             throw new BaritoneCommandException("не указан ник");
         }
 
-        BaritoneCommandsSupport.enableModule();
+        BaritoneCommandsSupport.enableEngine();
         VesenceBaritone.get().setProcess(new FollowProcess(parts[0]));
         ctx.success("иду за " + parts[0]);
     }

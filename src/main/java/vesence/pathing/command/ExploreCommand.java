@@ -41,7 +41,7 @@ public final class ExploreCommand implements BaritoneCommand {
             throw new BaritoneCommandException("нужно быть в мире");
         }
 
-        BaritoneCommandsSupport.enableModule();
+        BaritoneCommandsSupport.enableEngine();
         VesenceBaritone.get().setProcess(new ExploreProcess());
         ctx.success("исследую мир, #stop чтобы остановить");
     }

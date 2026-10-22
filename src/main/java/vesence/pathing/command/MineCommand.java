@@ -62,7 +62,7 @@ public final class MineCommand implements BaritoneCommand {
         }
         radius = Math.max(2, Math.min(48, radius));
 
-        BaritoneCommandsSupport.enableModule();
+        BaritoneCommandsSupport.enableEngine();
         VesenceBaritone.get().setProcess(new MineProcess(block, parts[0], radius));
         ctx.success("добываю " + parts[0] + " в радиусе " + radius);
     }

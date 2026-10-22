@@ -34,7 +34,6 @@ public class ModuleManager {
       // =========================
 
       this.module.add(new vesence.module.impl.movement.AutoSprint());
-      this.module.add(new vesence.module.impl.movement.Baritone());
       this.module.add(new NoSlow());
       this.module.add(new Speed());
       this.module.add(new Jesus());
@@ -169,7 +168,6 @@ public class ModuleManager {
       this.module.add(new NoInteract());
       this.module.add(new NoPush());
       this.module.add(new FreeCamera());
-      this.module.add(new AirStuck());
       this.module.add(new AutoPotion());
       this.module.add(new AutoTroll());
 

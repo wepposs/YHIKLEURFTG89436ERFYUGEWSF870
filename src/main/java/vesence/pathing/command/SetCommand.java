@@ -58,15 +58,8 @@ public final class SetCommand implements BaritoneCommand {
                 ctx.success("макс. падение: " + engine.getMaxFall());
             }
             case "showpath", "path" -> {
-                // Линия пути живёт в модуле, а не в движке: это отрисовка, а не
-                // поведение. Поэтому правим настройку модуля напрямую.
-                var module = vesence.Vesence.get.getManager()
-                        .get(vesence.module.impl.movement.Baritone.class);
-                if (module == null) {
-                    throw new BaritoneCommandException("модуль Baritone не найден");
-                }
                 boolean on = parseBool(value);
-                module.showPath.set(on);
+                engine.setShowPath(on);
                 ctx.success("линия пути: " + (on ? "вкл" : "выкл"));
             }
             default -> throw new BaritoneCommandException("нет такой настройки: " + key);

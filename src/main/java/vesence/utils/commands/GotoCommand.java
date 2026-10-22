@@ -101,12 +101,9 @@ public final class GotoCommand implements Command {
             throw new CommandException("Не число: " + raw);
         }
 
-        // Модуль включает сам себя — иначе команда молча ничего не делала бы.
-        vesence.module.impl.movement.Baritone module =
-                vesence.Vesence.get.getManager().get(vesence.module.impl.movement.Baritone.class);
-        if (module != null && !module.enable) {
-            module.toggle();
-        }
+        // Движок встроенный: включаем его напрямую, иначе команда молча ничего
+        // не делала бы — тик идёт только у включённого движка.
+        VesenceBaritone.get().setEnabled(true);
 
         VesenceBaritone.get().setGoalAndPath(
                 new vesence.pathing.goal.GoalNear(target, 2));

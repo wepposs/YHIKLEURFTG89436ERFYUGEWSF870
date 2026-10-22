@@ -4,7 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import vesence.event.EventInit;
+import vesence.event.EventManager;
+import vesence.event.impl.EventUpdate;
 import vesence.event.player.EventInput;
+import vesence.event.player.EventRotation;
+import vesence.event.render.EventRender3D;
 import vesence.pathing.goal.Goal;
 import vesence.pathing.goal.GoalNear;
 import vesence.pathing.goal.GoalXZ;
@@ -112,6 +117,7 @@ public final class VesenceBaritone {
 
     private boolean enabled = true;
     private boolean allowSprint = true;
+    private boolean showPath = true;
     private int maxFall = 3;
     private int maxNodes = 120_000;
 
@@ -195,6 +201,20 @@ public final class VesenceBaritone {
         return INSTANCE;
     }
 
+    /**
+     * Подключает движок к событиям клиента.
+     *
+     * <p>Baritone — встроенная часть чита, а не модуль: у него нет выключателя в
+     * меню и нет строки в конфиге. Команды и тесты дёргают его напрямую, тик идёт
+     * от {@code EventUpdate}, ввод — от {@code EventInput}.
+     */
+    public void init() {
+        // Пайплайн линии пути регистрируется на старте: при первом кадре это
+        // происходит слишком поздно, и линия не появляется.
+        PathRenderer.init();
+        EventManager.register(this);
+    }
+
     // ── Настройки ─────────────────────────────────────────────────────────────
 
     public void setEnabled(boolean enabled) {
@@ -226,6 +246,15 @@ public final class VesenceBaritone {
 
     public void setMaxNodes(int maxNodes) {
         this.maxNodes = Math.max(5_000, maxNodes);
+    }
+
+    /** Рисовать ли линию маршрута и подсвеченный блок цели. */
+    public boolean isShowPath() {
+        return this.showPath;
+    }
+
+    public void setShowPath(boolean showPath) {
+        this.showPath = showPath;
     }
 
     // ── Запросы пути ──────────────────────────────────────────────────────────
@@ -988,5 +1017,70 @@ public final class VesenceBaritone {
         this.executor.setSprintAllowed(this.allowSprint);
         this.executor.apply(event);
         return true;
+    }
+
+    /** Тик движка от клиентского тика. */
+    @EventInit
+    public void onUpdate(EventUpdate event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) {
+            return;
+        }
+        this.tick();
+    }
+
+    /** Правка ввода: движок забирает управление движением, когда ведёт игрока. */
+    @EventInit
+    public void onInputEvent(EventInput event) {
+        this.onInput(event);
+    }
+
+    /**
+     * Поворот головы на КАЖДОМ кадре, а не на тике.
+     *
+     * <p>Тик идёт 20 раз в секунду, кадров бывает 144. Поворот только на тике
+     * давал ступеньки по 15–20°, и это выглядело как робот, дёргающий головой.
+     */
+    @EventInit
+    public void onRotation(EventRotation event) {
+        if (!this.enabled || !this.hasPath()) {
+            return;
+        }
+        this.executor.applyCameraRotation(event);
+    }
+
+    /**
+     * Линия пути: ломаная по оставшимся узлам плюс подсвеченный блок цели.
+     *
+     * <p>Рисуется только оставшаяся часть маршрута — пройденное мешает.
+     */
+    @EventInit
+    public void onRender3D(EventRender3D event) {
+        if (!this.showPath) {
+            return;
+        }
+        Path path = this.currentPath();
+        if (path == null) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            return;
+        }
+
+        List<PathNode> nodes = path.remaining();
+        if (nodes.isEmpty()) {
+            return;
+        }
+
+        // Блок цели берём у цели, а не у последнего узла: последний узел — конец
+        // текущего отрезка, и на длинных переходах он стоит далеко от того места,
+        // куда игрок на самом деле идёт.
+        BlockPos goalAt = null;
+        Goal goal = this.goal;
+        if (goal != null) {
+            goalAt = goal.anchor();
+        }
+        PathRenderer.draw(event.getMatrixStack(), event.getCameraPos(), nodes, goalAt);
     }
 }

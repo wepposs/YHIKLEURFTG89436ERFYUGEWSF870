@@ -181,11 +181,7 @@ public final class DigTest {
     }
 
     private static void enableModule() {
-        var module = vesence.Vesence.get.getManager()
-                .get(vesence.module.impl.movement.Baritone.class);
-        if (module != null && !module.enable) {
-            module.toggle();
-        }
+        VesenceBaritone.get().setEnabled(true);
     }
 
     /**

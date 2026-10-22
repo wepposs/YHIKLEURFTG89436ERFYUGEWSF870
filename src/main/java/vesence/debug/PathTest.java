@@ -454,11 +454,7 @@ public final class PathTest {
         arrivalTicks = -1;
         walkTicks = 0;
 
-        var module = vesence.Vesence.get.getManager()
-                .get(vesence.module.impl.movement.Baritone.class);
-        if (module != null && !module.enable) {
-            module.toggle();
-        }
+        VesenceBaritone.get().setEnabled(true);
 
         // Идём ровно тем же путём, что и игрок из чата: `.goto x y z`.
         // Если тест зовёт внутренний API напрямую, он проверяет не то, чем
