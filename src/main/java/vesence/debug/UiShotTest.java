@@ -53,6 +53,7 @@ public final class UiShotTest {
     private static int shots = 0;
     private static boolean finished = false;
     private static boolean guiOpened = false;
+    private static boolean searchTested = false;
     private static boolean backupSkipped = false;
     private static int autoConfirms = 0;
 

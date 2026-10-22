@@ -9,6 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.AttackAura;
+import vesence.module.impl.combat.rotation.UShardRotation;
 
 /**
  * Автотест киллауры. Включается {@code VESENCE_AURATEST=1}.
@@ -39,6 +40,17 @@ public final class AuraTest {
     private static boolean hasLast;
     private static float maxFrameYaw;
     private static int frames;
+
+    // Замер шага ротации по тикам: античит смотрит на разгон шага, поэтому
+    // тест обязан мерить не только «попал или нет», но и как менялся шаг.
+    private static float prevTickYaw;
+    private static boolean hasTickYaw;
+    private static float prevStep;
+    private static boolean hasStep;
+    private static float maxStep;
+    private static float maxAccel;
+    private static int reversals;
+    private static int stepTicks;
 
     private AuraTest() {
     }
@@ -124,8 +136,15 @@ public final class AuraTest {
             if (!aura.enable) {
                 aura.toggle();
             }
+            // Режим ротации можно задать снаружи: так тест меряет именно тот
+            // профиль, который проверяют, а не тот, что остался в конфиге.
+            String mode = System.getenv("VESENCE_AURAMODE");
+            if (mode != null && !mode.isBlank()) {
+                AttackAura.rotationType.currentMode = mode;
+            }
             System.out.println("[auratest] зомби создан в " + fmt(pos)
                     + " здоровье=" + startHealth + " аура=" + aura.enable
+                    + " ротация=" + AttackAura.rotationType.get()
                     + " оружие=" + (mc.player == null ? "?"
                     : mc.player.getMainHandItem().getItem().toString()));
             phase = 1;
@@ -139,12 +158,18 @@ public final class AuraTest {
                 finish(mc);
                 return;
             }
+
+            trackStep(mc);
+
             if (ticks % 20 == 0) {
                 System.out.println("[auratest] t=" + ticks
                         + " hp=" + String.format("%.1f", dummy.getHealth())
                         + " dist=" + String.format("%.2f", mc.player.distanceTo(dummy))
                         + " yaw=" + String.format("%.1f", mc.player.getYRot())
                         + " pitch=" + String.format("%.1f", mc.player.getXRot())
+                        + " остаток=" + String.format("%.1f", UShardRotation.residual())
+                        + " maxStep=" + String.format("%.1f", maxStep)
+                        + " maxAccel=" + String.format("%.1f", maxAccel)
                         + " maxFrameYaw=" + String.format("%.1f", maxFrameYaw));
             }
             if (dummy.getHealth() < startHealth) {
@@ -161,9 +186,46 @@ public final class AuraTest {
         }
     }
 
+    /**
+     * Замер шага ротации по тикам.
+     *
+     * <p>Меряется не только величина шага, но и его прирост: античит ловит не
+     * размер доворота, а отсутствие разгона. Прирост шага за тик выше
+     * {@code ACCEL_YAW} означает мгновенный доворот и провал проверки.
+     */
+    private static void trackStep(Minecraft mc) {
+        float yaw = mc.player.getYRot();
+        if (hasTickYaw) {
+            float step = net.minecraft.util.Mth.wrapDegrees(yaw - prevTickYaw);
+            float abs = Math.abs(step);
+            if (abs > maxStep) {
+                maxStep = abs;
+            }
+            if (hasStep) {
+                float accel = abs - Math.abs(prevStep);
+                if (accel > maxAccel) {
+                    maxAccel = accel;
+                }
+                if (step != 0.0F && prevStep != 0.0F
+                        && Math.signum(step) != Math.signum(prevStep)) {
+                    reversals++;
+                }
+            }
+            prevStep = step;
+            hasStep = true;
+            stepTicks++;
+        }
+        prevTickYaw = yaw;
+        hasTickYaw = true;
+    }
+
     private static void finish(Minecraft mc) {
         System.out.println("[auratest] камера: maxFrameYaw="
                 + String.format("%.1f", maxFrameYaw) + " deg, кадров=" + frames);
+        System.out.println("[auratest] шаг ротации: maxStep="
+                + String.format("%.2f", maxStep) + " maxAccel="
+                + String.format("%.2f", maxAccel) + " разворотов=" + reversals
+                + " тиков=" + stepTicks);
         if (dummy != null) {
             dummy.discard();
             dummy = null;

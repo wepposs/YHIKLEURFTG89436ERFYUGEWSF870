@@ -58,6 +58,7 @@ import vesence.module.impl.combat.rotation.UCakeWorldRotation;
 import vesence.module.impl.combat.rotation.UHolyWorldNewRotation;
 import vesence.module.impl.combat.rotation.UMatrixRotation;
 import vesence.module.impl.combat.rotation.UHvHRotation;
+import vesence.module.impl.combat.rotation.UShardRotation;
 import vesence.module.impl.combat.rotation.USlothRotation;
 import vesence.module.impl.combat.rotation.URotationMath;
 import vesence.module.impl.combat.neuro.*;
@@ -92,7 +93,7 @@ public class AttackAura extends Module {
             "Spooky", "FTNew", "FunTest", "RWNew", "CakeWorld", "HWNew",
             "HolyNew", "MatrixNew", "HvH", "SlothNew", "Legit",
             "AresFT", "Neuro", "Fast",
-            "LonyGrief", "Vulcan", "ML", "Snap", "AimAssist");
+            "LonyGrief", "Vulcan", "Shard", "ML", "Snap", "AimAssist");
 
 
     // ── Neuro ─────────────────────────────────────────────────────────────────
@@ -400,6 +401,7 @@ public class AttackAura extends Module {
             case "MatrixNew":  UMatrixRotation.smoothBack();  break;
             case "HvH":       UHvHRotation.smoothBack();       break;
             case "SlothNew":   USlothRotation.smoothBack();   break;
+            case "Shard":      UShardRotation.smoothBack();   break;
             case "FunTest":      UFunTestRotation.smoothBack(); break;
             default: break;
         }
@@ -517,6 +519,7 @@ public class AttackAura extends Module {
         UMatrixRotation.state();
         UHvHRotation.state();
         USlothRotation.state();
+        UShardRotation.state();
         // НЕ рвём ротацию в IDLE и НЕ выключаем FreeLook сразу: видимая камера
         // в этот момент на freeYaw, а реальный yaw смотрит на цель — мгновенный
         // сброс и даёт тот самый резкий доворот на противника. Переводим движок
@@ -974,6 +977,18 @@ public class AttackAura extends Module {
             return false;
         }
 
+        // Shard: бьём только когда прицел уже сошёлся с целью.
+        //
+        // Проверка направления удара — самая дешёвая для античита: пакет атаки
+        // несёт угол, и если он расходится с направлением на цель, ничего
+        // доказывать не нужно. Поэтому удар ждёт доводки, а не наоборот:
+        // профиль публикует остаток, и пока он больше допуска, гейт закрыт.
+        if ("Shard".equals(rotationType.get()) && !UShardRotation.isSettled()) {
+            gateReason("прицел не на цели, остаток "
+                    + String.format("%.1f", UShardRotation.residual()) + "°");
+            return false;
+        }
+
         long offset = resolveEarlyHitOffset();
         float[] ranges = getRanges();
 
@@ -1059,6 +1074,12 @@ public class AttackAura extends Module {
                 break;
             case "SlothNew":
                 USlothRotation.rotation(target, canAttack, attackRange.get().floatValue(), preRange.get().floatValue());
+                break;
+            case "Shard":
+                // Профиль под Shard: ограниченный разгон, пауза после удара и
+                // запрет удара до того, как прицел сошёлся с целью.
+                UShardRotation.rotation(target, canAttack, attackRange.get().floatValue(),
+                        preRange.get().floatValue());
                 break;
             case "Neuro":
                 neuroMode.updateRotation(this, target);
