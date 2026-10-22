@@ -19,6 +19,9 @@ import org.lwjgl.opengl.GL30;
 public final class MainTargetBinder {
     private static int sharedFbo;
     private static int attachedTexture = -1;
+    // FBO, который был привязан ДО begin() — его надо вернуть в end(), иначе
+    // renderpearl продолжит рисовать в дефолтный/сломанный таргет и сцена станет чёрной.
+    private static int prevBoundFbo = 0;
 
     private MainTargetBinder() {
     }
@@ -29,12 +32,13 @@ public final class MainTargetBinder {
      * @return id FBO (0 — привязать не удалось, рисовать нельзя)
      */
     public static int begin() {
+        prevBoundFbo = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
         Minecraft client = Minecraft.getInstance();
         RenderTarget mainTarget = client == null || client.gameRenderer == null
                 ? null
                 : client.gameRenderer.mainRenderTarget();
         if (mainTarget == null || !(mainTarget.getColorTexture() instanceof GlTexture glColor)) {
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevBoundFbo);
             return 0;
         }
 
@@ -59,7 +63,7 @@ public final class MainTargetBinder {
         }
         if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER) != GL30.GL_FRAMEBUFFER_COMPLETE) {
             attachedTexture = -1;
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevBoundFbo);
             return 0;
         }
         return sharedFbo;
@@ -69,9 +73,10 @@ public final class MainTargetBinder {
     public static void invalidate() {
         sharedFbo = 0;
         attachedTexture = -1;
+        prevBoundFbo = 0;
     }
 
-    /** Отвязывает текстуру и возвращает биндинг FBO в состояние «по умолчанию». */
+    /** Отвязывает текстуру и восстанавливает FBO, который был привязан до begin(). */
     public static void end(int fbo) {
         if (fbo != 0) {
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
@@ -79,6 +84,6 @@ public final class MainTargetBinder {
                     GL11.GL_TEXTURE_2D, 0, 0);
             attachedTexture = -1;
         }
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prevBoundFbo);
     }
 }

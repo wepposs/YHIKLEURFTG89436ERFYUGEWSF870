@@ -131,6 +131,10 @@ public class Vesence implements ClientModInitializer {
      * поэтому рисунок не затирается, а ванильный GUI ложится сверху — как в 1.21.11.
      */
     public static void onPreGuiRender() {
+        if (System.getenv("VESENCE_DISABLE_HUD") != null) { // диагностика: сцена без HUD-оверлея
+            hudTasks.clear();
+            return;
+        }
         if (!modInitialized) {
             hudTasks.clear();
             return;
@@ -441,7 +445,6 @@ public class Vesence implements ClientModInitializer {
     public static void onRender() {
         vesence.utils.debug.FreezeWatchdog.beat("render");
         GlContextManager.onRenderFrame();
-        if (System.getenv("VESENCE_DISABLE_HUD") != null) return; // диагностика порта 26.3
         if (modInitialized) {
             long frameSection = vesence.utils.debug.FreezeWatchdog.sectionEnter("render.frame");
             GlState.Snapshot snapshot = GlState.push();
