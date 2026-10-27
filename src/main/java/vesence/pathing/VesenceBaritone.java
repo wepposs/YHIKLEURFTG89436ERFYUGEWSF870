@@ -1,9 +1,28 @@
 package vesence.pathing;
 
+import baritone.api.BaritoneAPI;
+import baritone.api.IBaritone;
+import baritone.api.Settings;
+import baritone.api.behavior.IPathingBehavior;
+import baritone.api.event.events.PathEvent;
+import baritone.api.event.listener.AbstractGameEventListener;
+import baritone.api.pathing.calc.IPath;
+import baritone.api.pathing.movement.IMovement;
+import baritone.api.pathing.path.IPathExecutor;
+import baritone.api.utils.BetterBlockPos;
+import baritone.pathing.movement.movements.MovementAscend;
+import baritone.pathing.movement.movements.MovementDescend;
+import baritone.pathing.movement.movements.MovementDiagonal;
+import baritone.pathing.movement.movements.MovementFall;
+import baritone.pathing.movement.movements.MovementPillar;
+import baritone.pathing.movement.movements.MovementTraverse;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import vesence.event.EventInit;
 import vesence.event.EventManager;
 import vesence.event.impl.EventUpdate;
@@ -11,216 +30,289 @@ import vesence.event.player.EventInput;
 import vesence.event.player.EventRotation;
 import vesence.event.render.EventRender3D;
 import vesence.pathing.goal.Goal;
+import vesence.pathing.goal.GoalBlock;
 import vesence.pathing.goal.GoalNear;
+import vesence.pathing.goal.GoalRunAway;
 import vesence.pathing.goal.GoalXZ;
 import vesence.pathing.process.BaritoneProcess;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Фасад движка ходьбы: то, чем пользуются модули и команды.
+ * Baritone для клиента: маршрут считает настоящий Baritone, ходит — Vesence.
  *
- * <p>Держит текущую цель, пошаговый поиск и исполнителя. Тик движка идёт из
- * {@code EventUpdate}, ввод правится из миксина клавиатуры до расчёта движения.
+ * <p>Разделение обязанностей, ради которого всё затевалось:
  *
- * <p>Жизненный цикл запроса:
- * <ol>
- *   <li>{@link #setGoalAndPath(Goal)} — цель принята, поиск создан;</li>
- *   <li>каждый тик {@link #tick()} раскрывает порцию узлов;</li>
- *   <li>путь найден → {@link PathExecutor} начинает вести игрока;</li>
- *   <li>путь пройден или застряли → пересчёт от текущей позиции.</li>
- * </ol>
+ * <ul>
+ *   <li><b>Мозг — настоящий Baritone</b> (библиотека v1.20.0, LGPL, ветка MC
+ *       26.3). Он ищет путь с учётом всего мира: где копать, где спуститься,
+ *       где обойти; его поиск доходит туда, куда домашний A* не доходил никогда.
+ *       Но ИСПОЛНЯТЬ маршрут ему не даём: как только путь посчитан
+ *       ({@code CALC_FINISHED_NOW_EXECUTING}), мы забираем его и гасим
+ *       исполнение Baritone в тот же тик — ни одного входа он записать не
+ *       успевает.</li>
+ *   <li><b>Ноги и голова — кастомное движение Vesence</b>
+ *       ({@link PathExecutor}): походка и прыжки пишутся в {@code EventInput},
+ *       голова доворачивается пружиной {@link RotationSmoother} покадрово в
+ *       {@code EventRotation} (и прямо пишет {@code player.setYRot} — сервер
+ *       видит ту же голову, что и глаз), копание — своим {@code applyDig} с
+ *       наводкой на центр блока и подбором инструмента. Это тот самый слой,
+ *       который клиент оттачивал пять кругов, — теперь он ходит по чужим
+ *       честным маршрутам.</li>
+ *   <li><b>Словарь движений сужен до того, что исполнитель умеет честно</b>:
+ *       ходьба, диагонали по плоскости, подкоп, подъём на блок, спуск,
+ *       падение до {@code maxFall}, вода. Паркур, установка блоков, водное
+ *       ведро и диагональные подъёмы выключены настройками — Baritone не
+ *       закладывает в маршрут то, что исполнитель не сможет пройти, и бот не
+ *       падает с чужих акробатических планов.</li>
+ *   <li><b>Обвязка — своя</b>: цели и команды (классы {@code vesence.pathing},
+ *       {@code #goto}, {@code #mine}), процессы ({@link BaritoneProcess}:
+ *       follow, mine, explore, farm), сообщения ({@link BaritoneMessages}),
+ *       визуал ({@link PathRenderer}: лента и метка). Чат, уведомления и
+ *       рендер Baritone выключены, чтобы в клиенте не было второй личности.</li>
+ * </ul>
+ *
+ * <p>Пересчёт на ходу: исполнитель сам просит новый маршрут
+ * ({@link PathExecutor#needsRepath()} — отклонился, упёрся, путь кончился, а
+ * цель нет), фасад снова дёргает Baritone, и пока тот считает, старые ноги
+ * продолжают идти — бот не замирает столбом между участками. Слепые пересчёты
+ * (не приближающие к цели) считаются; после {@value #MAX_BLIND_RETRIES} подряд
+ * — честный провал вместо вечного топтания.
+ *
+ * <p>Экземпляр Baritone создаётся его собственным миксином в клиент Minecraft,
+ * поэтому здесь он берётся лениво: {@link #baritone()} повторяет попытку каждый
+ * тик, пока не получит готовый экземпляр.
  */
 @Environment(EnvType.CLIENT)
 public final class VesenceBaritone {
 
     private static final VesenceBaritone INSTANCE = new VesenceBaritone();
 
-    /**
-     * Сколько узлов раскрываем за тик.
-     *
-     * <p>Прежде здесь было девятьсот, и это было ошибкой: маршрут на сотню
-     * блоков требовал шесть секунд поиска, из которых бот стоял на месте.
-     * Раскрытие узла — микросекунды (данные блоков кешируются), поэтому четыре
-     * тысячи за тик занимают около десяти миллисекунд и не роняют частоту тика,
-     * а поиск заканчивается вчетверо быстрее.
-     */
-    private static final int NODES_PER_TICK = 4_000;
-
-    /** Сколько раз подряд пересчитываем путь, прежде чем сдаться. */
-    private static final int MAX_REPATHS = 6;
-
-    /**
-     * Насколько близко к цели надо подойти, чтобы считать пересчёт не напрасным.
-     *
-     * <p>Меньше блока — и любой шаг засчитывался бы как прогресс, включая
-     * топтание на месте. Двух блоков хватает, чтобы отличить «реально иду» от
-     * «дёргаюсь».
-     */
-    private static final double PROGRESS_EPSILON = 2.0;
-
-    /** Сколько раз можно ослабить цель (блок → окрестность → только X/Z). */
-    private static final int MAX_RELAXATIONS = 3;
-
-    /**
-     * Радиус, в котором цель считается достигнутой, если путь уже закончился.
-     *
-     * <p>Исполнитель останавливается за {@code NODE_REACH} (0.8) до последнего
-     * узла, плюс запас на то, что узел мог быть пропущен сторожем. Двух блоков
-     * хватает с головой, и при этом это всё ещё «я стою у цели».
-     */
-    private static final double ARRIVAL_RADIUS = 2.5;
-
-    /**
-     * Длина одного перехода при движении к дальней цели «по частям».
-     *
-     * <p>Девяносто шесть блоков — заведомо внутри загруженной области при
-     * минимальной игровой дальности прорисовки (десять чанков — сто шестьдесят
-     * блоков). Кусок длиннее не построить: в его конце блоков уже нет, и поиск
-     * вернёт пустоту.
-     */
-    private static final double LEG_DISTANCE = 96.0;
-
-    /**
-     * После перехода ближе этого к цели обычный поиск уже справляется сам.
-     *
-     * <p>Раньше роль порога выполняла и длина перехода, и нижняя граница сразу,
-     * из-за чего последний переход выходил нулевой длины: маршрут строился в
-     * точку, где мы уже стоим, поиск «доводил» нас до неё же за тик, прибытие
-     * требовало следующий переход — бесконечный цикл со спамом в чат.
-     */
-    private static final double LEG_MIN_DISTANCE = 24.0;
-
-    /**
-     * С какого расстояния цель считается дальней.
-     *
-     * <p>Сто пятьдесят блоков — это почти вся загруженная область при
-     * минимальной дальности прорисовки. Цели ближе ищутся обычным поиском
-     * напрямую: в них переходы не нужны и только портят работу — на шестидесяти
-     * блоках бот дробил маршрут, зря стоял на пересчётах и заваливал чат.
-     */
-    private static final double FAR_GOAL_DISTANCE = 150.0;
-
-    /** Предел числа переходов: предохранитель от бесконечного «ещё чуть-чуть». */
-    private static final int MAX_LEGS = 400;
-
-    private final PathExecutor executor = new PathExecutor();
-
-    private Goal goal;
-    private PathFinder finder;
-    private int repaths;
-    private int relaxes;
-    private int ticksWithoutProgress;
-
-    /** Лучшее (наименьшее) расстояние до цели за текущий заход. */
-    private double bestGoalDistance = Double.MAX_VALUE;
-
-    private boolean enabled = true;
-    private boolean allowSprint = true;
-    private boolean showPath = true;
-    private int maxFall = 3;
-    private int maxNodes = 120_000;
-
-    /** Активный процесс поверх поиска пути (ферма, копание, следование). */
-    private BaritoneProcess process;
-
-    /** Пауза: цель и путь сохранены, но движение остановлено. */
-    private boolean paused;
-
-    /**
-     * Разрешено ли прорубать ход.
-     *
-     * <p>Включается только после того, как обычный поиск признал, что дороги
-     * нет. Держится до отмены: пересчёт маршрута посреди раскопа снова упёрся
-     * бы в ту же стену.
-     */
-    private boolean digging;
-
-    /**
-     * О раскопе уже сказали в чат.
-     *
-     * <p>Без флага получалось вот что: прокоп перестраивается watchdog'ом,
-     * сообщение «дороги нет, прорубаю ход» уходит в чат на каждой перестройке —
-     * и за секунду набирается седьмой повтор одного и того же.
-     */
-    private boolean digAnnounced;
-
-    /**
-     * Сколько раз подряд можно начать поиск заново, не сдвинувшись с места.
-     *
-     * <p>Нужен там, где не помог ни поиск, ни переход, ни прямой ход. Сдаваться
-     * сразу нельзя: за прошедшие тики игрок сдвинулся и чанки подгрузились, так
-     * что та же цель вполне может стать достижимой. Но и повторять вечно нельзя —
-     * это тихая остановка без объяснения.
-     */
-    private static final int MAX_BLIND_RETRIES = 6;
-
-    private int blindRetries;
-
-    /** Когда игрок последний раз реально приближался к цели. */
-    private long lastProgressAt = System.currentTimeMillis();
-
-    /**
-     * Предел времени на один расчёт маршрута, в тиках.
-     *
-     * <p>Три секунды. Дольше искать бессмысленно: за это время пешком можно
-     * пройти треть маршрута, а бот всё стоит и перебирает узлы.
-     */
-    private static final int SEARCH_MAX_TICKS = 60;
-
-    private int searchTicks;
-
-    /**
-     * Настоящая цель, когда идём к ней по частям.
-     *
-     * <p>Клиент видит мир только вокруг игрока — за пределами загруженных чанков
-     * блоков нет, и A* там честно разводит руками. Игрок в такой ситуации не
-     * сдаётся: он идёт в сторону цели, пока не подгрузится следующий участок.
-     * Здесь хранится конечная точка, а {@code goal} на время становится
-     * промежуточной.
-     */
-    private Goal realGoal;
-
-    /** Сколько шагов «по частям» уже сделано — предохранитель от вечного пути. */
-    private int legs;
-
-    /**
-     * Где мы стояли, когда промежуточный переход провалился.
-     *
-     * <p>Нужно, чтобы отличить «участок не выдержал рельефа, пробуем от нового
-     * места» от «стоим на месте, и следующий участок провалится точно так же».
-     * Без этого проверка уходила бы в цикл: провал → новый участок → провал, и
-     * так до предела переходов, с пересозданием кеша мира каждый раз.
-     */
-    private BlockPos lastLegFailPos;
-
-    private VesenceBaritone() {
-    }
-
     public static VesenceBaritone get() {
         return INSTANCE;
     }
 
+    private VesenceBaritone() {
+    }
+
+    // ── Константы ────────────────────────────────────────────────────────────
+
     /**
-     * Подключает движок к событиям клиента.
-     *
-     * <p>Baritone — встроенная часть чита, а не модуль: у него нет выключателя в
-     * меню и нет строки в конфиге. Команды и тесты дёргают его напрямую, тик идёт
-     * от {@code EventUpdate}, ввод — от {@code EventInput}.
+     * «Пришёл»: цель достигнута, если стоим в её пределах ИЛИ путь пройден до
+     * конца и до последнего узла не дальше этого. Строгая проверка цели часто
+     * не проходит из-за того, что исполнитель останавливается чуть раньше узла.
      */
+    private static final double ARRIVAL_RADIUS = 2.5;
+
+    /** Насколько ближе к цели должен привести пересчёт, чтобы считаться прогрессом. */
+    private static final double PROGRESS_EPSILON = 2.0;
+
+    /** Сколько слепых пересчётов подряд терпеть до честного провала. */
+    private static final int MAX_BLIND_RETRIES = 3;
+
+    // ── Состояние ────────────────────────────────────────────────────────────
+
+    /** Экземпляр Baritone. {@code null}, пока клиент не создан, — берём лениво. */
+    private IBaritone baritone;
+
+    /** Включён ли движок. Команды включают его сами перед запуском пути. */
+    private boolean enabled = true;
+
+    /** Рисовать ли ленту маршрута ({@code #set showpath}). */
+    private boolean showPath = true;
+
+    /** Бегать ли, когда можно ({@code #set sprint}). */
+    private boolean allowSprint = true;
+
+    /** Максимальная высота безопасного падения без воды. */
+    private int maxFall = 3;
+
+    /**
+     * Бюджет узлов поиска. Настоящему Baritone не нужен (он сам управляет
+     * своими лимитами), поле живо только ради совместимости {@code #set}.
+     */
+    private int maxNodes = 60_000;
+
+    /** Активный процесс (следовать, фармить, исследовать). Не более одного. */
+    private BaritoneProcess process;
+
+    /**
+     * Пауза: цель и путь помнятся, движение остановлено. Ноги просто не
+     * получают ввод (обработчики gated), голова не доворачивается — бот
+     * замирает там, где стоял, и продолжает с той же точки.
+     */
+    private boolean paused;
+
+    /** Цель Vesence — для описаний в чате, метки на земле и проверки прихода. */
+    private Goal goal;
+
+    /** Та же цель, переведённая на язык Baritone. Именно её он считает. */
+    private baritone.api.pathing.goals.Goal translatedGoal;
+
+    /**
+     * Цепочка ослаблений цели: когда строгая цель недостижима, пробуем
+     * следующую, прежде чем объявить провал. «Встань в блок» → «подойди
+     * вплотную» → «дойди до колонки».
+     */
+    private final ArrayDeque<Goal> goalChain = new ArrayDeque<>();
+
+    /**
+     * Baritone прямо сейчас считает маршрут по нашей цели.
+     *
+     * <p>События {@code CALC_FINISHED}/{@code CALC_FAILED}/{@code AT_GOAL} и
+     * кража пути сбрасывают флаг; тик по нему ловит потерю управления
+     * (смерть, внешний сброс) — иначе ждали бы путь вечно.
+     */
+    private boolean goalActive;
+
+    /**
+     * Ноги: исполнитель Vesence. Живой — по нему ходят отладочные стенды
+     * ({@code PathTest}, {@code DigTest}) и рисуется лента.
+     */
+    private final PathExecutor executor = new PathExecutor();
+
+    /** Подряд пересчётов, не приблизивших к цели; сбрасывается прогрессом. */
+    private int blindRetries;
+
+    /** Лучшее расстояние до цели за заход — прогресс меряется по нему. */
+    private double bestGoalDistance = Double.MAX_VALUE;
+
+    /** Лог живых ног уже напечатан — одна строка на сессию, без спама. */
+    private boolean legsAnnounced;
+
+    private int dbgTick;  //DBG
+    private int dbgInput; //DBG
+    private int dbgGate;  //DBG
+    private int dbgSquash;   //DBG
+    private int dbgCanceled; //DBG
+
+    /** Защита от рекурсии: setGoalAndPath может диспатчить события синхронно. */
+    private boolean inStealPath;
+
     public void init() {
-        // Пайплайн линии пути регистрируется на старте: при первом кадре это
-        // происходит слишком поздно, и линия не появляется.
         PathRenderer.init();
         EventManager.register(this);
     }
 
-    // ── Настройки ─────────────────────────────────────────────────────────────
+    // ── Доступ к Baritone ────────────────────────────────────────────────────
+
+    /**
+     * Экземпляр Baritone, лениво. Первую удачную попытку сопровождает
+     * регистрация слушателя событий и применение настроек.
+     *
+     * @return {@code null}, если клиент ещё не создан или Baritone не поднялся
+     */
+    private IBaritone baritone() {
+        if (this.baritone != null) {
+            return this.baritone;
+        }
+        IBaritone acquired;
+        try {
+            acquired = BaritoneAPI.getProvider().getPrimaryBaritone();
+        } catch (Throwable t) {
+            System.out.println("[baritone] движок недоступен: " + t);
+            return null;
+        }
+        if (acquired == null) {
+            return null;
+        }
+        this.baritone = acquired;
+        acquired.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
+            @Override
+            public void onPathEvent(PathEvent event) {
+                if (event != PathEvent.CANCELED || ++dbgCanceled % 100 == 1) { //DBG
+                    System.out.println("[dbg] pathEvent " + event + " goalActive=" + goalActive); //DBG
+                } //DBG
+                switch (event) {
+                    case CALC_FINISHED_NOW_EXECUTING -> {
+                        if (goalActive) {
+                            stealPath();
+                        } else {
+                            // Расчёт, которого мы не заказывали: не игнорируем
+                            // (Baritone исполнит его сам и украдёт ввод), а гасим.
+                            squashStray("чужой расчёт завершился");
+                        }
+                    }
+                    case AT_GOAL -> onArrived();
+                    case CALC_FAILED -> onSearchFailed();
+                    default -> { }
+                }
+            }
+        });
+        applySettings();
+        return acquired;
+    }
+
+    /**
+     * Настройки Baritone под связку «его мозг — наши ноги».
+     *
+     * <p>Главное здесь — словарь движений. Baritone умеет закладывать в
+     * маршрут паркур через пропасти, мосты из поставленных блоков, прыжки на
+     * столбах и падение с ведром воды; исполнитель Vesence ходит только
+     * честную ходьбу, копку, подъёмы-спуски на блок и падения до
+     * {@code maxFall}. Всё, что сверх этого, выключено: маршрут, который
+     * нельзя пройти ногами клиента, — это падение в пропасть на ровном месте.
+     *
+     * <p>Остальное: копать разрешено (ради этого мозг и ставили), чат и
+     * уведомления Baritone выключены (пишет только {@link BaritoneMessages}),
+     * его рендер выключен (рисует {@link PathRenderer}), античит-совместимость
+     * включена.
+     */
+    private void applySettings() {
+        Settings settings = BaritoneAPI.getSettings();
+
+        // Словарь движений — только то, что исполнитель проходит честно.
+        settings.allowBreak.value = true;
+        settings.allowPlace.value = false;
+        settings.allowSprint.value = this.allowSprint;
+        settings.allowParkour.value = false;
+        settings.allowParkourAscend.value = false;
+        settings.sprintAscends.value = false;
+        settings.allowDiagonalAscend.value = false;
+        settings.allowDiagonalDescend.value = false;
+        settings.allowDownward.value = true;
+        settings.allowWaterBucketFall.value = false;
+        settings.autoTool.value = true;
+        settings.allowInventory.value = false;
+        settings.antiCheatCompatibility.value = true;
+        settings.maxFallHeightNoWater.value = this.maxFall;
+
+        // Голова во время исполнения — наша (пружина исполнителя); Baritone
+        // до исполнения не доходит, но его сглаживание всё равно выключаем,
+        // чтобы ничего не конкурировало с кастомным движением.
+        settings.freeLook.value = false;
+        settings.smoothLook.value = false;
+
+        // Чат и уведомления — только наши.
+        settings.chatControl.value = false;
+        settings.chatDebug.value = false;
+        settings.echoCommands.value = false;
+        settings.logAsToast.value = false;
+        settings.desktopNotifications.value = false;
+        settings.notificationOnPathComplete.value = false;
+        settings.notificationOnExploreFinished.value = false;
+        settings.notificationOnFarmFail.value = false;
+        settings.notificationOnBuildFinished.value = false;
+        settings.notificationOnMineFail.value = false;
+
+        // Рендер Baritone — выключен, рисуем сами.
+        settings.renderPath.value = false;
+        settings.renderGoal.value = false;
+        settings.renderSelectionBoxes.value = false;
+        settings.renderCachedChunks.value = false;
+
+        // Цель протухла (блок сломали) — не бросать маршрут, а пересчитать.
+        settings.cancelOnGoalInvalidation.value = false;
+    }
+
+    // ── Настройки Vesence ────────────────────────────────────────────────────
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (!enabled) {
-            this.cancel();
+            cancelEverything();
         }
     }
 
@@ -230,6 +322,10 @@ public final class VesenceBaritone {
 
     public void setAllowSprint(boolean allowSprint) {
         this.allowSprint = allowSprint;
+        this.executor.setSprintAllowed(allowSprint);
+        if (this.baritone != null) {
+            BaritoneAPI.getSettings().allowSprint.value = allowSprint;
+        }
     }
 
     public boolean isAllowSprint() {
@@ -238,153 +334,206 @@ public final class VesenceBaritone {
 
     public void setMaxFall(int maxFall) {
         this.maxFall = Math.max(1, Math.min(8, maxFall));
+        if (this.baritone != null) {
+            BaritoneAPI.getSettings().maxFallHeightNoWater.value = this.maxFall;
+        }
     }
 
     public int getMaxFall() {
         return this.maxFall;
     }
 
+    /** Бюджет узлов собственного поиска; настоящим Baritone не используется. */
     public void setMaxNodes(int maxNodes) {
         this.maxNodes = Math.max(5_000, maxNodes);
     }
 
-    /** Рисовать ли линию маршрута и подсвеченный блок цели. */
-    public boolean isShowPath() {
-        return this.showPath;
+    public int getMaxNodes() {
+        return this.maxNodes;
     }
 
+    /** Рисовать ли ленту маршрута. */
     public void setShowPath(boolean showPath) {
         this.showPath = showPath;
     }
 
-    // ── Запросы пути ──────────────────────────────────────────────────────────
+    public boolean isShowPath() {
+        return this.showPath;
+    }
 
+    /**
+     * Живая голова ({@code #set look}): пружина исполнителя доворачивает
+     * взгляд ({@code #set look off} оставляет наведение только на копание —
+     * не выключено полностью, чтобы бот не перестал попадать по блокам).
+     */
+    private boolean lookSmoothing = true;
+
+    public void setLookSmoothing(boolean lookSmoothing) {
+        this.lookSmoothing = lookSmoothing;
+    }
+
+    public boolean isLookSmoothing() {
+        return this.lookSmoothing;
+    }
+
+    // ── Постановка цели ──────────────────────────────────────────────────────
+
+    /**
+     * «Дойди до этого блока».
+     *
+     * <p>Цепочка ослаблений: сначала подойти вплотную (радиус 2 — «дойди до
+     * блока» для игрока значит «встань рядом»), потом мягче (радиус 4), потом
+     * колонка с окном по высоте. Baritone сам решает, как дойти: в обход или
+     * сквозь стену с подкопом — ослабления нужны только для заведомо
+     * недостижимых целей.
+     */
     public void setGoalAndPath(BlockPos pos) {
-        // Цепочка от точного попадания к всё более мягкому: игрок просит встать
-        // в конкретный блок, но он может быть занят или внутри стены.
-        //
-        // Начинаем с радиуса 2, а не 1: «дойди до этого блока» для игрока значит
-        // «подойди к нему», а не «встань ровно в него». Радиус 1 на неровном
-        // рельефе почти всегда недостижим, и запрос зря проходил через все
-        // ослабления, прежде чем найти путь.
-        //
-        // Последний вариант — колонка с окном по высоте, а НЕ просто X/Z. Просто
-        // X/Z выполнено уже в момент запроса, если игрок стоит над целью: поиск
-        // мгновенно рапортует об успехе, бот отвечает «пришёл», не сдвинувшись.
-        // Именно так ломался спуск в шахту.
-        this.setGoalAndPath(java.util.List.of(
+        setGoalAndPath(List.of(
                 new GoalNear(pos, 2),
                 new GoalNear(pos, 4),
                 GoalXZ.column(pos.getX(), pos.getZ(), pos.getY(), 6)));
     }
 
     public void setGoalAndPath(Goal goal) {
-        this.goal = goal;
-        this.realGoal = goal;
-        this.legs = 0;
-        this.repaths = 0;
-        this.relaxes = 0;
-        this.ticksWithoutProgress = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
-        this.executor.clear();
-
-        // Дальняя цель — сразу идём к ней по частям, не тратя тики на поиск по
-        // пустым чанкам. Иначе бот секунды стоит, «ищет путь» там, где блоков
-        // ещё нет, и только потом начинает двигаться.
-        Minecraft mc = Minecraft.getInstance();
-        if (this.isFarGoal(mc) && this.stepTowardGoal(mc)) {
-            return;
-        }
-        this.startSearch();
+        setGoalAndPath(List.of(goal));
     }
 
     /**
-     * То же, но с запасными целями.
-     *
-     * <p>Точка «прийти в блок» часто недостижима буквально: игрок просит встать
-     * в блок, который уже занят, или внутрь стены. Тогда пробуем всё более
-     * широкие варианты, а не сдаёмся сразу.
+     * Цепочка целей от строгой к мягкой: первая выдаётся сразу, остальные
+     * пробуются по очереди, если поиск до предыдущей провалился.
      */
     public void setGoalAndPath(List<Goal> chain) {
-        this.goalChain = new java.util.ArrayDeque<>(chain);
-        if (this.goalChain.isEmpty()) {
-            this.cancel();
+        if (chain == null || chain.isEmpty()) {
             return;
         }
-        this.setGoalAndPath(this.goalChain.pollFirst());
-    }
-
-    private java.util.ArrayDeque<Goal> goalChain = new java.util.ArrayDeque<>();
-
-    private void startSearch() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || this.goal == null) {
-            this.finder = null;
-            return;
-        }
-        BlockWorld world = new BlockWorld(mc.level);
-        this.finder = new PathFinder(world, this.goal, this.maxFall, this.maxNodes,
-                mc.player.blockPosition());
-    }
-
-    /** Отменить всё: и поиск, и движение. */
-    public void cancel() {
-        this.goal = null;
-        this.finder = null;
-        this.executor.clear();
-        this.repaths = 0;
-        this.relaxes = 0;
-        this.ticksWithoutProgress = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
         this.goalChain.clear();
-        this.digging = false;
-        this.digAnnounced = false;
-        this.lastProgressAt = System.currentTimeMillis();
-        this.searchTicks = 0;
-        this.realGoal = null;
-        this.legs = 0;
-        this.lastLegFailPos = null;
+        for (int i = chain.size() - 1; i >= 1; i--) {
+            this.goalChain.push(chain.get(i));
+        }
+        startGoal(chain.get(0));
     }
 
     /**
-     * Отменить вообще всё, включая активный процесс.
+     * Переводит цель на язык Baritone и заказывает расчёт маршрута.
      *
-     * <p>Отдельно от {@link #cancel()} намеренно: процессы сами вызывают
-     * {@code cancel()}, чтобы остановить ходьбу перед ломанием блока. Если бы
-     * {@code cancel()} снимал ещё и процесс, ферма убивала бы себя на первом же
-     * созревшем блоке.
+     * <p>Исполнитель гасится: новый заказ — с чистого листа (старые ноги шли
+     * в другую точку). Внутренний пересчёт того же направления
+     * ({@link #requestRecalc}) путь НЕ снимает — бот продолжает идти, пока
+     * Baritone считает замену.
      */
-    public void cancelEverything() {
-        this.clearProcess();
+    private void startGoal(Goal goal) {
+        IBaritone baritone = baritone();
+        if (baritone == null) {
+            BaritoneMessages.error("движок ещё не готов, попробуй снова");
+            return;
+        }
+        baritone.api.pathing.goals.Goal translated = translate(goal);
+        if (translated == null) {
+            fail("не понял цель «" + goal.describe() + "»");
+            return;
+        }
+        this.executor.clear();
+        this.goal = goal;
+        this.translatedGoal = translated;
         this.paused = false;
-        this.cancel();
+        this.goalActive = true;
+        this.blindRetries = 0;
+        this.bestGoalDistance = Double.MAX_VALUE;
+        baritone.getCustomGoalProcess().setGoalAndPath(translated);
     }
 
-    // ── Процессы ──────────────────────────────────────────────────────────────
+    /**
+     * Цель Vesence → цель Baritone. Классы совпадают по смыслу один в один,
+     * перевод механический.
+     *
+     * <p>Единственная тонкость — {@link GoalXZ} с окном по высоте: у Baritone
+     * колонка высоты не имеет, поэтому окно переводится в шар
+     * {@code GoalNear} по центру окна — так «ослабленная» цель не позволяет
+     * объявить приход, встав над шахтой вместо спуска в неё.
+     *
+     * @return {@code null}, если цель неизвестного типа и без якоря
+     */
+    private static baritone.api.pathing.goals.Goal translate(Goal goal) {
+        if (goal instanceof GoalBlock block) {
+            return new baritone.api.pathing.goals.GoalBlock(block.x, block.y, block.z);
+        }
+        if (goal instanceof GoalNear near) {
+            return new baritone.api.pathing.goals.GoalNear(
+                    new BlockPos(near.x, near.y, near.z), near.radius);
+        }
+        if (goal instanceof GoalXZ xz) {
+            if (!xz.hasHeightWindow()) {
+                return new baritone.api.pathing.goals.GoalXZ(xz.x, xz.z);
+            }
+            int midY = (xz.minY() + xz.maxY()) / 2;
+            int radius = Math.max(2, (xz.maxY() - xz.minY()) / 2 + 1);
+            return new baritone.api.pathing.goals.GoalNear(
+                    new BlockPos(xz.x, midY, xz.z), radius);
+        }
+        if (goal instanceof GoalRunAway runAway) {
+            return new baritone.api.pathing.goals.GoalRunAway(
+                    runAway.distance, null, runAway.from.toArray(new BlockPos[0]));
+        }
+        BlockPos anchor = goal.anchor();
+        if (anchor != null) {
+            return new baritone.api.pathing.goals.GoalNear(anchor, 2);
+        }
+        return null;
+    }
+
+    // ── Остановка ────────────────────────────────────────────────────────────
 
     /**
-     * Запускает процесс. Предыдущий снимается: одновременно активен только один.
+     * Остановить движение и забыть цель. Процесс (если был) остаётся жив:
+     * например, {@code #follow} потерял цель из виду — путь снят, но процесс
+     * ищет её дальше.
      */
+    public void cancel() {
+        this.goalActive = false;
+        this.goal = null;
+        this.translatedGoal = null;
+        this.goalChain.clear();
+        this.blindRetries = 0;
+        this.bestGoalDistance = Double.MAX_VALUE;
+        this.executor.clear();
+        // baritone() здесь намеренно НЕ зовём: останавливать нечего, если
+        // Baritone ещё не поднят, а будить его ради пустого запроса — лишний шум.
+        IBaritone baritone = this.baritone;
+        if (baritone != null) {
+            baritone.getCustomGoalProcess().setGoal(null);
+            baritone.getPathingBehavior().cancelEverything();
+        }
+    }
+
+    /** Полная остановка: снять процесс, сбросить паузу, забыть цель. */
+    public void cancelEverything() {
+        clearProcess();
+        this.paused = false;
+        cancel();
+    }
+
+    /** Сделать процесс активным. Одновременно может жить только один. */
     public void setProcess(BaritoneProcess next) {
-        this.clearProcess();
-        this.cancel();
+        clearProcess();
+        cancel();
         this.paused = false;
         this.process = next;
     }
 
-    public void clearProcess() {
-        if (this.process != null) {
-            this.process.cancel();
-            this.process = null;
+    private void clearProcess() {
+        BaritoneProcess current = this.process;
+        if (current == null) {
+            return;
         }
+        this.process = null;
+        current.cancel();
     }
 
     public BaritoneProcess process() {
         return this.process;
     }
 
-    // ── Пауза ─────────────────────────────────────────────────────────────────
-
+    /** Пауза: ноги не получают ввод, цель и путь помнятся; снятие — продолжение. */
     public void setPaused(boolean paused) {
         this.paused = paused;
     }
@@ -393,631 +542,429 @@ public final class VesenceBaritone {
         return this.paused;
     }
 
+    // ── Состояние пути ───────────────────────────────────────────────────────
+
+    /** Идёт ли выполнение цели. Семантика прежняя: цель поставлена — идём. */
     public boolean isPathing() {
         return this.goal != null;
     }
 
+    /** Есть ли маршрут, по которому ноги уже идут (или вот-вот пойдут). */
     public boolean hasPath() {
-        return this.executor.path() != null && !this.executor.path().finished();
+        Path path = this.executor.path();
+        return (path != null && !path.finished()) || this.goalActive;
+    }
+
+    /**
+     * Vesence прямо сейчас ведёт маршрут: цель поставлена (идёт расчёт) или
+     * ноги уже шагают.
+     *
+     * <p>Пока это true, Baritone не должен трогать ввод игрока: ноги пишут
+     * походку через {@code EventInput}, а он возникает только из ванильного
+     * {@code KeyboardInput} (миксин {@code BaritoneInputOverrideMixin} за этим
+     * следит).
+     */
+    public boolean isDriving() {
+        return this.enabled && (this.goal != null || this.executor.isActive());
     }
 
     public Goal goal() {
         return this.goal;
     }
 
+    /** Живой исполнитель: его походка, голова и копание — кастомное движение. */
     public PathExecutor executor() {
         return this.executor;
     }
 
+    /** Текущий маршрут в формате Vesence, либо {@code null}, пока считается. */
     public Path currentPath() {
         return this.executor.path();
     }
 
-    // ── Тик движка ────────────────────────────────────────────────────────────
+    // ── Тик ──────────────────────────────────────────────────────────────────
 
     /**
-     * Вызывается каждый тик клиента. Продвигает поиск и следит за прогрессом.
+     * Вызывается каждый тик клиента: двигает процессы, следит за приходом и
+     * застреванием ног, ловит обрыв расчёта.
      */
-    public void tick() {
+    private void tick() {
         if (!this.enabled) {
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
-            this.cancelEverything();
+            cancelEverything();
             return;
         }
 
-        // 1) Процесс (ферма, копание, следование) решает, куда идти.
-        //
-        // Он НЕ заменяет поиск пути, а только ставит ему цель. Поэтому после
-        // него управление идёт дальше: без этого поиск не продвигался бы ни на
-        // узел, и процесс вечно ждал бы путь, который никто не считает.
-        if (this.process != null) {
-            if (!this.process.isActive()) {
+        // 1) Процесс (ферма, следование, исследование) решает, куда идти.
+        //    Он не заменяет движение, а только ставит цели — как и раньше.
+        BaritoneProcess process = this.process;
+        if (process != null) {
+            if (!process.isActive()) {
                 this.process = null;
+                cancel();
+                BaritoneMessages.info("процесс " + process.name() + " завершён");
             } else {
-                this.process.tick();
+                process.tick();
             }
         }
 
-        // Пауза: цель и путь сохранены, но ничего не двигается. Игрок может
-        // спокойно осмотреться и продолжить с того же места.
-        if (this.paused) {
+        if (this.paused || this.goal == null) {
             return;
         }
 
-        if (this.goal == null) {
+        // Ввод и движение — наши: каждый тик страховочный контроль (см. squashStray).
+        guardCustomMovement(mc);
+
+        // 2) Цель достигнута — прибываем. Проверяем ДО isActive(): пустой
+        //    украденный путь гасит исполнителя, а игрок уже стоит в цели;
+        //    без этой проверки прибытие не сработает и бот замрёт навсегда.
+        if (goalReached(mc)) {
+            arrive();
             return;
         }
 
-        if (this.finder != null) {
-            PathFinder.Status status = this.finder.step(NODES_PER_TICK);
-
-            // Предел времени на один расчёт.
-            //
-            // Счётчик узлов не всегда спасает: на большом открытом участке поиск
-            // честно перебирает десятки тысяч узлов, и всё это время бот стоит.
-            // Три секунды — уже неприлично долго для маршрута; если за это время
-            // путь не нашёлся, значит выбранная цель плоха, и надо переходить к
-            // запасной, а не ждать.
-            if (status == PathFinder.Status.RUNNING) {
-                if (++this.searchTicks > SEARCH_MAX_TICKS) {
-                    System.out.println("[baritone] поиск идёт слишком долго, узлов "
-                            + this.finder.expanded() + " — перехожу к запасной цели");
-                    this.searchTicks = 0;
-                    this.finder = null;
-                    status = PathFinder.Status.FAILED;
-                }
-            } else {
-                this.searchTicks = 0;
-            }
-
-            if (status == PathFinder.Status.SUCCESS) {
-                Path path = this.finder.result();
-                this.finder = null;
-                if (path != null && !path.isEmpty()) {
-                    System.out.println("[baritone] путь найден: узлов " + path.nodes.size()
-                            + " к " + (this.goal == null ? "?" : this.goal.describe()));
-                    this.executor.setPath(path);
-                    this.ticksWithoutProgress = 0;
-                } else {
-                    this.fail("путь пуст");
-                }
-            } else if (status == PathFinder.Status.FAILED) {
-                boolean limited = true;
-                int expanded = 0;
-                if (this.finder != null) {
-                    limited = this.finder.limitHit();
-                    expanded = this.finder.expanded();
-                    System.out.println("[baritone] поиск не нашёл путь: узлов " + expanded
-                            + (limited ? " (упёрся в предел)" : " (граф исчерпан)"));
-                }
-                this.finder = null;
-                // Есть запасная цель — пробуем её, прежде чем сдаваться.
-                if (!this.goalChain.isEmpty()) {
-                    Goal next = this.goalChain.pollFirst();
-                    if (next != null) {
-                        System.out.println("[baritone] fallback goal: " + next.describe());
-                        this.goal = next;
-                        // Запасная цель — другая точка, значит и мерить прогресс
-                        // надо заново, иначе счётчик неудач унаследует чужой.
-                        this.bestGoalDistance = Double.MAX_VALUE;
-                        this.repaths = 0;
-                        this.startSearch();
-                        return;
-                    }
-                }
-                // Цепочки нет, но цель можно ослабить: точный блок → окрестность
-                // → только X/Z. Без этого запрос «иди в этот блок» на неровном
-                // рельефе обрывался бы неудачей, хотя идти совершенно можно.
-                Goal softer = this.goal == null ? null : this.goal.relaxed();
-                if (softer != null && this.relaxes < MAX_RELAXATIONS) {
-                    this.relaxes++;
-                    System.out.println("[baritone] relax goal: " + softer.describe());
-                    this.goal = softer;
-                    this.bestGoalDistance = Double.MAX_VALUE;
-                    this.repaths = 0;
-                    this.startSearch();
-                    return;
-                }
-                // Дальняя цель — сразу идём к ней по частям.
-                //
-                // Прорубаться на двести блоков сквозь невидимую границу
-                // загруженных чанков бессмысленно: там нет блоков, которые можно
-                // копать, есть только пустота. Причина неудачи не в стене, а в
-                // расстоянии, и лечится она переходом, а не киркой.
-                if (this.isFarGoal(mc) && this.stepTowardGoal(mc)) {
-                    return;
-                }
-
-                // Последняя попытка — прорубить ход ступеньками.
-                //
-                // Игрок, которому надо на верхушку скалы или в пещеру под собой,
-                // не разворачивается со словами «пути нет»: он копает наклонный
-                // ход. Обычный поиск копание не рассматривает вообще — иначе бот
-                // предпочёл бы прокопаться сквозь бугор вместо того, чтобы его
-                // обойти. Поэтому прокоп включается только здесь, когда всё
-                // остальное уже отказало.
-                if (!this.digging && this.startDig(mc)) {
-                    return;
-                }
-
-                // Совсем не вышло — идём к цели по частям.
-                //
-                // Дальняя цель почти всегда «недостижима» по одной причине:
-                // чанки за спиной игрока выгружены, и в них нет блоков, по
-                // которым можно строить маршрут. Игрок не сдаётся — он бежит в
-                // ту сторону, пока мир не подгрузится. Здесь то же самое:
-                // берём промежуточную точку на пути к настоящей цели.
-                if (this.stepTowardGoal(mc)) {
-                    return;
-                }
-
-                // Последнее средство — прямой ход.
-                //
-                // Раньше здесь стояло «путь не найден, остановился», и это было
-                // худшее из возможных поведений: игрок просил идти, а бот вставал
-                // и отчитывался о неудаче. Живой игрок в такой ситуации не
-                // останавливается — он идёт в нужную сторону, переплывает воду,
-                // перепрыгивает бугры, а если совсем стена — прорубается.
-                //
-                // Направление известно заранее, поэтому прямой ход строится
-                // мгновенно и без перебора. Пусть он не самый короткий: его дело —
-                // двигать игрока к цели, пока не подгрузятся чанки и обычный поиск
-                // снова не сможет построить нормальный маршрут.
-                if (this.startDirect(mc)) {
-                    return;
-                }
-
-                // Не вышло даже это. Не сдаёмся, а начинаем поиск заново: за
-                // прошедшие тики игрок сдвинулся, чанки подгрузились, и та же
-                // цель вполне может стать достижимой.
-                if (++this.blindRetries <= MAX_BLIND_RETRIES) {
-                    this.relaxes = 0;
-                    this.startSearch();
-                    return;
-                }
-                this.blindRetries = 0;
-                this.fail(limited ? "цель недостижима, лимит поиска" : "цель недостижима");
+        // 3) Маршрут в наших руках: исполнитель ведёт, мы следим за концом
+        //    участка и застреванием. Важно: проверяем наличие пути, а не
+        //    isActive() — на ПРОЙДЕННОМ пути isActive() уже false, и условие
+        //    finished() внутри никогда не сработало бы: частичный маршрут
+        //    Baritone (обрыв расчёта) оставил бы бота молча стоять навсегда.
+        if (this.executor.path() != null) {
+            if (this.executor.path().finished() || this.executor.needsRepath()) {
+                requestRecalc(mc);
             }
             return;
         }
 
-        // A finished (including single-node) path cannot receive input anymore.
-        // Handle completion here rather than waiting for apply() to request it.
-        if (this.executor.path() != null && this.executor.path().finished()) {
-            if (this.goalReached(mc)) this.arrive();
-            else this.repath();
-            return;
-        }
-
-        // Путь есть — исполнитель ведёт игрока, мы только следим за пересчётом.
-        if (this.executor.needsRepath()) {
-            this.executor.acknowledgeRepath();
-            if (this.goalReached(mc)) {
-                this.arrive();
+        // 3) Маршрут только считается: Baritone не должен терять управление
+        //    (смерть, внешний сброс) — иначе ждали бы путь вечно.
+        if (this.goalActive) {
+            IBaritone baritone = baritone();
+            if (baritone == null) {
                 return;
             }
-            this.repath();
-            return;
-        }
-
-        if (this.executor.path() != null && !this.executor.path().finished()) {
-            if (this.executor.humanizer().isBlocked()) {
-                this.ticksWithoutProgress++;
-            } else {
-                this.ticksWithoutProgress = 0;
-            }
-            if (this.ticksWithoutProgress > 60) {
-                this.ticksWithoutProgress = 0;
-                this.repath();
+            if (!baritone.getCustomGoalProcess().isActive()) {
+                fail("маршрут прерван");
             }
         }
     }
 
+    /**
+     * Baritone затеял расчёт/исполнение сам, без нашего заказа. Гасим: иначе он
+     * доходит до {@code InputOverrideHandler.onTick}, тот ставит
+     * {@code player.input = PlayerMovementInput}, ванильный {@code KeyboardInput}
+     * перестаёт тикать — вместе с ним умирает {@code EventInput} и кастомные ноги.
+     */
+    private void squashStray(String why) {
+        IBaritone baritone = this.baritone;
+        if (baritone == null) {
+            return;
+        }
+        baritone.getPathingBehavior().cancelEverything();
+        baritone.getCustomGoalProcess().setGoal(null);
+        try {
+            baritone.getInputOverrideHandler().clearAllKeys();
+        } catch (Throwable ignored) {
+            // не критично: ввод вернёт guardCustomMovement
+        }
+        if (++this.dbgSquash % 100 == 1) { //DBG
+            System.out.println("[dbg] squash #" + this.dbgSquash + ": " + why //DBG
+                    + " current=" + (baritone.getPathingBehavior().getCurrent() != null) //DBG
+                    + " path=" + baritone.getPathingBehavior().getPath().isPresent()); //DBG
+        } //DBG
+    }
+
+    /**
+     * Держит ввод у Vesence, пока мы ведём маршрут: гасит самочинную активность
+     * Baritone и возвращает ванильный {@code KeyboardInput} — единственный
+     * источник {@code EventInput} для исполнителя.
+     */
+    private void guardCustomMovement(Minecraft mc) {
+        IBaritone baritone = this.baritone;
+        if (baritone != null && !this.goalActive
+                && baritone.getPathingBehavior().isPathing()) {
+            squashStray("Baritone пошёл сам");
+        }
+        if (mc.player != null && !(mc.player.input instanceof KeyboardInput)) {
+            mc.player.input = new KeyboardInput(mc.options);
+        }
+    }
+
+    /**
+     * Кража пути: Baritone досчитал и собрался исполнять — вместо этого
+     * забираем маршрут себе и гасим его исполнение в тот же тик. Ни одного
+     * ввода Baritone записать не успевает: ноги остаются кастомными.
+     */
+    private void stealPath() {
+        if (!this.goalActive || this.inStealPath) {
+            return;
+        }
+        IBaritone baritone = this.baritone;
+        if (baritone == null) {
+            return;
+        }
+        this.inStealPath = true;
+        try {
+            IPathingBehavior pathing = baritone.getPathingBehavior();
+            IPathExecutor current = pathing.getCurrent();
+            IPath computed = current != null ? current.getPath() : pathing.getPath().orElse(null);
+
+            this.goalActive = false;
+            baritone.getCustomGoalProcess().setGoal(null);
+            pathing.cancelEverything();
+
+            if (computed == null) {
+                // Путь не отдали — исполнитель сам попросит пересчёт на следующем тике.
+                return;
+            }
+            Path adapted = adapt(computed, this.goal);
+            if (adapted == null || adapted.isEmpty()) {
+                // Нулевой маршрут: Baritone считает, что цель уже под ногами.
+                // Пересчёт снова вернёт пусто — это прибытие, а не тупик.
+                System.out.println("[dbg] steal: пустой маршрут — считаем прибытием"); //DBG
+                arrive();
+                return;
+            }
+            this.executor.setPath(adapted);
+            this.blindRetries = 0;
+            System.out.println("[baritone] маршрут: узлов " + adapted.nodes.size()
+                    + ", цель " + (this.goal != null ? this.goal.describe() : "?"));
+        } finally {
+            this.inStealPath = false;
+        }
+    }
+
+    /**
+     * Пересчитать маршрут от текущего положения: участок кончился, ноги
+     * отклонились или упёрлись. Старый путь не снимаем — бот продолжает идти,
+     * пока Baritone считает замену; новый путь подменяет старый на лету.
+     */
+    private void requestRecalc(Minecraft mc) {
+        if (this.goalActive || this.translatedGoal == null) {
+            return;
+        }
+        IBaritone baritone = baritone();
+        if (baritone == null) {
+            return;
+        }
+
+        // Маршрут выбродили и мы уже внутри цели — это приход, а не повод
+        // считать заново. Без этой проверки успех зависел от того, успеет ли
+        // Baritone сам отрапортовать AT_GOAL, и бот стоял в цели без финала.
+        // Именно arrive(), а не onArrived(): тот guarded по goalActive, а мы
+        // здесь как раз вне активного расчёта.
+        BlockPos at = mc.player.blockPosition();
+        if (this.goal != null && this.goal.isInGoal(at.getX(), at.getY(), at.getZ())) {
+            arrive();
+            return;
+        }
+
+        // Прогресс: пересчёт вслепую (не приблизили к цели) терпим ограниченно.
+        double distance = goalDistance(mc);
+        if (distance < this.bestGoalDistance - PROGRESS_EPSILON) {
+            this.blindRetries = 0;
+        } else {
+            this.blindRetries++;
+        }
+        this.bestGoalDistance = Math.min(this.bestGoalDistance, distance);
+        if (this.blindRetries > MAX_BLIND_RETRIES) {
+            // Прогресса нет. Прежде чем ронять цель, ослабляем её: цепочка
+            // послаблений существует ровно для точек, куда не попасть
+            // (закопаны в холм, отрезаны). Baritone на строгую цель отдаёт
+            // частичный маршрут, и бот вечно топчется на его конце.
+            Goal next = this.goalChain.poll();
+            if (next != null) {
+                System.out.println("[baritone] fallback goal: " + next.describe());
+                startGoal(next);
+                return;
+            }
+            fail("застрял и не смог освободиться");
+            return;
+        }
+
+        System.out.println("[baritone] пересчёт №" + this.blindRetries
+                + ", до цели " + String.format("%.1f", distance));
+        this.executor.acknowledgeRepath();
+        this.goalActive = true;
+        baritone.getCustomGoalProcess().setGoalAndPath(this.translatedGoal);
+    }
+
+    /** Расстояние от игрока до якоря цели; без якоря — бесконечность. */
+    private double goalDistance(Minecraft mc) {
+        if (this.goal == null || mc.player == null) {
+            return Double.MAX_VALUE;
+        }
+        BlockPos anchor = this.goal.anchor();
+        if (anchor == null) {
+            return Double.MAX_VALUE;
+        }
+        return mc.player.position().distanceTo(Vec3.atCenterOf(anchor));
+    }
+
+    /**
+     * Цель достигнута: стоим в её пределах, либо путь пройден до конца и
+     * последний узел рядом.
+     */
     private boolean goalReached(Minecraft mc) {
         if (this.goal == null || mc.player == null) {
             return false;
         }
         BlockPos pos = BlockPos.containing(mc.player.position());
-        if (this.goal.isInGoal(pos)) {
+        if (this.goal.isInGoal(pos.getX(), pos.getY(), pos.getZ())) {
             return true;
         }
-        // Путь закончился, но строгая проверка цели не прошла.
-        //
-        // Так бывает почти всегда, когда просят «встань в этот блок»: цель —
-        // сфера в блочных координатах, а исполнитель останавливается за
-        // NODE_REACH до узла. Формально мы в блоке не стоим, фактически —
-        // стоим вплотную к нему. Раньше это приводило к худшему из возможных
-        // сообщений: игрок видел «не удалось дойти», стоя в двух шагах от цели.
-        //
-        // У процесса послабления нет намеренно: ему надо встать в конкретную
-        // клетку, чтобы дотянуться до блока. «Почти дошёл» для него значит «не
-        // достал», и лучше пусть подойдёт точнее, чем возьмётся за новый блок.
-        if (this.process != null) {
-            return false;
+        // Путь пройден до конца: прибывать можно, только если его последний
+        // узел сам лежит в цели. Baritone регулярно отдаёт частичный маршрут
+        // (обрыв расчёта), и конец такого пути может быть в десятках блоков
+        // от цели — объявлять там «пришёл» нельзя, путь уходит на пересчёт.
+        Path path = this.executor.path();
+        if (path != null && path.finished()) {
+            PathNode last = path.last();
+            if (last != null) {
+                BlockPos lp = last.pos();
+                return this.goal.isInGoal(lp.getX(), lp.getY(), lp.getZ());
+            }
         }
-        return this.arrivedAtPathEnd(mc);
+        return false;
     }
 
     /**
-     * Дошли ли до конца пройденного пути.
-     *
-     * <p>Прямой ход и прокоп могут закончиться раньше цели. Послабление
-     * расстояния допустимо только если последний узел действительно входит
-     * в текущую цель; конец частичного пути требует пересчёта, не прибытия.
+     * Прибытие. С процессом — молча освобождаем цель: процесс сам решит, что
+     * дальше (follow выдаст новую точку, explore возьмёт следующий участок).
+     * Без процесса — пишем в чат, как раньше.
      */
-    private boolean arrivedAtPathEnd(Minecraft mc) {
-        Path path = this.currentPath();
-        if (path == null || mc.player == null) {
-            return false;
-        }
-        PathNode last = path.last();
-        if (last == null || this.goal == null || !this.goal.isInGoal(last.pos())) {
-            return false;
-        }
-        double dx = mc.player.getX() - last.centerX();
-        double dy = mc.player.getY() - last.y;
-        double dz = mc.player.getZ() - last.centerZ();
-        return dx * dx + dz * dz <= ARRIVAL_RADIUS * ARRIVAL_RADIUS && Math.abs(dy) <= 2.0;
-    }
-
     private void arrive() {
-        // У процесса прибытие — не конец работы, а её следующий шаг: он подошёл к
-        // блоку и сейчас начнёт его ломать. Если здесь снять процесс и написать
-        // «пришёл», ферма обрывалась бы после первого же подхода к первому
-        // блоку — и выглядела бы полностью сломанной.
         if (this.process != null) {
-            this.cancel();
+            cancel();
             return;
         }
+        BaritoneMessages.success("пришёл");
+        cancel();
+    }
 
-        // Дошли до промежуточной точки, а настоящая цель ещё впереди: это не
-        // прибытие, а конец одного перехода. Молча берём следующий.
+    /**
+     * Baritone сам дошёл до цели (крайне редко: мы забираем путь до исполнения).
+     * Обрабатываем как обычное прибытие.
+     */
+    private void onArrived() {
+        if (!this.goalActive) {
+            return;
+        }
+        arrive();
+    }
+
+    /**
+     * Поиск провалился: сначала пробуем следующее ослабление цели из цепочки,
+     * и только когда цепочка кончилась — честный провал.
+     */
+    private void onSearchFailed() {
+        if (!this.goalActive) {
+            return;
+        }
+        this.goalActive = false;
+        IBaritone baritone = this.baritone;
+        if (baritone != null) {
+            baritone.getCustomGoalProcess().setGoal(null);
+        }
+        // Поиск провалился, но, может, мы уже стоим в цели (её ослабили раньше,
+        // а Baritone не нашёл ничего лучше текущего места) — тогда прийти,
+        // а не бесполезно ослаблять дальше. arrive() вместо onArrived():
+        // goalActive мы только что погасили, и guarded-версия бы промолчала.
         Minecraft mc = Minecraft.getInstance();
-        if (this.realGoal != null && mc.player != null
-                && !this.realGoal.isInGoal(BlockPos.containing(mc.player.position()))) {
-            if (this.stepTowardGoal(mc)) {
+        if (mc.player != null && this.goal != null) {
+            BlockPos at = mc.player.blockPosition();
+            if (this.goal.isInGoal(at.getX(), at.getY(), at.getZ())) {
+                arrive();
                 return;
             }
-            // Дальше переходы не нужны — до цели рукой подать, и обычный поиск
-            // дотащит. Возвращаем настоящую цель и молча идём дальше: рапортовать
-            // «пришёл» в середине пути нельзя.
-            this.resumeRealGoal();
+        }
+        Goal next = this.goalChain.poll();
+        if (next != null) {
+            System.out.println("[baritone] fallback goal: " + next.describe());
+            startGoal(next);
             return;
         }
-
-        BaritoneMessages.success("пришёл");
-        this.cancelEverything();
+        fail("маршрут не найден");
     }
 
-    /**
-     * Вернуть настоящую цель после промежуточного перехода.
-     *
-     * <p>Отдельный метод, а не присваивание в двух местах: здесь важно, что
-     * настоящая цель и счётчик переходов НЕ сбрасываются, — иначе вся история
-     * «идём по частям» начиналась бы заново на каждом переходе.
-     */
-    private void resumeRealGoal() {
-        this.goal = this.realGoal;
-        this.repaths = 0;
-        this.relaxes = 0;
-        this.ticksWithoutProgress = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
-        this.executor.clear();
-        this.startSearch();
-    }
-
-    /**
-     * Прорубить ход ступеньками к цели на другой высоте.
-     *
-     * <p>Не поиск, а построение: направление известно, остаётся проверить, что
-     * очередной блок поддаётся. Поэтому это делается мгновенно, в отличие от
-     * попытки отдать копание на откуп A* — тот перебирал сто двадцать тысяч
-     * узлов и не находил ничего.
-     *
-     * @return {@code true}, если ход построен и исполнитель уже ведёт по нему
-     */
-    private boolean startDig(Minecraft mc) {
-        if (this.realGoal == null || mc.player == null || mc.level == null) {
-            return false;
-        }
-        BlockPos anchor = this.realGoal.anchor();
-        if (anchor == null) {
-            return false;
-        }
-
-        BlockPos start = mc.player.blockPosition();
-        List<PathNode> nodes = DigPlanner.plan(new BlockWorld(mc.level), start, anchor);
-        if (nodes == null) {
-            return false;
-        }
-
-        this.digging = true;
-        this.relaxes = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
-        this.repaths = 0;
-        System.out.println("[baritone] прямой дороги нет, прорубаю ход: "
-                + nodes.size() + " шагов");
-        // В чат — один раз на всю затею. Прокоп перестраивается: watchdog сбрасывает
-        // путь, поиск снова ничего не находит, прокоп строится заново. Это нормальный
-        // ход работы, а не новое событие, и рапортовать о нём по кругу не нужно.
-        if (!this.digAnnounced) {
-            this.digAnnounced = true;
-            BaritoneMessages.info("дороги нет, прорубаю ход");
-        }
-
-        this.executor.setPath(new Path(nodes, this.goal, nodes.size()));
-        return true;
-    }
-
-    /**
-     * Прямой ход к цели — когда ни поиск, ни переходы не помогли.
-     *
-     * <p>Это последнее средство, и оно обязано сработать почти всегда: копать
-     * можно в любую сторону, а вода не обходится, а переплывается. Отказ
-     * возможен только в стену из неразрушимого, и тогда остаётся повторить поиск
-     * — игрок за это время сдвинулся и мир подгрузился.
-     *
-     * @return {@code true}, если ход построен и исполнитель уже ведёт по нему
-     */
-    private boolean startDirect(Minecraft mc) {
-        if (this.realGoal == null || mc.player == null || mc.level == null) {
-            return false;
-        }
-        BlockPos anchor = this.realGoal.anchor();
-        if (anchor == null) {
-            return false;
-        }
-
-        BlockPos start = mc.player.blockPosition();
-        // Direct fallback must obey the same configured fall limit as A*;
-        // it is not allowed to manufacture a ten-block FALL node.
-        List<PathNode> nodes = DirectPlanner.plan(new BlockWorld(mc.level), start, anchor, this.maxFall);
-        if (nodes == null || nodes.size() < 2) {
-            return false;
-        }
-
-        this.blindRetries = 0;
-        this.relaxes = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
-        this.repaths = 0;
-        System.out.println("[baritone] иду напрямую: шагов " + nodes.size() + " к " + anchor);
-        this.executor.setPath(new Path(nodes, this.goal, nodes.size()));
-        return true;
-    }
-
-    /**
-     * Настоящая цель дальше {@link #FAR_GOAL_DISTANCE} — значит, она за границей
-     * загруженных чанков, и обычный поиск до неё в принципе не дойдёт.
-     */
-    private boolean isFarGoal(Minecraft mc) {
-        if (this.realGoal == null || mc.player == null) {
-            return false;
-        }
-        BlockPos anchor = this.realGoal.anchor();
-        if (anchor == null) {
-            return false;
-        }
-        return Math.sqrt(mc.player.blockPosition().distSqr(anchor)) > FAR_GOAL_DISTANCE;
-    }
-
-    /**
-     * Переход к цели «по частям» — по одному участку за раз.
-     *
-     * <p>Зачем это нужно. Клиент видит только загруженные чанки; дальше блоков
-     * просто нет, и поиск пути там честно не находит ничего. Раньше это
-     * выглядело так: просишь идти на двести блоков — бот стоит и говорит «путь
-     * не найден», хотя идти совершенно можно. Живой игрок в такой ситуации
-     * просто бежит в нужную сторону, пока мир не подгрузится.
-     *
-     * <p>Здесь то же самое: берём точку на луче к настоящей цели, в пределах
-     * гарантированно загруженной области, и идём к ней. Дойдя, берём следующую.
-     *
-     * @return {@code true}, если новый участок начат
-     */
-    private boolean stepTowardGoal(Minecraft mc) {
-        if (this.realGoal == null || mc.player == null) {
-            return false;
-        }
-        BlockPos anchor = this.realGoal.anchor();
-        if (anchor == null) {
-            return false;
-        }
-
-        BlockPos here = BlockPos.containing(mc.player.position());
-        double dx = anchor.getX() - here.getX();
-        double dz = anchor.getZ() - here.getZ();
-        double distance = Math.sqrt(dx * dx + dz * dz);
-
-        // Ближе порога переходы не нужны: область уже загружена, и обычный
-        // поиск справится сам. Прежде порог был вдвое ниже, и получалось
-        // вот что: до цели оставалось двадцать четыре блока, переход
-        // «строился» в точку, где мы уже стоим, поиск мгновенно «доводил» нас
-        // до неё же, прибытие звало следующий переход — и так по кругу, с
-        // сообщением в чат на каждом витке.
-        if (distance < FAR_GOAL_DISTANCE) {
-            return false;
-        }
-        // Предохранитель от вечного «ещё чуть-чуть»: участков не может быть
-        // больше, чем нужно, чтобы пройти всё расстояние с запасом.
-        if (this.legs >= MAX_LEGS) {
-            return false;
-        }
-
-        double step = Math.min(LEG_DISTANCE, distance - LEG_MIN_DISTANCE);
-        int tx = here.getX() + (int) Math.round(dx / distance * step);
-        int tz = here.getZ() + (int) Math.round(dz / distance * step);
-
-        boolean first = this.legs == 0;
-        this.legs++;
-        System.out.println("[baritone] leg " + this.legs + ": " + tx + " " + tz
-                + " (до цели " + (int) distance + " м)");
-        // В чат — один раз, в начале пути. Дальше каждое сообщение только шум:
-        // игрок и так видит, что бот идёт.
-        if (first) {
-            BaritoneMessages.info("цель далеко, иду по частям");
-        }
-        this.startLeg(new GoalXZ(tx, tz));
-        return true;
-    }
-
-    /**
-     * Начать промежуточный переход, не трогая настоящую цель.
-     *
-     * <p>Отдельно от {@link #setGoalAndPath(Goal)} намеренно: тот запоминает
-     * переданную цель как настоящую, и переход «по частям» затирал бы конечную
-     * точку первой же промежуточной — бот останавливался бы в сорока блоках от
-     * того, куда его послали, и рапортовал «пришёл».
-     */
-    private void startLeg(Goal leg) {
-        this.goal = leg;
-        this.repaths = 0;
-        this.relaxes = 0;
-        this.ticksWithoutProgress = 0;
-        this.bestGoalDistance = Double.MAX_VALUE;
-        this.executor.clear();
-        this.startSearch();
-    }
-
-    private void repath() {
-        if (this.goal == null) {
-            return;
-        }
-
-        // Прокоп закончился (или сорвался) — дальше пробуем обычный маршрут.
-        //
-        // Сбрасывать флаг обязательно: иначе после одного раскопа движок до
-        // конца захода считал бы копание уже опробованным и на новой высоте
-        // отказывался бы копать снова.
-        this.digging = false;
-
-        // Пересчёт засчитывается только если он не приблизил нас к цели.
-        //
-        // Раньше счётчик рос на каждом пересчёте подряд, и бот сдавался, успев
-        // подойти к цели на пять блоков: спуск в овраг требует нескольких
-        // пересчётов, но это движение ВПЕРЁД, а не топтание. Живой игрок в такой
-        // ситуации не бросает дело.
-        Minecraft mc = Minecraft.getInstance();
-        double distance = this.distanceToGoal(mc);
-        boolean progressed = distance < this.bestGoalDistance - PROGRESS_EPSILON;
-        if (progressed) {
-            this.bestGoalDistance = distance;
-            this.repaths = 0;
-            this.lastProgressAt = System.currentTimeMillis();
-        } else {
-            this.repaths++;
-        }
-
-        // Сдаёмся не по счёту пересчётов, а по времени без движения вперёд.
-        //
-        // Счёт был жестоким: шесть пересчётов подряд набирались за две секунды —
-        // маршрут на восемьдесят блоков просто не успевал начаться, а бот уже
-        // объявлял «не удалось дойти» и вставал. Живой игрок так не делает: он
-        // даёт себе время дойти, а сдаётся, только если реально застрял.
-        //
-        // Теперь пересчёт — это просто пересчёт. Провал объявляется, если их
-        // набралось много И с последнего настоящего продвижения прошло не меньше
-        // десяти секунд. За это время любой честный маршрут успевает сдвинуть
-        // игрока с места хотя бы на пару блоков.
-        boolean stuckForLong = System.currentTimeMillis() - this.lastProgressAt > GIVE_UP_AFTER_MS;
-        System.out.println("[baritone] пересчёт №" + this.repaths + ", цель "
-                + (this.goal == null ? "?" : this.goal.describe())
-                + ", до цели " + String.format("%.1f", distance)
-                + ", поз=" + (mc.player == null ? "?" : String.format("%.1f/%.1f/%.1f",
-                        mc.player.getX(), mc.player.getY(), mc.player.getZ()))
-                + ", путь=" + (this.executor.path() == null ? "нет"
-                        : (this.executor.path().size() + "/" + this.executor.path().index))
-                + ", конец=" + (this.executor.path() == null ? "?"
-                        : String.valueOf(this.executor.path().last())));
-        if (this.repaths > MAX_REPATHS && stuckForLong) {
-            this.fail("не удалось дойти");
-            return;
-        }
-        this.executor.clear();
-        this.startSearch();
-    }
-
-    /**
-     * Сколько времени без продвижения к цели терпим, прежде чем признать неудачу.
-     *
-     * <p>Десять секунд — с большим запасом: даже медленный подъём в гору даёт
-     * продвижение чаще, чем раз в десять секунд.
-     */
-    private static final long GIVE_UP_AFTER_MS = 10_000L;
-
-    /** Расстояние от игрока до ближайшей точки цели. */
-    private double distanceToGoal(Minecraft mc) {
-        if (this.goal == null || mc.player == null) {
-            return Double.MAX_VALUE;
-        }
-        BlockPos pos = BlockPos.containing(mc.player.position());
-        return this.goal.heuristic(pos.getX(), pos.getY(), pos.getZ());
-    }
-
+    /** Провал: процессу — {@code onPathFailed}, иначе сообщение в чат и стоп. */
     private void fail(String reason) {
-        // У процесса свой план на неудачу: вычеркнуть блок и взяться за
-        // следующий. Сообщать «остановился» и снимать его здесь нельзя — ферма
-        // умирала бы на первом недостижимом блоке.
-        if (this.process != null) {
-            this.process.onPathFailed();
-            this.cancel();
+        BaritoneProcess process = this.process;
+        cancel();
+        if (process != null) {
+            process.onPathFailed();
             return;
         }
-
-        // Не сдаёмся на полпути к дальней цели.
-        //
-        // Промежуточный переход может упереться в реку или овраг, и это не повод
-        // объявлять провал: настоящая цель всё ещё впереди. Берём следующий
-        // переход уже от нового места — маршрут из другой точки часто находится.
-        // Число переходов ограничено, поэтому бесконечного «ещё чуть-чуть» нет.
-        if (this.realGoal != null && this.legs < MAX_LEGS) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                BlockPos here = BlockPos.containing(mc.player.position());
-                boolean moved = this.lastLegFailPos == null || !this.lastLegFailPos.equals(here);
-                if (moved) {
-                    this.lastLegFailPos = here;
-                    if (this.stepTowardGoal(mc)) {
-                        System.out.println("[baritone] leg: " + reason + " — беру следующий участок");
-                        return;
-                    }
-                }
-            }
-        }
-
-        // Дублируем в stdout: сообщение в чат не попадает в лог, и «почему бот
-        // встал» иначе невозможно отличить от «бот дошёл».
         System.out.println("[baritone] stop: " + reason);
         BaritoneMessages.error(reason + ", остановился.");
-        this.cancel();
     }
 
-    // ── Ввод ──────────────────────────────────────────────────────────────────
+    // ── Адаптер пути ─────────────────────────────────────────────────────────
 
     /**
-     * Правка ввода игрока. Вызывается из миксина клавиатуры.
-     *
-     * @return {@code true}, если движок забрал управление движением
+     * Путь Baritone → путь Vesence: те же клетки, типы движений переведены по
+     * классам. По этому пути ходит исполнитель, его же ест лента и стенды.
      */
-    public boolean onInput(EventInput event) {
-        if (!this.enabled || this.paused || this.goal == null) {
-            return false;
-        }
-        if (!this.hasPath()) {
-            return false;
-        }
+    private static Path adapt(IPath path, Goal goal) {
+        List<BetterBlockPos> positions = path.positions();
+        List<IMovement> movements = path.movements();
+        List<PathNode> nodes = new ArrayList<>(positions.size());
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.gui.screen() != null) {
-            return false;
+        for (int i = 0; i < positions.size(); i++) {
+            BetterBlockPos pos = positions.get(i);
+            PathNode node;
+            if (i == 0) {
+                node = new PathNode(pos.getX(), pos.getY(), pos.getZ(), MovementType.START);
+            } else {
+                IMovement movement = i - 1 < movements.size() ? movements.get(i - 1) : null;
+                MovementType type = mapMovement(movement, pos, mc);
+                node = new PathNode(pos.getX(), pos.getY(), pos.getZ(), type);
+                if (type == MovementType.DIG) {
+                    node.dig = new BlockPos(pos.getX(), pos.getY(), pos.getZ());
+                }
+            }
+            nodes.add(node);
         }
-
-        this.executor.setSprintAllowed(this.allowSprint);
-        this.executor.apply(event);
-        return true;
+        return new Path(nodes, goal, 0.0);
     }
+
+    /**
+     * Класс движения Baritone → тип узла Vesence.
+     *
+     * <p>Копание отдельным классом не представлено: Baritone ломает блоки
+     * внутри {@code MovementTraverse}/{@code MovementDescend}. Чтобы
+     * исполнитель знал, что клетку надо прорубить, смотрим на сам блок
+     * назначения: вход в монолитный блок — это DIG.
+     */
+    private static MovementType mapMovement(IMovement movement, BlockPos dest, Minecraft mc) {
+        if (movement instanceof MovementAscend || movement instanceof MovementPillar) {
+            return MovementType.ASCEND;
+        }
+        if (movement instanceof MovementDescend) {
+            return MovementType.DESCEND;
+        }
+        if (movement instanceof MovementFall) {
+            return MovementType.FALL;
+        }
+        if ((movement instanceof MovementTraverse || movement instanceof MovementDiagonal)
+                && mc.level != null) {
+            if (needsBreak(mc, dest) || needsBreak(mc, dest.above())) {
+                return MovementType.DIG;
+            }
+        }
+        return MovementType.WALK;
+    }
+
+    /** Монолитный блок, который придётся сломать, чтобы войти в клетку. */
+    private static boolean needsBreak(Minecraft mc, BlockPos pos) {
+        BlockState state = mc.level.getBlockState(pos);
+        return !state.isAir() && !state.getCollisionShape(mc.level, pos).isEmpty();
+    }
+
+    // ── События клиента ──────────────────────────────────────────────────────
 
     /** Тик движка от клиентского тика. */
     @EventInit
@@ -1026,40 +973,85 @@ public final class VesenceBaritone {
         if (mc.player == null || mc.level == null) {
             return;
         }
-        this.tick();
-    }
-
-    /** Правка ввода: движок забирает управление движением, когда ведёт игрока. */
-    @EventInit
-    public void onInputEvent(EventInput event) {
-        this.onInput(event);
+        if (++this.dbgTick % 20 == 0) { //DBG
+            Path p = this.executor.path(); //DBG
+            System.out.println("[dbg] update#" + this.dbgTick + " enabled=" + this.enabled + " paused=" + this.paused //DBG
+                    + " goalActive=" + this.goalActive //DBG
+                    + " goal=" + (this.goal == null ? "null" : this.goal.describe()) //DBG
+                    + " exec=" + this.executor.isActive() + " idx=" + (p == null ? -1 : p.index) //DBG
+                    + " nodes=" + (p == null ? -1 : p.nodes.size()) //DBG
+                    + " fin=" + (p != null && p.finished()) + " repath=" + this.executor.needsRepath() //DBG
+                    + " reached=" + (this.goal != null && this.goalReached(mc)) //DBG
+                    + " screen=" + (mc.gui.screen() == null ? "-" : mc.gui.screen().getClass().getSimpleName()) //DBG
+                    + " input=" + (mc.player.input == null ? "-" : mc.player.input.getClass().getSimpleName())); //DBG
+        } //DBG
+        tick();
     }
 
     /**
-     * Поворот головы на КАЖДОМ кадре, а не на тике.
+     * Ноги: походка исполнителя пишется во ввод игрока.
      *
-     * <p>Тик идёт 20 раз в секунду, кадров бывает 144. Поворот только на тике
-     * давал ступеньки по 15–20°, и это выглядело как робот, дёргающий головой.
+     * <p>Пока маршрут ведёт Baritone-расчёт, ног нет — игрок стоит (или идёт
+     * своим ходом, если путь старый ещё жив). Как только путь украден —
+     * вперёд/стрейф/прыжок/спринт считает {@link PathExecutor}, а миксин
+     * клавиатуры переносит их в {@code keyPresses}.
+     */
+    @EventInit
+    public void onInputEvent(EventInput event) {
+        if (!this.enabled || this.paused || this.goal == null) {
+            if (this.goal != null && ++this.dbgGate % 40 == 0) { //DBG
+                System.out.println("[dbg] input gate1: enabled=" + this.enabled + " paused=" + this.paused); //DBG
+            } //DBG
+            return;
+        }
+        if (!this.executor.isActive()) {
+            if (++this.dbgGate % 40 == 0) { //DBG
+                System.out.println("[dbg] input gate2: executor неактивен, goal=" + this.goal.describe()); //DBG
+            } //DBG
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.gui.screen() != null) {
+            if (++this.dbgGate % 40 == 0) { //DBG
+                System.out.println("[dbg] input gate3: screen=" //DBG
+                        + (mc.gui.screen() == null ? "-" : mc.gui.screen().getClass().getSimpleName())); //DBG
+            } //DBG
+            return;
+        }
+        if (++this.dbgInput % 100 == 0) { //DBG
+            Path p = this.executor.path(); //DBG
+            System.out.println("[dbg] input apply#" + this.dbgInput //DBG
+                    + " idx=" + (p == null ? -1 : p.index) + " pos=" + mc.player.position()); //DBG
+        } //DBG
+        this.executor.apply(event);
+        if (!this.legsAnnounced) {
+            this.legsAnnounced = true;
+            System.out.println("[vesence] ноги ведут маршрут: исполнитель пишет ввод через EventInput");
+        }
+    }
+
+    /**
+     * Голова: пружина исполнителя доворачивает взгляд покадрово и прямо пишет
+     * {@code player.setYRot/setXRot} — сервер видит ту же голову, что и глаз.
      */
     @EventInit
     public void onRotation(EventRotation event) {
-        if (!this.enabled || !this.hasPath()) {
+        if (!this.enabled || this.paused || this.goal == null) {
+            return;
+        }
+        if (!this.executor.isActive()) {
             return;
         }
         this.executor.applyCameraRotation(event);
     }
 
-    /**
-     * Линия пути: ломаная по оставшимся узлам плюс подсвеченный блок цели.
-     *
-     * <p>Рисуется только оставшаяся часть маршрута — пройденное мешает.
-     */
+    /** Отрисовка ленты маршрута и метки цели — наш визуал поверх Baritone. */
     @EventInit
     public void onRender3D(EventRender3D event) {
-        if (!this.showPath) {
+        if (!this.enabled || !this.showPath) {
             return;
         }
-        Path path = this.currentPath();
+        Path path = currentPath();
         if (path == null) {
             return;
         }
@@ -1073,14 +1065,41 @@ public final class VesenceBaritone {
             return;
         }
 
-        // Блок цели берём у цели, а не у последнего узла: последний узел — конец
-        // текущего отрезка, и на длинных переходах он стоит далеко от того места,
-        // куда игрок на самом деле идёт.
-        BlockPos goalAt = null;
-        Goal goal = this.goal;
-        if (goal != null) {
-            goalAt = goal.anchor();
+        // Метка цели.
+        //
+        // Раньше рисовали строго goal.anchor(). Но у GoalXZ без окна по высоте
+        // «якорь» — выдуманная высота 64: на холме метка висела в воздухе, в
+        // яме уходила в камень — «точка, куда идёт, отображается криво». Теперь:
+        //  • маршрут уже привёл к цели — показываем блок, куда бот реально
+        //    приходит (последний узел);
+        //  • цель далеко (маршрут обрывается на краю чанков) — якорь, но
+        //    прижатый к земле, если цель высоту не фиксирует.
+        BlockPos goalAt;
+        if (goal == null || goal.isInGoal(mc.player.getBlockX(),
+                mc.player.getBlockY(), mc.player.getBlockZ())) {
+            goalAt = nodes.get(nodes.size() - 1).pos();
+        } else {
+            goalAt = snapGoalToGround(mc, goal.anchor(), goal);
         }
-        PathRenderer.draw(event.getMatrixStack(), event.getCameraPos(), nodes, goalAt);
+
+        PathRenderer.draw(event.getMatrixStack(), event.getCameraPos(), event.getCameraRotation(),
+                nodes, goalAt, mc.player.position().add(0, mc.player.getEyeHeight(), 0));
+    }
+
+    private static BlockPos snapGoalToGround(Minecraft mc, BlockPos anchor, Goal goal) {
+        if (anchor == null) {
+            return null;
+        }
+        // Цель фиксирует высоту — метка стоит ровно там, куда идём.
+        if (goal != null && goal.isInGoal(anchor.getX(), anchor.getY(), anchor.getZ())) {
+            return anchor;
+        }
+        int ground = mc.level.getHeight(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
+                anchor.getX(), anchor.getZ()) - 1;
+        if (goal.isInGoal(anchor.getX(), ground, anchor.getZ())) {
+            return new BlockPos(anchor.getX(), ground, anchor.getZ());
+        }
+        return anchor;
     }
 }

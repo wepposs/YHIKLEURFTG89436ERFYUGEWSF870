@@ -28,6 +28,17 @@ public final class PathExecutor {
     /** Насколько близко к узлу считаем его достигнутым (по горизонтали). */
     private static final double NODE_REACH = 0.8;
 
+    /**
+     * Допуск достижения узла в воде.
+     *
+     * <p>Пловец не стоит на опоре: его носит течением, он покачивается на волнах
+     * и всплывает рывками. Сухопутный допуск 0.8 в воде почти не достигался,
+     * индекс пути замирал, и бот «плавал по кругу» вокруг узла, который уже
+     * проплыл. Здесь точность не нужна вовсе: куда плыть, решает берег впереди,
+     * а не конкретная клетка воды.
+     */
+    private static final double SWIM_NODE_REACH = 1.4;
+
     /** Сколько тиков упора в препятствие терпим, прежде чем перестроить путь. */
     private static final int REPATH_AFTER_STUCK_TICKS = 24;
 
@@ -44,11 +55,22 @@ public final class PathExecutor {
      */
     private static final int DIG_TIMEOUT_TICKS = 300;
 
+    /**
+     * Сколько тиков терпим «блок раскопа вне досягаемости», прежде чем просить
+     * пересчёт. Это не работа, а тупик: короткий таймаут, а не {@link #DIG_TIMEOUT_TICKS}.
+     * Запас больше обычного подхода пешком (~45 тиков), чтобы не срабатывать на ходьбе.
+     */
+    private static final int DIG_UNREACHABLE_TICKS = 60;
+
     private final Humanizer humanizer = new Humanizer();
     private final RotationSmoother rotation = new RotationSmoother(0.0f, 0.0f);
 
     private Path path;
     private int stuckTicks;
+
+    /** Позиция прошлого тика для сторожа застревания; NaN — ещё не мерили. */
+    private double lastTrackX = Double.NaN;
+    private double lastTrackZ;
 
     /** Впереди раскоп — на нём счётчики застревания молчат. */
     private boolean diggingPath;
@@ -64,9 +86,6 @@ public final class PathExecutor {
 
     /** Бежим ли в этом тике — нужно для решения о подскоке. */
     private boolean sprintingNow;
-
-    /** Были в воде в прошлом тике — чтобы перестроить путь после выхода на берег. */
-    private boolean wasInWater;
 
     /** Тиков подряд копаем один и тот же узел. */
     private int digTicks;
@@ -91,12 +110,17 @@ public final class PathExecutor {
     }
 
     public void setPath(Path path) {
-        this.path = path;
+        // Струнная стяжка: прямые участки теряют промежуточные клетки сетки,
+        // и курс перестаёт вилять на каждой диагонали («ходит зигзагами»).
+        this.path = PathSimplifier.simplify(path);
         this.stuckTicks = 0;
         this.repathRequested = false;
         this.jumpRequested = false;
-        this.wasInWater = false;
+        this.strafeAssist = false;
+        this.bigTurn = false;
         this.humanizer.reset();
+        this.smoothCache = null;
+        this.smoothCachePath = null;
 
         // Первый узел — START, то есть точка, из которой путь построен. Идти к
         // ней не нужно и вредно: она может оказаться на полблока в стороне или
@@ -138,12 +162,12 @@ public final class PathExecutor {
         this.stuckTicks = 0;
         this.repathRequested = false;
         this.jumpRequested = false;
-        this.wasInWater = false;
+        this.strafeAssist = false;
+        this.bigTurn = false;
         this.digTicks = 0;
         this.digNodeKey = 0L;
-        this.hasHeading = false;
-        this.movingNow = false;
-        this.busyNow = false;
+        this.smoothCache = null;
+        this.smoothCachePath = null;
         this.bodyReady = false;
         this.diggingPath = false;
         // Отпускаем удар: иначе клавиша атаки останется зажатой без цели, и
@@ -195,11 +219,6 @@ public final class PathExecutor {
 
         boolean usingItem = mc.player.isUsingItem();
 
-        // По умолчанию считаем, что стоим: ниже любой выход по раннему
-        // возврату оставит это значение, и взгляд сам вернётся вперёд.
-        this.movingNow = false;
-        this.busyNow = false;
-
         // Индекс пути двигаем ВСЕГДА — в том числе в воде.
         //
         // Прежде в воде исполнитель выходил раньше, чем доходил до этой строки, и
@@ -214,18 +233,8 @@ public final class PathExecutor {
         // подходит к узлу, не может его достичь по высоте, разворачивается,
         // возвращается. Живой игрок в такой ситуации просто плывёт к берегу.
         if (mc.player.isInWater()) {
-            this.busyNow = true;
             this.applySwim(mc, event);
             return;
-        }
-
-        // Выбрались на берег. Пересчитывать путь НЕ надо: узлы впереди и так
-        // лежат на суше, а новый расчёт от берега легко снова уводил в воду —
-        // со стороны это выглядело как «вылез и опять побежал в воду».
-        // Просто сдвигаем индекс за водные узлы и идём дальше.
-        if (this.wasInWater) {
-            this.wasInWater = false;
-            // A brief surface jump does not mean the entire crossing was completed.
         }
 
         // Раскоп впереди? Тогда застревание и сторож узла молчат: стоять на
@@ -250,9 +259,10 @@ public final class PathExecutor {
             return;
         }
 
-        // Целимся не в текущий узел, а в самый дальний, до которого можно дойти
-        // по прямой. Это и есть главное отличие от «шаг за шагом по центрам».
-        PathNode node = this.smoothedTarget(mc);
+        // Тактический узел: с него читаем, что делать ногами и головой —
+        // прыгать, копать, куда наклонить взгляд. Курс тела считает НЕ он,
+        // а «морковка» ниже: узел прыгает дискретно, точка впереди — плавно.
+        PathNode node = this.tacticalTarget(mc);
         if (node == null) {
             node = this.path.current();
         }
@@ -267,15 +277,30 @@ public final class PathExecutor {
         // Если он уже в пределах руки — останавливаемся и копаем; если ещё нет —
         // идём к нему обычным порядком и докопаемся, когда подойдём.
         if (node.type == MovementType.DIG) {
-            this.busyNow = true;
             if (this.applyDig(mc, event, node)) {
+                // Копание — это работа, а не застревание: пока исполнитель
+                // реально ломает блок, счётчик «встал насмерть» обнуляется.
+                // Иначе на камне без кирки (150 тиков на блок) пересчёт
+                // срабатывал посреди раскопа, план строился заново, прогресс
+                // ломания обнулялся — и бот вечно «ломал один блок и ходил
+                // назад-вперёд».
+                this.stuckTicks = 0;
                 return;
             }
         }
-        this.busyNow = false;
-        this.movingNow = true;
 
-        this.intentYaw = this.headingWithDeadband(this.headingFor(mc, node));
+        // Курс — на «морковку»: точку в паре блоков впереди вдоль ломаной
+        // маршрута, а не в центр ближайшей клетки.
+        //
+        // Почему не центр узла. Когда до цели меньше блока, азимут на неё
+        // вращается со скоростью сотни градусов в секунду: шаг влево — и она
+        // уже «на семь часов». Плюс дальний узел сглаживания переключался между
+        // соседями каждый тик, и курс дёргался туда-сюда на двадцать градусов.
+        // Именно это игрок видел как «вертится, когда бежит». Точка впереди
+        // физически не может крутиться быстро: чтобы азимут изменился на
+        // градус, нужно пройти сантиметры.
+        Vec3 aim = this.clampToClearance(mc, this.carrotPoint(mc));
+        this.intentYaw = this.headingTo(mc, aim);
         this.intentPitch = this.pitchFor(node);
 
         // Тело и камера — ОДНО И ТО ЖЕ значение.
@@ -293,9 +318,6 @@ public final class PathExecutor {
         // Сейчас оба угла берутся из одного сглаженного значения. Голова
         // поворачивается плавно и туда, куда идёт, — как у живого игрока,
         // который ведёт мышь. Разрыва нет, прыжка в конце нет.
-        //
-        // Осматривание по сторонам добавляется уже поверх этого угла и только
-        // для камеры — курс движения оно не трогает.
         this.rotation.setTarget(this.intentYaw, this.intentPitch);
         this.rotation.update();
         mc.player.setYRot(this.rotation.yaw());
@@ -310,14 +332,60 @@ public final class PathExecutor {
         // его, вместо того чтобы бесконечно кружить вокруг.
         this.watchNode(mc, node);
 
-        // Тело уже смотрит на узел, поэтому «вперёд» — это ровно нужное
-        // направление. Никакой раскладки по WASD не требуется.
-        event.setForward(1.0f);
-        event.setStrafe(this.unstickStrafe(mc));
+        // Ноги доворачивают то, что не успела голова.
+        //
+        // Поворот головы ограничен по скорости — это защита от рывков. Но пока
+        // она доворачивается, «вперёд» ведёт игрока ПО СТАРОМУ курсу, и на бегу
+        // он сносится в сторону от маршрута на блок-другой. Отсюда «сбивается с
+        // пути». Поэтому при большой ошибке курса нажимаем ещё и боковую
+        // клавишу: движение идёт под сорок пять градусов к телу — заметно ближе
+        // к цели, чем строго вперёд. Это ровно то, что делает игрок в тесноте:
+        // доворачивает мышью и помогает стрейфом.
+        //
+        // На разворотах впереди больше ста пятнадцати градусов шаг вовсе
+        // отпускаем (возвращаем ниже девяноста пяти): полсекунды голова
+        // довернёт, и идти станет некуда. Пятиться задом через весь маршрут —
+        // хуже, чем короткая пауза в шаге. Пороги включения и выключения
+        // разные — гистерезис, иначе шаг дёргался бы на шуме угла.
+        float err = net.minecraft.util.Mth.wrapDegrees(this.intentYaw - this.rotation.yaw());
+        float absErr = Math.abs(err);
+        // Гистерезис: пороги включения и выключения разные, иначе клавиши
+        // щёлкают на шуме и персонаж идёт рваной змейкой.
+        this.strafeAssist = this.strafeAssist ? absErr > STRAFE_ASSIST_OFF : absErr > STRAFE_ASSIST_ON;
+        this.bigTurn = this.bigTurn ? absErr > BIG_TURN_OFF : absErr > BIG_TURN_ON;
 
-        this.jumpRequested = this.shouldJump(mc, node);
+        // Вход в поворот — дуга, а не остановка.
+        //
+        // Скорость «вперёд» плавно падает начиная с пятидесяти пяти градусов
+        // ошибки курса и к границе крутого разворота доходит до трети. Вместе
+        // со стрейф-помощью это даёт траекторию, которую чертит живой игрок:
+        // притормозил, резанул угол, не останавливаясь. Прежний бинарный
+        // «шаг/стоп» на каждом углу выглядел именно как робот.
+        float forward;
+        if (this.bigTurn) {
+            forward = 0.0f;
+        } else if (absErr > TURN_SLOW_START) {
+            forward = net.minecraft.util.Mth.clampedMap(absErr, TURN_SLOW_START, BIG_TURN_ON, 1.0f, TURN_SLOW_MIN);
+        } else {
+            forward = 1.0f;
+        }
+        event.setForward(forward);
+
+        float strafe = 0.0f;
+        if (!this.bigTurn && this.strafeAssist) {
+            // err > 0 — цель правее курса тела: поджимаем правую клавишу.
+            strafe = err > 0.0f ? -1.0f : 1.0f;
+        }
+        if (strafe == 0.0f) {
+            strafe = this.unstickStrafe(mc);
+        }
+        event.setStrafe(strafe);
+
+        this.jumpRequested = !this.bigTurn && this.shouldJump(mc, node, absErr);
         event.setJump(this.jumpRequested);
-        event.setSprint(sprinting);
+        // Спринт только на сравнительно прямом курсе: на поворотах игрок
+        // естественно сбавляет ход.
+        event.setSprint(sprinting && !this.bigTurn && absErr < TURN_SPRINT_MAX);
         event.setSneak(false);
 
         this.trackStuck(mc);
@@ -354,8 +422,14 @@ public final class PathExecutor {
 
         if (!this.bodyReady) {
             this.bodyReady = true;
-            this.cameraYaw = travelYaw;
-            this.bodyYaw = travelYaw;
+            // Стартуем ОТКУДА смотрит игрок, а не снапаем на курс.
+            //
+            // Раньше первый кадр пути телепортировал камеру в направление
+            // движения: EventRotation прыгал на 50–60° за кадр — тест ловил
+            // это как «рывок головой». Теперь камера и тело начинают с текущего
+            // взгляда и доворачиваются штатной скоростью.
+            this.cameraYaw = mc.player.getYRot();
+            this.bodyYaw = this.cameraYaw;
         }
 
         // Камера — статична.
@@ -408,16 +482,20 @@ public final class PathExecutor {
      * Насколько персонаж должен уйти от направления камеры, чтобы камера
      * повернулась.
      *
-     * <p>Сорок градусов — это уже не изгиб маршрута, а смена направления
-     * движения. Всё, что меньше, картинка переживает неподвижно.
+     * <p>Раньше здесь было сорок градусов, и камера догоняла курс со скоростью
+     * 45°/с — картинка медленно вращалась почти всю дорогу, и это читалось как
+     * «персонаж вертится». Теперь курс ведётся «морковкой» и сам по себе
+     * плавный, поэтому камеру можно держать близко к направлению движения:
+     * двенадцать градусов гасят остаточное дрожание, но рассинхрон с курсом
+     * больше не заметен.
      */
-    private static final float CAMERA_FOLLOW_ANGLE = 40.0f;
+    private static final float CAMERA_FOLLOW_ANGLE = 12.0f;
 
-    /** Скорость подтягивания камеры, градусов в секунду. Медленно — нарочно. */
-    private static final float CAMERA_SPEED = 45.0f;
+    /** Скорость подтягивания камеры, градусов в секунду. */
+    private static final float CAMERA_SPEED = 300.0f;
 
     /** Когда камера разворачивается сразу: персонаж почти убежал из кадра. */
-    private static final float CAMERA_SNAP = 150.0f;
+    private static final float CAMERA_SNAP = 100.0f;
 
     /** Направление камеры: своё, отдельное от курса и от головы. */
     private float cameraYaw;
@@ -445,12 +523,6 @@ public final class PathExecutor {
 
     private long bodyLastNanos = System.nanoTime();
 
-    /** Идём ли в этом тике — нужно осматриванию, чтобы не вертеться на месте. */
-    private boolean movingNow;
-
-    /** Заняты ли делом, при котором смотреть по сторонам вредно. */
-    private boolean busyNow;
-
     /**
      * Поведение в воде: плыть к сухой части маршрута.
      *
@@ -459,10 +531,12 @@ public final class PathExecutor {
      * выбирался на мыс в стороне, пересчитывал путь, тот снова шёл через воду —
      * и он прыгал обратно. Отсюда «плавает вдоль берега и лезет в воду».
      *
-     * <p>Правило простое и без исключений: плывём в сторону цели, всплываем
-     * пробелом, вылезаем на первую же кромку, которая выше воды. Ни одного пути,
-     * ведущего к остановке: раньше здесь можно было запросить пересчёт и встать
-     * в воде, если рядом не нашлось берега.
+     * <p>Правило простое и без исключений: плывём к первому сухому узлу
+     * маршрута впереди — это и есть точка выхода на берег по пути к цели.
+     * Всплываем пробелом, а если выход глубоко под нами (зашли с высокого
+     * берега) — отпускаем пробел и погружаемся к нему. Ни одного пути, ведущего
+     * к остановке: раньше здесь можно было запросить пересчёт и встать в воде,
+     * если рядом не нашлось берега.
      */
     private void applySwim(Minecraft mc, EventInput event) {
         // Follow adjacent route nodes, not a distant bank through intervening walls.
@@ -471,17 +545,27 @@ public final class PathExecutor {
             this.repathRequested = true;
             return;
         }
-        PathNode target = this.path.current();
-        double aimX = target.centerX();
-        double aimZ = target.centerZ();
-        this.movingNow = true;
+        PathNode target = this.firstDryNodeAhead(mc);
+        if (target == null) {
+            target = this.path.current();
+        }
+        if (target == null) {
+            this.stopMovement(event);
+            this.repathRequested = true;
+            return;
+        }
         this.humanizer.tick(true, false, false);
         // Refresh observations in water too: previously they stayed frozen forever.
-        if (this.humanizer.blockedTicks() >= 40) {
+        //
+        // Терпение вдвое больше сухопутного: вода вязкая, игрок в ней толкается
+        // медленнее, и «почти не двигаемся» здесь бывает в штатном заплыве, а не
+        // только когда уткнулись в дно. Раньше пересчёт запрашивался каждые две
+        // секунды спокойного плавания — бот дёргался и терял маршрут.
+        if (this.humanizer.blockedTicks() >= SWIM_REPATH_TICKS) {
             this.repathRequested = true;
         }
-        double dx = aimX - mc.player.getX();
-        double dz = aimZ - mc.player.getZ();
+        double dx = target.centerX() - mc.player.getX();
+        double dz = target.centerZ() - mc.player.getZ();
         float yaw = (dx * dx + dz * dz < 0.01)
                 ? mc.player.getYRot()
                 : (float) Math.toDegrees(Math.atan2(-dx, dz));
@@ -495,112 +579,35 @@ public final class PathExecutor {
         mc.player.setYRot(this.rotation.yaw());
         mc.player.setXRot(this.rotation.pitch());
 
+        // Нырять или всплывать.
+        //
+        // Пробел, зажатый навсегда, — вторая причина «ломается в воде»: если
+        // вход в воду был с высокого берега, а выход маршрута ниже, персонаж
+        // вечно болтался на поверхности и не мог ни подойти к узлу, ни выйти на
+        // сушу. Теперь, пока выход заметно глубже нас, пробел отпущен — гребец
+        // погружается к нему; как только сравнялись, снова зажат — и последние
+        // метры к берегу идут по поверхности, с зацепом за кромку.
+        boolean dive = mc.player.getY() > target.centerY() + 0.8;
+
         event.setForward(1.0f);
         event.setStrafe(0.0f);
-        // Пробел в воде — всплытие. Держим зажатым: он и поднимает к поверхности,
-        // и позволяет зацепиться за кромку берега, когда доплыли.
-        event.setJump(true);
-        event.setSprint(false);
+        event.setJump(!dive);
+        // Спринт в воде — не украшение: ваное ускорение вплавь заметно быстрее
+        // простого гребка. В нырке он выключен: там и так тянет ко дну, а
+        // рывок к поверхности не нужен.
+        boolean sprint = this.sprintAllowed && !dive
+                && mc.player.getFoodData().getFoodLevel() > 6;
+        event.setSprint(sprint);
         event.setSneak(false);
 
-        this.jumpRequested = true;
-        this.sprintingNow = false;
-        this.wasInWater = true;
+        this.jumpRequested = !dive;
+        this.sprintingNow = sprint;
 
-        this.debugSwim(mc, yaw, target != null ? String.valueOf(target) : "берег/цель");
+        this.debugSwim(mc, yaw, String.valueOf(target));
     }
 
-    /**
-     * Ищет кромку берега, к которой можно пристать.
-     *
-     * <p>Условия кромки жёсткие, иначе персонаж плывёт к тому, на что не
-     * забраться:
-     * <ul>
-     *   <li>блок сухой и проходимый, под ним твёрдая опора (не вода);</li>
-     *   <li>рядом с ним по горизонтали есть вода — иначе это не берег, а суша
-     *       в глубине, и до неё всё равно не добраться вплавь;</li>
-     *   <li>высота не выше двух блоков над ногами — иначе не выпрыгнуть.</li>
-     * </ul>
-     *
-     * <p>Выбирается не просто ближайшая кромка, а ближайшая В СТОРОНУ ЦЕЛИ.
-     * Это принципиально: без поправки на цель персонаж выбирался на тот берег,
-     * с которого только что сошёл, пересчитывал путь, тот снова вёл через воду —
-     * и он прыгал обратно. Со стороны это выглядело как «плавает вдоль берега
-     * и лезет в воду».
-     *
-     * @return пара {@code {dx, dz}} от игрока до центра кромки либо {@code null}
-     */
-    private double[] findExitBank(Minecraft mc) {
-        if (mc.level == null || mc.player == null) {
-            return null;
-        }
-        int px = mc.player.blockPosition().getX();
-        int py = mc.player.blockPosition().getY();
-        int pz = mc.player.blockPosition().getZ();
-
-        double bestScore = Double.MAX_VALUE;
-        double[] best = null;
-
-        final int radius = 14;
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                double distSq = (double) dx * dx + (double) dz * dz;
-                if (distSq < 0.5) {
-                    continue;
-                }
-                for (int dy = -1; dy <= 2; dy++) {
-                    int x = px + dx;
-                    int y = py + dy;
-                    int z = pz + dz;
-                    if (!this.isBank(mc, x, y, z)) {
-                        continue;
-                    }
-                    // Цена = путь до кромки + штраф за удалённость от цели.
-                    // Множитель подобран так, чтобы кромка «за спиной» проигрывала
-                    // кромке впереди даже если до неё плыть чуть дольше.
-                    double score = distSq + this.goalHeuristic(x, y, z) * 2.0;
-                    if (score < bestScore) {
-                        bestScore = score;
-                        best = new double[]{dx + 0.5, dz + 0.5};
-                    }
-                    break;
-                }
-            }
-        }
-        return best;
-    }
-
-    /** Оценка расстояния до цели — чтобы выбирать берег в её сторону. */
-    private double goalHeuristic(int x, int y, int z) {
-        if (this.path == null || this.path.goal == null) {
-            return 0.0;
-        }
-        return this.path.goal.heuristic(x, y, z);
-    }
-
-    /** Сухая кромка, к которой можно пристать из воды. */
-    private boolean isBank(Minecraft mc, int x, int y, int z) {
-        var pos = new net.minecraft.core.BlockPos(x, y, z);
-        var at = mc.level.getBlockState(pos);
-        var below = mc.level.getBlockState(pos.below());
-
-        // Сам блок должен быть проходим, а опора под ним — твёрдой и сухой.
-        if (!at.getCollisionShape(mc.level, pos).isEmpty() || at.liquid()) {
-            return false;
-        }
-        if (below.liquid() || below.getCollisionShape(mc.level, pos.below()).isEmpty()) {
-            return false;
-        }
-        if (!mc.level.getBlockState(pos.above()).getCollisionShape(mc.level, pos.above()).isEmpty()) {
-            return false;
-        }
-
-        // И рядом должна быть вода: иначе это суша в глубине, до неё не доплыть.
-        return mc.level.getBlockState(pos.north()).liquid()
-                || mc.level.getBlockState(pos.south()).liquid()
-                || mc.level.getBlockState(pos.east()).liquid()
-                || mc.level.getBlockState(pos.west()).liquid();
-    }
+    /** Сколько тиков терпим «почти не двигаемся» в воде, прежде чем пересчитать путь. */
+    private static final int SWIM_REPATH_TICKS = 80;
 
     /**
      * Первый узел маршрута впереди, который находится на суше.
@@ -630,20 +637,6 @@ public final class PathExecutor {
                 || mc.level.getBlockState(pos.above()).liquid();
     }
 
-    /** Пропускает узлы, оставшиеся в воде: мы уже вышли, плыть к ним незачем. */
-    private void skipWaterNodes(Minecraft mc) {
-        if (this.path == null) {
-            return;
-        }
-        while (!this.path.finished()) {
-            PathNode node = this.path.current();
-            if (node == null || !this.isWaterAt(mc, node.x, node.y, node.z)) {
-                return;
-            }
-            this.path.index++;
-        }
-    }
-
     private int swimDebugTicks;
 
     private void debugSwim(Minecraft mc, float yaw, String target) {
@@ -661,42 +654,66 @@ public final class PathExecutor {
     }
 
     /**
-     * Мёртвая зона курса: на сколько градусов должна отличаться новая цель, чтобы
-     * вообще стоило поворачивать тело.
+     * Расстояние до «морковки» — точки впереди, на которую держим курс.
      *
-     * <p>Зачем. Узлы маршрута стоят по сетке, и на диагональном участке курс к
-     * следующему узлу гуляет на десять-двадцать градусов туда-обратно каждый тик.
-     * Сглаживание это сглаживает, но не убирает: персонаж мелко поворачивается
-     * всё время, пока бежит, — со стороны «вертится». Живой игрок так не делает:
-     * он держит направление, а мелкие поправки делает ногами.
-     *
-     * <p>Девяти градусов достаточно, чтобы погасить дрожание сетки, и мало, чтобы
-     * персонаж ушёл с маршрута: поправка всё равно возвращается, как только
-     * отклонение перерастёт порог.
+     * <p>Пешком — чуть ближе, бегом — дальше: на скорости точка в двух блоках
+     * пролетается за полсекунды, и курс начинал бы «мигать» на каждом узле.
+     * Три с половиной блока на бегу — это горизонт планирования живого игрока:
+     * он смотрит не под ноги, а чуть вперёд.
      */
-    private static final float HEADING_DEADBAND = 9.0f;
+    private static final double CARROT_WALK = 2.2;
+    private static final double CARROT_SPRINT = 3.5;
+
+    /** Насколько глубоко вдоль маршрута ищем точку-морковку, узлов. */
+    private static final int CARROT_MAX_NODES = 8;
 
     /**
-     * Курс тела с мёртвой зоной.
+     * Пороги боковой подсадки, градусов: включение и выключение.
      *
-     * @return угол, который следует держать: прежний, если новый отличается
-     *         незначительно, иначе новый
+     * <p>Два порога вместо одного — гистерезис. С одним порогом ошибка курса
+     * дрожала ровно вокруг него, боковая клавиша щёлкала туда-обратно каждый
+     * тик, и персонаж шёл рваной змейкой. Теперь включение на тридцати,
+     * выключение на двадцати: переключение возможно только через заметную
+     * дугу, а не на шуме.
      */
-    private float headingWithDeadband(float desired) {
-        if (!this.hasHeading) {
-            this.hasHeading = true;
-            this.heading = desired;
-            return desired;
-        }
-        if (Math.abs(net.minecraft.util.Mth.wrapDegrees(desired - this.heading)) < HEADING_DEADBAND) {
-            return this.heading;
-        }
-        this.heading = desired;
-        return desired;
-    }
+    private static final float STRAFE_ASSIST_ON = 30.0f;
+    private static final float STRAFE_ASSIST_OFF = 20.0f;
 
-    private float heading;
-    private boolean hasHeading;
+    /**
+     * Пороги остановки шага на развороте, градусов: включение и выключение.
+     *
+     * <p>Больше ста пятнадцати — это разворот почти спиной вперёд: идти
+     * «вперёд» в таком положении значит уходить с маршрута. Ниже девяноста
+     * пяти шаг возвращается. Гистерезис — по той же причине, что у стрейфа.
+     */
+    private static final float BIG_TURN_ON = 115.0f;
+    private static final float BIG_TURN_OFF = 95.0f;
+
+    /**
+     * Плавное торможение перед поворотом: с какой ошибки курса начинаем
+     * сбавлять шаг и до какой доли скорости.
+     *
+     * <p>Живой игрок входит в угол дугой — заранее притормаживает и режет
+     * радиус, а не идёт полным ходом до упора и не замирает на месте.
+     */
+    private static final float TURN_SLOW_START = 55.0f;
+    private static final float TURN_SLOW_MIN = 0.35f;
+
+    /** Круче этого угла спринт выключаем: в поворот игроки входят без бега. */
+    private static final float TURN_SPRINT_MAX = 75.0f;
+
+    /**
+     * Ближе этого расстояния до угла спринт-прыжки прекращаем, блоков.
+     *
+     * <p>В воздухе управление слабое: прыжок прямо перед поворотом — это
+     * гарантированный пролёт мимо линии и зигзаг-коррекция после приземления.
+     * Пять блоков — примерно длина одного прыжка на бегу.
+     */
+    private static final double HOP_CORNER_DISTANCE = 5.0;
+
+    /** Держим ли сейчас боковую подсадку и остановку шага — состояния гистерезиса. */
+    private boolean strafeAssist;
+    private boolean bigTurn;
 
     /** Куда смотреть: на подъёме чуть вверх, на спуске чуть вниз. */
     private float pitchFor(PathNode node) {
@@ -708,37 +725,103 @@ public final class PathExecutor {
     }
 
     /**
-     * Куда смотреть и куда идти.
+     * Точка-«морковка»: на {@code CARROT_*} блоков впереди вдоль ломаной маршрута.
      *
-     * <p>Обычный случай — направление на центр узла. Но есть два положения, где
-     * так считать нельзя, и оба давали «крутится на месте»:
-     *
-     * <ul>
-     *   <li>стоим почти ровно над узлом, который ниже нас (перед обрывом) —
-     *       горизонтальная разница близка к нулю, и {@code atan2} выдаёт мусор:
-     *       голова и курс скачут на случайный угол каждый тик;</li>
-     *   <li>летим вниз — управлять направлением всё равно нельзя.</li>
-     * </ul>
-     *
-     * <p>В обоих случаях сохраняем направление участка, по которому пришли:
-     * человек, дойдя до края, продолжает шагать вперёд, а не разворачивается.
+     * <p>Строится от текущей позиции игрока по сегментам пути: от игрока к
+     * текущему узлу, от него к следующему и так далее, пока не наберётся нужная
+     * дистанция. Узел раскопа обрывает поиск точки: к нему ведём буквально,
+     * пока не срубим блок.
      */
-    private float headingFor(Minecraft mc, PathNode node) {
-        double dx = node.centerX() - mc.player.getX();
-        double dz = node.centerZ() - mc.player.getZ();
-        double dy = node.centerY() - mc.player.getY();
-        double horizontal = Math.sqrt(dx * dx + dz * dz);
+    private Vec3 carrotPoint(Minecraft mc) {
+        double remaining = this.sprintingNow ? CARROT_SPRINT : CARROT_WALK;
+        double ax = mc.player.getX();
+        double ay = mc.player.getY();
+        double az = mc.player.getZ();
 
-        boolean aboveLowerNode = horizontal < 0.9 && dy < -0.8;
-        if (!aboveLowerNode && horizontal >= 0.05) {
+        int from = Math.min(this.path.index, this.path.nodes.size() - 1);
+        int limit = Math.min(this.path.nodes.size() - 1, from + CARROT_MAX_NODES);
+        for (int i = from; i <= limit; i++) {
+            PathNode node = this.path.nodes.get(i);
+            double bx = node.centerX();
+            double by = node.centerY();
+            double bz = node.centerZ();
+
+            if (node.type == MovementType.DIG) {
+                return new Vec3(bx, by, bz);
+            }
+
+            double dx = bx - ax;
+            double dz = bz - az;
+            double len = Math.sqrt(dx * dx + dz * dz);
+            if (len >= remaining) {
+                double t = len < 1.0E-6 ? 0.0 : remaining / len;
+                return new Vec3(ax + dx * t, ay + (by - ay) * t, az + dz * t);
+            }
+            remaining -= len;
+            ax = bx;
+            ay = by;
+            az = bz;
+        }
+        return new Vec3(ax, ay, az);
+    }
+
+    /**
+     * Обрезает точку-морковку по проходимости коридора.
+     *
+     * <p>«Морковка» срезает углы по ломаной — это и задумано, но срезать угол
+     * сквозь стену нельзя. Проверяем коридор от игрока к точке так же, как
+     * {@link #canWalkStraight}: на уровне ног и головы свободно, под ногами
+     * опора. Первая закрытая проба обрубает точку перед препятствием.
+     *
+     * <p>Побочный эффект, и он полезный: перед ямой или ступенькой точка
+     * ложится ровно на край — персонаж идёт к краю и шагает вниз (или прыгает
+     * вверх) уже ведомый поиском, а не азимутом сквозь препятствие.
+     */
+    private Vec3 clampToClearance(Minecraft mc, Vec3 target) {
+        double px = mc.player.getX();
+        double pz = mc.player.getZ();
+        double dx = target.x - px;
+        double dz = target.z - pz;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.6) {
+            return target;
+        }
+        int feet = (int) Math.floor(mc.player.getY());
+        int samples = (int) Math.ceil(len * 4.0);
+        for (int s = 1; s <= samples; s++) {
+            double t = (double) s / samples;
+            int x = (int) Math.floor(px + dx * t);
+            int z = (int) Math.floor(pz + dz * t);
+            if (!this.clearAt(mc, x, feet, z) || !this.clearAt(mc, x, feet + 1, z)
+                    || !this.hasFloorAt(mc, x, feet - 1, z)) {
+                double cut = (double) (s - 1) / samples;
+                return new Vec3(px + dx * cut, target.y, pz + dz * cut);
+            }
+        }
+        return target;
+    }
+
+    /**
+     * Азимут на точку впереди.
+     *
+     * <p>Если точка почти под ногами (менее трети блока), азимут вырождается:
+     * {@code atan2} выдаёт случайный угол, и голова скачет каждый тик — ровно то
+     * «крутится на месте», от которого мы лечимся. В этом случае сохраняем
+     * направление последнего пройденного участка: человек, дойдя до края или до
+     * ступеньки, продолжает шагать вперёд, а не разворачивается.
+     */
+    private float headingTo(Minecraft mc, Vec3 aim) {
+        double dx = aim.x - mc.player.getX();
+        double dz = aim.z - mc.player.getZ();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        if (horizontal >= 0.35) {
             return (float) Math.toDegrees(Math.atan2(-dx, dz));
         }
-
-        // Направление предыдущего участка: от узла, где мы были, к текущему.
         PathNode previous = this.previousNode();
-        if (previous != null) {
-            double pdx = node.centerX() - previous.centerX();
-            double pdz = node.centerZ() - previous.centerZ();
+        PathNode next = this.path == null ? null : this.path.current();
+        if (previous != null && next != null) {
+            double pdx = next.centerX() - previous.centerX();
+            double pdz = next.centerZ() - previous.centerZ();
             if (pdx * pdx + pdz * pdz > 0.01) {
                 return (float) Math.toDegrees(Math.atan2(-pdx, pdz));
             }
@@ -746,8 +829,42 @@ public final class PathExecutor {
         return this.intentYaw;
     }
 
+    /** Кэш тактического узла: путь и индекс, на которых он считался, и возраст. */
+    private PathNode smoothCache;
+    private Path smoothCachePath;
+    private int smoothCacheIndex = -1;
+    private int smoothCacheAge;
+
+    /** Пересчитывать тактический узел не чаще этого, тиков. */
+    private static final int SMOOTH_REFRESH_TICKS = 4;
+
+    /**
+     * Тактический узел с гистерезисом.
+     *
+     * <p>{@link #smoothedTarget} проверяет прямой коридор до каждого из
+     * кандидатов — это сотни обращений к миру за тик. Пересчитывать его каждый
+     * тик и незачем, и вредно: на бегу дальний конец коридора переключается
+     * между соседними узлами, и производные от него решения (прыжок, наклон
+     * головы) начинают мерцать. Раз в четыре тика или при смене текущего узла —
+     * достаточно.
+     */
+    private PathNode tacticalTarget(Minecraft mc) {
+        if (this.smoothCache != null && this.smoothCachePath == this.path
+                && this.smoothCacheIndex == this.path.index
+                && this.smoothCacheAge < SMOOTH_REFRESH_TICKS) {
+            this.smoothCacheAge++;
+            return this.smoothCache;
+        }
+        PathNode fresh = this.smoothedTarget(mc);
+        this.smoothCache = fresh;
+        this.smoothCachePath = this.path;
+        this.smoothCacheIndex = this.path.index;
+        this.smoothCacheAge = 0;
+        return fresh;
+    }
+
     /** Насколько далеко вперёд смотрим при сглаживании, узлов. */
-    private static final int MAX_SMOOTH_AHEAD = 24;
+    private static final int MAX_SMOOTH_AHEAD = 10;
 
     /** Дальше этого от узла считаем, что сбились с маршрута, и строим заново. */
     private static final double OFF_PATH_DISTANCE = 6.0;
@@ -764,19 +881,64 @@ public final class PathExecutor {
         if (this.path == null || mc.player == null) {
             return false;
         }
+        // Считаем расстояние до ЛИНИИ маршрута, а не до точек-узлов.
+        //
+        // После струнной стяжки узлы стоят разреженно: прямая может тянуться на
+        // двадцать-тридцать блоков. Старая проверка «расстояние до ближайшего
+        // узла» в середине такой прямой давала десятки блоков — исполнитель
+        // каждый тик считал себя сошедшим с маршрута, требовал пересчёт и
+        // выходил из apply() ДО управления ногами. Бот вставал как вкопанный в
+        // вечном цикле пересчётов («вообще не ходит»).
+        double px = mc.player.getX();
+        double py = mc.player.getY();
+        double pz = mc.player.getZ();
         double best = Double.MAX_VALUE;
         int limit = Math.min(this.path.nodes.size() - 1, this.path.index + 8);
-        for (int i = this.path.index; i <= limit; i++) {
-            PathNode node = this.path.nodes.get(i);
-            double dx = node.centerX() - mc.player.getX();
-            double dz = node.centerZ() - mc.player.getZ();
-            double dy = node.centerY() - mc.player.getY();
-            double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        for (int i = Math.max(1, this.path.index); i <= limit; i++) {
+            double d = distanceToSegment(px, py, pz,
+                    this.path.nodes.get(i - 1), this.path.nodes.get(i));
             if (d < best) {
                 best = d;
             }
         }
+        if (best == Double.MAX_VALUE) {
+            // Вырожденный путь из одного узла — проверяем по-старому.
+            PathNode node = this.path.current();
+            if (node == null) {
+                return false;
+            }
+            double dx = node.centerX() - px;
+            double dy = node.centerY() - py;
+            double dz = node.centerZ() - pz;
+            best = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
         return best > OFF_PATH_DISTANCE;
+    }
+
+    /**
+     * Расстояние от точки до отрезка в пространстве.
+     *
+     * <p>Проекция точки на прямую отрезка зажимается в [0,1]: если игрок ещё не
+     * дошёл до начала отрезка или уже прошёл его конец, расстоянием считается
+     * расстояние до соответствующего конца.
+     */
+    private static double distanceToSegment(double px, double py, double pz, PathNode a, PathNode b) {
+        double ax = a.centerX();
+        double ay = a.centerY();
+        double az = a.centerZ();
+        double abx = b.centerX() - ax;
+        double aby = b.centerY() - ay;
+        double abz = b.centerZ() - az;
+        double apx = px - ax;
+        double apy = py - ay;
+        double apz = pz - az;
+        double lenSq = abx * abx + aby * aby + abz * abz;
+        double t = lenSq < 1.0E-9 ? 0.0 : (apx * abx + apy * aby + apz * abz) / lenSq;
+        t = Math.max(0.0, Math.min(1.0, t));
+        double dx = apx - abx * t;
+        double dy = apy - aby * t;
+        double dz = apz - abz * t;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     /**
@@ -875,6 +1037,12 @@ public final class PathExecutor {
         return mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty();
     }
 
+    /** Прорублены ли обе клетки узла раскопа — ноги и голова. */
+    private boolean digCleared(Minecraft mc, PathNode node) {
+        return this.clearAt(mc, node.x, node.y, node.z)
+                && this.clearAt(mc, node.x, node.y + 1, node.z);
+    }
+
     private boolean hasFloorAt(Minecraft mc, int x, int y, int z) {
         var pos = new net.minecraft.core.BlockPos(x, y, z);
         return !mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty();
@@ -890,7 +1058,11 @@ public final class PathExecutor {
             double dz = node.centerZ() - mc.player.getZ();
             double dy = node.centerY() - mc.player.getY();
 
-            boolean closeHorizontally = dx * dx + dz * dz <= NODE_REACH * NODE_REACH;
+            // В воде допуск шире: пловца носит по волнам, и сухопутная точность
+            // там недостижима — индекс замирал, и маршрут «заканчивался»
+            // посреди водоёма.
+            double reach = node.type == MovementType.SWIM ? SWIM_NODE_REACH : NODE_REACH;
+            boolean closeHorizontally = dx * dx + dz * dz <= reach * reach;
 
             // Узел выше нас требует реального подъёма: пока не забрались — не
             // считаем его пройденным, иначе персонаж будет «доходить» до вершины,
@@ -901,16 +1073,26 @@ public final class PathExecutor {
             // иначе при падении в глубокую воду весь маршрут разом помечался
             // пройденным, и персонаж оставался в воде без цели.
             //
+            // Узел плавания в воде засчитывается по одной горизонтали, без окна
+            // по высоте: куда плыть, решает сухой выход впереди, а не конкретная
+            // клетка воды, и проплыли мы её на поверхности или в толще — неважно.
+            //
             // Для узла раскопа допуска нет вовсе: он лежит ВНУТРИ блока, и «мы
             // висим над ним в четырёх блоках» — это не «мы его прошли». С четырёх-
             // блочным допуском индекс перескакивал несколько ступеней разом,
             // текущим становился узел, до которого не дотянуться рукой, и бот
             // замирал в яме, глядя в стену.
+            //
+            // И главное: узел раскопа пройден, только когда коридор РЕАЛЬНО
+            // прорублен. Раньше хватало подойти на 0.8 блока — а подойти вплотную
+            // можно к нетронутой стене. Индекс перескакивал стену, бот ломал в
+            // лучшем случае один блок, потом упирался в остаток и начинал через
+            // него прыгать: «сломал один блок и думает, что красавчик».
             boolean surfaceSwim = mc.player.isInWater() && node.type == MovementType.SWIM;
             boolean reached = surfaceSwim
-                    ? closeHorizontally && mc.player.getY() >= node.y - 0.6
+                    ? closeHorizontally
                     : node.type == MovementType.DIG
-                    ? closeHorizontally && dy <= 1.0 && dy >= -1.0
+                    ? closeHorizontally && dy <= 1.0 && dy >= -1.0 && this.digCleared(mc, node)
                     : closeHorizontally && dy <= 1.6 && dy >= -4.0;
 
             // Проскочили узел на бегу — не возвращаемся за ним.
@@ -1025,6 +1207,7 @@ public final class PathExecutor {
 
     private int watchNodeIndex = -1;
     private int watchTicks;
+    private double watchLastDist = Double.MAX_VALUE;
 
     /**
      * Сторож зависания на узле.
@@ -1052,7 +1235,22 @@ public final class PathExecutor {
         if (this.path.index != this.watchNodeIndex) {
             this.watchNodeIndex = this.path.index;
             this.watchTicks = 0;
+            this.watchLastDist = Double.MAX_VALUE;
             return;
+        }
+        // Пока расстояние до узла сокращается — исполнитель продвигается, и
+        // таймер молчит. Долгая прямая после струнной стяжки проходится
+        // секундами: фиксированный лимит принимал нормальный бег за зависание,
+        // пропускал угол и запускал пересчёт прямо посреди пути.
+        if (mc.player != null) {
+            double dx = node.centerX() - mc.player.getX();
+            double dy = node.centerY() - mc.player.getY();
+            double dz = node.centerZ() - mc.player.getZ();
+            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist < this.watchLastDist - 0.02) {
+                this.watchTicks = 0;
+            }
+            this.watchLastDist = dist;
         }
         if (++this.watchTicks < NODE_WATCHDOG_TICKS) {
             return;
@@ -1167,9 +1365,42 @@ public final class PathExecutor {
         if (mc.player.getFoodData().getFoodLevel() <= 6) {
             return false;
         }
-        // Решаем по длине ОСТАВШЕГОСЯ пути, а не по расстоянию до текущего узла:
-        // узлы стоят через блок, и «далеко ли до узла» почти всегда false.
-        return this.path != null && this.path.nodes.size() - this.path.index > 3;
+        // Решаем по оставшейся ДЛИНЕ маршрута, а не по числу узлов: после
+        // струнной стяжки узлы разрежены, и прямая на тридцать блоков — это два
+        // узла. Старая проверка «узлов впереди больше трёх» запрещала бег на
+        // большей части пути.
+        return this.path != null && this.remainingDistance() > 12.0;
+    }
+
+    /**
+     * Оставшаяся длина маршрута в блоках.
+     *
+     * <p>Считается с ранним выходом и ограничением по числу отрезков: точное
+     * значение дальше порога не нужно, а полный обход длинного пути каждый тик
+     * — лишняя работа.
+     */
+    private double remainingDistance() {
+        if (this.path == null || this.path.index >= this.path.nodes.size()) {
+            return 0.0;
+        }
+        PathNode prev = this.path.current();
+        if (prev == null) {
+            return 0.0;
+        }
+        double total = 0.0;
+        int limit = Math.min(this.path.nodes.size() - 1, this.path.index + 40);
+        for (int i = this.path.index + 1; i <= limit; i++) {
+            PathNode node = this.path.nodes.get(i);
+            double dx = node.centerX() - prev.centerX();
+            double dy = node.centerY() - prev.centerY();
+            double dz = node.centerZ() - prev.centerZ();
+            total += Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (total > 12.0) {
+                break;
+            }
+            prev = node;
+        }
+        return total;
     }
 
     /**
@@ -1180,7 +1411,7 @@ public final class PathExecutor {
      * потому что край оставался впереди. Теперь прыжок заказывает только поиск
      * пути: он уже проверил, что за провалом есть куда приземлиться.
      */
-    private boolean shouldJump(Minecraft mc, PathNode node) {
+    private boolean shouldJump(Minecraft mc, PathNode node, float absErr) {
         if (mc.player == null) {
             return false;
         }
@@ -1215,7 +1446,11 @@ public final class PathExecutor {
         // ступеньку, тип узла не совпадал, прыжка не было — и он толкался в стену,
         // пока сторож не выбрасывал узел из маршрута. Со стороны это «тупой бот
         // стоит и не идёт». Живой игрок в такой момент просто прыгает.
-        if (this.humanizer.blockedTicks() >= 3) {
+        //
+        // Но если впереди раскоп — НЕ прыгает: стену, которую надо проломить,
+        // перепрыгнуть нельзя, и подскоки у неё — это ровно то «сломал блок и
+        // запрыгивает», на которое жаловались. Ждём, пока подойдём и прорубим.
+        if (this.humanizer.blockedTicks() >= 3 && !this.diggingPath) {
             return true;
         }
 
@@ -1252,14 +1487,70 @@ public final class PathExecutor {
         // держит пробел, и персонаж прыгает сразу, как только коснулся земли:
         // движение выходит ровным и быстрым.
         //
+        // Но живой игрок ещё и СМОТРИТ, где прыгает: перед поворотом подскоки
+        // прекращаются (в воздухе управление слабое, пролёт мимо линии — это
+        // зигзаг-коррекция), в низкий потолок никто не прыгает (удар головой —
+        // потеря скорости), у края обрыва — тоже. Те же три проверки здесь.
+        //
         // onGround здесь уже проверен выше, так что «прыгать всегда» безопасно:
         // ваниль просто не даст прыгнуть в воздухе.
-        if (this.sprintingNow && Math.abs(dy) < 0.7) {
+        if (this.sprintingNow && Math.abs(dy) < 0.7 && absErr < STRAFE_ASSIST_OFF
+                && !this.diggingPath && this.hopCornerFar(mc) && this.hopCorridorClear(mc)) {
             double speedSq = mc.player.getDeltaMovement().horizontalDistanceSqr();
+            // Если мы ещё не разогнались, прыгать не будем: иначе, стоя на
+            // месте в ожидании поворота, будем подпрыгивать на месте.
             return speedSq > 0.02;
         }
 
         return false;
+    }
+
+    /**
+     * Далеко ли ещё угол, в который мы поворачиваем.
+     *
+     * <p>Спринт-прыжок прямо перед поворотом — это пролёт мимо маршрута:
+     * в воздухе руление слабое, и приземлившись, персонаж уходит в сторону и
+     * потом зигзагом возвращается. Игрок так не делает — он гасит подскоки
+     * заранее.
+     */
+    private boolean hopCornerFar(Minecraft mc) {
+        PathNode corner = this.path != null ? this.path.current() : null;
+        if (corner == null || mc.player == null) {
+            return false;
+        }
+        double dx = corner.centerX() - mc.player.getX();
+        double dz = corner.centerZ() - mc.player.getZ();
+        return dx * dx + dz * dz > HOP_CORNER_DISTANCE * HOP_CORNER_DISTANCE;
+    }
+
+    /**
+     * Есть ли впереди место для прыжка: пол под ногами и потолок не ниже
+     * четырёх блоков на четыре блока вперёд по курсу.
+     *
+     * <p>Прыжок головой в потолок обрывает спринт, прыжок за край обрыва —
+     * падение с маршрута. Обе ситуации живой игрок читает глазами заранее и
+     * просто не прыгает.
+     */
+    private boolean hopCorridorClear(Minecraft mc) {
+        if (mc.player == null) {
+            return false;
+        }
+        double yawRad = Math.toRadians(this.rotation.yaw());
+        double dirX = -Math.sin(yawRad);
+        double dirZ = Math.cos(yawRad);
+        int feet = (int) Math.floor(mc.player.getY());
+        double px = mc.player.getX();
+        double pz = mc.player.getZ();
+        for (double d = 0.5; d <= 4.0; d += 0.5) {
+            int x = (int) Math.floor(px + dirX * d);
+            int z = (int) Math.floor(pz + dirZ * d);
+            if (!this.clearAt(mc, x, feet, z) || !this.clearAt(mc, x, feet + 1, z)
+                    || !this.clearAt(mc, x, feet + 2, z) || !this.clearAt(mc, x, feet + 3, z)
+                    || !this.hasFloorAt(mc, x, feet - 1, z)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private PathNode previousNode() {
@@ -1280,7 +1571,27 @@ public final class PathExecutor {
         // на раскопе порог не отключается, а растягивается: настоящая работа
         // укладывается в него с запасом, а вечное стояние — нет.
         int limit = this.diggingPath ? DIG_STUCK_TICKS : REPATH_AFTER_STUCK_TICKS;
-        if (this.humanizer.isBlocked()) {
+
+        // Смотрим не на флаг «упёрлись», а на реальное смещение.
+        //
+        // Флаг приходит из Humanizer, а тот обнуляется на спринте: бот,
+        // бегущий в стену или склон, спринт не терял, счётчик постоянно
+        // сбрасывался, и сторож не срабатывал никогда. Координаты не врут:
+        // если за тик не сдвинулись ни на сантиметр — мы не идём, а упираемся.
+        double x = mc.player.getX();
+        double z = mc.player.getZ();
+        boolean moved;
+        if (Double.isNaN(this.lastTrackX)) {
+            moved = true;
+        } else {
+            double dx = x - this.lastTrackX;
+            double dz = z - this.lastTrackZ;
+            moved = dx * dx + dz * dz > 1.0E-4;
+        }
+        this.lastTrackX = x;
+        this.lastTrackZ = z;
+
+        if (!moved) {
             this.stuckTicks++;
         } else {
             this.stuckTicks = 0;
@@ -1339,6 +1650,22 @@ public final class PathExecutor {
         BlockPos target = feetClear ? head : feet;
         if (!BlockInteraction.inReach(mc, target)) {
             // Ещё далеко: пусть обычная ходьба подведёт ближе.
+            //
+            // Но если ближе не становится (стена, обрыв, вода), это тупик, а не
+            // прогулка. Раньше ветка просто возвращала false, счётчики не росли,
+            // и оба сторожа молчали: узловой на раскопе не следит, а застревание
+            // сбрасывал спринт. Бот вечно упирался в склон рядом с недостижимой
+            // клеткой раскопа. Теперь тупик копится и заканчивается пересчётом.
+            long farKey = node.key();
+            if (farKey != this.digNodeKey) {
+                this.digNodeKey = farKey;
+                this.digTicks = 0;
+            }
+            if (++this.digTicks > DIG_UNREACHABLE_TICKS) {
+                this.digNodeKey = 0L;
+                this.digTicks = 0;
+                this.repathRequested = true;
+            }
             return false;
         }
 

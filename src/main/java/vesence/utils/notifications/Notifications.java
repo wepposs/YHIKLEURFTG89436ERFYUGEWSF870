@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.impl.visuals.Hud;
+import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.BorderRadius;
@@ -373,7 +374,7 @@ public class Notifications {
             float innerW = n.width - (innerX - cardX) - panelPad;
             float innerY = cardY + panelPad;
 
-            int cardColor = ColorUtil.replAlpha(ColorUtil.BLACK, (int) (155 * alpha));
+            int cardColor = ClickGui.getBackgroundColor((int) (155 * alpha));
             int pillColor = ColorUtil.replAlpha(-1, (int) (12 * alpha));
             int themeColor = ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int) (240 * alpha));
             int textColor = ColorUtil.replAlpha(-1, (int) (255 * alpha));

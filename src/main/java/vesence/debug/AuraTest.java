@@ -9,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.phys.Vec3;
 import vesence.module.impl.combat.AttackAura;
-import vesence.module.impl.combat.rotation.UShardRotation;
+import vesence.module.impl.combat.rotation.ULegitRotation;
 
 /**
  * Автотест киллауры. Включается {@code VESENCE_AURATEST=1}.
@@ -179,7 +179,7 @@ public final class AuraTest {
                         + " dist=" + String.format("%.2f", mc.player.distanceTo(dummy))
                         + " yaw=" + String.format("%.1f", mc.player.getYRot())
                         + " pitch=" + String.format("%.1f", mc.player.getXRot())
-                        + " остаток=" + String.format("%.1f", UShardRotation.residual())
+                        + " остаток=" + String.format("%.1f", ULegitRotation.residual())
                         + " maxStep=" + String.format("%.1f", maxStep)
                         + " maxAccel=" + String.format("%.1f", maxAccel)
                         + " maxFrameYaw=" + String.format("%.1f", maxFrameYaw));
@@ -234,7 +234,7 @@ public final class AuraTest {
             hasStep = true;
             stepTicks++;
         }
-        float res = UShardRotation.residual();
+        float res = ULegitRotation.residual();
         if (residualCount < residuals.length && res < 1.0E4F) {
             residuals[residualCount++] = res;
         }

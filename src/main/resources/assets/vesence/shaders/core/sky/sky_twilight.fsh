@@ -5,40 +5,32 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Twilight — the blue hour: ember of the set sun smouldering in the west,
-// Belt of Venus pink band opposite, violet-blue vault, first stars and a
-// thin crescent moon overhead.
+// TWILIGHT — гражданские сумерки: солнце под горизонтом, янтарное сияние на
+// его стороне и холодный контр-свет напротив, пояс Венеры, яркие звёзды.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 sunPos = worldDir(275.0, -7.0);
+    vec3 antiSun = worldDir(95.0, 5.0);
 
-    // Blue-hour ramp: rosy-amber horizon -> violet -> deep ultramarine zenith
-    vec3 col = atmosphere(d, vec3(0.34, 0.16, 0.30), vec3(0.10, 0.07, 0.22), vec3(0.020, 0.025, 0.075));
+    vec3 col = atmosphereSun(d,
+        vec3(0.95, 0.44, 0.28),
+        vec3(0.42, 0.24, 0.44),
+        vec3(0.05, 0.08, 0.26),
+        sunPos, vec3(1.00, 0.50, 0.28), 0.90);
 
-    vec3 west = worldDir(280.0, 0.0);
+    col += horizonHaze(d, antiSun, vec3(0.20, 0.30, 0.52), 0.30);
+    col += godRays(d, sunPos, vec3(1.00, 0.55, 0.30), 0.18);
+    col += vec3(0.95, 0.55, 0.45) * cirrus(d, 117.0) * 0.14;
 
-    // Afterglow pooled where the sun set
-    col += horizonHaze(d, west, vec3(0.75, 0.32, 0.22), 0.55);
+    col += stars(d, 55.0, 0.75, 21.0);
+    col += stars(d, 120.0, 0.28, 88.0);
 
-    // Belt of Venus: pink band opposite the sun, low in the east
-    vec3 east = -west;
-    float opp = max(dot(d, east), 0.0);
-    col += vec3(0.42, 0.16, 0.26) * bell(d.y - 0.10, 0.09) * opp * 0.5;
-    // Earth's shadow: blue-grey wedge rising beneath it
-    col *= 1.0 - 0.22 * opp * smoothstep(0.30, 0.0, d.y);
+    vec3 venus = worldDir(255.0, 14.0);
+    float va = length(d - venus);
+    col += vec3(0.95, 0.97, 1.00) * (bell(va, 0.006) * 1.6 + bell(va, 0.030) * 0.25);
 
-    // First stars: brightest at zenith
-    col += stars(d, 58.0, 1.15, 15.0) * smoothstep(0.12, 0.55, d.y);
+    col += horizonHaze(d, sunPos, vec3(0.95, 0.48, 0.26), 0.55);
 
-    // Thin crescent moon hanging in the afterglow
-    vec3 mPos = worldDir(255.0, 34.0);
-    vec3 mCol = vec3(0.90, 0.92, 0.98);
-    float md = length(d - mPos);
-    // dark side faintly visible (earthshine)
-    col = detailedMoon(col, d, mPos, 0.030, mCol, 2.45);
-    col += mCol * bell(md, 0.10) * 0.05;
-
-    // A few wisps catching the last light
-    col = cloudLayer(col, d, west, vec3(0.12, 0.10, 0.22), vec3(0.55, 0.34, 0.42), 0.30, 5.0, 0.40, 21.0);
-
+    col = grade(col, 1.15, -0.05);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

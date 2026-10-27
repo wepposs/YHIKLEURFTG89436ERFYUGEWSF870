@@ -55,7 +55,12 @@ public class SkyRenderingMixin {
                 Ambience amb = Ambience.getInstance();
                 boolean fogOn = Ambience.fog.is(Ambience.FOG_OVERRIDE) || Ambience.fog.is(Ambience.FOG_CLEAR);
                 int fogRgb = amb.getFogColorValue();
-                float fogBlend = Ambience.fog.is(Ambience.FOG_OVERRIDE) ? 0.85F : 0.45F;
+                // fogBlend = 0 при выключенном тумане: раньше сюда всегда
+                // уходило 0.45, и finishSky подмешивал серый цвет тумана в
+                // низ неба независимо от настройки — дневные режимы выглядели
+                // выцветшими при любом цвете неба.
+                float fogBlend = Ambience.fog.is(Ambience.FOG_OVERRIDE) ? 0.85F
+                        : (Ambience.fog.is(Ambience.FOG_CLEAR) ? 0.45F : 0.0F);
                 boolean rendered = vesence.renderengine.render.SkyShaderRenderer.getInstance().render(
                         renderTarget, Ambience.skyShaderMode.currentMode, camera,
                         Ambience.skySpeed.get().floatValue(), Ambience.skyIntensity.get().floatValue(),

@@ -169,12 +169,39 @@ public final class PathFinder {
      * @return текущий статус поиска
      */
     public Status step(int budget) {
+        return this.stepInternal(budget, budget, Long.MAX_VALUE);
+    }
+
+    /**
+     * Раскрывает узлы, пока не выберет ВРЕМЕННОЙ бюджет, но не меньше
+     * {@code floor} узлов.
+     *
+     * <p>Зачем. Фиксированные «4000 узлов за тик» считали не работу, а штуки: на
+     * холодном кэше один узел стоит миллисекунды, на горячем — микросекунды. В
+     * первом случае тик проседал, во втором — процессор простаивал, а игрок
+     * стоял и ждал маршрут. Бюджет в наносекундах нагружает тик ровно настолько,
+     * насколько можно без потери кадров, и поиск заканчивается в разы быстрее.
+     *
+     * @param floor       минимум узлов за вызов — гарантия, что поиск вообще движется
+     * @param nanosBudget бюджет времени, наносекунды
+     */
+    public Status stepTimed(int floor, long nanosBudget) {
+        return this.stepInternal(floor, floor * 8, System.nanoTime() + nanosBudget);
+    }
+
+    private Status stepInternal(int minExpansions, int maxExpansions, long deadlineNanos) {
         if (this.status != Status.RUNNING) {
             return this.status;
         }
 
         int done = 0;
-        while (done < budget) {
+        while (done < maxExpansions) {
+            // Часы дёргаем не на каждом узле (это само по себе накладно), а
+            // раз в 64 раскрытия — и только после того, как минимум выбран.
+            if (done >= minExpansions && (done & 63) == 0 && System.nanoTime() >= deadlineNanos) {
+                break;
+            }
+
             PathNode current = this.open.poll();
             if (current == null) {
                 this.status = Status.FAILED;

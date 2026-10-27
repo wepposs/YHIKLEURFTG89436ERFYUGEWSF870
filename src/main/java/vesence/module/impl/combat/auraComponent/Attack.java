@@ -248,8 +248,8 @@ public final class Attack implements IMinecraft {
     *   {@code AttackAura.smashTimingBlocked} (Deluxe: Class55#m944);</li>
     *   <li>{@code fallCheck} выключен — бьём всегда;</li>
     *   <li>физически можем критовать (нет левитации/слепоты/воды/лавы в глазах,
-    *   не летим/не на элитре/не лезем/не в транспорте) — бьём только в падении
-    *   с {@code fallDistance > convenientFallOffset()} (при AirStuck порог 0);</li>
+    *   не летим/не на элитре/не лезем/не в транспорте) — бьём в воздухе, когда
+    *   {@code fallDistance >= convenientFallOffset()} (при AirStuck порог 0);</li>
     *   <li>включены умные криты — на земле без зажатого прыжка бьём (крит
     *   организует сама аура);</li>
     *   <li>физически критовать НЕ можем — бьём обычные удары.</li>
@@ -288,7 +288,12 @@ public final class Attack implements IMinecraft {
             && !mc.player.onClimbable()
             && !mc.player.isPassenger();
       double threshold = airStuckActive() ? 0.0 : convenientFallOffset();
-      return physical && mc.player.fallDistance > threshold && !mc.player.onGround()
+      // ВАЖНО: >=, а не >. convenientFallOffset() в воздухе обычно равен самому
+      // fallDistance, поэтому строгое > не выполнялось НИКОГДА — аура вообще не
+      // била в прыжке/падении. С >= удар проходит во всех воздушных фазах, кроме
+      // первого тика быстрого падения (нокбек), где fallDistance < -vy — там
+      // «удобный» момент ещё не наступил.
+      return physical && mc.player.fallDistance >= threshold && !mc.player.onGround()
             || smartCrits && mc.player.onGround() && !mc.player.input.keyPresses.jump()
             || physical && mc.player.onGround() && !smartCrits
             || !physical;
@@ -310,6 +315,16 @@ public final class Attack implements IMinecraft {
       }
 
       if (livingIn != null && mc.gameMode != null && mc.player != null) {
+         // 26.3: пакеты движения уходят из Minecraft.tick (LocalPlayer.sendChanges)
+         // ПОСЛЕ ClientLevel.tickEntities, где тикает игрок и работает аура. Без
+         // принудительного флаша сервер получил бы удар с ротацией ПРОШЛОГО тика —
+         // античит видит удар «не в цель» и срезает его. Флашим ротацию до interact;
+         // повторный sendChanges в конце тика ничего не отправит (углы не изменятся).
+         try {
+            mc.player.sendChanges();
+         } catch (Throwable ignored) {
+         }
+
          mc.gameMode.attack(mc.player, livingIn);
          if (hand != null) {
             mc.player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);

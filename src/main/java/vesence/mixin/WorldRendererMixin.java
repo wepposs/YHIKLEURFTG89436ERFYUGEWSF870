@@ -52,6 +52,12 @@ public class WorldRendererMixin {
            boolean shouldRenderSky,
            boolean renderSky,
            CallbackInfo ci) {
+      // Снимаем мировую проекцию в НАЧАЛЕ отрисовки мира: здесь буфер проекции
+      // гарантированно мировой (его выставил renderLevel до вызова), а
+      // внутренние проходы (blit обводки и т.п.) ещё не могли его подменить.
+      // Отложенная отправка геометрии модулей выполняется в пост-GUI проходе,
+      // где RenderSystem держит уже экранную ортопроекцию.
+      vesence.utils.render.world.WorldRenderer.ImmediateBuffers.captureWorldState();
       ChunksAnimation anim = ChunksAnimation.INSTANCE;
       if (anim == null || !anim.enable || cameraState == null || cameraState.viewRotationMatrix == null) {
          return;
@@ -76,10 +82,24 @@ public class WorldRendererMixin {
       Minecraft mc = Minecraft.getInstance();
       DeltaTracker tickCounter = mc.getDeltaTracker();
       Camera camera = mc.gameRenderer != null ? mc.gameRenderer.mainCamera() : null;
-      // positionMatrix (view) = viewRotation * translate(-cameraPos), как в старом LevelRenderer.render.
+      // positionMatrix = ТОЛЬКО поворот камеры, без переноса — ровно то, что
+      // передавал старый LevelRenderer#render до 26.3, и чего ждут все
+      // потребители (EventRender3D, Mathf.lastWorldSpaceMatrix, KillEffect,
+      // WorldRenderer.begin): они сами вычитают позицию камеры из вершин либо
+      // пушат translate(-camPos) на стек. При порте здесь ошибочно собрали
+      // полный view (поворот + translate(-camPos)) — позиция камеры
+      // вычиталась дважды, и вся 3D-графика модулей улетала за экран.
       Matrix4f positionMatrix = new Matrix4f(cameraState.viewRotationMatrix);
-      if (cameraState.pos != null) {
-         positionMatrix.translate((float) -cameraState.pos.x, (float) -cameraState.pos.y, (float) -cameraState.pos.z);
+      // ChunksAnimation в HEAD-инжекте сдвигает viewRotationMatrix по Y —
+      // убираем этот сдвиг перед отправкой событий: модули должны получать
+      // чистый поворот камеры (как до порта), иначе их графика пляшет вместе
+      // с «появляющимся» миром.
+      ChunksAnimation animForEvents = ChunksAnimation.INSTANCE;
+      if (animForEvents != null && animForEvents.enable) {
+         float animOffset = animForEvents.computeOffsetY();
+         if (animOffset != 0.0F) {
+            positionMatrix.translate(0.0F, -animOffset, 0.0F);
+         }
       }
       Matrix4f basicProjectionMatrix = cameraState.projectionMatrix;
       Matrix4f projectionMatrix = cameraState.projectionMatrix;

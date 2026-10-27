@@ -1,21 +1,15 @@
 package vesence.module.impl.visuals.elements.modern;
 
-import com.mojang.renderpearl.api.textures.GpuTexture;
-import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.renderer.texture.AbstractTexture;
-import com.mojang.renderpearl.backend.opengl.GlTexture;
-import net.minecraft.world.entity.player.PlayerSkin;
-import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.world.scores.Team;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.scores.Scoreboard;
+import vesence.module.impl.misc.ClickGui;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
@@ -29,215 +23,105 @@ import vesence.utils.render.ttf.TtfFonts;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * Staff List: компоновка Default-версии — карточка-заголовок «Staff Online»
+ * и выезжающие строки «nick [Privilege]» с цветным квадратом-индикатором
+ * статуса справа. Дизайн modern: чёрные карточки с тенью, светящаяся
+ * TTF-иконка, SF_SEMI.
+ *
+ * <p>Детект расширен относительно Default: regex-паттерны по префиксу команды,
+ * англоязычные ключевые слова, StaffStorage, статусы Spec/Vanish/Offline и
+ * кэш ушедших игроков.
+ */
 @Environment(EnvType.CLIENT)
 public class ModernStaffListElement extends HudElement {
 
-    private static final float PANEL_PAD   = 6f;
-    private static final float COL_GAP     = 6f;
-    private static final float HEADER_H    = 38f;
-    private static final float HEADER_GAP  = 6f;
-    private static final float ICON_COL_W  = 35;
-    private static final float LINE_HEIGHT = 23;
-    private static final float COL_PAD_V   = 5f;
+    private static final float PADDING_H = 13;
+    private static final float PADDING_V = 12;
+    private static final float FONT_SIZE = 28;
+    private static final float HEADER_FONT_SIZE = 27;
+    private static final float LINE_HEIGHT = 29;
+    private static final float HEADER_HEIGHT = 17;
+    private static final float HEADER_BOX_HEIGHT = 33;
+    private static final float ROW_BOX_HEIGHT = 25;
+    private static final float ROW_RADIUS = 8f;
+    private static final float ROW_RIGHT_EXTRA_GAP = 5f;
 
-    private static final float MIN_WIDTH   = 190f;
-    private static final float TITLE_SIZE  = 33f;
-    private static final float NAME_SIZE   = 30.5f;
-    private static final float ROW_ICON    = 16;
-
-    private static final int   PILL_ALPHA  = 12;
-    private static final String TITLE = "Staff";
+    private static final int WHITE_COLOR = 0xFFFFFFFF;
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^\\w{3,16}$");
     private static final Pattern PREFIX_MATCHES = Pattern.compile(
             ".*(mod|der|adm|help|wne|\u0445\u0435\u043B\u043F|\u0430\u0434\u043C|\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430|\u043A\u0443\u0440\u0430|own|taf|curat|dev|supp|yt|\u0441\u043E\u0442\u0440\u0443\u0434).*");
 
-    private static final int ONLINE_COLOR = ColorUtil.getColor(134, 255, 174);
-    private static final int SPEC_COLOR = ColorUtil.getColor(255, 190, 80);
-    private static final int VANISH_COLOR = ColorUtil.getColor(254, 68, 68);
+    /** Англоязычные ключевые слова детекта из Default-версии. */
+    private static final String[] STAFF_KEYWORDS = {
+            "moder", "admin", "helper", "owner", "co-owner", "manager", "senior",
+            "moderator", "administrator", "support", "develop", "builder",
+            "curator", "trial", "head", "lead", "staff", "youtuber", "youtube",
+            "partner", "sponsor", "mvp", "vip", "premium", "legend", "hero",
+            "guard", "operator", "supervisor", "consultant"
+    };
 
-    private enum State { ONLINE, SPECTATOR, VANISH }
-    private record StaffInfo(String nick, String coloredName, State state) {}
+    private static final int ONLINE_COLOR  = ColorUtil.getColor(134, 255, 174);
+    private static final int SPEC_COLOR    = ColorUtil.getColor(255, 190, 80);
+    private static final int VANISH_COLOR  = ColorUtil.getColor(254, 68, 68);
+    private static final int OFFLINE_COLOR = ColorUtil.getColor(255, 109, 109);
 
-    private static final class RowState {
-        String nick, name, value;
-        int accent;
-        float dim;
-        boolean active;
-        final Animation2 anim = new Animation2();
-        final Animation2 slot = new Animation2();
-        RowState() { anim.set(0.0); slot.set(0.0); }
-    }
+    private enum State { ONLINE, SPECTATOR, VANISH, OFFLINE }
+    private record StaffInfo(String nick, String privilege, State state) {}
 
-    private final Map<String, RowState> rows = new LinkedHashMap<>();
+    private final Map<String, Animation2> playerAnims = new HashMap<>();
+    private final Map<String, Animation2> slotAnims = new HashMap<>();
     private final Animation2 visibilityAnim = new Animation2();
     private final Animation2 widthAnim = new Animation2();
-    private float boundsW = MIN_WIDTH, boundsH = HEADER_H + PANEL_PAD * 2f;
+
+    /** Кэш замеченных стаффов: ушедшие игроки остаются в списке со статусом Offline. */
+    private final Map<String, StaffInfo> knownStaff = new HashMap<>();
 
     public ModernStaffListElement() {
         super("Staff List", 10f, 400f);
         visibilityAnim.set(0.0);
-        widthAnim.set(MIN_WIDTH);
+        widthAnim.set(125.0 + PADDING_H * 2.0);
     }
 
-    @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
-        boolean chatOpen = Minecraft.getInstance().gui.screen() instanceof ChatScreen;
-
-        for (RowState st : rows.values()) st.active = false;
-        for (StaffInfo info : collectStaff()) {
-            RowState st = rows.computeIfAbsent(info.nick(), k -> new RowState());
-            st.nick = info.nick();
-            st.name = info.coloredName();
-            st.value = stateText(info.state());
-            st.accent = stateColor(info.state());
-            st.dim = info.state() == State.VANISH ? 0.9f : 1f;
-            st.active = true;
+    private static boolean containsKeyword(String lower) {
+        if (lower == null) return false;
+        for (String kw : STAFF_KEYWORDS) {
+            if (lower.contains(kw)) return true;
         }
+        return false;
+    }
 
-        float totalSlotHeight = 0f, maxNameW = 0f, maxValueW = 0f;
-        List<String> dead = new ArrayList<>();
-        for (Map.Entry<String, RowState> e : rows.entrySet()) {
-            RowState st = e.getValue();
-            st.anim.update();
-            st.slot.update();
-            st.anim.run(st.active ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT, true);
-            st.slot.run(st.active ? LINE_HEIGHT : 0.0, 0.15, Easings.CUBIC_OUT, true);
-            totalSlotHeight += st.slot.get();
-            if (st.active) {
-                float nameW  = r.measureText(FontRegistry.SF_MEDIUM, ColorFormat.strip(st.name), NAME_SIZE, -0.1f).width;
-                float valueW = r.measureText(FontRegistry.SF_SEMI, st.value, NAME_SIZE).width;
-                if (nameW > maxNameW) maxNameW = nameW;
-                if (valueW > maxValueW) maxValueW = valueW;
+    /** Извлечение ранга из отображаемого текста (перенесено из Default-версии). */
+    private static String extractPrivilege(String displayText) {
+        if (displayText == null) return "";
+        String lower = displayText.toLowerCase(Locale.ROOT);
+        for (String kw : STAFF_KEYWORDS) {
+            int idx = lower.indexOf(kw);
+            if (idx != -1) {
+                int start = idx;
+                while (start > 0 && displayText.charAt(start - 1) != ' ' && displayText.charAt(start - 1) != '[' && displayText.charAt(start - 1) != '&') {
+                    start--;
+                }
+                int end = idx + kw.length();
+                while (end < displayText.length() && displayText.charAt(end) != ' ' && displayText.charAt(end) != ']' && displayText.charAt(end) != '\u00a7') {
+                    end++;
+                }
+                String privilege = displayText.substring(start, end);
+                privilege = privilege.replaceAll("[\\[\\]&§]", "").trim();
+                if (!privilege.isEmpty()) {
+                    return privilege.substring(0, 1).toUpperCase(Locale.ROOT) + privilege.substring(1).toLowerCase(Locale.ROOT);
+                }
             }
-            if (!st.active && st.anim.get() < 0.005 && st.slot.get() < 0.5) dead.add(e.getKey());
         }
-        for (String k : dead) rows.remove(k);
-
-        boolean hasAny = !rows.isEmpty();
-        boolean shouldShow = chatOpen || hasAny;
-        visibilityAnim.update();
-        widthAnim.update();
-        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT, true);
-        float alpha = (float) visibilityAnim.get();
-        if (alpha < 0.005f) return;
-
-        int theme = Renderer2D.ColorUtil.getClientColor();
-
-        float nameColW  = maxNameW  + 24f;
-        float valueColW = maxValueW + 24f;
-
-        float titleW = r.measureText(FontRegistry.SF_SEMI, TITLE, TITLE_SIZE, -0.15f).width;
-        float headerPillMin = 14f + titleW + 40f;
-        float rightBlockW = Math.max(headerPillMin, nameColW + COL_GAP + valueColW);
-        if (rightBlockW > nameColW + COL_GAP + valueColW) {
-            nameColW = rightBlockW - COL_GAP - valueColW;
-        }
-
-        float panelTarget = Math.max(MIN_WIDTH,
-                PANEL_PAD * 2f + ICON_COL_W + COL_GAP + nameColW + COL_GAP + valueColW);
-        widthAnim.run(panelTarget, 0.2, Easings.CUBIC_OUT, true);
-        float panelW = (float) widthAnim.get();
-
-        float x0 = x + PANEL_PAD;
-        float iconColX  = x0;
-        float valueColX = x + panelW - PANEL_PAD - valueColW;
-        float nameColX  = iconColX + ICON_COL_W + COL_GAP;
-        float nameColW2 = valueColX - COL_GAP - nameColX;
-
-        float colsH = totalSlotHeight < 0.5f ? 0f : (totalSlotHeight + COL_PAD_V * 2f);
-        float panelH = PANEL_PAD + HEADER_H + (colsH > 0.5f ? HEADER_GAP + colsH : 0f) + PANEL_PAD;
-
-        r.blur(x, y, panelW, panelH, 15, 12, alpha);
-        r.rect(x, y, panelW, panelH, 12, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (155 * alpha)));
-
-        float headerTop = y + PANEL_PAD;
-        TtfFonts.ICONNEW.drawStringWithGlow(r, "s", iconColX + ICON_COL_W / 2f - 12, headerTop + HEADER_H / 2f - 11f, 24,
-                ColorUtil.replAlpha(theme, (int) (230 * alpha)));
-        float headerPillX = nameColX;
-        float headerPillW = valueColX + valueColW - headerPillX + 1;
-        r.rect(headerPillX, headerTop, headerPillW, HEADER_H, 3, 6, hasAny ? 3 : 6, 3, ColorUtil.replAlpha(-1, (int) (PILL_ALPHA * alpha)));
-        r.text(FontRegistry.SF_SEMI, headerPillX + 12, headerTop + HEADER_H / 2f + 7.5f, TITLE_SIZE, "StaffSvins",
-                ColorUtil.replAlpha(-1, (int) (255 * alpha)), -0.15f);
-        r.textRight(FontRegistry.SF_BOLD, headerPillX + headerPillW - 12, headerTop + HEADER_H / 2f + 6, 30, ":::",
-                ColorUtil.replAlpha(-1, (int) (75 * alpha)), 1);
-
-        if (colsH < 0.5f) {
-            boundsW = panelW;
-            boundsH = panelH;
-            return;
-        }
-
-        float colsTop = headerTop + HEADER_H + HEADER_GAP;
-        int colColor = ColorUtil.replAlpha(-1, (int) (PILL_ALPHA * alpha));
-        r.rect(iconColX,  colsTop, ICON_COL_W, colsH, 3, 3, 3, 6, colColor);
-        r.rect(nameColX,  colsTop, nameColW2,  colsH, 3, 3, 3, 3, colColor);
-        r.rect(valueColX, colsTop, valueColW,  colsH, 3, 3, 6, 3, colColor);
-
-        float rowTop = colsTop + COL_PAD_V;
-        for (RowState st : rows.values()) {
-            float rowAnim = (float) st.anim.get();
-            if (rowAnim < 0.01f) continue;
-
-            float rowAlpha = rowAnim * alpha * st.dim;
-            float baseY = rowTop + LINE_HEIGHT / 2f + NAME_SIZE * 0.33f - 2.5f;
-
-            drawHead(r, st.nick, iconColX + (ICON_COL_W - ROW_ICON) / 2f, rowTop + (LINE_HEIGHT - ROW_ICON) / 2f, ROW_ICON, rowAlpha);
-
-            r.pushAlpha(rowAlpha);
-            r.text(FontRegistry.SF_MEDIUM, nameColX + 10, baseY, NAME_SIZE, st.name,
-                    ColorUtil.replAlpha(-1, 255), -0.1f);
-            r.popAlpha();
-
-            r.textCenter(FontRegistry.SF_SEMI, valueColX + valueColW / 2f + 0.5f, baseY, NAME_SIZE, st.value,
-                    ColorUtil.replAlpha(st.accent, (int) (255 * rowAlpha)));
-
-            rowTop += (float) st.slot.get();
-        }
-
-        boundsW = panelW;
-        boundsH = panelH;
-    }
-
-    private void drawHead(Renderer2D r, String name, float px, float py, float size, float alpha) {
-        if (alpha <= 0.01f) return;
-        float round = size * 0.22f;
-        int glId = skinGlId(name);
-        r.pushAlpha(alpha);
-        if (glId != 0) {
-            r.drawRgbaTextureWithUVRoundedNearest(glId, px, py, size, size,
-                    8f / 64f, 8f / 64f, 16f / 64f, 16f / 64f, round);
-            r.drawRgbaTextureWithUVRoundedNearest(glId, px, py, size, size,
-                    40f / 64f, 8f / 64f, 48f / 64f, 16f / 64f, round);
-        } else {
-            r.rect(px, py, size, size, round, ColorUtil.getColor(255, 40));
-        }
-        r.popAlpha();
-    }
-
-    private int skinGlId(String name) {
-        try {
-            ClientPacketListener nh = Minecraft.getInstance().getConnection();
-            if (nh == null) return 0;
-            PlayerInfo entry = nh.getPlayerInfo(name);
-            if (entry == null) return 0;
-            PlayerSkin tex = entry.getSkin();
-            if (tex == null) return 0;
-            Identifier skinId = tex.body().texturePath();
-            AbstractTexture at = Minecraft.getInstance().getTextureManager().getTexture(skinId);
-            if (at == null) return 0;
-            GpuTextureView view = at.getTextureView();
-            if (view == null) return 0;
-            GpuTexture gpuTex = view.texture();
-            if (gpuTex instanceof GlTexture glTex) return glTex.glId();
-        } catch (Exception ignored) {}
-        return 0;
+        return "";
     }
 
     private static String cleanName(String s) {
@@ -265,7 +149,11 @@ public class ModernStaffListElement extends HudElement {
 
     private List<StaffInfo> collectStaff() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return List.of();
+        if (mc.level == null || mc.getConnection() == null) {
+            List<StaffInfo> cached = new ArrayList<>(knownStaff.values());
+            cached.sort(sorter());
+            return cached;
+        }
 
         Map<String, StaffInfo> map = new LinkedHashMap<>();
         Scoreboard scoreboard = mc.level.getScoreboard();
@@ -279,20 +167,51 @@ public class ModernStaffListElement extends HudElement {
             String suffix = team != null ? team.getPlayerSuffix().getString() : "";
             String full = (prefix + nick + suffix).trim();
             String plain = cleanName(ColorFormat.strip(full)).toLowerCase(Locale.ROOT);
-            if (!PREFIX_MATCHES.matcher(plain).matches() && !StaffStorage.isStaff(nick)) continue;
+
+            var tabName = e.getTabListDisplayName();
+            String tabText = tabName != null ? tabName.getString() : full;
+            String tabPlain = cleanName(ColorFormat.strip(tabText)).toLowerCase(Locale.ROOT);
+
+            boolean staff = PREFIX_MATCHES.matcher(plain).matches()
+                    || containsKeyword(plain)
+                    || containsKeyword(tabPlain)
+                    || StaffStorage.isStaff(nick);
+            if (!staff) continue;
+
+            String privilege = extractPrivilege(tabText);
+            if (privilege.isEmpty()) privilege = extractPrivilege(full);
+            if (privilege.isEmpty()) privilege = extractPrivilege(nick);
+            if (privilege.isEmpty()) privilege = "Staff";
 
             State state = e.getGameMode() == GameType.SPECTATOR ? State.SPECTATOR : State.ONLINE;
-            map.put(nick, new StaffInfo(nick, full, state));
+            StaffInfo info = new StaffInfo(nick, privilege, state);
+            map.put(nick, info);
+            knownStaff.put(nick, info);
         }
 
+        // Vanish: есть в StaffStorage, но не виден в списке игроков.
         for (String nick : StaffStorage.getStaff()) {
             if (map.containsKey(nick)) continue;
-            map.put(nick, new StaffInfo(nick, nick, State.VANISH));
+            StaffInfo known = knownStaff.get(nick);
+            String privilege = known != null ? known.privilege() : "Staff";
+            map.put(nick, new StaffInfo(nick, privilege, State.VANISH));
+        }
+
+        // Offline: раньше был в списке стаффа, но пропал из tab-list и из StaffStorage.
+        for (Map.Entry<String, StaffInfo> e : knownStaff.entrySet()) {
+            if (map.containsKey(e.getKey())) continue;
+            StaffInfo old = e.getValue();
+            map.put(e.getKey(), new StaffInfo(old.nick(), old.privilege(), State.OFFLINE));
         }
 
         List<StaffInfo> list = new ArrayList<>(map.values());
-        list.sort(Comparator.comparingInt((StaffInfo i) -> stateOrder(i.state())).thenComparing(i -> i.nick().toLowerCase(Locale.ROOT)));
+        list.sort(sorter());
         return list;
+    }
+
+    private static Comparator<StaffInfo> sorter() {
+        return Comparator.comparingInt((StaffInfo i) -> stateOrder(i.state()))
+                .thenComparing(i -> i.nick().toLowerCase(Locale.ROOT));
     }
 
     private static int stateOrder(State s) {
@@ -300,14 +219,7 @@ public class ModernStaffListElement extends HudElement {
             case ONLINE -> 0;
             case SPECTATOR -> 1;
             case VANISH -> 2;
-        };
-    }
-
-    private static String stateText(State s) {
-        return switch (s) {
-            case ONLINE -> "Online";
-            case SPECTATOR -> "Spec";
-            case VANISH -> "Vanish";
+            case OFFLINE -> 3;
         };
     }
 
@@ -316,21 +228,177 @@ public class ModernStaffListElement extends HudElement {
             case ONLINE -> ONLINE_COLOR;
             case SPECTATOR -> SPEC_COLOR;
             case VANISH -> VANISH_COLOR;
+            case OFFLINE -> OFFLINE_COLOR;
         };
     }
 
     @Override
-    public float getEffectiveWidth(Renderer2D r, FontObject font) {
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
+        if (FontRegistry.SF_SEMI == null) return;
+        FontObject f = FontRegistry.SF_SEMI;
+
+        Minecraft mc = Minecraft.getInstance();
+        boolean isChatOpen = mc.gui.screen() instanceof ChatScreen;
+
+        List<StaffInfo> staff = collectStaff();
+
+        for (StaffInfo entry : staff) {
+            String key = entry.nick();
+            Animation2 anim = playerAnims.computeIfAbsent(key, k -> {
+                Animation2 a = new Animation2();
+                a.set(0.0);
+                return a;
+            });
+            anim.update();
+            // Offline-строки затемняются, как в Default-версии.
+            anim.run(entry.state() == State.OFFLINE ? 0.35 : 1.0, 0.15, Easings.CUBIC_OUT);
+
+            Animation2 slot = slotAnims.computeIfAbsent(key, k -> {
+                Animation2 a = new Animation2();
+                a.set(0.0);
+                return a;
+            });
+            slot.update();
+            slot.run(LINE_HEIGHT, 0.15, Easings.CUBIC_OUT);
+        }
+
+        List<String> dead = new ArrayList<>();
+        for (Map.Entry<String, Animation2> e : playerAnims.entrySet()) {
+            String key = e.getKey();
+            boolean stillActive = staff.stream().anyMatch(s -> s.nick().equals(key));
+            if (!stillActive) {
+                e.getValue().update();
+                e.getValue().run(0.0, 0.15, Easings.CUBIC_OUT);
+                Animation2 slot = slotAnims.get(key);
+                if (slot != null) {
+                    slot.update();
+                    slot.run(0.0, 0.15, Easings.CUBIC_OUT);
+                    if (slot.get() < 0.5 && e.getValue().get() < 0.005) dead.add(key);
+                }
+            }
+        }
+        for (String key : dead) {
+            playerAnims.remove(key);
+            slotAnims.remove(key);
+        }
+
+        boolean hasAny = !staff.isEmpty();
+        boolean shouldShow = isChatOpen || hasAny;
+        visibilityAnim.update();
+        widthAnim.update();
+
+        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT);
+
+        float globalAlpha = (float) visibilityAnim.get();
+        if (globalAlpha < 0.005f) return;
+
+        int themeColor = Renderer2D.ColorUtil.getClientColor();
+
+        float maxLineW = 0f;
+        for (StaffInfo entry : staff) {
+            String label = entry.nick() + " [" + entry.privilege() + "]";
+            float nameW = renderer.measureText(f, label, FONT_SIZE, -0.1f).width;
+            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + 12 + PADDING_H;
+            if (lineW > maxLineW) maxLineW = lineW;
+        }
+
+        float headerIconW = 20f;
+        float headerTextW = renderer.measureText(f, "Staff Online", HEADER_FONT_SIZE + 4, -0.15f).width;
+        float headerW = headerIconW + 6 + headerTextW;
+
+        float contentW = Math.max(110, Math.max(maxLineW, headerW));
+        float autoRectW = contentW + PADDING_H * 2f + 15;
+
+        widthAnim.run(autoRectW, 0.2, Easings.CUBIC_OUT);
+        float rectW = (float) widthAnim.get();
+
+        // ---- Карточка-заголовок ----
+        drawHudPanel(renderer, x, y, rectW, HEADER_BOX_HEIGHT, globalAlpha);
+
+        float curY = y + PADDING_V + 9;
+        TtfFonts.ICONNEW.drawStringWithGlow(renderer, "s", x + 8f, y + HEADER_BOX_HEIGHT / 2f - 12f, 24,
+                ColorUtil.replAlpha(themeColor, (int) (230 * globalAlpha)));
+        renderer.rect(x + 38, y + 10.5f, 1, 14, ColorUtil.replAlpha(-1, (int) (20 * globalAlpha)));
+        renderer.text(f, x + 48, curY + 2.5f, 31, "Staff Online", ColorUtil.replAlpha(-1, globalAlpha), -0.15f);
+
+        curY += HEADER_HEIGHT;
+
+        for (StaffInfo entry : staff) {
+            String key = entry.nick();
+            Animation2 anim = playerAnims.get(key);
+            Animation2 slot = slotAnims.get(key);
+            if (anim == null || slot == null || (anim.get() < 0.01 && slot.get() < 0.5)) continue;
+
+            float modAlpha = (float) (anim.get() * globalAlpha);
+            int modTextAlpha = (int) (255 * modAlpha);
+
+            String label = entry.nick() + " [" + entry.privilege() + "]";
+
+            int nameColor = (modTextAlpha << 24) | (WHITE_COLOR & 0x00FFFFFF);
+            int squareColor = ColorUtil.replAlpha(stateColor(entry.state()), modTextAlpha);
+
+            float rowX = x + modAlpha * 15 - 15;
+
+            renderer.blur(rowX, curY, rectW, ROW_BOX_HEIGHT, ClickGui.blurStrengthHud.get().floatValue(), ROW_RADIUS, modAlpha);
+            renderer.rect(rowX, curY, rectW, ROW_BOX_HEIGHT, ROW_RADIUS,
+                    ClickGui.getBackgroundColor((int) (185f * ClickGui.getHudAlpha() * modAlpha)));
+
+            renderer.text(f, rowX + 9, curY + 18.5f, 28, label, nameColor, -0.1f);
+
+            float circleX = rowX + rectW - 19;
+            float circleY = curY + 7;
+            renderer.rect(circleX, circleY, 12, 12, 6, squareColor);
+
+            curY += (float) slot.get();
+        }
+        for (Map.Entry<String, Animation2> e : slotAnims.entrySet()) {
+            String key = e.getKey();
+            boolean stillActive = staff.stream().anyMatch(s -> s.nick().equals(key));
+            if (!stillActive) {
+                curY += (float) e.getValue().get();
+            }
+        }
+    }
+
+    @Override
+    public float getEffectiveWidth(Renderer2D renderer, FontObject font) {
         return (float) widthAnim.get();
     }
 
     @Override
-    public float getWidth(Renderer2D r, FontObject font) {
-        return boundsW;
+    public float getWidth(Renderer2D renderer, FontObject font) {
+        FontObject f = FontRegistry.SF_SEMI != null ? FontRegistry.SF_SEMI : font;
+        List<StaffInfo> staff = collectStaff();
+        float maxLineW = 0f;
+        for (StaffInfo entry : staff) {
+            String label = entry.nick() + " [" + entry.privilege() + "]";
+            float nameW = renderer.measureText(f, label, FONT_SIZE, -0.1f).width;
+            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + 12 + PADDING_H;
+            if (lineW > maxLineW) maxLineW = lineW;
+        }
+        float headerTextW = renderer.measureText(f, "Staff Online", HEADER_FONT_SIZE + 4, -0.15f).width;
+        float headerW = headerTextW + 55f;
+        float contentW = Math.max(135, Math.max(maxLineW, headerW));
+        return contentW + PADDING_H * 2f + 15;
     }
 
     @Override
-    public float getHeight(Renderer2D r, FontObject font) {
-        return boundsH;
+    public float getHeight(Renderer2D renderer, FontObject font) {
+        List<StaffInfo> staff = collectStaff();
+        float totalSlotHeight = 0;
+        boolean hasAny = false;
+        for (StaffInfo entry : staff) {
+            Animation2 slot = slotAnims.get(entry.nick());
+            if (slot != null) {
+                float sh = (float) slot.get();
+                totalSlotHeight += sh;
+                if (sh > 0.5f) hasAny = true;
+            } else {
+                totalSlotHeight += LINE_HEIGHT;
+                hasAny = true;
+            }
+        }
+        if (!hasAny && totalSlotHeight < 0.5f) return HEADER_BOX_HEIGHT;
+        return PADDING_V + 9 + HEADER_HEIGHT + totalSlotHeight + (ROW_BOX_HEIGHT - LINE_HEIGHT);
     }
 }

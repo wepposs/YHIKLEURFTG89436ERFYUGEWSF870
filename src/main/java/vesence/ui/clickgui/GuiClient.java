@@ -289,6 +289,6 @@ public class GuiClient extends Screen {
          GuiScreen.modules = Vesence.get.manager.getType(GuiScreen.selectedCategories);
       }
 
-      CompactGuiScreen.init();
+            CompactGuiScreen.init();
    }
 }

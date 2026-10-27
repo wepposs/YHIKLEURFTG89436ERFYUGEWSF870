@@ -25,6 +25,7 @@ public final class FontRegistry {
    public static FontObject MON;
    public static FontObject NUC;
    public static FontObject LOGO;
+   public static FontObject MARK;
    public static FontObject DELUXE;
    public static FontObject ICON;
    public static FontObject RELAKE;
@@ -48,6 +49,7 @@ public final class FontRegistry {
          renderer.registerTextRenderer(TEST, createTextRenderer(TEST));
          renderer.registerTextRenderer(VESENCE, createTextRenderer(VESENCE));
          renderer.registerTextRenderer(LOGO, createTextRenderer(LOGO));
+         renderer.registerTextRenderer(MARK, createTextRenderer(MARK));
          renderer.registerTextRenderer(MON, createTextRenderer(MON));
          renderer.registerTextRenderer(NUC, createTextRenderer(NUC));
          renderer.registerTextRenderer(DELUXE, createTextRenderer(DELUXE));
@@ -166,6 +168,7 @@ public final class FontRegistry {
          {"test", "assets/vesence/fonts/productsans_medium.json", "assets/vesence/fonts/productsans_medium.png"},
          {"vesence", "assets/vesence/fonts/vesence.json", "assets/vesence/fonts/vesence.png"},
          {"logo", "assets/vesence/fonts/logo.json", "assets/vesence/fonts/logo.png"},
+         {"mark", "assets/vesence/fonts/mark.json", "assets/vesence/fonts/mark.png"},
          {"mon", "assets/vesence/fonts/mon_icons.json", "assets/vesence/fonts/mon_icons.png"},
          {"nuc", "assets/vesence/fonts/nuc_icons.json", "assets/vesence/fonts/nuc_icons.png"},
          {"deluxe", "assets/vesence/fonts/test.json", "assets/vesence/fonts/test.png"},
@@ -188,6 +191,7 @@ public final class FontRegistry {
       TEST = registerDecoded("test", decoded.get("test"));
       VESENCE = registerDecoded("vesence", decoded.get("vesence"));
       LOGO = registerDecoded("logo", decoded.get("logo"));
+      MARK = registerDecoded("mark", decoded.get("mark"));
       MON = registerDecoded("mon", decoded.get("mon"));
       NUC = registerDecoded("nuc", decoded.get("nuc"));
       DELUXE = registerDecoded("deluxe", decoded.get("deluxe"));

@@ -5,55 +5,35 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Galaxy — a great face-on spiral dominating the vault: blazing core, two
-// luminous arms wound with dust, H-II pink knots, surrounding deep starfield.
+// GALAXY — спиральная галактика-герой: светящееся ядро, два рукава с
+// узлами звездообразования и пылевой дорожкой, за диском — гало эмиссионной
+// туманности; звёзды переднего плана приглушены, чтобы галактика доминировала.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 center = worldDir(200.0, 35.0);
 
-    // Deep space: near-black vault with the faintest indigo breath at horizon
-    vec3 col = atmosphere(d, vec3(0.10, 0.11, 0.22), vec3(0.03, 0.035, 0.10), vec3(0.008, 0.010, 0.028));
+    vec3 col = atmosphere(d,
+        vec3(0.024, 0.022, 0.052),
+        vec3(0.008, 0.008, 0.026),
+        vec3(0.0015, 0.0015, 0.006));
 
-    vec3 galCenter = worldDir(30.0, 42.0);
-    float gd = length(d - galCenter);
+    // Гало туманности за диском — глубина.
+    col += nebula(d, center * 3.0,
+        vec3(0.06, 0.05, 0.14), vec3(0.14, 0.10, 0.26), vec3(0.30, 0.22, 0.42), 0.35);
 
-    // Own tangent-plane projection for full control of the disk
-    vec2 uv = tangentUV(d, galCenter);
-    float tilt = 0.72;                       // mild foreshortening, face-on enough to read
-    vec2 q = vec2(uv.x, uv.y / tilt);
-    float r = length(q);
-    float a = atan(q.y, q.x);
+    col += spiralGalaxy(d, center, 0.30,
+        vec3(1.00, 0.86, 0.62), vec3(0.44, 0.60, 1.00)) * 1.15;
 
-    // Two-armed logarithmic spiral, arms slightly offset in phase
-    float armPhase = a - log(max(r, 0.045)) * 2.6;
-    float arm1 = bell(fract(armPhase / TAU) - 0.25, 0.16);
-    float arm2 = bell(fract(armPhase / TAU + 0.5) - 0.25, 0.16);
-    float arms = (arm1 + arm2) * smoothstep(0.10, 0.30, r) * exp(-r * 1.35);
+    // Далёкая галактика-компаньон: мазок для масштаба.
+    col += spiralGalaxy(d, worldDir(40.0, 62.0), 0.05,
+        vec3(0.90, 0.85, 0.75), vec3(0.55, 0.65, 0.95)) * 0.35;
 
-    // Dust lanes hugging the inner edge of each arm
-    float dust = bell(fract(armPhase / TAU) - 0.13, 0.06) + bell(fract(armPhase / TAU + 0.5) - 0.13, 0.06);
-    dust = clamp(dust, 0.0, 1.0) * smoothstep(0.14, 0.45, r) * exp(-r * 0.9);
+    col += stars(d, 55.0, 0.55, 37.0);
+    col += stars(d, 110.0, 0.22, 81.0);
+    col += stars(d, 24.0, 0.40, 127.0);
 
-    // Star clumps sprinkled along the arms
-    float clump = starsSeeded(d, 40.0, 0.5, 900.0).g * smoothstep(0.1, 0.4, r) * exp(-r * 1.6);
+    col += vec3(0.08, 0.09, 0.18) * fbm(d * 2.4 + vec3(Time * 0.002), 3) * 0.08;
 
-    // Core: overexposed center + warm bar
-    float core = bell(r, 0.07) * 2.6 + bell(r, 0.22) * 0.9;
-
-    vec3 diskCol = vec3(0.45, 0.68, 0.95) * arms * 1.5;          // blue arms
-    diskCol += vec3(0.95, 0.60, 0.70) * clump * 0.9;             // H-II knots
-    diskCol *= 1.0 - 0.65 * dust;                                 // dust lanes cut in
-    diskCol += vec3(1.0, 0.88, 0.66) * core;                      // warm core
-
-    // Out-of-plane scatter: thin disk profile so the galaxy reads as a disk
-    float plane = exp(-abs(uv.y) / (0.10 + r * 0.28));
-
-    col += diskCol * plane * smoothstep(-0.02, 0.15, d.y);
-
-    // Ambient glow around the whole galaxy
-    col += vec3(0.30, 0.40, 0.60) * exp(-gd * 3.2) * 0.16;
-
-    // Deep starfield with a few bright beacons
-    col += stars(d, 82.0, 1.5, 256.0);
-
+    col = grade(col, 1.18, 0.10);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

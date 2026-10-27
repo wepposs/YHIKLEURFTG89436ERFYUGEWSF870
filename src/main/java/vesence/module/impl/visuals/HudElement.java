@@ -49,20 +49,12 @@ public abstract class HudElement {
         vesence.module.impl.misc.ClickGui.tickLimits();
         float corner = vesence.module.impl.misc.ClickGui.getHudCorner();
 
-        boolean modern = vesence.module.impl.misc.ClickGui.isModern();
-
         if (isBlurEnabled()) {
             renderer.blur(x, y, w, h, vesence.module.impl.misc.ClickGui.blurStrengthHud.get().intValue(), corner, alpha);
         }
 
-        if (modern) {
-            renderer.shadow(x, y, w, h, corner, 5, 1, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (45 * alpha)));
-            renderer.rect(x, y, w, h, corner, ColorUtil.replAlpha(ColorUtil.BLACK, ClickGui.hudAlpha.get().floatValue() * alpha));
-        } else {
-            renderer.rect(x, y, w, h, corner,
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.12f),
-                            vesence.module.impl.misc.ClickGui.getHudAlpha() * alpha));
-        }
+        renderer.shadow(x, y, w, h, corner, 5, 1, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (45 * alpha)));
+        renderer.rect(x, y, w, h, corner, ClickGui.getBackgroundColor(ClickGui.hudAlpha.get().floatValue() * alpha));
     }
 
     public static void drawSteppedRect(Renderer2D renderer, float rightX, float topY,

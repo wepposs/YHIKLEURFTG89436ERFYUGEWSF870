@@ -5,24 +5,33 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Sakura — cherry‑blossom sky: soft pink‑white gradient, gentle auroral touch and drifting floral‑motif specks.
+// SAKURA — розовый весенний день: мягкое солнце, бело-розовые кучевые с
+// лавандовой тенью и два слоя кружащих лепестков на разной глубине.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
-    vec3 col = atmosphere(d, vec3(0.94, 0.72, 0.78), vec3(0.70, 0.55, 0.72), vec3(0.45, 0.40, 0.55));
+    vec3 sunPos = worldDir(80.0, 42.0);
 
-    vec3 sunPos = worldDir(30.0, 16.0);
-    col += horizonHaze(d, sunPos, vec3(1.0, 0.88, 0.82), 0.5);
+    vec3 col = atmosphereSun(d,
+        vec3(0.98, 0.86, 0.89),
+        vec3(0.90, 0.62, 0.72),
+        vec3(0.52, 0.40, 0.68),
+        sunPos, vec3(1.00, 0.92, 0.90), 0.50);
 
-    col += sun(d, sunPos, 0.045, vec3(1.0, 0.92, 0.80));
+    col += sun(d, sunPos, 0.026, vec3(1.00, 0.95, 0.92));
+    col += godRays(d, sunPos, vec3(1.00, 0.88, 0.88), 0.12);
 
-    // Soft rose‑tinted cloud layer
-    col = cloudLayer(col, d, sunPos, vec3(0.78, 0.52, 0.66), vec3(0.96, 0.84, 0.88), 0.55, 3.8, 0.70, 8.0);
+    col = cloudVolume(col, d, sunPos, vec3(1.00, 0.94, 0.92),
+        vec3(0.72, 0.58, 0.72), vec3(1.00, 0.96, 0.97),
+        0.35, 0.060, 0.90, 13.0);
 
-    // Drifting specks inspired by cherry blossoms — warm‑hued tiny stars scattered across the vault
-    col += stars(d, 50.0, 0.8, 12.0) * vec3(1.0, 0.78, 0.88) * 0.5;
+    col += vec3(1.00, 0.96, 0.97) * cirrus(d, 55.0) * 0.08;
 
-    // Soft aurora touch in northern sector
-    col += aurora(d, vec3(0.40, 0.65, 0.80), vec3(0.70, 0.85, 0.95), 15.0) * 0.2;
+    // Лепестки: ближний слой крупнее и быстрее, дальний — мельче и бледнее.
+    col += vec3(1.00, 0.72, 0.80) * driftParticles(d, 5.0, 0.55, 7.0, 0.055, 0.030);
+    col += vec3(0.98, 0.80, 0.86) * driftParticles(d, 11.0, 0.28, 19.0, 0.030, -0.018);
 
+    col += horizonHaze(d, sunPos, vec3(0.98, 0.82, 0.86), 0.35);
+
+    col = grade(col, 1.15, 0.00);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

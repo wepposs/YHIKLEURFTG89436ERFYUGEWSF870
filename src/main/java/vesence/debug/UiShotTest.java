@@ -175,6 +175,7 @@ public final class UiShotTest {
             runScrollTest(mc);
         }
 
+
         if ((ticks - WARMUP_TICKS) % SHOT_INTERVAL != 0) return;
 
         String name = (GUI_MODE ? "gui-" : ESC_MODE ? "esc-" : F3_MODE ? "f3-" : INV_MODE ? "inv-" : WORLD_MODE ? "world-" : "menu-") + shots + ".png";

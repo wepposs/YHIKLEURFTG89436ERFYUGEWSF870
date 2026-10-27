@@ -172,41 +172,29 @@ public class CompactGuiRender {
                 );
             }
 
-            renderer.gradient(
+            renderer.shadow(
                     gx,
                     gy,
                     gw,
                     gh,
                     ClickGui.getGuiCorner(),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor1(),
-                                    0.10f
-                            ),
+                    9f,
+                    0f,
+                    ColorUtil.replAlpha(
+                            ColorUtil.BLACK,
+                            (int) (90 * alpha)
+                    )
+            );
+
+            renderer.rect(
+                    gx,
+                    gy,
+                    gw,
+                    gh,
+                    ClickGui.getGuiCorner(),
+                    ClickGui.getBackgroundColor(
                             ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor2(),
-                                    0.10f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor1(),
-                                    0.10f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor2(),
-                                    0.10f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    true
+                    )
             );
 
             renderer.gradientOutline(
@@ -215,30 +203,23 @@ public class CompactGuiRender {
                     gw,
                     gh,
                     ClickGui.getGuiCorner(),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    1
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (70 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    1
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (70 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.BLACK,
-                            (int) (0 * alpha)
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (22 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.BLACK,
-                            (int) (0 * alpha)
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (22 * alpha)
                     ),
-                    1f,
-                    true
+                    1f
             );
 
         } else {
@@ -258,6 +239,27 @@ public class CompactGuiRender {
                 );
             }
 
+            renderer.drawSquircleShadow(
+                    gx - 5,
+                    gy - 5,
+                    gw + 10,
+                    gh + 10,
+                    ClickGui.getGuiSquirt(),
+                    BorderRadius.all(
+                            ClickGui.getGuiCorner()
+                    ),
+                    15,
+                    0,
+                    ColorUtil.replAlpha(
+                            ColorUtil.BLACK,
+                            (int) (90 * alpha)
+                    )
+            );
+
+            int squircleBg = ClickGui.getBackgroundColor(
+                    ClickGui.guiAlpha.get().floatValue() * alpha
+            );
+
             renderer.drawSquircleGradient(
                     gx,
                     gy,
@@ -267,34 +269,10 @@ public class CompactGuiRender {
                     BorderRadius.all(
                             ClickGui.getGuiCorner()
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    0.08f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    0.08f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    0.1f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    0.1f
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
-                    )
+                    squircleBg,
+                    squircleBg,
+                    squircleBg,
+                    squircleBg
             );
 
             renderer.drawSquircleGradientOutline(
@@ -306,27 +284,21 @@ public class CompactGuiRender {
                     BorderRadius.all(
                             ClickGui.getGuiCorner()
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    1
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (70 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.multDark(
-                                    Renderer2D.ColorUtil.getClientColor(),
-                                    1
-                            ),
-                            ClickGui.guiAlpha.get().floatValue() * alpha
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (70 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.BLACK,
-                            (int) (0 * alpha)
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (22 * alpha)
                     ),
-                    ColorUtil.multAlpha(
-                            ColorUtil.BLACK,
-                            (int) (0 * alpha)
+                    ColorUtil.replAlpha(
+                            -1,
+                            (int) (22 * alpha)
                     ),
                     2.5f
             );
@@ -435,9 +407,9 @@ public class CompactGuiRender {
                                 255,
                                 (int) (11 * alpha)
                         ),
-                        ColorUtil.getColor(
-                                255,
-                                (int) (15 * alpha)
+                        ColorUtil.replAlpha(
+                                Renderer2D.ColorUtil.getClientColor(),
+                                (int) (150 * alpha)
                         ),
                         CompactGuiScreen.searchAnim.get()
                 );
@@ -481,25 +453,24 @@ public class CompactGuiRender {
         );
 
         /*
-         * Название клиента.
+         * Логотип клиента (корона из ватермарки) — SDF-атлас mark, запечённый
+         * из ttf/logo.ttf (глиф U+E900); рисуется MSDF-пайплайном, резкий
+         * при любом масштабе. Plane глифа [0..1.505]x[0..1] (em), scale =
+         * size/2, поэтому визуальный центр смещён от точки рисования на
+         * x + 0.37625 * size (вправо) и y - 0.25 * size (вверх).
          */
-        renderer.textCenter(
-                FontRegistry.MONTSERRAT,
-                px + pw / 2f,
-                gy + 22.5f - 4.5f,
-                20,
-                "weppos",
-                new int[]{
-                        Renderer2D.ColorUtil.replAlpha(
-                                Renderer2D.ColorUtil.getClientColor(),
-                                (int) (255 * alpha)
-                        ),
-                        Renderer2D.ColorUtil.replAlpha(
-                                Renderer2D.ColorUtil.getClientColor(),
-                                (int) (200 * alpha)
-                        )
-                },
-                2
+        float logoSize = 26f;
+        float logoNudgeX = -4f;
+        renderer.text(
+                FontRegistry.MARK,
+                px + pw / 2f - logoSize * 0.37625f + logoNudgeX,
+                gy + 12.5f + logoSize * 0.25f,
+                logoSize,
+                "A",
+                ColorUtil.replAlpha(
+                        Renderer2D.ColorUtil.getClientColor(),
+                        (int) (255 * alpha)
+                )
         );
 
         renderer.pushClipRect(
@@ -1437,6 +1408,24 @@ public class CompactGuiRender {
                     0.35f
             );
 
+            // Ховер — стеклянная подсветка карточки.
+            float hoverVal = (float) hoverAnim.getValue();
+            if (hoverVal > 0.01f) {
+                renderer.rect(
+                        cardX + cardSlideY + 1.5f,
+                        cardY + 1.5f,
+                        colW - 3,
+                        cardH - 3,
+                        5f,
+                        ColorUtil.overCol(
+                                ColorUtil.replAlpha(-1, (int) (24 * cardAlpha * hoverVal)),
+                                ColorUtil.replAlpha(
+                                        Renderer2D.ColorUtil.getClientColor2(),
+                                        (int) (24 * cardAlpha * hoverVal)),
+                                0.45f)
+                );
+            }
+
             renderer.pushRoundedClipRect(
                     cardX + 1 + cardSlideY,
                     cardY,
@@ -2090,6 +2079,29 @@ public class CompactGuiRender {
         float dotY =
                 togY
                         + togH / 2f;
+
+        // Акцент-полоска слева у включённого модуля.
+        if (enableVal > 0.01f) {
+            renderer.gradient(
+                    cardX + 3,
+                    cardY + 6,
+                    2.5f,
+                    14,
+                    1.25f,
+                    ColorUtil.replAlpha(
+                            Renderer2D.ColorUtil.getClientColor1(),
+                            (int) (255 * alpha * enableVal)),
+                    ColorUtil.replAlpha(
+                            Renderer2D.ColorUtil.getClientColor1(),
+                            (int) (255 * alpha * enableVal)),
+                    ColorUtil.replAlpha(
+                            Renderer2D.ColorUtil.getClientColor2(),
+                            (int) (255 * alpha * enableVal)),
+                    ColorUtil.replAlpha(
+                            Renderer2D.ColorUtil.getClientColor2(),
+                            (int) (255 * alpha * enableVal))
+            );
+        }
 
         renderer.text(
                 FontRegistry.MONTSERRAT,

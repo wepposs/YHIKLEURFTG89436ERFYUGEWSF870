@@ -49,8 +49,10 @@ public final class RayTraceUtil implements IMinecraft {
 
    public static HitResult calculateRayTrace(double distance, float yaw, float pitch, Entity entity,
          boolean ignoreBlocks) {
-      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-      Vec3 startVector = mc.player.getEyePosition(tickDelta);
+      // Дискретная позиция глаз (без partialTicks): гейты атаки считаются на тике,
+      // и сервер проверяет луч по дискретным координатам — интерполированная
+      // позиция глаз на ходу давала луч, расходящийся с серверным.
+      Vec3 startVector = mc.player.getEyePosition();
       Vec3 directionVector = getVectorForRotation(pitch, yaw);
       Vec3 endVector = startVector.add(directionVector.scale(distance));
       HitResult blockResult = traceBlock(startVector, endVector, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE);
@@ -66,8 +68,7 @@ public final class RayTraceUtil implements IMinecraft {
    }
 
    public static boolean rayTraceEntity(float yaw, float pitch, double distance, Entity entity) {
-      float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-      Vec3 eyeVec = mc.player.getEyePosition(tickDelta);
+      Vec3 eyeVec = mc.player.getEyePosition();
       Vec3 lookVec = getVectorForRotation(pitch, yaw);
       Vec3 endVec = eyeVec.add(lookVec.scale(distance));
       AABB entityBox = entity.getBoundingBox();

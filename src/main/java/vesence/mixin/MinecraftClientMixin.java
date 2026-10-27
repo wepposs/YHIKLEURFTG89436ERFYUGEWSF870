@@ -25,6 +25,16 @@ import vesence.ui.MainScreenHelper;
 @Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin {
 
+   // Скай-тест: клиент в фоне теряет фокус, и ваниль ставит паузу через
+   // pauseIfInactive; пока пауза держит, тики не идут и снять её из тика
+   // невозможно, поэтому на время теста автопауза запрещена совсем.
+   @Inject(method = "pauseIfInactive", at = @At("HEAD"), cancellable = true, require = 0)
+   private void vesence$skytestNoAutoPause(CallbackInfo ci) {
+      if (vesence.debug.SkyShotTest.ACTIVE) {
+         ci.cancel();
+      }
+   }
+
    @Inject(method = "tick", at = @At("TAIL"), require = 0)
    private void publishClientTick(CallbackInfo ci) {
       try {

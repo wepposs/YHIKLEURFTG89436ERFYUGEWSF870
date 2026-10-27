@@ -11,7 +11,6 @@ import vesence.module.api.IModule;
 import vesence.module.api.Module;
 import vesence.module.api.setting.impl.*;
 import vesence.module.impl.misc.ClickGui;
-import vesence.module.impl.visuals.elements.*;
 import vesence.module.impl.visuals.elements.modern.*;
 import vesence.utils.notifications.Notifications;
 import vesence.renderengine.render.Renderer2D;
@@ -74,8 +73,7 @@ public class Hud extends Module {
     public final BooleanSetting watermarkTime = new BooleanSetting("Time", true);
     public final BooleanSetting watermarkAnimated = new BooleanSetting("Animated", true);
 
-    private final List<HudElement> defaultElements = new ArrayList<>();
-    private final List<HudElement> modernElements = new ArrayList<>();
+    private final List<HudElement> hudElements = new ArrayList<>();
     private boolean prevLeftDown  = false;
     private boolean prevRightDown = false;
 
@@ -95,47 +93,20 @@ public class Hud extends Module {
     private int panelAnchorIndex = 0;
     private long panelLastTime = 0L;
 
-    private boolean switchInit = false;
-    private boolean lastModern = false;
-    private long switchStart = 0L;
-    private static final float SWITCH_DURATION = 0.4f;
-    private static final float SWITCH_STAGGER = 0.05f;
-
     public Hud() {
         this.hiddenFromGui = true;
 
-        defaultElements.add(new WatermarkElement());
-        defaultElements.add(new CoordsElement());
-        defaultElements.add(new KeybindsElement());
-        defaultElements.add(new TargetHudElement());
-        defaultElements.add(new PotionsElement());
-        defaultElements.add(new CooldownsElement());
-        defaultElements.add(new StaffListElement());
-        defaultElements.add(new AssistElement());
-        defaultElements.add(new NotificationsElement());
-        defaultElements.add(new ScoreboardElement());
-        defaultElements.add(new EventsElement());
-
-        modernElements.add(new ModernWatermarkElement());
-        modernElements.add(new ModernCoordsElement());
-        modernElements.add(new ModernKeybindsElement());
-        modernElements.add(new ModernTargetHudElement());
-        modernElements.add(new ModernPotionsElement());
-        modernElements.add(new ModernCooldownsElement());
-        modernElements.add(new ModernStaffListElement());
-        modernElements.add(new ModernAssistElement());
-        modernElements.add(new ModernNotificationsElement());
-        modernElements.add(new ModernScoreboardElement());
-        modernElements.add(new ModernEventsElement());
-
-        for (HudElement modern : modernElements) {
-            for (HudElement def : defaultElements) {
-                if (def.name.equals(modern.name)) {
-                    modern.scaleSetting = def.scaleSetting;
-                    break;
-                }
-            }
-        }
+        hudElements.add(new ModernWatermarkElement());
+        hudElements.add(new ModernCoordsElement());
+        hudElements.add(new ModernKeybindsElement());
+        hudElements.add(new ModernTargetHudElement());
+        hudElements.add(new ModernPotionsElement());
+        hudElements.add(new ModernCooldownsElement());
+        hudElements.add(new ModernStaffListElement());
+        hudElements.add(new ModernAssistElement());
+        hudElements.add(new ModernNotificationsElement());
+        hudElements.add(new ModernScoreboardElement());
+        hudElements.add(new ModernEventsElement());
 
         this.addSettings(
                 elements,
@@ -159,30 +130,11 @@ public class Hud extends Module {
     }
 
     public List<HudElement> getHudElements() {
-        return ClickGui.isModern() ? modernElements : defaultElements;
+        return hudElements;
     }
 
     public List<HudElement> getAllHudElements() {
-        List<HudElement> all = new ArrayList<>(defaultElements);
-        all.addAll(modernElements);
-        return all;
-    }
-
-    public void syncInactivePositions() {
-        List<HudElement> active = getHudElements();
-        List<HudElement> inactive = ClickGui.isModern() ? defaultElements : modernElements;
-        for (HudElement a : active) {
-            for (HudElement b : inactive) {
-                if (b.name.equals(a.name)) {
-                    b.x = a.x;
-                    b.y = a.y;
-                    b.targetX = a.targetX;
-                    b.targetY = a.targetY;
-                    b.targetInitialized = a.targetInitialized;
-                    break;
-                }
-            }
-        }
+        return hudElements;
     }
 
     public boolean isWatermarkFpsEnabled() {
@@ -254,8 +206,12 @@ public class Hud extends Module {
             double[] mx = new double[1], my = new double[1];
             mx[0] = mc.mouseHandler.xpos();
             my[0] = mc.mouseHandler.ypos();
-            leftDown  = mc.mouseHandler.isLeftPressed();
-            rightDown = mc.mouseHandler.isRightPressed();
+            // 26.3: MouseHandler.isLeftPressed/isRightPressed обновляются только когда
+            // экран НЕ открыт (vanilla пропускает запись флагов при gui.screen() != null),
+            // а HUD-редактор живёт в ChatScreen — поэтому состояние кнопок берём
+            // напрямую из SDL через MouseUtil.isDown (0 = ЛКМ, 1 = ПКМ).
+            leftDown  = vesence.utils.other.MouseUtil.isDown(0);
+            rightDown = vesence.utils.other.MouseUtil.isDown(1);
             altDown   = InputConstants.isKeyDown(InputConstants.KEY_LALT)
                     || InputConstants.isKeyDown(InputConstants.KEY_RALT);
             shiftDown = InputConstants.isKeyDown(InputConstants.KEY_LSHIFT)
@@ -267,7 +223,7 @@ public class Hud extends Module {
             mouseY = my[0] * ratioY;
         }
 
-        if (isChatOpen && testMouse == null && (System.currentTimeMillis() / 600) % 2 == 0) {
+        if (HUD_DEBUG && isChatOpen && testMouse == null && (System.currentTimeMillis() / 600) % 2 == 0) {
             HudElement fe = getHudElements().isEmpty() ? null : getHudElements().get(0);
             System.out.println("[huddbg] REAL xpos=" + String.format("%.0f", mc.mouseHandler.xpos())
                     + " getWidth=" + mc.getWindow().getWidth()
@@ -305,16 +261,6 @@ public class Hud extends Module {
 
         Renderer2D renderer = event.renderer();
         FontObject  font    = event.defaultFont();
-
-        boolean modernNow = ClickGui.isModern();
-        if (!switchInit) {
-            switchInit = true;
-            lastModern = modernNow;
-        } else if (modernNow != lastModern) {
-            lastModern = modernNow;
-            switchStart = System.currentTimeMillis();
-        }
-        float switchElapsed = (System.currentTimeMillis() - switchStart) / 1000f;
 
         int screenW = event.viewportWidth();
         int screenH = event.viewportHeight();
@@ -437,34 +383,13 @@ public class Hud extends Module {
             }
         }
 
-        for (int idx = 0; idx < renderList.size(); idx++) {
-            HudElement element = renderList.get(idx);
+        for (HudElement element : renderList) {
             boolean enabled = elements.get(element.name);
 
             element.alphaAnim.update();
             element.alphaAnim.run(enabled ? 1.0 : 0.0, 0.2, Easings.CUBIC_OUT);
             float elemAlpha = (float) element.alphaAnim.get();
             if (elemAlpha < 0.005f) continue;
-
-            float switchProg = Math.max(0f, Math.min(1f, (switchElapsed - idx * SWITCH_STAGGER) / SWITCH_DURATION));
-            float switchFade = 1f - (float) Math.pow(1f - switchProg, 3f);
-            float switchScale = 0.55f + 0.45f * easeOutBack(switchProg);
-            float switchSlide = (1f - switchFade) * 26f;
-            float switchTilt = (1f - switchFade) * ((idx & 1) == 0 ? 7f : -7f);
-
-            // Во время перетаскивания элемент рисуется там, куда его ведут.
-            //
-            // Раньше сам элемент оставался на месте, а двигался только контур
-            // под курсором: со стороны это выглядело как «элементы не двигаются».
-            // Позиция для отрисовки берётся из превью, а собственная координата
-            // элемента обновляется по отпускании кнопки.
-            float baseX = element.x;
-            float baseY = element.y;
-            if (element.isDragging()) {
-                element.x = element.getDragPreviewX();
-                element.y = element.getDragPreviewY();
-            }
-            element.y = element.y + switchSlide;
 
             float scale;
             float rawScale = element.scaleSetting.get().floatValue();
@@ -479,18 +404,17 @@ public class Hud extends Module {
             boolean pushedOuterScale = false;
             boolean pushedAlpha = false;
             boolean pushedInnerScale = false;
-            boolean pushedRotation = false;
             boolean pushedContextMatrix = false;
 
             try {
                 renderer.pushScale(scale, element.x, element.y);
                 pushedOuterScale = true;
-                renderer.pushAlpha(elemAlpha * switchFade);
+                renderer.pushAlpha(elemAlpha);
                 pushedAlpha = true;
 
                 element.updateInteraction(mouseX, mouseY, renderer, font, element.isDragging());
-                float expand = element.getExpand() * switchScale;
-                boolean transforming = Math.abs(expand - 1f) > 0.0005f || Math.abs(switchTilt) > 0.02f;
+                float expand = element.getExpand();
+                boolean transforming = Math.abs(expand - 1f) > 0.0005f;
 
                 float cw = element.getEffectiveWidth(renderer, font);
                 float ch = element.getHeight(renderer, font);
@@ -501,25 +425,15 @@ public class Hud extends Module {
                     renderer.pushScale(expand, expand, centerXfb, centerYfb);
                     pushedInnerScale = true;
 
-                    if (Math.abs(switchTilt) > 0.02f) {
-                        renderer.pushRotationAround(switchTilt, centerXfb, centerYfb);
-                        pushedRotation = true;
-                    }
-
-                    if (ClickGui.isModern()) {
-                        float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
-                        org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().pose();
-                        ctxMatrices.pushMatrix();
-                        pushedContextMatrix = true;
-                        float cgx = centerXfb / guiScale;
-                        float cgy = centerYfb / guiScale;
-                        ctxMatrices.translate(cgx, cgy);
-                        if (Math.abs(switchTilt) > 0.02f) {
-                            ctxMatrices.rotate((float) Math.toRadians(switchTilt));
-                        }
-                        ctxMatrices.scale(expand, expand);
-                        ctxMatrices.translate(-cgx, -cgy);
-                    }
+                    float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
+                    org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().pose();
+                    ctxMatrices.pushMatrix();
+                    pushedContextMatrix = true;
+                    float cgx = centerXfb / guiScale;
+                    float cgy = centerYfb / guiScale;
+                    ctxMatrices.translate(cgx, cgy);
+                    ctxMatrices.scale(expand, expand);
+                    ctxMatrices.translate(-cgx, -cgy);
                 }
 
                 element.render(renderer, font, event.viewportWidth(), event.viewportHeight(), event.drawContext());
@@ -533,9 +447,6 @@ public class Hud extends Module {
                     } catch (Exception ignored) {
                     }
                 }
-                if (pushedRotation) {
-                    renderer.popRotation();
-                }
                 if (pushedInnerScale) {
                     renderer.popScale();
                 }
@@ -545,8 +456,6 @@ public class Hud extends Module {
                 if (pushedOuterScale) {
                     renderer.popScale();
                 }
-                element.x = baseX;
-                element.y = baseY;
             }
         }
 
@@ -563,15 +472,6 @@ public class Hud extends Module {
             prevLeftDown  = leftDown;
             prevRightDown = rightDown;
         }
-
-        syncInactivePositions();
-    }
-
-    private static float easeOutBack(float t) {
-        float c1 = 1.70158f;
-        float c3 = c1 + 1f;
-        float u = t - 1f;
-        return 1f + c3 * u * u * u + c1 * u * u;
     }
 
     private void renderGrid(Renderer2D renderer, int screenW, int screenH, float animT) {

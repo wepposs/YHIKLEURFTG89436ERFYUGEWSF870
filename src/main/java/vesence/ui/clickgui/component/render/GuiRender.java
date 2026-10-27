@@ -111,6 +111,7 @@ public class GuiRender extends GuiScreen {
               (float) GuiScreen.alphaPC.getValue();
 
 
+
       if (mainAlpha <= 0.001F) {
          return;
       }

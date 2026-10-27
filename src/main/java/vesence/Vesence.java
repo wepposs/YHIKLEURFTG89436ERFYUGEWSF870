@@ -328,6 +328,23 @@ public class Vesence implements ClientModInitializer {
         vesence.debug.HudDragTest.init();
         vesence.debug.AuraTest.init();
 
+        // Общий пул Baritone (упаковщик кэша и автосохранение каждые 10 минут)
+        // построен на НЕдемон-потоках с бесконечными циклами. После закрытия
+        // клиента JVM не может завершиться, и ванильный shutdown-watchdog
+        // пишет фейковый краш «Client shutdown from post-main». Гасим пул при
+        // остановке: оба цикла выходят по InterruptedException.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING
+                .register(client -> {
+                    try {
+                        if (baritone.Baritone.getExecutor()
+                                instanceof java.util.concurrent.ExecutorService service) {
+                            service.shutdownNow();
+                        }
+                    } catch (Throwable ignored) {
+                        // Baritone может быть не загружен — не смертельно
+                    }
+                });
+
         try {
             vesence.utils.debug.FreezeWatchdog.start();
         } catch (Throwable t) {
@@ -385,7 +402,9 @@ public class Vesence implements ClientModInitializer {
         EventManager.register(vesence.utils.waypoint.EventWaypointStorage.getInstance());
         vesence.overlay.OverlayModule.init();
         // Baritone — встроенная часть клиента, а не модуль: подключаем движок
-        // к событиям напрямую, без записи в списке модулей.
+        // к событиям напрямую, без записи в списке модулей. Мозг маршрутов —
+        // настоящая библиотека Baritone (libs/repo), фасад Vesence держит
+        // команды, процессы, цели, сообщения и отрисовку маршрута.
         vesence.pathing.VesenceBaritone.get().init();
         GuiClient.registerEventHandlers();
         vesence.ui.MainScreen.registerEventHandler();

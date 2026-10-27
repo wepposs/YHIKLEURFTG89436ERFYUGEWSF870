@@ -9,130 +9,158 @@ import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
-import vesence.utils.render.text.ColorFormat;
+import vesence.utils.render.text.AnimatedText;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
-import vesence.utils.render.ttf.TtfFonts;
 
-import java.util.Locale;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
+/**
+ * Informations: компоновка Default-версии — одна карточка со строкой
+ * «Coords Xx Yy Zz | Time: HH:mm:ss | BPS: N», значения анимируются
+ * через {@link AnimatedText}. Дизайн modern: чёрная карточка с тенью и
+ * blur из настроек, шрифт SF_SEMI.
+ */
 @Environment(EnvType.CLIENT)
 public class ModernCoordsElement extends HudElement {
 
-    private static final float PANEL_PAD = 6f;
-    private static final float ICON_COL_W = 35f;
-    private static final float COL_GAP = 8f;
-    private static final float HEADER_H = 38f;
-    private static final float TITLE_SIZE = 33f;
-    private static final int PILL_ALPHA = 12;
+    private static final float PADDING_H = 11;
+    private static final float PADDING_V = 11;
+    private static final float FONT_SIZE  = 27;
 
-    private static final float PILL_ICON_X = 11f;
-    private static final float PILL_TEXT_X = 34f;
-    private static final float PILL_RIGHT_PAD = 15f;
-    private static final float PILL_GAP = 9f;
-    private static final float PILL_START_OFFSET = 7f;
-
-    private static final String INFO_GLYPH = "n";
-    private static final String BPS_GLYPH = "j";
-    private static final String COORDS_GLYPH = "y";
+    private static final int WHITE_COLOR = 0xFFFFFFFF;
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final Animation2 widthAnim = new Animation2();
-    private float boundsW = 255f;
+    private final Animation2 heightAnim = new Animation2();
 
     public ModernCoordsElement() {
         super("Informations", 10f, 40f);
-        widthAnim.set(255f);
-    }
-
-    @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
-        Minecraft mc = Minecraft.getInstance();
-        int bx = mc.player != null ? (int) Math.floor(mc.player.getX()) : 0;
-        int by = mc.player != null ? (int) Math.floor(mc.player.getY()) : 0;
-        int bz = mc.player != null ? (int) Math.floor(mc.player.getZ()) : 0;
-        String bpsValue = String.format(Locale.US, "%.1f", getBps(mc));
-
-        int theme = Renderer2D.ColorUtil.getClientColor();
-        int iconColor = ColorUtil.replAlpha(theme, 230);
-        int textColor = ColorUtil.replAlpha(-1, 255);
-        int pillBg = ColorUtil.replAlpha(-1, PILL_ALPHA);
-        int panelBg = ColorUtil.replAlpha(ColorUtil.BLACK, 155);
-
-        String bpsRich = ColorFormat.color(theme) + bpsValue + ColorFormat.reset() + " Bps";
-        String coordsRich = ColorFormat.color(theme) + bx + ColorFormat.reset() + "x "
-                + ColorFormat.color(theme) + by + ColorFormat.reset() + "y "
-                + ColorFormat.color(theme) + bz + ColorFormat.reset() + "z";
-
-        float bpsTextW = r.measureText(FontRegistry.SF_SEMI, bpsValue, TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, " Bps", TITLE_SIZE, -0.15f).width;
-        float coordsTextW = r.measureText(FontRegistry.SF_SEMI, String.valueOf(bx), TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, "x ", TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, String.valueOf(by), TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, "y ", TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, String.valueOf(bz), TITLE_SIZE, -0.15f).width
-                + r.measureText(FontRegistry.SF_SEMI, "z", TITLE_SIZE, -0.15f).width;
-
-        float bpsPillW = PILL_TEXT_X + bpsTextW + PILL_RIGHT_PAD;
-        float coordsPillW = PILL_TEXT_X + coordsTextW + PILL_RIGHT_PAD;
-
-        float startX = PANEL_PAD + ICON_COL_W + COL_GAP + PILL_START_OFFSET;
-        float targetInner = bpsPillW + coordsPillW + PILL_GAP;
-        float panelTarget = startX + targetInner + PANEL_PAD;
-
-        widthAnim.update();
-        widthAnim.run(panelTarget, 0.2, Easings.SINE_OUT, true);
-        float panelW = (float) widthAnim.get();
-        float panelH = PANEL_PAD * 2f + HEADER_H;
-        boundsW = panelW;
-
-        float animInner = panelW - startX - PANEL_PAD;
-        float scale = targetInner > 0.5f ? Math.max(0f, animInner / targetInner) : 1f;
-        float drawBpsW = bpsPillW * scale;
-        float drawCoordsW = coordsPillW * scale;
-        float drawGap = PILL_GAP * scale;
-
-        r.blur(x, y, panelW, panelH, 15, 12, 1f);
-        r.rect(x, y, panelW, panelH, 12, panelBg);
-
-        float headerTop = y + PANEL_PAD;
-        float pillTextY = headerTop + HEADER_H / 2f + 7.5f;
-        float pillIconY = headerTop + HEADER_H / 2f;
-
-        TtfFonts.ICONS.drawStringWithGlow(r, "G",
-                x + PANEL_PAD + ICON_COL_W / 2f - 7.5f,
-                headerTop + HEADER_H / 2f - 8.5f,
-                22f, iconColor);
-
-        float px = x + startX;
-        r.rect(px, headerTop, drawBpsW, HEADER_H, 3, 3, 3, 3, pillBg);
-        TtfFonts.ICONS.drawStringWithGlow(r, "A", px + PILL_ICON_X, pillIconY - 8f, 18f, iconColor);
-        r.text(FontRegistry.SF_SEMI, px + PILL_TEXT_X, pillTextY, TITLE_SIZE, bpsRich, textColor, -0.15f);
-        px += drawBpsW + drawGap;
-
-        r.rect(px, headerTop, drawCoordsW, HEADER_H, 3, 6, 6, 3, pillBg);
-        TtfFonts.ICONNEW.drawStringWithGlow(r, COORDS_GLYPH, px + PILL_ICON_X, pillIconY - 8f, 18f, iconColor);
-        r.text(FontRegistry.SF_SEMI, px + PILL_TEXT_X, pillTextY, TITLE_SIZE, coordsRich, textColor, -0.15f);
+        widthAnim.set(200);
+        heightAnim.set(30);
     }
 
     private float getBps(Minecraft mc) {
         if (mc.player == null) return 0f;
         double dx = mc.player.getDeltaMovement().x;
         double dz = mc.player.getDeltaMovement().z;
-        return Math.round((float) (Math.sqrt(dx * dx + dz * dz) * 20f) * 10f) / 10f;
+        return Math.round((float)(Math.sqrt(dx * dx + dz * dz) * 20f) * 10f) / 10f;
     }
 
     @Override
-    public float getWidth(Renderer2D r, FontObject font) {
-        return boundsW;
+    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
+        if (FontRegistry.SF_SEMI == null) return;
+        FontObject f = FontRegistry.SF_SEMI;
+
+        Minecraft mc = Minecraft.getInstance();
+        int bx = mc.player != null ? (int) Math.floor(mc.player.getX()) : 0;
+        int by = mc.player != null ? (int) Math.floor(mc.player.getY()) : 0;
+        int bz = mc.player != null ? (int) Math.floor(mc.player.getZ()) : 0;
+        float bps = getBps(mc);
+        String timeStr = LocalTime.now().format(TIME_FMT);
+
+        int themeColor = Renderer2D.ColorUtil.getClientColor();
+        int semiThemeColor = ColorUtil.replAlpha(themeColor, 100);
+        int sepColor = ColorUtil.getColor(255, 255, 255, 45);
+
+        String coordsLabel = "Coords ";
+        String xVal = String.valueOf(bx);
+        String xLetter = "x ";
+        String yVal = String.valueOf(by);
+        String yLetter = "y ";
+        String zVal = String.valueOf(bz);
+        String zLetter = "z";
+        String sep1 = " | ";
+        String timeLabel = "Time: ";
+        String sep2 = " | ";
+        String bpsLabel = "BPS: ";
+        String bpsValue = String.valueOf(bps);
+
+        float coordsLabelW = renderer.measureText(f, coordsLabel, FONT_SIZE, -0.15f).width;
+        float xValW = renderer.measureText(f, xVal, FONT_SIZE, -0.15f).width;
+        float xLetterW = renderer.measureText(f, xLetter, FONT_SIZE, -0.15f).width;
+        float yValW = renderer.measureText(f, yVal, FONT_SIZE, -0.15f).width;
+        float yLetterW = renderer.measureText(f, yLetter, FONT_SIZE, -0.15f).width;
+        float zValW = renderer.measureText(f, zVal, FONT_SIZE, -0.15f).width;
+        float zLetterW = renderer.measureText(f, zLetter, FONT_SIZE, -0.15f).width;
+        float sep1W = renderer.measureText(f, sep1, FONT_SIZE, -0.15f).width;
+        float timeLabelW = renderer.measureText(f, timeLabel, FONT_SIZE, -0.15f).width;
+        float timeValueW = renderer.measureText(f, timeStr, FONT_SIZE, -0.15f).width;
+        float sep2W = renderer.measureText(f, sep2, FONT_SIZE, -0.15f).width;
+        float bpsLabelW = renderer.measureText(f, bpsLabel, FONT_SIZE, -0.15f).width;
+        float bpsValueW = renderer.measureText(f, bpsValue, FONT_SIZE, -0.15f).width;
+
+        float totalW = coordsLabelW + xValW + xLetterW + yValW + yLetterW + zValW + zLetterW
+                + sep1W + timeLabelW + timeValueW + sep2W + bpsLabelW + bpsValueW;
+        float textH = renderer.measureText(f, coordsLabel, FONT_SIZE, -0.15f).height;
+        float targetW = totalW + PADDING_H * 2f;
+        float targetH = textH + PADDING_V * 2f;
+
+        widthAnim.update();
+        heightAnim.update();
+        widthAnim.run(targetW, 0.2, Easings.SINE_OUT, true);
+        heightAnim.run(targetH, 0.2, Easings.SINE_OUT, true);
+
+        float rectW = (float) widthAnim.get();
+        float rectH = (float) heightAnim.get();
+
+        drawHudPanel(renderer, x, y, rectW, rectH, 1f);
+
+        float curX = x + PADDING_H - 1;
+        float curY = y + PADDING_V + 14;
+
+        renderer.text(f, curX, curY, FONT_SIZE, coordsLabel, WHITE_COLOR, -0.15f);
+        curX += coordsLabelW;
+
+        curX += AnimatedText.draw(renderer, f, "info_x", xVal, curX, curY, FONT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
+        renderer.text(f, curX, curY, FONT_SIZE, xLetter, semiThemeColor, -0.15f);
+        curX += xLetterW;
+
+        curX += AnimatedText.draw(renderer, f, "info_y", yVal, curX, curY, FONT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
+        renderer.text(f, curX, curY, FONT_SIZE, yLetter, semiThemeColor, -0.15f);
+        curX += yLetterW;
+
+        curX += AnimatedText.draw(renderer, f, "info_z", zVal, curX, curY, FONT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
+        renderer.text(f, curX, curY, FONT_SIZE, zLetter, semiThemeColor, -0.15f);
+        curX += zLetterW;
+
+        renderer.text(f, curX, curY, FONT_SIZE, sep1, sepColor, -0.15f);
+        curX += sep1W;
+
+        renderer.text(f, curX, curY, FONT_SIZE, timeLabel, WHITE_COLOR, -0.15f);
+        curX += timeLabelW;
+        curX += AnimatedText.draw(renderer, f, "info_time", timeStr, curX, curY, FONT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
+
+        renderer.text(f, curX, curY, FONT_SIZE, sep2, sepColor, -0.15f);
+        curX += sep2W;
+
+        renderer.text(f, curX, curY, FONT_SIZE, bpsLabel, WHITE_COLOR, -0.15f);
+        curX += bpsLabelW;
+        AnimatedText.draw(renderer, f, "info_bps", bpsValue, curX, curY, FONT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
     }
 
     @Override
-    public float getHeight(Renderer2D r, FontObject font) {
-        return PANEL_PAD * 2f + HEADER_H;
+    public float getWidth(Renderer2D renderer, FontObject font) {
+        Minecraft mc = Minecraft.getInstance();
+        int bx = mc.player != null ? (int) Math.floor(mc.player.getX()) : 0;
+        int by = mc.player != null ? (int) Math.floor(mc.player.getY()) : 0;
+        int bz = mc.player != null ? (int) Math.floor(mc.player.getZ()) : 0;
+        float bps = getBps(mc);
+        String timeStr = LocalTime.now().format(TIME_FMT);
+        String full = "Coords " + bx + "x " + by + "y " + bz + "z | Time: " + timeStr + " | BPS: " + bps;
+        FontObject f = FontRegistry.SF_SEMI != null ? FontRegistry.SF_SEMI : font;
+        return renderer.measureText(f, full, FONT_SIZE, -0.15f).width + PADDING_H * 2f;
     }
 
     @Override
-    public float getEffectiveWidth(Renderer2D r, FontObject font) {
+    public float getHeight(Renderer2D renderer, FontObject font) {
+        FontObject f = FontRegistry.SF_SEMI != null ? FontRegistry.SF_SEMI : font;
+        return renderer.measureText(f, "Coords", FONT_SIZE, -0.15f).height + PADDING_V * 2f;
+    }
+
+    @Override
+    public float getEffectiveWidth(Renderer2D renderer, FontObject font) {
         return (float) widthAnim.get();
     }
 }

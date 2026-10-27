@@ -33,6 +33,21 @@ public final class GoalXZ implements Goal {
         this.maxY = maxY;
     }
 
+    /** Ограничена ли высота окном (иначе колонка «до неба»). */
+    public boolean hasHeightWindow() {
+        return this.minY != Integer.MIN_VALUE;
+    }
+
+    /** Нижняя граница окна по высоте включительно. */
+    public int minY() {
+        return this.minY;
+    }
+
+    /** Верхняя граница окна по высоте включительно. */
+    public int maxY() {
+        return this.maxY;
+    }
+
     /**
      * Колонка с окном по высоте вокруг {@code y}.
      *

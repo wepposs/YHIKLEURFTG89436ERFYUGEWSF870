@@ -33,19 +33,19 @@ public class ModernNotificationsElement extends HudElement {
         float scale = getScale();
         x = centerLeft(renderer, font, scale);
         targetX = x;
-        Notifications.renderModern(renderer, ctx, unscaledCenterX(screenWidth / 2f, scale), y, 1f);
+        Notifications.render(renderer, ctx, unscaledCenterX(screenWidth / 2f, scale), y, 1f);
     }
 
     @Override
     public float getWidth(Renderer2D renderer, FontObject font) {
-        float w = Notifications.modernBoundsWidth();
-        return w > 1 ? w : 250f;
+        float w = Notifications.boundsWidth();
+        return w > 1 ? w : 220f;
     }
 
     @Override
     public float getHeight(Renderer2D renderer, FontObject font) {
-        float h = Notifications.modernBoundsHeight();
-        return h > 1 ? h : 42f;
+        float h = Notifications.boundsHeight();
+        return h > 1 ? h : 40f;
     }
 
     @Override

@@ -45,6 +45,14 @@ implements CameraAccessor {
     private Vector3f left;
     @Shadow
     private Vec3 position;
+    /**
+     * В 26.3 Camera кэширует матрицы вида (cachedViewRotMatrix/cachedViewRotProjMatrix)
+     * и пересобирает их только когда взведён этот флаг (DIRTY_VIEW_ROT | DIRTY_VIEW_ROT_PROJ = 3).
+     * Ванильный setRotation взводит его в конце; наш заменитель обязан делать то же,
+     * иначе мир рендерится с замороженной матрицей вида (крутится только небо).
+     */
+    @Shadow
+    private int matrixPropertiesDirty;
     @Unique
     private float pitchM = 0.0f;
     @Unique
@@ -62,9 +70,14 @@ implements CameraAccessor {
     protected abstract void setPosition(Vec3 var1);
 
     public void hMI5_0$applyRotation() {
-        this.rotation.add(Axis.XP.rotationDegrees(this.pitchM));
-        this.rotation.add(Axis.YP.rotationDegrees(this.yawM));
-        this.rotation.add(Axis.ZP.rotationDegrees(this.rollM));
+        // Композиция вращений — умножение кватернионов (add был бы покомпонентным сложением).
+        this.rotation.mul(Axis.XP.rotationDegrees(this.pitchM));
+        this.rotation.mul(Axis.YP.rotationDegrees(this.yawM));
+        this.rotation.mul(Axis.ZP.rotationDegrees(this.rollM));
+        FORWARDS.rotate(this.rotation, this.forwards);
+        UP.rotate(this.rotation, this.up);
+        LEFT.rotate(this.rotation, this.left);
+        this.matrixPropertiesDirty |= 3;
     }
 
     public void hMI5_0$setRotationValues(float pitch, float yaw, float roll) {
@@ -91,6 +104,8 @@ implements CameraAccessor {
             FORWARDS.rotate(this.rotation, this.forwards);
             UP.rotate(this.rotation, this.up);
             LEFT.rotate(this.rotation, this.left);
+            // Как в ванили: пометить кэши матриц вида грязными (DIRTY_VIEW_ROT | DIRTY_VIEW_ROT_PROJ).
+            this.matrixPropertiesDirty |= 3;
             ci.cancel();
         }
     }

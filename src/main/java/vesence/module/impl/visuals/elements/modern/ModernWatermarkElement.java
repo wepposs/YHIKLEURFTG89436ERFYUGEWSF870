@@ -4,176 +4,316 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import vesence.Vesence;
+import vesence.module.impl.misc.ClickGui;
+import vesence.module.impl.visuals.Hud;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.ColorUtil;
-import vesence.utils.render.math.animation.anim.util.Animation2;
-import vesence.utils.render.math.animation.anim.util.Easings;
-import vesence.utils.render.text.ColorFormat;
+import vesence.utils.render.text.AnimatedText;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
+import vesence.utils.render.ttf.TtfFontFamily;
 import vesence.utils.render.ttf.TtfFonts;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
+/**
+ * Watermark: компоновка Default-версии (лого-карточка, верхняя панель
+ * Nick | FPS | Ping | Time с разделителями, нижняя панель Coords | BPS),
+ * исполненная в modern-дизайне — чёрные карточки с тенью, светящиеся
+ * TTF-иконки, шрифт SF_SEMI.
+ *
+ * <p>Уважает все тумблеры модуля Hud (FPS, BPS, Ping, Nick, Coordinates,
+ * Time, Animated), BPS считается по скользящему окну.
+ */
 @Environment(EnvType.CLIENT)
 public class ModernWatermarkElement extends HudElement {
 
-    private static final float PANEL_PAD  = 6f;
-    private static final float ICON_COL_W = 35f;
-    private static final float COL_GAP    = 6f;
-    private static final float HEADER_H   = 38;
-    private static final float TITLE_SIZE = 33f;
-    private static final int   PILL_ALPHA = 12;
+    private static final float CARD_HEIGHT   = 33f;
+    private static final float CARD_GAP      = 4f;
+    private static final float ROW_GAP       = 4f;
+    private static final float CARD_PADDING  = 10f;
+    private static final float CARD_RADIUS   = 10f;
 
-    private static final float PILL_ICON_X = 11f;
-    private static final float PILL_TEXT_X = 38f;
-    private static final float PILL_RIGHT_PAD = 16f;
-    private static final float PILL_GAP = 6f;
-    private static final float PILL_START_OFFSET = 7f;
+    private static final float TOP_ICON_X        = 10f;
+    private static final float TOP_TEXT_X        = 32f;
+    private static final float BOTTOM_ICON_X     = 9f;
+    private static final float BOTTOM_TEXT_X     = 43f;
 
-    private static final String PILL_ICON = "j";
+    private static final float ICON_Y            = 9f;
+    private static final float TEXT_Y            = 23.5f;
+    private static final float TEXT_SIZE         = 31f;
+    private static final float ICON_SIZE         = 16.5f;
 
-    /* ================================================================
-       ЛОГОТИП
-       ================================================================ */
+    private static final float BOTTOM_DIVIDER_X  = 34f;
+    private static final float TOP_FIELD_RIGHT_PAD = 15f;
+    private static final float TOP_FIELD_GAP     = 10f;
 
-    private static final String LOGO_GLYPH = "\uE900";
+    private static final float DIVIDER_Y         = 6f;
+    private static final float DIVIDER_HEIGHT    = 21f;
 
-    // Размер глифа логотипа.
-    private static final float LOGO_SIZE   = 22f;
+    private static final String PERSON_GLYPH = "j";
 
-    // Свечение под логотипом.
-    private static final float LOGO_GLOW   = 1.85f;
+    private static final float LOGO_CARD_WIDTH   = 38f;
+    private static final String LOGO_GLYPH       = "\uE900";
+    private static final float LOGO_SIZE         = 18f;
 
-    // Подстройка положения логотипа внутри иконной колонки.
-    private static final float LOGO_OFFSET_X = -2f;
-    private static final float LOGO_OFFSET_Y = 0f;
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final double BPS_WINDOW_SECONDS = 0.25;
 
-    private final Animation2 widthAnim = new Animation2();
-    private float boundsW = 200f;
+    private float boundsW;
+    private float boundsH = CARD_HEIGHT * 2f + ROW_GAP;
+
+    private double windowStartX   = Double.NaN;
+    private double windowStartZ   = Double.NaN;
+    private long   windowStartNanos = 0L;
+    private double displayedBps   = 0.0;
 
     public ModernWatermarkElement() {
         super("Watermark", 10f, 10f);
         this.enabled = false;
-        widthAnim.set(200);
     }
 
+    private Hud getHud() {
+        try { return Vesence.get.manager.get(Hud.class); }
+        catch (Throwable ignored) { return null; }
+    }
+
+    private boolean showFps()         { Hud h = getHud(); return h == null || h.isWatermarkFpsEnabled(); }
+    private boolean showBps()         { Hud h = getHud(); return h == null || h.isWatermarkBpsEnabled(); }
+    private boolean showPing()        { Hud h = getHud(); return h != null && h.isWatermarkPingEnabled(); }
+    private boolean showNickname()    { Hud h = getHud(); return h == null || h.isWatermarkNicknameEnabled(); }
+    private boolean showCoordinates() { Hud h = getHud(); return h == null || h.isWatermarkCoordinatesEnabled(); }
+    private boolean showTime()        { Hud h = getHud(); return h == null || h.isWatermarkTimeEnabled(); }
+    private boolean animatedEnabled() { Hud h = getHud(); return h == null || h.isWatermarkAnimatedEnabled(); }
+
     @Override
-    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
-        int theme = Renderer2D.ColorUtil.getClientColor();
+    public void render(Renderer2D renderer, FontObject font,
+                       int screenWidth, int screenHeight, GuiGraphicsExtractor ctx) {
+
         Minecraft mc = Minecraft.getInstance();
+        if (FontRegistry.SF_SEMI == null) return;
 
-        String ping = (mc.getConnection() != null && mc.player != null
-                && mc.getConnection().getPlayerInfo(mc.player.getUUID()) != null)
-                ? String.valueOf(mc.getConnection().getPlayerInfo(mc.player.getUUID()).getLatency())
-                : "0 ms";
-        String user = System.getProperty("user.name");
-        String fps = "FPS: " + ColorFormat.color(theme) + mc.getFps();
+        int themeColor = Renderer2D.ColorUtil.getClientColor();
+        int iconColor  = ColorUtil.replAlpha(themeColor, 230);
+        int textColor  = ColorUtil.replAlpha(-1, 255);
 
-        float w1 = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, user, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
-        float w2 = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, fps, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
-        float w3 = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, "Ping: " + ping, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
+        String playerName = mc.player != null
+                ? mc.player.getGameProfile().name()
+                : System.getProperty("user.name");
 
-        float startX = PANEL_PAD + ICON_COL_W + COL_GAP + PILL_START_OFFSET;
-        float targetInner = w1 + w2 + w3 + PILL_GAP * 2f;
-        float panelTarget = startX + targetInner + PANEL_PAD;
+        String fps      = Integer.toString(mc.getFps());
+        String time     = LocalTime.now().format(TIME_FORMAT);
+        String position = playerPosition(mc);
+        String bps      = String.format(Locale.ROOT, "%.1f", updateAndGetBps(mc));
+        String ping     = playerPing(mc);
 
-        widthAnim.update();
-        widthAnim.run(panelTarget, 0.2, Easings.SINE_OUT, true);
-        float panelW = (float) widthAnim.get();
-        float panelH = PANEL_PAD * 2f + HEADER_H;
+        float playerW = showNickname() ? topFieldWidth(renderer, playerName) : 0f;
+        float fpsW    = showFps()      ? topFieldWidth(renderer, fps + " FPS") : 0f;
+        float pingW   = showPing()     ? topFieldWidth(renderer, ping + " Ping") : 0f;
+        float timeW   = showTime()     ? topFieldWidth(renderer, time + " Time") : 0f;
 
-        // Плашки масштабируются вместе с анимированной шириной панели, чтобы расширяться плавно.
-        float animInner = panelW - startX - PANEL_PAD;
-        float sc = targetInner > 0.5f ? Math.max(0f, animInner / targetInner) : 1f;
-        float dw1 = w1 * sc, dw2 = w2 * sc, dw3 = w3 * sc, gap = PILL_GAP * sc;
+        int visibleTop = (showNickname() ? 1 : 0) + (showFps() ? 1 : 0)
+                + (showPing() ? 1 : 0) + (showTime() ? 1 : 0);
 
-        int pillBg = ColorUtil.replAlpha(-1, PILL_ALPHA);
-        int iconColor = ColorUtil.replAlpha(theme, 230);
-        int textColor = ColorUtil.replAlpha(-1, 255);
-        int panelBg = ColorUtil.replAlpha(ColorUtil.BLACK, 155);
+        float topW = 0f;
+        if (visibleTop > 0) {
+            topW = playerW + fpsW + pingW + timeW
+                    + (visibleTop - 1) * TOP_FIELD_GAP + 8f;
+        }
 
-        // ── Верхний рект: user / fps / ping ──
-        r.blur(x, y, panelW, panelH, 15, 12, 1f);
-        r.rect(x, y, panelW, panelH, 12, panelBg);
+        float positionW = showCoordinates() ? bottomFieldWidth(renderer, position) : 0f;
+        float bpsW      = showBps()         ? bottomFieldWidth(renderer, bps + " BPS") : 0f;
 
-        float headerTop = y + PANEL_PAD;
+        float topX       = x + LOGO_CARD_WIDTH + CARD_GAP;
+        float secondRowY = y + CARD_HEIGHT + ROW_GAP;
+
+        float bottomX = x;
+        float bpsX    = bottomX + (showCoordinates() ? positionW + CARD_GAP : 0f);
 
         // ---- ЛОГОТИП ----
-        // Центр иконной колонки: x + PANEL_PAD .. x + PANEL_PAD + ICON_COL_W
-        float iconColCenterX = x + PANEL_PAD + ICON_COL_W / 2f;
-        float iconColCenterY = headerTop + HEADER_H / 2f;
+        drawCard(renderer, x, y, LOGO_CARD_WIDTH, CARD_HEIGHT);
+        TtfFonts.LOGO.drawString(renderer, LOGO_GLYPH,
+                x + (LOGO_CARD_WIDTH - LOGO_SIZE) / 2f - 4.5f,
+                y + (CARD_HEIGHT - LOGO_SIZE) / 2f,
+                LOGO_SIZE, iconColor);
 
-        float logoX = iconColCenterX - LOGO_SIZE / 2f + LOGO_OFFSET_X;
-        float logoY = iconColCenterY - LOGO_SIZE / 2f + LOGO_OFFSET_Y;
+        // ---- ВЕРХНЯЯ ПАНЕЛЬ ----
+        if (visibleTop > 0) {
+            drawCard(renderer, topX, y, topW, CARD_HEIGHT);
+            float statX = topX;
+            if (showNickname()) {
+                drawIcon(renderer, TtfFonts.LOX, PERSON_GLYPH, statX + TOP_ICON_X, y, iconColor);
+                renderer.text(FontRegistry.SF_SEMI, statX + TOP_TEXT_X, y + TEXT_Y,
+                        TEXT_SIZE, playerName, textColor, -0.15f);
+                if (visibleTop > 1) drawDivider(renderer, statX + playerW, y);
+                statX += playerW + TOP_FIELD_GAP;
+            }
+            if (showFps()) {
+                statX = drawTopSplitInfo(renderer, statX, y, fps, " FPS", fpsW,
+                        themeColor, iconColor, textColor, showPing() || showTime(),
+                        TtfFonts.ESSENCE, "x", "watermark_fps");
+            }
+            if (showPing()) {
+                statX = drawTopSplitInfo(renderer, statX, y, ping, " Ping", pingW,
+                        themeColor, iconColor, textColor, showTime(),
+                        TtfFonts.ESSENCE, "p", "watermark_ping");
+            }
+            if (showTime()) {
+                drawTopSplitInfo(renderer, statX, y, time, " Time", timeW,
+                        themeColor, iconColor, textColor, false,
+                        TtfFonts.ESSENCE, "t", "watermark_time");
+            }
+        }
 
-        TtfFonts.LOGO.drawStringWithGlow(
-                r, LOGO_GLYPH,
-                logoX, logoY,
-                LOGO_SIZE, iconColor, LOGO_GLOW
-        );
+        // ---- НИЖНЯЯ ПАНЕЛЬ ----
+        boolean hasBottom = showCoordinates() || showBps();
+        if (hasBottom) {
+            if (showCoordinates()) {
+                drawCard(renderer, bottomX, secondRowY, positionW, CARD_HEIGHT);
+                drawIcon(renderer, TtfFonts.ICONNEW, "n", bottomX + BOTTOM_ICON_X, secondRowY, iconColor);
+                drawDivider(renderer, bottomX + BOTTOM_DIVIDER_X, secondRowY);
+                drawAnimatedOrPlain(renderer, "watermark_position", position,
+                        bottomX + BOTTOM_TEXT_X, secondRowY + TEXT_Y, textColor);
+            }
+            if (showBps()) {
+                drawCard(renderer, bpsX, secondRowY, bpsW, CARD_HEIGHT);
+                drawIcon(renderer, TtfFonts.ESSENCE, "d", bpsX + BOTTOM_ICON_X, secondRowY, iconColor);
+                drawDivider(renderer, bpsX + BOTTOM_DIVIDER_X, secondRowY);
+                float accentW;
+                if (animatedEnabled()) {
+                    accentW = AnimatedText.draw(renderer, FontRegistry.SF_SEMI, "watermark_bps",
+                            bps, bpsX + BOTTOM_TEXT_X, secondRowY + TEXT_Y, TEXT_SIZE,
+                            themeColor, AnimatedText.ALIGN_LEFT);
+                } else {
+                    renderer.text(FontRegistry.SF_SEMI, bpsX + BOTTOM_TEXT_X, secondRowY + TEXT_Y,
+                            TEXT_SIZE, bps, themeColor, -0.15f);
+                    accentW = measure(renderer, bps);
+                }
+                renderer.text(FontRegistry.SF_SEMI, bpsX + BOTTOM_TEXT_X + accentW, secondRowY + TEXT_Y,
+                        TEXT_SIZE, " BPS", textColor, -0.15f);
+            }
+        }
 
-        float iconY = headerTop + HEADER_H / 2f - 8;
-        float textY = headerTop + HEADER_H / 2f + 7.5f;
-        float px = x + startX;
+        // ---- Bounds ----
+        boundsW = LOGO_CARD_WIDTH;
+        if (visibleTop > 0) boundsW = Math.max(boundsW, LOGO_CARD_WIDTH + CARD_GAP + topW);
+        if (hasBottom) boundsW = Math.max(boundsW,
+                (showCoordinates() ? positionW : 0f)
+                        + (showBps() ? CARD_GAP + bpsW : 0f));
 
-        r.rect(px, headerTop, dw1, HEADER_H, 3, 3, 3, 3, pillBg);
-        TtfFonts.LOX.drawString(r, PILL_ICON, px + PILL_ICON_X, iconY, 18, iconColor);
-        r.text(FontRegistry.SF_SEMI, px + PILL_TEXT_X, textY, TITLE_SIZE, user, textColor, -0.15f);
-        px += dw1 + gap;
-
-        r.rect(px, headerTop, dw2, HEADER_H, 3, 3, 3, 3, pillBg);
-        TtfFonts.LOX.drawString(r, "b", px + PILL_ICON_X, iconY, 18, iconColor);
-        r.text(FontRegistry.SF_SEMI, px + PILL_TEXT_X, textY, TITLE_SIZE, fps, textColor, -0.15f);
-        px += dw2 + gap;
-
-        r.rect(px, headerTop, dw3, HEADER_H, 3, 6, 6, 3, pillBg);
-        TtfFonts.ICONNEW.drawString(r, "y", px + PILL_ICON_X, iconY, 18, iconColor);
-        r.text(FontRegistry.SF_SEMI, px + PILL_TEXT_X, textY, TITLE_SIZE,
-                "Ping: " + ColorFormat.color(theme) + ping, textColor, -0.15f);
-
-        // ── Нижний рект: ip сервера / время ПК ──
-        String ip = (mc.getCurrentServer() != null && mc.getCurrentServer().ip != null)
-                ? mc.getCurrentServer().ip
-                : (mc.getSingleplayerServer() != null ? "Singleplayer" : "-");
-        String time = new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date());
-
-        float wip   = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, ip, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
-        float wtime = PILL_TEXT_X + r.measureText(FontRegistry.SF_SEMI, time, TITLE_SIZE, -0.15f).width + PILL_RIGHT_PAD;
-        float panel2W = PANEL_PAD + wip + PILL_GAP + wtime + PANEL_PAD;
-        float panel2Y = y + panelH + 6f;
-
-        boundsW = Math.max(panelW, panel2W);
-
-        r.blur(x, panel2Y, panel2W, panelH, 15, 12, 1f);
-        r.rect(x, panel2Y, panel2W, panelH, 12, panelBg);
-
-        float headerTop2 = panel2Y + PANEL_PAD;
-        float iconY2 = headerTop2 + HEADER_H / 2f - 8;
-        float textY2 = headerTop2 + HEADER_H / 2f + 7.5f;
-        float px2 = x + PANEL_PAD;
-
-        r.rect(px2, headerTop2, wip, HEADER_H, 6, 3, 3, 6, pillBg);
-        TtfFonts.ESSENCE.drawString(r, "n", px2 + PILL_ICON_X, iconY2, 18, iconColor);
-        r.text(FontRegistry.SF_SEMI, px2 + PILL_TEXT_X, textY2, TITLE_SIZE, ip, textColor, -0.15f);
-        px2 += wip + PILL_GAP;
-
-        r.rect(px2, headerTop2, wtime, HEADER_H, 3, 6, 6, 3, pillBg);
-        TtfFonts.ESSENCE.drawString(r, "x", px2 + PILL_ICON_X, iconY2, 18, iconColor);
-        r.text(FontRegistry.SF_SEMI, px2 + PILL_TEXT_X, textY2, TITLE_SIZE, time, textColor, -0.15f);
+        boundsH = hasBottom ? CARD_HEIGHT * 2f + ROW_GAP : CARD_HEIGHT;
     }
 
-    @Override
-    public float getWidth(Renderer2D r, FontObject font) {
-        return boundsW;
+    /* ================================================================ КАРТОЧКА */
+
+    /** Чёрная modern-карточка: blur из настроек, тень, фон с глобальной прозрачностью HUD. */
+    private void drawCard(Renderer2D renderer, float cardX, float cardY, float w, float h) {
+        if (isBlurEnabled()) {
+            renderer.blur(cardX, cardY, w, h,
+                    ClickGui.blurStrengthHud.get().floatValue(), CARD_RADIUS, 1f);
+        }
+        renderer.shadow(cardX, cardY, w, h, CARD_RADIUS, 5f, 1f,
+                ColorUtil.replAlpha(ColorUtil.BLACK, 45));
+        renderer.rect(cardX, cardY, w, h, CARD_RADIUS,
+                ClickGui.getBackgroundColor(ClickGui.getHudAlpha()));
     }
 
-    @Override
-    public float getHeight(Renderer2D r, FontObject font) {
-        return (PANEL_PAD * 2f + HEADER_H) * 2f + 6f;
+    private float drawTopSplitInfo(Renderer2D renderer, float fieldX, float cardY,
+                                   String accent, String suffix, float width,
+                                   int themeColor, int iconColor, int textColor, boolean divider,
+                                   TtfFontFamily iconFont, String iconGlyph, String animationKey) {
+        drawIcon(renderer, iconFont, iconGlyph, fieldX + TOP_ICON_X, cardY, iconColor);
+        float textX = fieldX + TOP_TEXT_X;
+        float accentW;
+        if (animatedEnabled()) {
+            accentW = AnimatedText.draw(renderer, FontRegistry.SF_SEMI, animationKey,
+                    accent, textX, cardY + TEXT_Y, TEXT_SIZE, themeColor, AnimatedText.ALIGN_LEFT);
+        } else {
+            renderer.text(FontRegistry.SF_SEMI, textX, cardY + TEXT_Y, TEXT_SIZE, accent, themeColor, -0.15f);
+            accentW = measure(renderer, accent);
+        }
+        renderer.text(FontRegistry.SF_SEMI, textX + accentW, cardY + TEXT_Y,
+                TEXT_SIZE, suffix, textColor, -0.15f);
+        if (divider) drawDivider(renderer, fieldX + width, cardY);
+        return fieldX + width + TOP_FIELD_GAP;
     }
 
-    @Override
-    public float getEffectiveWidth(Renderer2D r, FontObject font) {
-        return boundsW;
+    private void drawAnimatedOrPlain(Renderer2D renderer, String key, String value,
+                                     float textX, float textY, int color) {
+        if (animatedEnabled()) {
+            AnimatedText.draw(renderer, FontRegistry.SF_SEMI, key, value,
+                    textX, textY, TEXT_SIZE, color, AnimatedText.ALIGN_LEFT);
+        } else {
+            renderer.text(FontRegistry.SF_SEMI, textX, textY, TEXT_SIZE, value, color, -0.15f);
+        }
     }
+
+    private void drawIcon(Renderer2D renderer, TtfFontFamily font, String glyph,
+                          float iconX, float cardY, int color) {
+        font.drawStringWithGlow(renderer, glyph, iconX, cardY + ICON_Y - 2f, ICON_SIZE, color);
+    }
+
+    private void drawDivider(Renderer2D renderer, float dividerX, float cardY) {
+        renderer.rect(dividerX, cardY + DIVIDER_Y, 1f, DIVIDER_HEIGHT,
+                ColorUtil.replAlpha(-1, 20));
+    }
+
+    private float topFieldWidth(Renderer2D renderer, String value) {
+        return TOP_TEXT_X + measure(renderer, value) + TOP_FIELD_RIGHT_PAD;
+    }
+
+    private float bottomFieldWidth(Renderer2D renderer, String value) {
+        return BOTTOM_TEXT_X + measure(renderer, value) + CARD_PADDING;
+    }
+
+    private float measure(Renderer2D renderer, String text) {
+        return renderer.measureText(FontRegistry.SF_SEMI, text, TEXT_SIZE, -0.15f).width;
+    }
+
+    /* ================================================================ BPS */
+
+    private double updateAndGetBps(Minecraft mc) {
+        if (mc.player == null) {
+            windowStartX = Double.NaN; windowStartZ = Double.NaN;
+            displayedBps = 0.0; return 0.0;
+        }
+        double curX = mc.player.getX(), curZ = mc.player.getZ();
+        long now = System.nanoTime();
+        if (Double.isNaN(windowStartX)) {
+            windowStartX = curX; windowStartZ = curZ;
+            windowStartNanos = now; return displayedBps;
+        }
+        double elapsed = (now - windowStartNanos) / 1_000_000_000.0;
+        if (elapsed >= BPS_WINDOW_SECONDS) {
+            double dx = curX - windowStartX, dz = curZ - windowStartZ;
+            displayedBps = Math.sqrt(dx * dx + dz * dz) / elapsed;
+            windowStartX = curX; windowStartZ = curZ; windowStartNanos = now;
+        }
+        return displayedBps;
+    }
+
+    /* ================================================================ PLAYER */
+
+    private static String playerPosition(Minecraft mc) {
+        if (mc.player == null) return "0x 0y 0z";
+        return (int) Math.floor(mc.player.getX()) + "x "
+                + (int) Math.floor(mc.player.getY()) + "y "
+                + (int) Math.floor(mc.player.getZ()) + "z";
+    }
+
+    private static String playerPing(Minecraft mc) {
+        if (mc.player == null || mc.getConnection() == null) return "0";
+        var entry = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+        return entry == null ? "0" : Integer.toString(entry.getLatency());
+    }
+
+    /* ================================================================ HUD SIZE */
+
+    @Override public float getWidth(Renderer2D renderer, FontObject font)          { return boundsW; }
+    @Override public float getHeight(Renderer2D renderer, FontObject font)         { return boundsH; }
+    @Override public float getEffectiveWidth(Renderer2D renderer, FontObject font) { return boundsW; }
 }

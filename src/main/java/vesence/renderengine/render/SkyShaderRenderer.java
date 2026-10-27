@@ -153,6 +153,12 @@ public final class SkyShaderRenderer {
         return SHADER_NAMES[0];
     }
 
+    /** Диагностика для скай-теста: скомпилировался ли пайплайн режима. */
+    public boolean debugPipelineReady(String shaderName) {
+        ensureInitialized();
+        return getSkyPipeline(shaderName) != null;
+    }
+
     /**
      * Рисует кастомное небо прямо в цветовой буфер кадра (стадия неба).
      *

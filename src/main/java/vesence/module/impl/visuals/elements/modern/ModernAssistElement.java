@@ -17,7 +17,6 @@ import vesence.renderengine.render.Renderer2D;
 import vesence.utils.other.KeyUtil;
 import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
-import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import vesence.utils.render.text.FontRegistry;
@@ -29,10 +28,10 @@ import java.util.Locale;
 @Environment(EnvType.CLIENT)
 public class ModernAssistElement extends HudElement {
 
-    private static final float PANEL_SIZE = 80;
+    private static final float PANEL_SIZE = 60;
     private static final float PANEL_GAP = 8;
     private static final float PANEL_PADDING = 4;
-    private static final float FONT_SIZE = 30;
+    private static final float FONT_SIZE = 18;
     private static final int WHITE_COLOR = 0xFFFFFFFF;
 
     public ModernAssistElement() {
@@ -61,22 +60,22 @@ public class ModernAssistElement extends HudElement {
 
         float curX = x;
         float elemScale = getScale();
+        FontObject f = FontRegistry.SF_SEMI != null ? FontRegistry.SF_SEMI : font;
 
         for (BoundItem item : boundItems) {
-            float pw = panelWidth(renderer, item) + 10;
-            int panelBg = ColorUtil.replAlpha(ColorUtil.BLACK, 155);
-            renderer.blur(curX, y, pw, 45, 15, 12, 1f);
-            renderer.rect(curX, y, pw, 45, 12, panelBg);
-            renderer.rect(curX + 43, y + 5, pw - 48, 35, 3,8,8, 3, ColorUtil.replAlpha(-1, (int) (12 * alphaAnim.get())));
+            // Default-компоновка: квадратная панель 60x60, предмет по центру,
+            // количество слева сверху, бинд справа снизу. Панель — modern (чёрная).
+            drawHudPanel(renderer, curX, y, PANEL_SIZE, PANEL_SIZE, 1f);
+
             float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
 
-            float panelCenterX = curX + 20;
-            float panelCenterY = y + 21;
+            float panelCenterX = curX + 30;
+            float panelCenterY = y + 30;
             float scaledCenterX = this.x + (panelCenterX - this.x) * elemScale;
             float scaledCenterY = this.y + (panelCenterY - this.y) * elemScale;
-            float centerX = scaledCenterX / guiScale + 1;
-            float centerY = scaledCenterY / guiScale + 1;
-            float itemScale = 0.8f * elemScale;
+            float centerX = scaledCenterX / guiScale;
+            float centerY = scaledCenterY / guiScale;
+            float itemScale = 0.85f * elemScale;
 
             ctx.pose().pushMatrix();
             ctx.pose().translate(centerX, centerY);
@@ -84,28 +83,20 @@ public class ModernAssistElement extends HudElement {
             ctx.item(item.stack, -8, -8);
             ctx.pose().popMatrix();
 
-            float bindW = renderer.measureText(FontRegistry.SF_MEDIUM, item.bindKey, FONT_SIZE).width;
             String countStr = String.valueOf(item.totalCount);
-            float countTextH = renderer.measureText(FontRegistry.SF_MEDIUM, countStr, FONT_SIZE).height;
-            float countX = curX + bindW + 78;
-            float countY = y + PANEL_SIZE / 2f - 10.5f;
-            renderer.text(FontRegistry.SF_MEDIUM, countX, countY, FONT_SIZE + 5, ColorFormat.color(ColorUtil.theme(255)) + countStr + ColorFormat.reset() + "x", WHITE_COLOR);
+            float countTextH = renderer.measureText(f, countStr, FONT_SIZE).height;
+            float countX = curX + 6;
+            float countY = y + 6 + countTextH * 0.7f;
+            renderer.text(f, countX, countY, FONT_SIZE, countStr, WHITE_COLOR);
 
-            float bindTextH = renderer.measureText(FontRegistry.SF_MEDIUM, item.bindKey, FONT_SIZE).height;
-            float bindX = curX + 54;
-            float bindY = y + PANEL_SIZE / 2f - 10.5f;
-            renderer.text(FontRegistry.SF_MEDIUM, bindX, bindY, FONT_SIZE, item.bindKey, WHITE_COLOR);
-            renderer.rect(curX + bindW + 65, y + 14, 1, 18, ColorUtil.replAlpha(-1, 25));
+            float bindW = renderer.measureText(f, item.bindKey, FONT_SIZE).width;
+            float bindTextH = renderer.measureText(f, item.bindKey, FONT_SIZE).height;
+            float bindX = curX + PANEL_SIZE - bindW - 6;
+            float bindY = y + PANEL_SIZE - 6 - bindTextH * 0.3f;
+            renderer.text(f, bindX, bindY, FONT_SIZE, item.bindKey, WHITE_COLOR);
 
-            curX += pw + PANEL_GAP;
+            curX += PANEL_SIZE + PANEL_GAP;
         }
-    }
-
-    private float panelWidth(Renderer2D renderer, BoundItem item) {
-        float bindW = renderer.measureText(FontRegistry.SF_MEDIUM, item.bindKey, FONT_SIZE).width + 10;
-        float countW = renderer.measureText(FontRegistry.SF_MEDIUM, String.valueOf(item.totalCount), FONT_SIZE).width + 37;
-        float leftW = Math.max(34f, 6f);
-        return leftW + 8f + bindW + 4 + countW;
     }
 
     @Override
@@ -119,16 +110,12 @@ public class ModernAssistElement extends HudElement {
         List<BoundItem> boundItems = getBoundItemsFromAssist(mc, assist);
         if (boundItems.isEmpty()) return PANEL_SIZE;
 
-        float total = 0f;
-        for (BoundItem item : boundItems) {
-            total += panelWidth(renderer, item) + PANEL_GAP;
-        }
-        return Math.max(0f, total - PANEL_GAP);
+        return boundItems.size() * PANEL_SIZE + (boundItems.size() - 1) * PANEL_GAP;
     }
 
     @Override
     public float getHeight(Renderer2D renderer, FontObject font) {
-        return 40;
+        return PANEL_SIZE;
     }
 
     private List<BoundItem> getBoundItemsFromAssist(Minecraft mc, Assist assist) {

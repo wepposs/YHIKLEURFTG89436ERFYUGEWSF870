@@ -80,6 +80,19 @@ public final class RotationSmoother {
         this.lastUpdateNanos = System.nanoTime();
     }
 
+    /**
+     * Прижать текущий угол к фактическому, сохранив скорость.
+     *
+     * <p>Отличие от {@link #snapTo} принципиальное: скорость НЕ обнуляется.
+     * Угол может быть записан снаружи (Baritone подрезает наш шаг своим
+     * лимитером) — пружина обязана продолжать разгон оттуда, где голова
+     * находится на самом деле, а не оттуда, где она «думала».
+     */
+    public void syncTo(float yaw, float pitch) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+    }
+
     public float yaw() {
         return this.yaw;
     }

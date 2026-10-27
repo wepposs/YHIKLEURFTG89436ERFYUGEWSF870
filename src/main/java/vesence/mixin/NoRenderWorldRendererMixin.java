@@ -26,7 +26,15 @@ public class NoRenderWorldRendererMixin {
 
    private static boolean vesence$noClouds() {
       NoRender nr = Vesence.get.manager.get(NoRender.class);
-      return nr != null && nr.enable && NoRender.elements.get("Облака");
+      if (nr != null && nr.enable && NoRender.elements.get("Облака")) return true;
+      // Кастомный шейдер неба рисует собственные объёмные облака —
+      // ванильные поверх него дают белёсую вуаль на весь купол.
+      try {
+         vesence.module.impl.visuals.Ambience amb = vesence.module.impl.visuals.Ambience.getInstance();
+         return amb != null && amb.enable && vesence.module.impl.visuals.Ambience.skyShader.get();
+      } catch (Throwable t) {
+         return false;
+      }
    }
 
    @WrapOperation(

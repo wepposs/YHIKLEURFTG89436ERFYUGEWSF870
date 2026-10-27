@@ -188,6 +188,37 @@ public final class PathTest {
      *
      * <p>Правильный признак готовности — что чанк вообще загружен.
      */
+    private static boolean joinRequested; //DBG
+    private static int dbgUnpause; //DBG
+
+    /**
+     * Автовход в мир {@code skytest} с титульного экрана: прогон должен идти
+     * без рук, включая подтверждение конвертации старого мира.
+     */
+    private static void autoJoin(Minecraft mc) { //DBG
+        if (mc.player != null || mc.gui == null) { //DBG
+            return; // уже в мире
+        } //DBG
+        var screen = mc.gui.screen(); //DBG
+        if (!joinRequested && screen instanceof net.minecraft.client.gui.screens.TitleScreen) { //DBG
+            joinRequested = true; //DBG
+            System.out.println("[pathtest] auto-join skytest"); //DBG
+            mc.createWorldOpenFlows().openWorld("skytest", //DBG
+                    () -> System.out.println("[pathtest] openWorld: фолбэк (диалог отменён?)")); //DBG
+            return; //DBG
+        } //DBG
+        if (screen instanceof net.minecraft.client.gui.screens.ConfirmScreen confirm) { //DBG
+            try { //DBG
+                var f = net.minecraft.client.gui.screens.ConfirmScreen.class.getDeclaredField("callback"); //DBG
+                f.setAccessible(true); //DBG
+                System.out.println("[pathtest] auto-confirm dialog"); //DBG
+                ((it.unimi.dsi.fastutil.booleans.BooleanConsumer) f.get(confirm)).accept(true); //DBG
+            } catch (Throwable t) { //DBG
+                System.out.println("[pathtest] auto-confirm failed: " + t); //DBG
+            } //DBG
+        } //DBG
+    } //DBG
+
     private static boolean worldReady(Minecraft mc) {
         if (mc.player == null || mc.level == null) {
             return false;
@@ -205,8 +236,25 @@ public final class PathTest {
     private static int frameYawSamples;
 
     private static void tick(Minecraft mc) {
-        if (finished || mc.player == null || mc.level == null) {
+        if (finished) {
             return;
+        }
+        autoJoin(mc); //DBG
+        if (mc.player == null || mc.level == null) {
+            return;
+        }
+        if (mc.isPaused()) { //DBG
+            // Одиночная игра на паузе не тикает уровень: двигатель и ноги
+            // стоят, а счётчики теста идут — измерения превращаются в тынву.
+            // Снимаем паузу (экран тоже) и не считаем этот тик.
+            if (dbgUnpause++ % 20 == 1) { //DBG
+                System.out.println("[pathtest] unpaused, screen=" + mc.gui.screen()); //DBG
+            } //DBG
+            mc.pauseGame(false); //DBG
+            if (mc.gui.screen() != null) { //DBG
+                mc.gui.setScreen(null); //DBG
+            } //DBG
+            return; //DBG
         }
         // Ждём, пока мир реально загрузится — но только ОДИН раз, на старте.
         //
@@ -274,6 +322,7 @@ public final class PathTest {
                     + " dist=" + String.format("%.1f", distance)
                     + " idx=" + (engine.currentPath() == null ? -1 : engine.currentPath().index)
                     + " blocked=" + engine.executor().humanizer().isBlocked()
+                    + " screen=" + (mc.gui.screen() == null ? "-" : mc.gui.screen().getClass().getSimpleName()) //DBG
                     // Метрика камеры печатается и здесь, а не только в финале:
                     // прогон может оборваться, если окно потеряет фокус, и тогда
                     // финальный отчёт просто не появится.
@@ -380,7 +429,8 @@ public final class PathTest {
 
         for (int distance : distances) {
             for (int[] dir : dirs) {
-                BlockPos target = origin.offset(dir[0] * distance, 0, dir[1] * distance);
+                BlockPos target = standableTarget(mc, world,
+                        origin.offset(dir[0] * distance, 0, dir[1] * distance));
                 System.out.println("[pathtest] target " + target
                         + " canStand=" + world.canStand(target.getX(), target.getY(), target.getZ())
                         + " solid=" + world.solid(target.getX(), target.getY(), target.getZ())
@@ -448,7 +498,7 @@ public final class PathTest {
 
     private static void startWalk(Minecraft mc) {
         BlockPos origin = mc.player.blockPosition();
-        target = origin.offset(26, 0, 18);
+        target = standableTarget(mc, new BlockWorld(mc.level), origin.offset(26, 0, 18));
         startPos = mc.player.position();
         bestDistance = Double.MAX_VALUE;
         arrivalTicks = -1;
@@ -481,10 +531,49 @@ public final class PathTest {
         System.out.println("[pathtest] reached=" + (bestDistance <= 2.5));
         System.out.println("[pathtest] stillPathing=" + VesenceBaritone.get().isPathing());
         VesenceBaritone.get().cancel();
+        // Harness отработал — закрываем клиент сами, окно закрывать некому.
+        System.out.println("[pathtest] stopping client");
+        mc.stop();
     }
 
     private static String fmt(Vec3 v) {
         return String.format("%.1f/%.1f/%.1f", v.x, v.y, v.z);
+    }
+
+    /**
+     * Переносит точку цели с фиксированной высоты на поверхность.
+     *
+     * <p>Спавн стоит у воды (y=64), а смещение на 20–40 блоков регулярно
+     * попадает внутрь холма: закопанная в камень цель ногами недостижима
+     * (Baritone не копает «угаданные» клетки) — тест мерил бы невыполнимую
+     * цель вместо походки. Берём поверхность самого столбца или ближайший
+     * стоячий столбец, чтобы длина и пересечённость маршрута сохранились.
+     */
+    private static BlockPos standableTarget(Minecraft mc, BlockWorld world, BlockPos raw) {
+        for (int r = 0; r <= 6; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
+                        continue;
+                    }
+                    int x = raw.getX() + dx;
+                    int z = raw.getZ() + dz;
+                    int surface = mc.level.getHeight(
+                            net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+                    for (int y = surface; y >= surface - 4; y--) {
+                        // Ноги именно в ВОЗДУХЕ: canStand пускает и подводные
+                        // клетки (вода «проходима»), а MOTION_BLOCKING воду не
+                        // считает — без этой проверки целью становилось дно
+                        // моря, и бот тонул весь бюджет вместо ходьбы.
+                        if (world.canStand(x, y, z)
+                                && mc.level.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                            return new BlockPos(x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+        return raw;
     }
 
     /** Не используется, но полезно при отладке: список пройденных узлов. */

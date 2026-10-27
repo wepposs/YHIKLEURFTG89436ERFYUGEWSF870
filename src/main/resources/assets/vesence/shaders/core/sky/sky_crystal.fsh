@@ -5,48 +5,52 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Crystal — frozen daylight: crisp periwinkle dome, a low cold sun wrapped in
-// an 8-spoke starburst, drifting shard-glints, thin crystal-veil near horizon.
+// CRYSTAL — купол из кристаллических граней двух масштабов: ледяные и
+// фиолетовые оттенки по ячейкам, specular-блики по граням, искры на рёбрах,
+// острое зимнее солнце с 22-градусным гало и паргелиями, призматические
+// перистые и лёгкая ледяная дымка.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 sunPos = worldDir(140.0, 30.0);
 
-    // Cold clear ramp: pale ice horizon -> periwinkle -> deep sapphire zenith
-    vec3 col = atmosphere(d, vec3(0.55, 0.68, 0.80), vec3(0.24, 0.36, 0.58), vec3(0.06, 0.10, 0.30));
+    vec3 col = atmosphereSun(d,
+        vec3(0.62, 0.76, 0.92),
+        vec3(0.24, 0.44, 0.78),
+        vec3(0.06, 0.16, 0.52),
+        sunPos, vec3(1.00, 0.98, 0.95), 0.40);
 
-    vec3 sunPos = worldDir(45.0, 26.0);
-    float sd = length(d - sunPos);
+    // Грани: два масштаба ячеек на сферических координатах.
+    for (int i = 0; i < 2; i++) {
+        float fi = float(i);
+        float sc = 4.0 + fi * 9.0;
+        vec2 uv = vec2(atan(d.z, d.x) * sc / 3.14159265, d.y * sc * 0.55);
+        vec2 cell = floor(uv);
+        vec2 f = fract(uv);
+        float h = hash12(cell + fi * 17.0);
+        vec3 tint = mix(vec3(0.55, 0.75, 1.00), vec3(0.70, 0.55, 1.00), h);
+        float e = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+        // Грань: мягкий наклон яркости внутри ячейки + светящееся ребро.
+        float facet = 0.5 + 0.5 * sin((f.x + f.y) * 3.14159265 + h * 6.28);
+        col += tint * facet * 0.06 * (1.0 - fi * 0.4);
+        col += tint * smoothstep(0.05, 0.0, e) * 0.22 * (1.0 - fi * 0.35);
+        // Блик: редкие ячейки вспыхивают, когда совпадают с солнцем.
+        float glint = step(0.965, hash12(cell + floor(Time * 1.5) + fi * 31.0));
+        col += vec3(1.0) * glint * bell(e - 0.10, 0.10) * 0.55;
+    }
 
-    // Cold sun with a tight starburst: 4 long + 4 short spokes
-    col += sun(d, sunPos, 0.038, vec3(0.94, 0.96, 1.0));
-    vec2 tp = tangentUV(d, sunPos);
-    float ang = atan(tp.y, tp.x);
-    float r = length(tp);
-    float spokeL = pow(abs(cos(ang * 2.0)), 24.0);
-    float spokeS = pow(abs(cos(ang * 4.0 + 0.39)), 40.0) * 0.6;
-    float spokes = (spokeL + spokeS) * exp(-r * 5.0);
-    col += vec3(0.75, 0.85, 1.0) * spokes * 0.55;
+    col += sun(d, sunPos, 0.020, vec3(1.00, 0.99, 0.97));
 
-    // Tight cold halo
-    col += vec3(0.45, 0.62, 0.82) * bell(sd - 0.30, 0.010) * 0.22
-         * smoothstep(-0.02, 0.10, d.y);
+    // 22-градусное гало и паргелии.
+    float sa = length(d - sunPos);
+    col += spectral(0.05 + sa * 1.2) * bell(sa - 0.38, 0.020) * 0.30;
+    vec3 sd1 = worldDir(140.0 + 22.0, 30.0);
+    vec3 sd2 = worldDir(140.0 - 22.0, 30.0);
+    col += vec3(1.00, 0.88, 0.70) * (bell(length(d - sd1), 0.018) * 0.35
+         + bell(length(d - sd2), 0.018) * 0.35);
 
-    // Drifting shard glints: sharp little twinkles scattered mid-sky
-    float glint = starsSeeded(d, 90.0, 0.9, 313.0).g;
-    col += vec3(0.55, 0.75, 0.95) * glint
-         * (0.65 + 0.35 * sin(Time * 2.2 + d.x * 12.0 + d.z * 9.0))
-         * smoothstep(0.10, 0.45, d.y);
+    col += vec3(0.95, 0.97, 1.00) * cirrus(d, 241.0) * 0.09;
+    col += horizonHaze(d, sunPos, vec3(0.85, 0.92, 1.00), 0.30);
 
-    // Sparse true stars high up
-    col += stars(d, 60.0, 0.9, 77.0) * smoothstep(0.45, 0.85, d.y);
-
-    // Veil of ice haze near horizon
-    col += horizonHaze(d, sunPos, vec3(0.70, 0.82, 0.92), 0.40);
-
-    // Mirror-dark frozen lake below the horizon: still, dim, catching the
-    // sun's glare as a soft vertical reflection
-    float below = smoothstep(0.0, 0.06, -d.y);
-    vec3 lake = mix(col, col * vec3(0.30, 0.34, 0.40) + vec3(0.02, 0.03, 0.04), below);
-
-    col = mix(col, lake, below);
+    col = grade(col, 1.18, -0.04);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

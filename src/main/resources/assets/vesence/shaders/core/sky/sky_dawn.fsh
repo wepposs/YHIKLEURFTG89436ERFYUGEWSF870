@@ -5,32 +5,29 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Dawn — a warm sunrise: peach-gold glow pooling around the sun, gentle
-// color ramp through rose into soft blue, sun pillar, wispy morning clouds.
+// DAWN — рассвет: солнце у кромки, небо от персика и розы к глубокому синему
+// зениту, облака силуэтами с розово-золотой каймой, тают звёзды.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
+    vec3 sunPos = worldDir(90.0, 2.5);
 
-    // Clear ramp: rosy horizon -> powder blue -> clean zenith
-    vec3 col = atmosphere(d, vec3(0.72, 0.44, 0.38), vec3(0.42, 0.48, 0.62), vec3(0.22, 0.36, 0.58));
+    vec3 col = atmosphereSun(d,
+        vec3(1.00, 0.66, 0.44),
+        vec3(0.78, 0.46, 0.55),
+        vec3(0.12, 0.18, 0.44),
+        sunPos, vec3(1.00, 0.72, 0.48), 1.00);
 
-    vec3 sunPos = worldDir(65.0, 6.0);
+    col += sun(d, sunPos, 0.036, vec3(1.00, 0.82, 0.58));
+    col += godRays(d, sunPos, vec3(1.00, 0.75, 0.50), 0.24);
 
-    // Warm scattering pooled around the sun's azimuth
-    col += horizonHaze(d, sunPos, vec3(0.95, 0.55, 0.32), 0.55);
+    col = cloudVolume(col, d, sunPos, vec3(1.00, 0.84, 0.68),
+        vec3(0.30, 0.22, 0.38), vec3(1.00, 0.82, 0.66),
+        0.35, 0.058, 0.92, 47.0);
 
-    // Rising sun
-    col += sun(d, sunPos, 0.048, vec3(1.0, 0.85, 0.62));
+    col += vec3(1.00, 0.80, 0.72) * cirrus(d, 103.0) * 0.12;
+    col += stars(d, 70.0, 0.35, 9.0) * smoothstep(0.20, 0.65, d.y);
+    col += horizonHaze(d, sunPos, vec3(1.00, 0.70, 0.48), 0.45);
 
-    // Sun pillar: narrow vertical streak
-    float h = length(d - sunPos);
-    vec2 p = tangentUV(d, sunPos);
-    col += vec3(1.0, 0.82, 0.58) * bell(h - 0.30, 0.012) * bell(p.x, 0.016) * 0.5;
-
-    // Fading stars overhead — night not quite gone
-    col += stars(d, 62.0, 1.0, 19.0) * smoothstep(0.25, 0.70, d.y) * 0.7;
-
-    // Morning wisps: thin streaky clouds catching the light
-    col = cloudLayer(col, d, sunPos, vec3(0.62, 0.48, 0.52), vec3(1.0, 0.86, 0.72), 0.38, 4.5, 0.55, 11.0);
-
+    col = grade(col, 1.20, -0.08);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

@@ -35,7 +35,6 @@ public final class ClientSettings {
       add(ClickGui.blurStrengthHud);
       add(ClickGui.cornerHud);
       add(ClickGui.hudAlpha);
-      add(ClickGui.hudVariation);
       add(ClickGui.squircleHud);
 
       add(ClickGui.gui);

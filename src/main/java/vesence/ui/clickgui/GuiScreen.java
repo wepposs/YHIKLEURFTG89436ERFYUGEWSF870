@@ -68,9 +68,8 @@ public class GuiScreen {
    public static boolean activeSearch = false;
    /**
     * Флаг "выделить всё" (Ctrl+A) для текстовых полей, обслуживаемых классическими
-    * обработчиками: classic-поиск, StringSetting и числовой буфер слайдера. Одно
-    * поле в фокусе за раз, поэтому одного флага достаточно. Compact-поиск использует
-    * собственный {@code CompactGuiScreen.searchSelectAll}.
+    * обработчиками: StringSetting и числовой буфер слайдера. Одно поле в фокусе
+    * за раз, поэтому одного флага достаточно.
     */
    public static boolean textSelectAll = false;
    public static float searchWidth = 124.04F;

@@ -286,6 +286,7 @@ public class CompactModuleWindow {
         float ga = ClickGui.guiAlpha.get().floatValue() * a;
         float corner = ClickGui.getGuiCorner();
 
+        r.shadow(x, y, w, h, corner, 9f, 0f, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (90 * a)));
         if (!ClickGui.squircleGui.get()) {
             if (ClickGui.blurGui.get()) {
                 r.blur(x, y, w, h, ClickGui.blurStrengthGui.get().floatValue(), corner, a);

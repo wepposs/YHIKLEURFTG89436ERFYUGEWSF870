@@ -50,7 +50,7 @@ public abstract class ScoreboardNameProtectMixin {
         // Кастомный скорборд (ScoreboardElement) активен — подавляем И ванильную
         // отрисовку, И NameProtect-перерисовку: скорборд рисует HUD-элемент,
         // который сам применяет замену ника/грифа/сервер-слов и red->white.
-        if (vesence.module.impl.visuals.elements.ScoreboardElement.shouldSuppressVanilla()) {
+        if (vesence.module.impl.visuals.elements.modern.ModernScoreboardElement.shouldSuppressVanilla()) {
             ci.cancel();
             return;
         }

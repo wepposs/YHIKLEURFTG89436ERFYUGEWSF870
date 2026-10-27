@@ -99,7 +99,17 @@
     "ScoreboardNameProtectMixin",
     "FrameNoRenderMixin",
     "ItemModelManagerSphereHeadMixin",
-    "FireworkRocketEntityMixin"
+    "FireworkRocketEntityMixin",
+    "optimization.EntityRendererLodMixin",
+    "optimization.LivingEntityRendererLodMixin",
+    "optimization.EntityViewScaleMixin",
+    "optimization.ParticleGroupMixin",
+    "optimization.BlockEntityDispatcherMixin",
+    "optimization.ItemClusterRenderStateMixin",
+    "optimization.QuadParticleGroupMixin",
+    "optimization.FontMixin",
+    "BaritoneAimProcessorMixin",
+    "BaritoneInputOverrideMixin"
   ],
   "injectors": {
     "defaultRequire": 1

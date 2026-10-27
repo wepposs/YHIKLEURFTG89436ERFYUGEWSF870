@@ -50,6 +50,58 @@ public final class DigPlanner {
      */
     public static List<PathNode> plan(BlockWorld world, BlockPos start, BlockPos goal) {
         int dy = goal.getY() - start.getY();
+        int dx = Math.abs(goal.getX() - start.getX());
+        int dz = Math.abs(goal.getZ() - start.getZ());
+        int gx = goal.getX();
+        int gy = goal.getY();
+        int gz = goal.getZ();
+
+        // Последний блок: цель в одной клетке под нами — стоим ровно над ней
+        // или в соседней клетке (зигзаг спуска заканчивается сбоку от столба).
+        //
+        // Ступеньки тут уже не построить — «на другую высоту» мы фактически
+        // пришли. Раньше план требовал стоять строго над целью и возвращал null
+        // для соседней клетки, движок уходил в слепые пробы, и бот наматывал
+        // круги вокруг цели, хотя до неё оставалось сломать один блок и
+        // спуститься. Это и выглядело как «пришёл в нужную точку и бегает
+        // вокруг».
+        //
+        // Исполнитель у DIG-узла ломает и блок в ногах, и блок над ним, поэтому
+        // для соседней колонны блок над целью тоже обязан поддаваться: иначе
+        // бот упрётся взглядом в неразрушимое и будет ждать таймаут вместо
+        // финиша.
+        if (dy == -1 && dx + dz <= 1
+                && world.diggable(gx, gy, gz)
+                && !world.dangerous(gx, gy, gz)
+                && (dx + dz == 0 || world.passable(gx, gy + 1, gz)
+                        || world.diggable(gx, gy + 1, gz))
+                // Пол под целью тоже проверяем: после слома блока игрок упадёт
+                // именно туда, и лава под целью означает смерть вместо прибытия.
+                && !world.dangerous(gx, gy - 1, gz)) {
+            List<PathNode> last = new ArrayList<>(1);
+            last.add(new PathNode(gx, gy, gz, MovementType.DIG));
+            return last;
+        }
+
+        // Ровно два блока строго вниз: копаем вертикальную шахту — классическое
+        // «прокопать под собой и спуститься». Страшной «необратимой» шахты тут
+        // нет: обе клетки пробиваются насквозь, и по ним же можно подняться
+        // обратно. Диагональная лестница дошла бы сюда тоже (шаг вбок и
+        // последний блок сверху), но это лишний сломанный блок и вид со
+        // стороны, будто бот топчется вокруг цели вместо того чтобы копнуть
+        // вниз.
+        if (dy == -2 && dx + dz == 0
+                && world.diggable(gx, gy + 1, gz)
+                && world.diggable(gx, gy, gz)
+                && !world.dangerous(gx, gy + 1, gz)
+                && !world.dangerous(gx, gy, gz)
+                && !world.dangerous(gx, gy - 1, gz)) {
+            List<PathNode> nodes = new ArrayList<>(2);
+            nodes.add(new PathNode(gx, gy + 1, gz, MovementType.DIG));
+            nodes.add(new PathNode(gx, gy, gz, MovementType.DIG));
+            return nodes;
+        }
+
         if (Math.abs(dy) < 2) {
             // Цель почти на нашей высоте — значит дело не в высоте, и копать
             // нечего: обычный поиск отказал по другой причине.

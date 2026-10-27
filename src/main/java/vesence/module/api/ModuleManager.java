@@ -176,6 +176,7 @@ public class ModuleManager {
       // =========================
 
       this.module.add(new vesence.module.impl.misc.BetterMinecraft());
+      this.module.add(new vesence.module.impl.misc.Optimization());
       this.module.add(new vesence.module.impl.visuals.Cape());
       this.module.add(new vesence.module.impl.visuals.Attributes());
       this.module.add(new vesence.module.impl.visuals.particular.Particular());
@@ -262,6 +263,13 @@ public class ModuleManager {
                       "Ивенты"
               )
       );
+
+      // =========================
+      // INTERFACE (Theme + Display + Client)
+      // регистрируется после HudToggleModule — собирает их настройки
+      // =========================
+
+      this.module.add(new vesence.module.impl.visuals.InterfaceModule());
 
       // =========================
       // CACHE

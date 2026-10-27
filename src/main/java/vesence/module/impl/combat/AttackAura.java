@@ -58,7 +58,7 @@ import vesence.module.impl.combat.rotation.UCakeWorldRotation;
 import vesence.module.impl.combat.rotation.UHolyWorldNewRotation;
 import vesence.module.impl.combat.rotation.UMatrixRotation;
 import vesence.module.impl.combat.rotation.UHvHRotation;
-import vesence.module.impl.combat.rotation.UShardRotation;
+import vesence.module.impl.combat.rotation.ULegitRotation;
 import vesence.module.impl.combat.rotation.USlothRotation;
 import vesence.module.impl.combat.rotation.URotationMath;
 import vesence.module.impl.combat.neuro.*;
@@ -93,7 +93,7 @@ public class AttackAura extends Module {
             "Spooky", "FTNew", "FunTest", "RWNew", "CakeWorld", "HWNew",
             "HolyNew", "MatrixNew", "HvH", "SlothNew", "Legit",
             "AresFT", "Neuro", "Fast",
-            "LonyGrief", "Vulcan", "Shard", "ML", "Snap", "AimAssist");
+            "LonyGrief", "Vulcan", "ML", "Snap", "AimAssist");
 
 
     // ── Neuro ─────────────────────────────────────────────────────────────────
@@ -401,7 +401,7 @@ public class AttackAura extends Module {
             case "MatrixNew":  UMatrixRotation.smoothBack();  break;
             case "HvH":       UHvHRotation.smoothBack();       break;
             case "SlothNew":   USlothRotation.smoothBack();   break;
-            case "Shard":      UShardRotation.smoothBack();   break;
+            case "Legit":      ULegitRotation.smoothBack();   break;
             case "FunTest":      UFunTestRotation.smoothBack(); break;
             default: break;
         }
@@ -519,7 +519,7 @@ public class AttackAura extends Module {
         UMatrixRotation.state();
         UHvHRotation.state();
         USlothRotation.state();
-        UShardRotation.state();
+        ULegitRotation.state();
         // НЕ рвём ротацию в IDLE и НЕ выключаем FreeLook сразу: видимая камера
         // в этот момент на freeYaw, а реальный yaw смотрит на цель — мгновенный
         // сброс и даёт тот самый резкий доворот на противника. Переводим движок
@@ -805,7 +805,11 @@ public class AttackAura extends Module {
         }
 
         // Deluxe (m997): финальный гейт удара — луч взгляда реально на хитбоксе.
-        if (!Attack.shouldAttack(target, true, true, true, resolveEarlyHitOffset(), getRanges())) {
+        // Для Legit fall-check выключен: момент удара контролирует settle-гейт
+        // профиля, а ожидание падения на земле с зажатым прыжком (баннихоп +
+        // «Умные криты») блокировало удары полностью — аура «фоткала» цель.
+        boolean finalFallCheck = !"Legit".equals(rotationType.get());
+        if (!Attack.shouldAttack(target, true, true, finalFallCheck, resolveEarlyHitOffset(), getRanges())) {
             if (orbSwapped) returnOrb();
             return;
         }
@@ -977,15 +981,15 @@ public class AttackAura extends Module {
             return false;
         }
 
-        // Shard: бьём только когда прицел уже сошёлся с целью.
+        // Legit: бьём только когда прицел уже сошёлся с целью.
         //
         // Проверка направления удара — самая дешёвая для античита: пакет атаки
         // несёт угол, и если он расходится с направлением на цель, ничего
         // доказывать не нужно. Поэтому удар ждёт доводки, а не наоборот:
         // профиль публикует остаток, и пока он больше допуска, гейт закрыт.
-        if ("Shard".equals(rotationType.get()) && !UShardRotation.isSettled()) {
+        if ("Legit".equals(rotationType.get()) && !ULegitRotation.isSettled()) {
             gateReason("прицел не на цели, остаток "
-                    + String.format("%.1f", UShardRotation.residual()) + "°");
+                    + String.format("%.1f", ULegitRotation.residual()) + "°");
             return false;
         }
 
@@ -1002,7 +1006,9 @@ public class AttackAura extends Module {
                 result = Attack.shouldAttack(target, false, true, true, offset, ranges)
                         && funTestShouldCrit();
                 break;
-            case "Shard":
+            case "Legit":
+                // Легит бьёт в любой фазе прыжка: момент удара контролирует
+                // settle-гейт профиля, а не ожидание падения.
                 result = Attack.shouldAttack(target, false, true, false, offset, ranges);
                 break;
             case "1.8":
@@ -1078,13 +1084,6 @@ public class AttackAura extends Module {
             case "SlothNew":
                 USlothRotation.rotation(target, canAttack, attackRange.get().floatValue(), preRange.get().floatValue());
                 break;
-            case "Shard":
-                // Профиль под ML-античит: движение по модели моторики, а не
-                // ограничение шага. Точка прицеливания передаётся из ауры —
-                // своя у профиля перетёрла бы гистерезис общего выбора.
-                UShardRotation.rotation(target, canAttack, attackRange.get().floatValue(),
-                        preRange.get().floatValue(), point);
-                break;
             case "Neuro":
                 neuroMode.updateRotation(this, target);
                 break;
@@ -1092,10 +1091,11 @@ public class AttackAura extends Module {
                 UFastRotation.rotation(target, canAttack);
                 break;
             case "Legit":
-                // Профиль «лёгкий/легит»: мелкий фиксированный шаг, джиттер
-                // строго вне окна атаки.
-                USlothRotation.rotation(target, canAttack, attackRange.get().floatValue(),
-                        attackRange.get().floatValue() + preRange.get().floatValue());
+                // Профиль «легит»: движение по модели моторики (разгон/торможение,
+                // GCD-снап, пауза после удара). Точка прицеливания передаётся из
+                // ауры — своя у профиля перетёрла бы гистерезис общего выбора.
+                ULegitRotation.rotation(target, canAttack, attackRange.get().floatValue(),
+                        preRange.get().floatValue(), point);
                 break;
             case "LonyGrief":
                 ULonyGriefRotation.rotation(target, attackRange.get().floatValue(), preRange.get().floatValue(), point);
@@ -1201,7 +1201,16 @@ public class AttackAura extends Module {
 
         // Гистерезис: без него «минимальный угол» каждый тик выбирает соседнюю
         // точку пресета, и на быстрых профилях камера мотается между ними.
-        return URotationMath.stabilizeAim(target.getId(), chosen, range, ignoreWalls);
+        Vec3 stabilized = URotationMath.stabilizeAim(target.getId(), chosen, range, ignoreWalls);
+
+        // Удержанная точка может отставать от движущейся цели (гистерезис держит
+        // её до 12 тиков). Если она уже выпала из текущего хитбокса — лучевой гейт
+        // удара промахивался бы каждый тик: аура смотрела на цель, но не била.
+        // В таком случае берём свежевычисленную точку (она всегда внутри бокса).
+        if (!target.getBoundingBox().inflate(0.02).contains(stabilized)) {
+            return chosen;
+        }
+        return stabilized;
     }
 
     private boolean isValidPoint(Vec3 point, float range, boolean ignoreWalls) {

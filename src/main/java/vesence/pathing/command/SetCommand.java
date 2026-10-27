@@ -27,12 +27,12 @@ public final class SetCommand implements BaritoneCommand {
 
     @Override
     public String usage() {
-        return "#set <sprint|fall|showpath> <значение>";
+        return "#set <sprint|fall|showpath|look> <значение>";
     }
 
     @Override
     public String description() {
-        return "изменить настройку: sprint, fall, showpath";
+        return "изменить настройку: sprint, fall, showpath, look";
     }
 
     @Override
@@ -61,6 +61,11 @@ public final class SetCommand implements BaritoneCommand {
                 boolean on = parseBool(value);
                 engine.setShowPath(on);
                 ctx.success("линия пути: " + (on ? "вкл" : "выкл"));
+            }
+            case "look", "smooth" -> {
+                boolean on = parseBool(value);
+                engine.setLookSmoothing(on);
+                ctx.success("голова: " + (on ? "пружина Vesence" : "штатный Baritone"));
             }
             default -> throw new BaritoneCommandException("нет такой настройки: " + key);
         }

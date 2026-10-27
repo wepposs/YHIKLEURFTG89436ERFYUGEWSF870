@@ -47,6 +47,10 @@ repositories {
     maven { url "https://maven.fabricmc.net/" }
     maven { url "https://libraries.minecraft.net/" }
     maven { url "https://jitpack.io" }
+    // Локальный maven-репозиторий: настоящий Baritone (jar + pom в libs/repo).
+    // Именно maven-раскладка, а не files(...): для include Loom требует модуль
+    // с метаданными, иначе сборка падает на processIncludeJars.
+    maven { url = uri("$projectDir/libs/repo") }
     maven {
         name = 'GeckoLib'
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
@@ -84,6 +88,15 @@ dependencies {
 
     implementation "maven.modrinth:geckolib:5.5.7"
     include "maven.modrinth:geckolib:5.5.7"
+
+    // Baritone v1.20.0 под MC ~26.3 (LGPL-3.0, cabaletta/baritone) — настоящий
+    // движок поиска пути: A* с прокопом, паркуром, мостами и спусками. Vesence
+    // использует его как мозг (Baritone сам водит игрока), кастомный слой —
+    // цели, процессы, команды, визуал, сглаживание взгляда — остаётся клиентским.
+    // Unoptimized-сборка: внутренние классы без прогард-имён, чтобы миксины
+    // клиента целились в настоящие имена методов.
+    implementation 'cabaletta:baritone-unoptimized-fabric:1.20.0'
+    include 'cabaletta:baritone-unoptimized-fabric:1.20.0'
 }
 
 processResources {

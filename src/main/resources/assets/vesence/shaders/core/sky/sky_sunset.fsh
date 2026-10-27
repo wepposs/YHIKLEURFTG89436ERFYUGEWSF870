@@ -5,26 +5,30 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Sunset — dramatic sunset with intense orange‑red horizon, scattered clouds and a lingering green flash.
+// SUNSET — золотой час: низкое солнце, янтарно-розовая полоса у горизонта,
+// пурпурные силуэты облаков с золотой каймой, высокие перистые горят розовым,
+// первые звёзды в зените.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
-    vec3 col = atmosphere(d, vec3(0.78, 0.32, 0.18), vec3(0.42, 0.18, 0.28), vec3(0.12, 0.08, 0.16));
+    vec3 sunPos = worldDir(270.0, 6.0);
 
-    vec3 sunPos = worldDir(300.0, 8.0);
-    col += horizonHaze(d, sunPos, vec3(1.0, 0.62, 0.30), 0.6);
+    vec3 col = atmosphereSun(d,
+        vec3(1.00, 0.52, 0.22),
+        vec3(0.82, 0.32, 0.34),
+        vec3(0.14, 0.12, 0.36),
+        sunPos, vec3(1.00, 0.60, 0.30), 1.20);
 
-    col += sun(d, sunPos, 0.052, vec3(1.0, 0.78, 0.42));
+    col += sun(d, sunPos, 0.034, vec3(1.00, 0.72, 0.42));
+    col += godRays(d, sunPos, vec3(1.00, 0.62, 0.30), 0.28);
 
-    // Two cloud layers: lower fiery, upper translucent rose
-    col = cloudLayer(col, d, sunPos, vec3(0.55, 0.25, 0.35), vec3(0.96, 0.78, 0.82), 0.78, 3.6, 0.85, 5.0);
-    col = cloudLayer(col, d, sunPos, vec3(0.68, 0.42, 0.55), vec3(1.0, 0.92, 0.96), 0.52, 6.5, 0.42, 12.0);
+    col = cloudVolume(col, d, sunPos, vec3(1.00, 0.80, 0.55),
+        vec3(0.24, 0.14, 0.28), vec3(1.00, 0.78, 0.52),
+        0.45, 0.055, 0.95, 33.0);
 
-    // Green flash residual near the limb
-    float h = length(d - sunPos);
-    col += vec3(0.10, 0.55, 0.45) * bell(h, 0.12) * smoothstep(-0.02, 0.08, d.y) * 0.3;
+    col += vec3(1.00, 0.72, 0.60) * cirrus(d, 91.0) * 0.16;
+    col += stars(d, 60.0, 0.30, 5.0) * smoothstep(0.25, 0.70, d.y);
+    col += horizonHaze(d, sunPos, vec3(1.00, 0.60, 0.30), 0.50);
 
-    // Very sparse stars
-    col += stars(d, 35.0, 0.3, 91.0) * 0.15;
-
+    col = grade(col, 1.25, -0.05);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

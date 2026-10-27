@@ -5,43 +5,37 @@
 
 layout(location = 0) out vec4 OutColor;
 
-// Glacier — deep-glacial night-blue vault above a turquoise ice wall: cold
-// sun low on the rim, faint supralateral arc, aurora whisper at the zenith,
-// wind-blown ice dust sliding along the horizon.
+// GLACIER — арктический ясный холод: хрустальный синий купол, низкое острое
+// солнце, ложные солнца (паргелии) на ±22°, алмазная пыль и снежная дымка.
 void main() {
     vec3 d = worldRay(gl_FragCoord.xy);
+    float sunAz = 160.0, sunEl = 18.0;
+    vec3 sunPos = worldDir(sunAz, sunEl);
 
-    // Glacial ramp: milky turquoise horizon -> glacial teal -> deep polar night
-    vec3 col = atmosphere(d, vec3(0.42, 0.68, 0.74), vec3(0.12, 0.34, 0.52), vec3(0.02, 0.08, 0.24));
+    vec3 col = atmosphereSun(d,
+        vec3(0.66, 0.80, 0.92),
+        vec3(0.20, 0.48, 0.82),
+        vec3(0.04, 0.18, 0.62),
+        sunPos, vec3(1.00, 0.98, 0.94), 0.45);
 
-    vec3 sunPos = worldDir(30.0, 12.0);
-    float sd = length(d - sunPos);
+    col += sun(d, sunPos, 0.021, vec3(1.00, 0.99, 0.96));
 
-    // Cold white sun sitting low, halo of frozen light (sky only)
-    float up = smoothstep(-0.01, 0.08, d.y);
-    col += sun(d, sunPos, 0.030, vec3(0.98, 0.99, 1.0)) * up;
-    col += vec3(0.70, 0.88, 0.94) * bell(sd, 0.16) * 0.22 * up;
+    // Паргелии: тёплое ядро с холодным хвостом на ±22° по азимуту.
+    vec3 sd1 = worldDir(sunAz + 22.0, sunEl);
+    vec3 sd2 = worldDir(sunAz - 22.0, sunEl);
+    float a1 = length(d - sd1), a2 = length(d - sd2);
+    vec3 dogCol = vec3(1.00, 0.85, 0.65);
+    col += dogCol * (bell(a1, 0.020) * 0.45 + bell(a1, 0.060) * 0.10);
+    col += dogCol * (bell(a2, 0.020) * 0.45 + bell(a2, 0.060) * 0.10);
 
-    // Supralateral arc: wide arc above the sun (higher-order halo)
-    float arc = bell(sd - 0.46, 0.022);
-    col += vec3(0.55, 0.80, 0.88) * arc * 0.30 * up * smoothstep(0.0, 0.3, d.y - sunPos.y + 0.3);
+    // Алмазная пыль: редкие холодные блёстки вокруг солнца.
+    col += vec3(0.85, 0.93, 1.00) * starFieldSeed(
+        vec2(atan(d.z, d.x) * 14.0, d.y * 26.0), 71.0, 0.5) * 0.35
+        * bell(length(d - sunPos), 0.55);
 
-    // Aurora whisper: faint green ripple streaming from the zenith
-    float rip = sin(d.x * 7.0 + d.z * 5.0 + Time * 0.22) * 0.5 + 0.5;
-    float curtain = smoothstep(0.55, 0.95, d.y) * (0.45 + 0.55 * rip);
-    col += vec3(0.25, 0.85, 0.60) * curtain * 0.16;
+    col += vec3(0.98, 0.99, 1.00) * cirrus(d, 44.0) * 0.06;
+    col += horizonHaze(d, sunPos, vec3(0.88, 0.93, 0.98), 0.35);
 
-    // Wind-blown ice dust: soft streaks along the wind, hugging the horizon
-    float streak = noise3(vec3(d.x * 3.0 - Time * 0.12, d.y * 22.0, d.z * 3.0));
-    streak = streak * 0.65 + noise3(vec3(d.x * 8.0 - Time * 0.3, d.y * 40.0, d.z * 8.0)) * 0.35;
-    col += vec3(0.72, 0.88, 0.92) * smoothstep(0.52, 0.85, streak)
-         * exp(-abs(d.y) * 18.0) * 0.22 * smoothstep(-0.01, 0.04, d.y);
-
-    // High veil cirrus
-    col = cloudLayer(col, d, sunPos, vec3(0.34, 0.52, 0.66), vec3(0.88, 0.96, 1.0), 0.32, 5.5, 0.45, 5.0);
-
-    // Sparse cold stars up high
-    col += stars(d, 55.0, 0.8, 51.0) * smoothstep(0.45, 0.9, d.y);
-
+    col = grade(col, 1.15, -0.05);
     OutColor = vec4(finishSky(col, d), 1.0);
 }

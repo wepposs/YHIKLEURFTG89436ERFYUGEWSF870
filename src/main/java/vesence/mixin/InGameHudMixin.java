@@ -69,7 +69,7 @@ public abstract class InGameHudMixin {
       }
       // Кастомный скорборд (ScoreboardElement) активен — прячем ванильный сайдбар,
       // его рисует HUD-элемент. Порт Interface.isScoreboardHudVisible() из relevant.
-      if (vesence.module.impl.visuals.elements.ScoreboardElement.shouldSuppressVanilla()) {
+      if (vesence.module.impl.visuals.elements.modern.ModernScoreboardElement.shouldSuppressVanilla()) {
          ci.cancel();
       }
    }

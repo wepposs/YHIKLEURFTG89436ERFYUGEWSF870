@@ -9,8 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 /**
  * Доступ к блокам мира для поиска пути, с кэшем на время одного расчёта.
@@ -38,7 +37,7 @@ public final class BlockWorld {
     private static final int MAX_CACHE = 400_000;
 
     private final Level level;
-    private final Map<Long, Integer> cache = new HashMap<>(8192);
+    private final LongIntMap cache = new LongIntMap();
 
     /** Тестовый источник блоков: когда задан, мир не опрашивается. */
     private final SolidTest solidTest;
@@ -81,8 +80,8 @@ public final class BlockWorld {
 
     private int flags(int x, int y, int z) {
         long key = BlockPos.asLong(x, y, z);
-        Integer known = this.cache.get(key);
-        if (known != null) {
+        int known = this.cache.get(key);
+        if (known != LongIntMap.ABSENT) {
             return known;
         }
 
@@ -158,6 +157,102 @@ public final class BlockWorld {
             this.cache.clear();
         }
         this.cache.put(key, value);
+    }
+
+    /**
+     * Хранилище «позиция → флаги» на открытых адресах, без упаковки в объекты.
+     *
+     * <p>Зачем своё. Поиск пути делает миллионы обращений к кэшу за маршрут, и
+     * {@code HashMap<Long, Integer>} на каждом из них создаёт по два объекта
+     * (Long и Integer) плюс платит за их хеширование. На длинных маршрутах это
+     * были сотни мегабайт мусора и ощутимые паузы — часть того самого «пять лет
+     * строит маршрут». Открытая адресация на примитивах не создаёт ничего и
+     * попадает в кэш процессора.
+     */
+    private static final class LongIntMap {
+
+        /** Значение «нет записи»: настоящие флаги — неотрицательные битовые маски. */
+        static final int ABSENT = Integer.MIN_VALUE;
+
+        private long[] keys;
+        private int[] values;
+        private boolean[] used;
+        private int size;
+
+        LongIntMap() {
+            int capacity = 8192;
+            this.keys = new long[capacity];
+            this.values = new int[capacity];
+            this.used = new boolean[capacity];
+        }
+
+        int get(long key) {
+            int mask = this.keys.length - 1;
+            int i = mix(key) & mask;
+            while (this.used[i]) {
+                if (this.keys[i] == key) {
+                    return this.values[i];
+                }
+                i = (i + 1) & mask;
+            }
+            return ABSENT;
+        }
+
+        void put(long key, int value) {
+            int mask = this.keys.length - 1;
+            int i = mix(key) & mask;
+            while (this.used[i]) {
+                if (this.keys[i] == key) {
+                    this.values[i] = value;
+                    return;
+                }
+                i = (i + 1) & mask;
+            }
+            this.used[i] = true;
+            this.keys[i] = key;
+            this.values[i] = value;
+            this.size++;
+            // Загрузка 0.7: дальше линейное пробирование начинает длинно скакать.
+            if (this.size * 10 >= this.keys.length * 7) {
+                this.grow();
+            }
+        }
+
+        void clear() {
+            Arrays.fill(this.used, false);
+            this.size = 0;
+        }
+
+        int size() {
+            return this.size;
+        }
+
+        private void grow() {
+            long[] oldKeys = this.keys;
+            int[] oldValues = this.values;
+            boolean[] oldUsed = this.used;
+
+            int newCapacity = oldKeys.length << 1;
+            this.keys = new long[newCapacity];
+            this.values = new int[newCapacity];
+            this.used = new boolean[newCapacity];
+            this.size = 0;
+            for (int j = 0; j < oldKeys.length; j++) {
+                if (oldUsed[j]) {
+                    this.put(oldKeys[j], oldValues[j]);
+                }
+            }
+        }
+
+        /** Перемешивание длинного ключа: координаты близки, обычный хеш слипается. */
+        private static int mix(long k) {
+            k ^= (k >>> 33);
+            k *= 0xff51afd7ed558ccdL;
+            k ^= (k >>> 33);
+            k *= 0xc4ceb9fe1a85ec53L;
+            k ^= (k >>> 33);
+            return (int) k;
+        }
     }
 
     public boolean passable(int x, int y, int z) {

@@ -23,7 +23,6 @@ public class ClickGui extends Module {
     public static final SliderSetting blurStrengthHud = new SliderSetting("Сила размытия", 25, 1, 45, 1).hidden(() -> !blurHud.get());
     public static final SliderSetting cornerHud = new SliderSetting("Скругление углов", 10, 1, 25, 1);
     public static final SliderSetting hudAlpha = new SliderSetting("Прозрачность", 0.75, 0.0, 1.0, 0.05);
-    public static final ModeSetting hudVariation = new ModeSetting("Вариация интерфейса", "Default", "Default", "Modern");
     public static final BooleanSetting squircleHud = new BooleanSetting("Сквиркл скругление", false);
 
     public static final TitleSetting hudEditorTitle = new TitleSetting("Редактор HUD");
@@ -54,6 +53,7 @@ public class ClickGui extends Module {
     public static final ModeSetting colorMode = new ModeSetting("Режим цвета", "Установки", "Установки", "Двух-Цветный");
     public static final HueSetting customColor1 = new HueSetting("Цвет 1", 40f).hidden(() -> !colorMode.is("Двух-Цветный"));
     public static final HueSetting customColor2 = new HueSetting("Цвет 2", 72f).hidden(() -> !colorMode.is("Двух-Цветный"));
+    public static final BooleanSetting themeTintBg = new BooleanSetting("Оттенок темы в GUI и HUD", false);
 
     public static final TitleSetting moduleSoundTitle = ClientSound.moduleSoundTitle;
     public static final ModeSetting moduleEnableSound = ClientSound.moduleSound;
@@ -70,12 +70,12 @@ public class ClickGui extends Module {
     public ClickGui() {
         this.hiddenFromGui = true;
         this.addSettings(
-            blurHud, blurStrengthHud, cornerHud, hudAlpha, hudVariation, squircleHud,
+            blurHud, blurStrengthHud, cornerHud, hudAlpha, squircleHud,
             hudEditorTitle, hudGrid, hudGridDensity, hudGuides, hudGuideStyle, hudGuideOpacity,
             hudGuideClientColor, hudGuideColor, hudCoords, hudCenterSnap, hudEdgeSnap,
             hudElementSnap, hudSnapStrength, hudEditHints,
             blurGui, blurStrengthGui, cornerGui, guiAlpha, squircleGui, sort, guiScale,
-            colorTitle, colorMode, customColor1, customColor2,
+            colorTitle, colorMode, customColor1, customColor2, themeTintBg,
             moduleSoundTitle, moduleEnableSound, moduleSoundVolume
         );
     }
@@ -131,6 +131,29 @@ public class ClickGui extends Module {
         return vesence.utils.render.ColorUtil.getColor(c.getRed(), c.getGreen(), c.getBlue(), a);
     }
 
+    /** Сила подмешивания цвета темы в чёрный фон (0..1); небольшой, чтобы фон лишь оттенялся темой. */
+    private static final float THEME_TINT_STRENGTH = 0.18f;
+
+    /** База фона карточек/панелей: чистый чёрный или чёрный с оттенком цвета темы. */
+    private static int getBackgroundBase() {
+        if (!themeTintBg.get()) {
+            return vesence.utils.render.ColorUtil.BLACK;
+        }
+        return vesence.utils.render.ColorUtil.overCol(
+                vesence.utils.render.ColorUtil.BLACK,
+                vesence.utils.render.ColorUtil.theme(255), THEME_TINT_STRENGTH);
+    }
+
+    /** Фон карточек HUD/панелей GUI с заданной альфой (0..255). */
+    public static int getBackgroundColor(int alpha) {
+        return vesence.utils.render.ColorUtil.replAlpha(getBackgroundBase(), alpha);
+    }
+
+    /** Фон карточек HUD/панелей GUI с заданной альфой (0..1). */
+    public static int getBackgroundColor(float alpha01) {
+        return vesence.utils.render.ColorUtil.replAlpha(getBackgroundBase(), alpha01);
+    }
+
     public static float getGuiCorner() {
         return (float) cornerGui.current;
     }
@@ -143,7 +166,4 @@ public class ClickGui extends Module {
         return squircleGui.get();
     }
 
-    public static boolean isModern() {
-        return hudVariation.is("Modern");
-    }
 }
