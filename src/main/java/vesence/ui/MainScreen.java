@@ -761,7 +761,7 @@ public class MainScreen extends Screen {
     public boolean keyPressed(KeyEvent input) {
         if (input.key() == InputConstants.KEY_ESCAPE) {
             if (accountSwitcher.isOpen()) {
-                accountSwitcher.close();
+                accountSwitcher.handleEsc();
                 return true;
             }
             if (settingsWindow.keyPressed(input.key())) return true;

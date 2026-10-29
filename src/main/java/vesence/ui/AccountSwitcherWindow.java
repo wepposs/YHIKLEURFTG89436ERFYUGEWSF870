@@ -58,21 +58,30 @@ public class AccountSwitcherWindow {
     private final List<AccountEntry> entries = new ArrayList<>();
     private int selectedAccount = -1;
 
-    private final StringBuilder nickInput   = new StringBuilder();
-    private final StringBuilder serverInput = new StringBuilder();
-    private int  focusedField = 0;
+    // ---- Попап «Создание аккаунта» (единственное текстовое поле — ник) ----
+    private final StringBuilder nickInput = new StringBuilder();
     private boolean selectAll = false;
     private long cursorStart  = 0;
+    private static final int MAX_NICK = 16;
+
+    private boolean createPopupOpen = false;
+    private final Animation2 popupAnim = new Animation2();
+    private final Animation2 warnAnim = new Animation2();
+    private final Animation2 popupBtnHoverAnim = new Animation2();
+    private long layoutWarnUntil = 0L;        // до какого момента видна надпись про раскладку
+    private long layoutShakeStart = -10_000L; // старт тряски надписи
+    private static final long WARN_SHOW_MS = 2400L;
+    private static final long SHAKE_MS = 720L;
+
+    private float popupX, popupY, popupW, popupH;
+    private float puFieldX, puFieldY, puFieldW, puFieldH;
+    private float puBtnX, puBtnY, puBtnW, puBtnH;
 
     private final Animation2 closeHoverAnim  = new Animation2();
     private final Animation2 createHoverAnim = new Animation2();
-    private final Animation2 nickFocusAnim   = new Animation2();
-    private final Animation2 serverFocusAnim = new Animation2();
     private final ScrollUtil scroll = new ScrollUtil();
 
     private float closeX, closeY, closeW, closeH;
-    private float nickFieldX, nickFieldY, nickFieldW, nickFieldH;
-    private float serverFieldX, serverFieldY, serverFieldW, serverFieldH;
     private float createX, createY, createW, createH;
     private float genX, genY, genW, genH;
     private final Animation2 genHoverAnim = new Animation2();
@@ -120,7 +129,9 @@ public class AccountSwitcherWindow {
     public void open() {
         windowOpen = true;
         slideAnim.run(1.0, 0.55, Easings.EXPO_OUT);
-        focusedField = 0;
+        createPopupOpen = false;
+        popupAnim.set(0.0);
+        selectAll = false;
         cursorStart = System.currentTimeMillis();
     }
 
@@ -186,15 +197,20 @@ public class AccountSwitcherWindow {
         float chT = (float) closeHoverAnim.get();
         int closeBg = ColorUtil.overCol(ColorUtil.getColor(120, 35, 45, 160), ColorUtil.getColor(170, 45, 55, 210), chT);
 
-        float bottomBlockH = 160;
+        float bottomBlockH = 70;
         listX = cx;
         listY = headY + 55;
         listW = panelW - PAD * 2;
         listH = sh - listY - bottomBlockH - PAD;
 
         cleanupRemoved();
-        renderAccountList(r, mx, my);
-        renderBottomBlock(r, sw, sh, mx, my, panelX, panelW, bottomBlockH);
+        // Пока попап открыт — панель под ним не реагирует на наведение.
+        boolean popupActive = createPopupOpen || popupAnim.get() > 0.01f;
+        float hmx = popupActive ? -9999f : mx;
+        float hmy = popupActive ? -9999f : my;
+        renderAccountList(r, hmx, hmy);
+        renderBottomBlock(r, sw, sh, hmx, hmy, panelX, panelW, bottomBlockH);
+        if (popupActive) renderCreatePopup(r, sw, sh, mx, my);
 
         r.popAlpha();
     }
@@ -297,34 +313,10 @@ public class AccountSwitcherWindow {
         float bx = panelX + PAD;
         float bw = panelW - PAD * 2;
 
-        float createH = 38;
-        float createGap = 10;
-        float formH = blockH - createH - createGap;
-        float formY = sh - PAD - createH - createGap - formH - 15;
-
-        r.blurSquircle(bx, formY, bw, formH, 15, 7, BorderRadius.all(CARD_CORNER), 1f);
-        r.rect(bx, formY, bw, formH, CARD_CORNER, ColorUtil.getColor(255, 255, 255, 9));
-        r.rectOutline(bx, formY, bw, formH, CARD_CORNER, ColorUtil.getColor(255, 255, 255, 15), 1);
-
-        r.text(FontRegistry.MONTSERRAT, bx + 16, formY + 33, 35, t("О вашем аккаунте...", "About your account..."), ColorUtil.getColor(255, 255, 255, 255));
-
-        float lineX = bx + 16;
-        float lineW = bw - 32;
-        float nickLineY = formY + 38 + 9;
-        float serverLineY = formY + 38 + 26 + 9;
-        nickFieldX = lineX; nickFieldY = nickLineY; nickFieldW = lineW; nickFieldH = 26;
-        serverFieldX = lineX; serverFieldY = serverLineY; serverFieldW = lineW; serverFieldH = 26;
-
-        nickFocusAnim.update();
-        nickFocusAnim.run(focusedField == 1 ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT);
-        serverFocusAnim.update();
-        serverFocusAnim.run(focusedField == 2 ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT);
-
-        drawFieldText(r, lineX, nickLineY + 19, nickInput.toString(), t("Введите ник...", "Type nick here."), focusedField == 1);
-        drawFieldText(r, lineX, serverLineY + 19, serverInput.toString(), t("Введите сервер...", "Type server here."), focusedField == 2);
-
-        float btnH = createH + 10;
-        float rowY = sh - PAD - createH - 5;
+        // Формы «О вашем аккаунте...» больше нет — создание аккаунта вынесено
+        // в попап, который открывается кнопкой «Создать».
+        float btnH = 48;
+        float rowY = sh - PAD - btnH - 5;
         float gap = 8;
         float thirdW = (bw - gap * 2) / 3f;
 
@@ -344,7 +336,7 @@ public class AccountSwitcherWindow {
         r.textCenter(FontRegistry.MONTSERRAT, genX + genW / 2f, genY + genH / 2f + 7.25f, 28.5f, t("Рандомный аккаунт", "Generate"),
                 ColorUtil.overCol(ColorUtil.getColor(255, 255, 255, 125), accent(255), gT));
 
-        // По центру — создание из введённых полей.
+        // По центру — открывает попап «Создание аккаунта».
         createX = bx + thirdW + gap; createY = rowY; createW = thirdW; this.createH = btnH;
         boolean createHov = mx >= createX && mx <= createX + createW && my >= createY && my <= createY + btnH;
         createHoverAnim.update();
@@ -381,19 +373,26 @@ public class AccountSwitcherWindow {
         r.textCenter(FontRegistry.MONTSERRAT, clearX + clearW / 2f, clearY + clearH / 2f + 7.25f, 28.5f, clLabel, clText);
     }
 
-    private void drawFieldText(Renderer2D r, float x, float baselineY, String text, String placeholder, boolean focused) {
-        boolean blink = ((System.currentTimeMillis() - cursorStart) / 500) % 2 == 0;
-        if (text.isEmpty() && !focused) {
-            r.text(FontRegistry.MONTSERRAT, x, baselineY, 30, placeholder, ColorUtil.getColor(255, 255, 255, 125));
-        } else {
-            String shown = focused && blink ? text + "|" : text;
-            r.text(FontRegistry.MONTSERRAT, x, baselineY, 30, shown, ColorUtil.getColor(255, 255, 255, 125));
-        }
-    }
-
     public boolean click(float mx, float my, int sw, int sh) {
         if (!windowOpen) return false;
         if (drawAlpha < 0.9f) return true;
+
+        // Пока попап «Создание аккаунта» открыт, он перехватывает все клики.
+        if (createPopupOpen || popupAnim.get() > 0.01f) {
+            if (createPopupOpen) {
+                if (mx >= puBtnX && mx <= puBtnX + puBtnW && my >= puBtnY && my <= puBtnY + puBtnH) {
+                    confirmCreate();
+                    return true;
+                }
+                if (mx >= puFieldX && mx <= puFieldX + puFieldW && my >= puFieldY && my <= puFieldY + puFieldH) {
+                    selectAll = false;
+                    cursorStart = System.currentTimeMillis();
+                    return true;
+                }
+            }
+            closeCreatePopup();
+            return true;
+        }
 
         // Клик по свободному месту слева от панели — закрыть.
         if (mx < panelLeftX) {
@@ -405,17 +404,11 @@ public class AccountSwitcherWindow {
             close();
             return true;
         }
-        if (mx >= nickFieldX && mx <= nickFieldX + nickFieldW && my >= nickFieldY && my <= nickFieldY + nickFieldH) {
-            focusedField = 1; selectAll = false; cursorStart = System.currentTimeMillis(); return true;
-        }
-        if (mx >= serverFieldX && mx <= serverFieldX + serverFieldW && my >= serverFieldY && my <= serverFieldY + serverFieldH) {
-            focusedField = 2; selectAll = false; cursorStart = System.currentTimeMillis(); return true;
-        }
         if (mx >= genX && mx <= genX + genW && my >= genY && my <= genY + genH) {
             generateAccount(); return true;
         }
         if (mx >= createX && mx <= createX + createW && my >= createY && my <= createY + createH) {
-            addAccount(); return true;
+            openCreatePopup(); return true;
         }
         if (mx >= clearX && mx <= clearX + clearW && my >= clearY && my <= clearY + clearH) {
             if (clearArmed) {
@@ -448,7 +441,6 @@ public class AccountSwitcherWindow {
             }
             return true;
         }
-        focusedField = 0;
         selectAll = false;
         return true;
     }
@@ -456,6 +448,7 @@ public class AccountSwitcherWindow {
     public boolean rightClick(float mx, float my, int sw, int sh) {
         if (!windowOpen) return false;
         if (drawAlpha < 0.9f) return true;
+        if (createPopupOpen) return true;
         if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + listH) {
             float sOff = scroll.getScroll();
             for (int i = 0; i < entries.size(); i++) {
@@ -486,9 +479,10 @@ public class AccountSwitcherWindow {
     public void release() {}
 
     public boolean keyPressed(int key) {
-        if (!windowOpen || focusedField == 0) return false;
-        StringBuilder buf = focusedField == 1 ? nickInput : serverInput;
-        int maxLen = focusedField == 1 ? 24 : 40;
+        if (!windowOpen) return false;
+        if (key == InputConstants.KEY_ESCAPE) { handleEsc(); return true; }
+        if (!createPopupOpen) return false;
+        StringBuilder buf = nickInput;
         boolean ctrl = Minecraft.getInstance().hasControlDown();
         if (ctrl && key == InputConstants.KEY_A) {
             selectAll = buf.length() > 0;
@@ -505,21 +499,15 @@ public class AccountSwitcherWindow {
         }
         if (ctrl && key == InputConstants.KEY_V) {
             String base = selectAll ? "" : buf.toString();
-            String res = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), maxLen, ClipboardUtil.MODE_ASCII);
+            String res = ClipboardUtil.appendFiltered(base, ClipboardUtil.get(), MAX_NICK, ClipboardUtil.MODE_ASCII);
             buf.setLength(0); buf.append(res);
             selectAll = false; cursorStart = System.currentTimeMillis();
             return true;
         }
         if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
             selectAll = false;
-            if (focusedField == 1 && !nickInput.toString().trim().isEmpty()) {
-                focusedField = 2; cursorStart = System.currentTimeMillis();
-            } else { addAccount(); }
+            confirmCreate();
             return true;
-        }
-        if (key == InputConstants.KEY_TAB) {
-            selectAll = false;
-            focusedField = focusedField == 1 ? 2 : 1; cursorStart = System.currentTimeMillis(); return true;
         }
         if (key == InputConstants.KEY_BACKSPACE) {
             if (selectAll) { buf.setLength(0); selectAll = false; cursorStart = System.currentTimeMillis(); }
@@ -533,18 +521,28 @@ public class AccountSwitcherWindow {
     }
 
     public boolean charTyped(CharacterEvent input) {
-        if (!windowOpen || focusedField == 0) return false;
-        StringBuilder buf = focusedField == 1 ? nickInput : serverInput;
-        int maxLen = focusedField == 1 ? 24 : 40;
+        if (!windowOpen || !createPopupOpen) return false;
         int cp = input.codepoint();
         if (cp >= 32 && cp < 127) {
-            if (selectAll) { buf.setLength(0); selectAll = false; }
-            if (buf.length() < maxLen) {
-                buf.append((char) cp); cursorStart = System.currentTimeMillis();
+            if (selectAll) { nickInput.setLength(0); selectAll = false; }
+            if (nickInput.length() < MAX_NICK) {
+                nickInput.append((char) cp); cursorStart = System.currentTimeMillis();
             }
             return true;
         }
+        if (cp > 127) {
+            // Русская (или любая неанглийская) раскладка: символ не вводим,
+            // показываем красную трясущуюся надпись «СМЕНИТЕ РАСКЛАДКУ НА АНГЛИЙСКУЮ».
+            triggerLayoutWarning();
+            return true;
+        }
         return false;
+    }
+
+    /** ESC: сначала закрываем попап, затем — всю панель. */
+    public void handleEsc() {
+        if (createPopupOpen) closeCreatePopup();
+        else close();
     }
 
     public boolean shouldCloseOnEsc() {
@@ -553,11 +551,37 @@ public class AccountSwitcherWindow {
     }
 
     public void scroll(double delta) {
-        if (!windowOpen) return;
+        if (!windowOpen || createPopupOpen) return;
         scroll.handleScroll(delta * 2.5);
     }
 
-    private void addAccount() {
+    private void openCreatePopup() {
+        createPopupOpen = true;
+        nickInput.setLength(0);
+        selectAll = false;
+        layoutWarnUntil = 0L;
+        layoutShakeStart = -10_000L;
+        warnAnim.set(0.0);
+        cursorStart = System.currentTimeMillis();
+        popupAnim.set(0.0);
+        popupAnim.run(1.0, 0.25, Easings.EXPO_OUT);
+    }
+
+    private void closeCreatePopup() {
+        if (!createPopupOpen) return;
+        createPopupOpen = false;
+        selectAll = false;
+        popupAnim.run(0.0, 0.18, Easings.QUART_IN);
+    }
+
+    private void triggerLayoutWarning() {
+        long now = System.currentTimeMillis();
+        layoutWarnUntil = now + WARN_SHOW_MS;
+        layoutShakeStart = now;
+        warnAnim.run(1.0, 0.1, Easings.CUBIC_OUT);
+    }
+
+    private void confirmCreate() {
         String nick = nickInput.toString().trim();
         if (nick.isEmpty()) return;
         boolean exists = false;
@@ -565,7 +589,7 @@ public class AccountSwitcherWindow {
             if (e.nick.equals(nick) && !e.removing) { exists = true; break; }
         }
         if (!exists) {
-            AccountEntry entry = new AccountEntry(nick, serverInput.toString().trim(),
+            AccountEntry entry = new AccountEntry(nick, "",
                     new SimpleDateFormat("dd.MM.yy - HH:mm").format(new Date()));
             entry.alphaAnim.set(0.0);
             entry.alphaAnim.run(1.0, 0.3, Easings.CUBIC_OUT);
@@ -578,9 +602,102 @@ public class AccountSwitcherWindow {
             applySession();
         }
         nickInput.setLength(0);
-        serverInput.setLength(0);
-        focusedField = 1;
-        cursorStart = System.currentTimeMillis();
+        closeCreatePopup();
+    }
+
+    // ---- Попап «Создание аккаунта»: заголовок, поле «Введите ник», кнопка «Создать» ----
+
+    private void renderCreatePopup(Renderer2D r, int sw, int sh, float mx, float my) {
+        popupAnim.update();
+        float a = popupAnim.get();
+        if (a < 0.001f && !createPopupOpen) return;
+
+        popupW = 440; popupH = 208;
+        popupX = (sw - popupW) / 2f;
+        popupY = (sh - popupH) / 2f;
+
+        r.pushAlpha(a);
+
+        // Дополнительное затемнение фона под попапом.
+        r.rect(0, 0, sw, sh, 0, ColorUtil.getColor(0, 0, 0, Math.round(120 * a)));
+
+        float scale = 0.92f + 0.08f * a;
+        r.pushScale(scale, popupX + popupW / 2f, popupY + popupH / 2f);
+
+        r.blurSquircle(popupX, popupY, popupW, popupH, 18, 7, BorderRadius.all(50), 1f);
+        r.drawSquircle(popupX, popupY, popupW, popupH, 7, BorderRadius.all(50), ColorUtil.getColor(0, 0, 0, 210));
+        r.drawSquircleOutline(popupX, popupY, popupW, popupH, 7, BorderRadius.all(50), ColorUtil.getColor(255, 255, 255, 22), 1);
+
+        // Заголовок — «Создание аккаунта».
+        r.text(FontRegistry.MONTSERRAT, popupX + 26, popupY + 44, 40,
+                t("Создание аккаунта", "Create Account"),
+                new int[]{ColorUtil.getColor(255, 255), accent(255)}, 3);
+
+        // Поле ввода ника — «Введите ник».
+        puFieldX = popupX + 24; puFieldY = popupY + 66; puFieldW = popupW - 48; puFieldH = 44;
+        r.rect(puFieldX, puFieldY, puFieldW, puFieldH, 10, ColorUtil.getColor(255, 255, 255, 14));
+        r.rectOutline(puFieldX, puFieldY, puFieldW, puFieldH, 10, accent(110), 1);
+
+        long now = System.currentTimeMillis();
+        boolean warnActive = createPopupOpen && now < layoutWarnUntil;
+        warnAnim.update();
+        warnAnim.run(warnActive ? 1.0 : 0.0, warnActive ? 0.1 : 0.3, Easings.CUBIC_OUT);
+        float wa = warnAnim.get();
+
+        float baseline = puFieldY + puFieldH / 2f + 9;
+        String text = nickInput.toString();
+        boolean blink = ((now - cursorStart) / 500) % 2 == 0;
+        boolean showWarn = wa > 0.35f;
+        if (!showWarn) {
+            if (text.isEmpty()) {
+                String ph = t("Введите ник", "Type nick here");
+                r.text(FontRegistry.MONTSERRAT, puFieldX + 14, baseline, 30, ph, ColorUtil.getColor(255, 255, 255, 125));
+                if (createPopupOpen && blink) {
+                    float phW = r.measureText(FontRegistry.MONTSERRAT, ph, 30).width;
+                    r.text(FontRegistry.MONTSERRAT, puFieldX + 14 + phW + 2, baseline, 30, "|", ColorUtil.getColor(255, 255, 255, 160));
+                }
+            } else {
+                r.text(FontRegistry.MONTSERRAT, puFieldX + 14, baseline, 30,
+                        createPopupOpen && blink ? text + "|" : text, ColorUtil.getColor(240, 240, 245, 255));
+            }
+        }
+
+        // Красная надпись «СМЕНИТЕ РАСКЛАДКУ НА АНГЛИЙСКУЮ» внутри поля.
+        // Тряска: 2 импульса влево, затем 2 импульса вправо.
+        if (wa > 0.01f) {
+            float shakeOff = 0f;
+            long since = now - layoutShakeStart;
+            if (since >= 0 && since < SHAKE_MS) {
+                float p = since / (float) SHAKE_MS * 4f;
+                int pulse = (int) p;
+                float s = (float) Math.sin(Math.PI * (p - pulse));
+                shakeOff = (pulse < 2 ? -1f : 1f) * s * 8f;
+            }
+            r.pushAlpha(wa);
+            r.textCenter(FontRegistry.MONTSERRAT, popupX + popupW / 2f + shakeOff, baseline, 25,
+                    t("СМЕНИТЕ РАСКЛАДКУ НА АНГЛИЙСКУЮ", "SWITCH TO ENGLISH LAYOUT"),
+                    ColorUtil.getColor(255, 82, 88, 255));
+            r.popAlpha();
+        }
+
+        // Кнопка «Создать» — ниже поля.
+        puBtnX = popupX + 24; puBtnY = popupY + popupH - 62; puBtnW = popupW - 48; puBtnH = 42;
+        boolean btnHov = createPopupOpen && mx >= puBtnX && mx <= puBtnX + puBtnW && my >= puBtnY && my <= puBtnY + puBtnH;
+        popupBtnHoverAnim.update();
+        popupBtnHoverAnim.run(btnHov ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT);
+        float bT = popupBtnHoverAnim.get();
+        int c0 = ColorUtil.getColor(0, 0);
+        int cA = ColorUtil.overCol(c0, accent(55), bT);
+        r.rect(puBtnX, puBtnY, puBtnW, puBtnH, 10, ColorUtil.getColor(255, 255, 255, 10));
+        r.gradient(puBtnX, puBtnY, puBtnW, puBtnH, 10, c0, c0, cA, cA);
+        r.rectOutline(puBtnX, puBtnY, puBtnW, puBtnH, 10,
+                ColorUtil.overCol(ColorUtil.getColor(255, 255, 255, 18), accent(90), bT), 1);
+        r.textCenter(FontRegistry.MONTSERRAT, puBtnX + puBtnW / 2f, puBtnY + puBtnH / 2f + 8, 30,
+                t("Создать", "Create"),
+                ColorUtil.overCol(ColorUtil.getColor(255, 255, 255, 140), ColorUtil.getColor(255, 255, 255, 255), bT));
+
+        r.popTransform(); // scale
+        r.popAlpha();
     }
 
     // ---- Лёгкая генерация реалистичных ников (сборка из частей, без готовых шаблонов) ----
