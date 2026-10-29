@@ -8,7 +8,8 @@ CLAUDE.md
 build/
 
 jars/
-libs/
+libs/*
+!libs/repo/
 vineflower.jar
 
 # Decompiled source (generated)

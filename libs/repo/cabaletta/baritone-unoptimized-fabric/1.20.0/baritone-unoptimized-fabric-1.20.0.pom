@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>cabaletta</groupId>
+  <artifactId>baritone-unoptimized-fabric</artifactId>
+  <version>1.20.0</version>
+  <packaging>jar</packaging>
+  <name>Baritone (unoptimized, fabric)</name>
+  <description>
+    Настоящий движок поиска пути Baritone v1.20.0 для Minecraft 26.3 (Fabric), LGPL-3.0.
+    Локальная копия для клиента Vesence: unoptimized-сборка, где классы и методы носят
+    настоящие имена. Вложенный META-INF/jars/nether-pathfinder-1.6.jar объявлен в
+    fabric.mod.json самого Baritone и разворачивается загрузчиком автоматически.
+  </description>
+  <url>https://github.com/cabaletta/baritone</url>
+  <licenses>
+    <license>
+      <name>LGPL-3.0</name>
+      <url>https://www.gnu.org/licenses/lgpl-3.0.txt</url>
+    </license>
+  </licenses>
+</project>
