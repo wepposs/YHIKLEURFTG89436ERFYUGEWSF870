@@ -52,3 +52,11 @@ __pycache__/
 *.log
 *.lck
 /.zcodeignore
+
+# More root temp artifacts
+/*.txt
+/*.py
+/*.ps1
+/*.args
+/brain.txt
+/test_shulkerviewer.md

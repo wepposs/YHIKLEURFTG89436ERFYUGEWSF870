@@ -1,5 +1,0 @@
--cp
-.;lib/*;src/main/java
--d
-build/test
-src/main/java/vesence/module/impl/visuals/ShulkerViewer.java
