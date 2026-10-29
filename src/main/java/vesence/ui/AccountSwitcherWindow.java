@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.User;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -68,6 +69,21 @@ public class AccountSwitcherWindow {
     private final Animation2 popupAnim = new Animation2();
     private final Animation2 warnAnim = new Animation2();
     private final Animation2 popupBtnHoverAnim = new Animation2();
+
+    // В MC 26.x (SDL) символы приходят в Screen.charTyped, только пока включён
+    // TextInputManager. Ванильный EditBox включает его через
+    // Minecraft.onTextInputFocusChange при фокусе — делаем так же для попапа.
+    private static final GuiEventListener TEXT_INPUT_OWNER = new GuiEventListener() {
+        private boolean focused;
+        @Override public void setFocused(boolean b) { this.focused = b; }
+        @Override public boolean isFocused() { return this.focused; }
+    };
+
+    private void setTextInput(boolean on) {
+        try {
+            Minecraft.getInstance().onTextInputFocusChange(TEXT_INPUT_OWNER, on);
+        } catch (Throwable ignored) {}
+    }
     private long layoutWarnUntil = 0L;        // до какого момента видна надпись про раскладку
     private long layoutShakeStart = -10_000L; // старт тряски надписи
     private static final long WARN_SHOW_MS = 2400L;
@@ -137,6 +153,9 @@ public class AccountSwitcherWindow {
 
     public void close() {
         windowOpen = false;
+        createPopupOpen = false;
+        popupAnim.set(0.0);
+        setTextInput(false);
         slideAnim.run(0.0, 0.42, Easings.QUART_IN);
     }
 
@@ -545,6 +564,12 @@ public class AccountSwitcherWindow {
         else close();
     }
 
+    /** Страховка при смене экрана: принудительно выключить приём текста. */
+    public void releaseTextInput() {
+        createPopupOpen = false;
+        setTextInput(false);
+    }
+
     public boolean shouldCloseOnEsc() {
         if (windowOpen) { close(); return false; }
         return true;
@@ -565,6 +590,8 @@ public class AccountSwitcherWindow {
         cursorStart = System.currentTimeMillis();
         popupAnim.set(0.0);
         popupAnim.run(1.0, 0.25, Easings.EXPO_OUT);
+        // Включаем приём текста — иначе charTyped в этой версии MC не вызывается.
+        setTextInput(true);
     }
 
     private void closeCreatePopup() {
@@ -572,6 +599,7 @@ public class AccountSwitcherWindow {
         createPopupOpen = false;
         selectAll = false;
         popupAnim.run(0.0, 0.18, Easings.QUART_IN);
+        setTextInput(false);
     }
 
     private void triggerLayoutWarning() {
@@ -649,16 +677,22 @@ public class AccountSwitcherWindow {
         boolean blink = ((now - cursorStart) / 500) % 2 == 0;
         boolean showWarn = wa > 0.35f;
         if (!showWarn) {
+            float tx = puFieldX + 14;
+            boolean caret = createPopupOpen && blink;
             if (text.isEmpty()) {
-                String ph = t("Введите ник", "Type nick here");
-                r.text(FontRegistry.MONTSERRAT, puFieldX + 14, baseline, 30, ph, ColorUtil.getColor(255, 255, 255, 125));
-                if (createPopupOpen && blink) {
-                    float phW = r.measureText(FontRegistry.MONTSERRAT, ph, 30).width;
-                    r.text(FontRegistry.MONTSERRAT, puFieldX + 14 + phW + 2, baseline, 30, "|", ColorUtil.getColor(255, 255, 255, 160));
+                // Курсор — там, где начнётся ввод (слева), подсказка — за ним.
+                if (caret) {
+                    r.rect(tx, baseline - 21, 2, 24, ColorUtil.getColor(255, 255, 255, 190));
+                    tx += 7;
                 }
+                r.text(FontRegistry.MONTSERRAT, tx, baseline, 30,
+                        t("Введите ник", "Type nick here"), ColorUtil.getColor(255, 255, 255, 125));
             } else {
-                r.text(FontRegistry.MONTSERRAT, puFieldX + 14, baseline, 30,
-                        createPopupOpen && blink ? text + "|" : text, ColorUtil.getColor(240, 240, 245, 255));
+                r.text(FontRegistry.MONTSERRAT, tx, baseline, 30, text, ColorUtil.getColor(240, 240, 245, 255));
+                if (caret) {
+                    float tw = r.measureText(FontRegistry.MONTSERRAT, text, 30).width;
+                    r.rect(tx + tw + 3, baseline - 21, 2, 24, ColorUtil.getColor(255, 255, 255, 190));
+                }
             }
         }
 

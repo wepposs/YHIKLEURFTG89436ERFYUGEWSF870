@@ -695,12 +695,15 @@ public class MultiplayerScreen extends Screen {
             if (info.name != null) nameInput.append(info.name);
             if (info.ip != null) addrInput.append(info.ip);
         }
+        // В MC 26.x (SDL) текст приходит, только пока включён TextInputManager.
+        try { Minecraft.getInstance().onTextInputFocusChange(this, true); } catch (Throwable ignored) {}
     }
 
     private void closeForm() {
         formOpen = false;
         focusedField = 0;
         selectAll = false;
+        try { Minecraft.getInstance().onTextInputFocusChange(this, false); } catch (Throwable ignored) {}
     }
 
     private void saveForm() {
@@ -753,6 +756,7 @@ public class MultiplayerScreen extends Screen {
 
     @Override
     public void removed() {
+        try { Minecraft.getInstance().onTextInputFocusChange(this, false); } catch (Throwable ignored) {}
         try { pinger.removeAll(); } catch (Throwable ignored) {}
         for (Entry e : entries) {
             if (e.iconId != null) { try { Minecraft.getInstance().getTextureManager().release(e.iconId); } catch (Throwable ignored) {} e.iconId = null; }

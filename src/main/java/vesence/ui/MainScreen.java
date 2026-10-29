@@ -778,6 +778,14 @@ public class MainScreen extends Screen {
         return settingsWindow.shouldCloseOnEsc();
     }
 
+    @Override
+    public void removed() {
+        // Страховка: если экран сменяется при открытом попапе создания аккаунта,
+        // выключаем приём текста (SDL TextInputManager).
+        accountSwitcher.releaseTextInput();
+        super.removed();
+    }
+
     // 26.3: Screen#shouldPause() заменён на isPauseScreen() (true по умолчанию).
     // Главное меню мир не держит, поэтому пауза не нужна.
     @Override
