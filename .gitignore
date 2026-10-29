@@ -42,3 +42,13 @@ gradle-app.setting
 *.iml
 out/
 __pycache__/
+
+# Temp probes/logs in root (untracked, kept on disk)
+/_*
+/dump_*.txt
+/wlog_*.txt
+/vesence*
+/weppos_build.txt
+*.log
+*.lck
+/.zcodeignore
