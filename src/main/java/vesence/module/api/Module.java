@@ -109,6 +109,8 @@ public class Module extends Config {
 
    public void toggle() {
       this.enable = !this.enable;
+      // Dynamic Island: хук последнего переключённого модуля (порт onModuleToggle из privatedlc).
+      vesence.module.impl.visuals.elements.modern.ModernDynamicIslandElement.onModuleToggle(this.name, this.enable);
       if (this.enable) {
          this.onEnable();
           Notifications.add(ColorFormat.color(255,255,255) + "Модуль "

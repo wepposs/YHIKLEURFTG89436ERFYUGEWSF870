@@ -264,6 +264,70 @@ public class ModuleManager {
               )
       );
 
+      // Портировано из privatedlc (Excellent 1.16.5):
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "ArrayList",
+                      "ArrayList"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Keystrokes",
+                      "Keystrokes"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Armor Hud",
+                      "Armor Hud"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Inventory Hud",
+                      "Inventory Hud"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Item Count",
+                      "Item Count"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Motion Graph",
+                      "Motion Graph"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Nearby Players",
+                      "Nearby Players"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Boss Bar",
+                      "Boss Bar"
+              )
+      );
+
+      this.module.add(
+              new vesence.module.impl.visuals.HudToggleModule(
+                      "Dynamic Island",
+                      "Dynamic Island"
+              )
+      );
+
       // =========================
       // INTERFACE (Theme + Display + Client)
       // регистрируется после HudToggleModule — собирает их настройки

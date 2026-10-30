@@ -212,6 +212,14 @@ public class BetterMinecraft extends Module {
       if (client.gameMode.getPlayerMode() == net.minecraft.world.level.GameType.SPECTATOR) {
          return false;
       }
+      // «Меню-экран» (пауза, инвентарь и т.п.) открыт — не рисуем кастомный
+      // хотбар: предметы уходят в ванильный GuiRenderer и светятся сквозь
+      // полупрозрачный фон меню. Чат и ClickGui клиента (GuiClient) — не меню.
+      if (client.gui != null && client.gui.screen() != null
+              && !(client.gui.screen() instanceof net.minecraft.client.gui.screens.ChatScreen)
+              && !(client.gui.screen() instanceof vesence.ui.clickgui.GuiClient)) {
+         return false;
+      }
       return client.player.getVehicle() == null;
    }
 

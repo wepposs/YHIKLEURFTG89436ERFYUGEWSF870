@@ -65,8 +65,20 @@ public class Torus extends Module {
 
         Entity hitEntity = null;
         if (event.getPacket() instanceof ClientboundDamageEventPacket packet) {
+            // Показываем тор ТОЛЬКО когда урон наносим мы: атакующий в DamageSource
+            // (direct или cause) — наш игрок. Раньше триггером была любая
+            // сущность с уроном — тор вешался на всех, кто получает урон.
+            if (!isDamageFromPlayer(packet)) return;
             hitEntity = MC.level.getEntity(packet.entityId());
-        } else if (event.getPacket() instanceof net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket packet) {
+            if (hitEntity != null) {
+                lastPlayerHitEntityId = hitEntity.getId();
+                lastPlayerHitTime = System.currentTimeMillis();
+            }
+        } else if (event.getPacket() instanceof ClientboundHurtAnimationPacket packet) {
+            // HurtAnimation не содержит атакующего — используем только если
+            // незадолго до этого был наш DamageEvent по этой же сущности
+            // (анимация урона от нашего удара).
+            if (!recentlyHitByPlayer(packet.id())) return;
             hitEntity = MC.level.getEntity(packet.id());
         }
 
@@ -79,6 +91,31 @@ public class Torus extends Module {
             this.toruses.add(new ActiveTorus(hitPos, rot[0], rot[1],
                     lifetime.get().doubleValue(), size.get().floatValue()));
         }
+    }
+
+    /** id сущности последнего нашего удара и время — фильтр для HurtAnimation. */
+    private int lastPlayerHitEntityId = -1;
+    private long lastPlayerHitTime = 0L;
+
+    /** Урон нанесён нашим игроком (direct — сам удар, cause — владелец снаряда). */
+    private boolean isDamageFromPlayer(ClientboundDamageEventPacket packet) {
+        try {
+            net.minecraft.world.damagesource.DamageSource source = packet.getSource(MC.level);
+            Entity direct = source.getDirectEntity();
+            if (direct == MC.player) return true;
+            Entity cause = source.getEntity();
+            return cause == MC.player;
+        } catch (Exception e) {
+            // Фолбэк: sourceCauseId/sourceDirectId совпадает с id нашего игрока.
+            return packet.sourceCauseId() == MC.player.getId()
+                    || packet.sourceDirectId() == MC.player.getId();
+        }
+    }
+
+    /** Недавний наш удар по этой сущности (для фильтра HurtAnimation). */
+    private boolean recentlyHitByPlayer(int entityId) {
+        return entityId == lastPlayerHitEntityId
+                && System.currentTimeMillis() - lastPlayerHitTime < 300L;
     }
 
     @EventInit

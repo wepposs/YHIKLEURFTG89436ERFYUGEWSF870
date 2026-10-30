@@ -58,7 +58,17 @@ public class Hud extends Module {
             new BooleanSetting("Hud Binds Assist", true),
             new BooleanSetting("Notifications", true),
             new BooleanSetting("Scoreboard", true),
-            new BooleanSetting("\u0418\u0432\u0435\u043d\u0442\u044b", true)
+            new BooleanSetting("\u0418\u0432\u0435\u043d\u0442\u044b", true),
+            // Портировано из privatedlc (Excellent 1.16.5):
+            new BooleanSetting("ArrayList", false),
+            new BooleanSetting("Keystrokes", false),
+            new BooleanSetting("Armor Hud", false),
+            new BooleanSetting("Inventory Hud", false),
+            new BooleanSetting("Item Count", false),
+            new BooleanSetting("Motion Graph", false),
+            new BooleanSetting("Nearby Players", false),
+            new BooleanSetting("Boss Bar", false),
+            new BooleanSetting("Dynamic Island", false)
     );
 
     private final BooleanSetting mentionAlert = Notifications.mentionAlert;
@@ -107,6 +117,16 @@ public class Hud extends Module {
         hudElements.add(new ModernNotificationsElement());
         hudElements.add(new ModernScoreboardElement());
         hudElements.add(new ModernEventsElement());
+        // Портировано из privatedlc (Excellent 1.16.5):
+        hudElements.add(new ModernArrayListElement());
+        hudElements.add(new ModernKeystrokesElement());
+        hudElements.add(new ModernArmorElement());
+        hudElements.add(new ModernInventoryElement());
+        hudElements.add(new ModernItemCountElement());
+        hudElements.add(new ModernMotionElement());
+        hudElements.add(new ModernNearbyPlayersElement());
+        hudElements.add(new ModernBossBarElement());
+        hudElements.add(new ModernDynamicIslandElement());
 
         this.addSettings(
                 elements,
@@ -385,6 +405,16 @@ public class Hud extends Module {
 
         for (HudElement element : renderList) {
             boolean enabled = elements.get(element.name);
+
+            // 26.3: на «меню-экранах» (пауза, инвентарь, настройки) HUD не рисуем —
+            // иначе элементы и предметы просвечивают сквозь полупрозрачный фон меню.
+            // Чат (редактор HUD) и ClickGui клиента (GuiClient) — НЕ меню: там HUD
+            // остаётся видимым.
+            // Хард-скип: элемент.render() вообще не вызывается, чтобы ctx.item()
+            // (предметы, спрайты эффектов) не попадали в ванильный GuiRenderer.
+            boolean blockedByScreen = isGuiOpen && !isChatOpen
+                    && !(mc.gui.screen() instanceof vesence.ui.clickgui.GuiClient);
+            if (blockedByScreen) continue;
 
             element.alphaAnim.update();
             element.alphaAnim.run(enabled ? 1.0 : 0.0, 0.2, Easings.CUBIC_OUT);

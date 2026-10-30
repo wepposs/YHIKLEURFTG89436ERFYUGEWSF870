@@ -691,12 +691,13 @@ public class CompactGuiRender {
                 true
         );
 
+        // Акцент-полоска индикатора: тонкая (1.6px) и с отступом по высоте.
         renderer.gradient(
                 sx + 5.5f,
-                indicatorY + 3,
-                3,
-                CompactGuiScreen.LEFT_CATEGORY_H - 6,
-                0.9f,
+                indicatorY + 4.5f,
+                1.6f,
+                CompactGuiScreen.LEFT_CATEGORY_H - 9,
+                0.8f,
                 ColorUtil.replAlpha(
                         Renderer2D.ColorUtil.getClientColor1(),
                         (int) (255 * alpha)

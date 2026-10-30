@@ -244,12 +244,8 @@ public class GuiRenderMain extends GuiScreen {
          int OutlineColor = ColorUtil.overCol(ColorUtil.getColor(255, (int)(5.1 * panelAlpha * effectiveModAlpha)),
                  ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int)(10.2 * panelAlpha * effectiveModAlpha)), animPC);
 
-         int rectColor2 = ColorUtil.overCol(ColorUtil.getColor(255, (int)(0 * panelAlpha * effectiveModAlpha)),
-                 ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int)(255 * panelAlpha * effectiveModAlpha)), animPC);
-
          renderer2D.rect(panelX + 8 + effectiveModXOffset, rectY, pw - 16, cardH, 3, rectColor);
          renderer2D.rectOutline(panelX + 8 + effectiveModXOffset, rectY, pw - 16, cardH + 0.5F, 3, OutlineColor, 1);
-         renderer2D.rect(panelX + 8 + effectiveModXOffset, rectY, 2.5F, cardH, 3, 0, 0, 3, rectColor2);
 
          String test = module.binding ? "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + "NONE" + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]" : "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + module.bindLabel() + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]";
 
